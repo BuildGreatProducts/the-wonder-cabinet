@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heart Balloon Like</title>
+<meta name="description" content="A like button painted like a children's picture book: press and hold to blow up a heart balloon, let go and it floats up to join the bunch tied to the post — over-inflate it and it pops into a super-like.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Patrick+Hand&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Heart Balloon Like","reimagines":"Like button","category":"Buttons & Actions","description":"Painted in grainy picture-book gouache: press and hold the heart to blow up a heart-shaped balloon — the longer you hold, the bigger the love (like, love, adore). Let go and it floats up on its string to join the bunch tied to the post. Keep blowing past the wobble and it pops into confetti: a super-like. Tap your balloon to untie it.","hint":"Press and hold the heart to blow up a balloon, then let go"}
+</script>
+<style>
+:root{ --paper:#f4e9d2; --card:#fbf3e2; --ink:#4a3428; --tomato:#e8573f; --leaf:#7a9a52; --sky:#a9cbd6; --mustard:#e9b44c; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:"Patrick Hand","Comic Sans MS",cursive;color:var(--ink);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+.paper{position:fixed;inset:0;pointer-events:none;z-index:40;mix-blend-mode:multiply;opacity:.7;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='360'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' seed='12'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .45 0 0 0 0 .32 0 0 0 .38 0'/%3E%3C/filter%3E%3Crect width='360' height='360' filter='url(%23f)'/%3E%3C/svg%3E")}
+#bg,#fx{position:fixed;inset:0;width:100%;height:100%;display:block}
+#fx{z-index:20;pointer-events:none}
+.card{position:fixed;z-index:10;width:var(--cw);left:var(--cx);top:var(--cy)}
+.card::before{content:"";position:absolute;inset:-6px;background:var(--card);border-radius:26px 30px 24px 32px;filter:url(#rough);
+  box-shadow:6px 9px 0 rgba(74,52,40,.14)}
+.card > *{position:relative}
+.who{display:flex;align-items:center;gap:12px;padding:18px 22px 10px}
+.who canvas{width:46px;height:46px;flex:none}
+.who h1{font-family:"Caveat Brush",cursive;font-weight:400;font-size:25px;line-height:1;margin:0}
+.who p{margin:2px 0 0;font-size:15px;opacity:.75}
+.pic{display:block;margin:4px 18px 0;width:calc(100% - 36px);aspect-ratio:16/10;border-radius:14px 18px 12px 20px}
+.caption{margin:12px 22px 4px;font-size:19px;line-height:1.3}
+.bar{display:flex;align-items:center;gap:14px;padding:10px 18px 18px}
+.heart{position:relative;width:74px;height:74px;border:0;padding:0;background:none;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;flex:none}
+.heart svg{width:100%;height:100%;display:block;overflow:visible;transition:transform .12s}
+.heart.down svg{transform:scale(.9)}
+.heart #heartPath{transition:fill .3s}
+.heart[aria-pressed="true"] #heartPath{fill:#e8573f}
+.heart:focus-visible{outline:3px dashed var(--tomato);outline-offset:4px;border-radius:50%}
+.count{font-size:19px;line-height:1.15}
+.count b{font-family:"Caveat Brush",cursive;font-weight:400;font-size:28px;color:var(--tomato)}
+.count small{display:block;font-size:15px;opacity:.7}
+.level{position:fixed;z-index:25;font-family:"Caveat Brush",cursive;font-size:34px;color:var(--tomato);pointer-events:none;transform:translate(-50%,-50%) rotate(-6deg);opacity:0;transition:opacity .2s;white-space:nowrap;
+  text-shadow:2px 2px 0 var(--card)}
+.level.on{opacity:1}
+.hint{position:fixed;z-index:12;font-family:"Caveat Brush",cursive;font-size:24px;color:var(--ink);opacity:.85;pointer-events:none;transition:opacity .6s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.hint svg{width:56px;height:40px}
+.star{position:fixed;z-index:11;width:96px;height:96px;pointer-events:none;transform:scale(0) rotate(-30deg);transition:transform .5s cubic-bezier(.3,1.7,.5,1)}
+.star.on{transform:scale(1) rotate(-12deg)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mute{position:fixed;right:16px;top:14px;z-index:30;width:40px;height:40px;border:0;background:none;cursor:pointer;padding:0;color:var(--ink)}
+.mute svg{width:100%;height:100%;display:block}
+@media (max-width:760px){
+  .who{padding:12px 14px 6px}.who h1{font-size:21px}.who p{font-size:13px}
+  .pic{margin:2px 12px 0;width:calc(100% - 24px)}
+  .caption{margin:8px 14px 2px;font-size:16px}
+  .bar{padding:8px 12px 12px}
+  .heart{width:62px;height:62px}
+  .hint{font-size:19px}
+  .level{font-size:28px}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough" x="-3%" y="-3%" width="106%" height="106%">
+    <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="brush" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="3" seed="3" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 0 0 0 1.25" result="m"/>
+    <feComposite in="d" in2="m" operator="in"/>
+  </filter>
+</svg>
+<canvas id="bg" aria-hidden="true"></canvas>
+<article class="card" id="card" aria-label="Post by Joe Adeyemi">
+  <header class="who"><canvas id="ava" width="92" height="92" aria-hidden="true"></canvas><div><h1>Grandad Joe</h1><p>Joe Adeyemi · Bristol · 2 h</p></div></header>
+  <canvas class="pic" id="pic" aria-label="Painting of an allotment with three big pumpkins under a blue sky"></canvas>
+  <p class="caption">First frost tonight, so the pumpkins came in. The big one weighs 14 kilos — soup for a month!</p>
+  <div class="bar">
+    <button class="heart" id="heart" type="button" aria-pressed="false" aria-describedby="countText" aria-label="Like. Press and hold to blow up a bigger heart.">
+      <svg viewBox="-50 -50 100 100" aria-hidden="true"><g filter="url(#brush)"><path id="heartPath" d="M0 34 C-6 29 -46 8 -46 -16 C-46 -38 -20 -48 0 -27 C20 -48 46 -38 46 -16 C46 8 6 29 0 34Z" fill="#fbf3e2" stroke="#e8573f" stroke-width="7" stroke-linejoin="round"/>
+        <path d="M-30 -26 C-30 -32 -22 -36 -16 -34" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8"/></g></svg>
+    </button>
+    <div class="count" id="countText" aria-live="polite"><b id="n">126</b> balloons of love<small id="sub">hold the heart to add yours</small></div>
+  </div>
+</article>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="level" id="level"></div>
+<p class="hint" id="hint"><svg viewBox="0 0 56 40" fill="none" stroke="#4a3428" stroke-width="3" stroke-linecap="round"><path d="M52 22C38 10 20 12 6 22"/><path d="M14 12 5 22l11 6"/></svg>hold me &amp; puff!</p>
+<svg class="star" id="star" viewBox="-50 -50 100 100" aria-hidden="true"><g filter="url(#brush)"><path d="M0-44 12-14 44-12 19 8 28 40 0 22-28 40-19 8-44-12-12-14Z" fill="#e9b44c" stroke="#4a3428" stroke-width="3" stroke-linejoin="round"/><text y="9" text-anchor="middle" font-family="Caveat Brush" font-size="21" fill="#4a3428" transform="rotate(8)">super!</text></g></svg>
+<button class="mute" id="mute" type="button" aria-label="Mute sound" aria-pressed="false"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="#fbf3e2" stroke="#4a3428" stroke-width="2.5"/><path d="M11 17h5l6-5v16l-6-5h-5z" fill="#4a3428"/><path id="mw" d="M25 15c2 2 2 8 0 10M28 12c4 4 4 12 0 16" fill="none" stroke="#4a3428" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+<div class="paper" aria-hidden="true"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const INK = '#4a3428';
+let W, H, DPR, mobile;
+
+/* ---------- gouache helpers ---------- */
+let GRAIN = null;
+function makeGrain(){
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); const img = g.createImageData(S, S), d = img.data;
+  const L = 16, grid = []; for (let i=0;i<L*L;i++) grid.push(Math.random());
+  const vn = (x, y) => { const gx = x/S*L, gy = y/S*L, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0, u = fx*fx*(3-2*fx), v = fy*fy*(3-2*fy);
+    const at = (a, b) => grid[((b % L + L) % L)*L + ((a % L + L) % L)]; return lerp(lerp(at(x0,y0), at(x0+1,y0), u), lerp(at(x0,y0+1), at(x0+1,y0+1), u), v); };
+  for (let y=0;y<S;y++) for (let x=0;x<S;x++){ const i = (y*S + x)*4; const v = Math.random()*.55 + vn(x, y*.6)*.45;
+    d[i] = d[i+1] = d[i+2] = v > .5 ? 255 : 40; d[i+3] = Math.min(255, Math.abs(v - .5)*2*95); }
+  g.putImageData(img, 0, 0); GRAIN = c;
+}
+function gouache(dst, path, color, opt = {}){
+  // paint each shape on its own scrap of paper, then lay it down: flat body, uneven pigment, chalky light, dry-brush edge
+  const m = dst.getTransform(), b = opt.bounds || [0, 0, dst.canvas.width, dst.canvas.height], pad = 24;
+  const pts = [[b[0]-pad, b[1]-pad], [b[0]+b[2]+pad, b[1]-pad], [b[0]-pad, b[1]+b[3]+pad], [b[0]+b[2]+pad, b[1]+b[3]+pad]].map(([x, y]) => [m.a*x + m.c*y + m.e, m.b*x + m.d*y + m.f]);
+  const bx = Math.floor(Math.min(...pts.map(p => p[0]))), by = Math.floor(Math.min(...pts.map(p => p[1])));
+  const bw = Math.ceil(Math.max(...pts.map(p => p[0]))) - bx, bh = Math.ceil(Math.max(...pts.map(p => p[1]))) - by;
+  if (bw < 1 || bh < 1) return;
+  const tc = document.createElement('canvas'); tc.width = bw; tc.height = bh; const g = tc.getContext('2d');
+  g.setTransform(m.a, m.b, m.c, m.d, m.e - bx, m.f - by);
+  g.fillStyle = color; path(g); g.fill();
+  g.globalCompositeOperation = 'source-atop';
+  if (opt.shade !== false){ const gr = g.createLinearGradient(b[0], b[1], b[0] + b[2], b[1] + b[3]); gr.addColorStop(0, 'rgba(255,255,255,.16)'); gr.addColorStop(.55, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(60,30,20,.2)'); g.fillStyle = gr; g.fillRect(b[0] - pad, b[1] - pad, b[2] + pad*2, b[3] + pad*2); }
+  g.save(); g.setTransform(1,0,0,1,0,0); g.globalAlpha = opt.grain ?? .35; g.fillStyle = g.createPattern(GRAIN, 'repeat'); g.fillRect(0, 0, bw, bh); g.restore();
+  g.globalCompositeOperation = 'destination-out';
+  for (let i=0;i<(opt.dry ?? 40);i++){ const x = b[0] + Math.random()*b[2], y = b[1] + Math.random()*b[3]; g.globalAlpha = .5; g.beginPath(); g.arc(x, y, Math.random()*1.6 + .3, 0, 7); g.fill(); }
+  dst.save(); dst.setTransform(1,0,0,1,0,0); dst.drawImage(tc, bx, by); dst.restore();
+}
+function blob(cx, cy, rx, ry, wob = .12, seed = 1){ return g => { g.beginPath(); for (let i=0;i<=40;i++){ const a = i/40*Math.PI*2, r = 1 + Math.sin(a*3 + seed)*wob*.5 + Math.sin(a*5 + seed*2)*wob*.3; const x = cx + Math.cos(a)*rx*r, y = cy + Math.sin(a)*ry*r; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); }; }
+function heartPath(g, R){ g.beginPath(); g.moveTo(0, .36*R*2); g.bezierCurveTo(-.06*R*2, .3*R*2, -.5*R*2, .06*R*2, -.5*R*2, -.17*R*2); g.bezierCurveTo(-.5*R*2, -.44*R*2, -.22*R*2, -.54*R*2, 0, -.3*R*2); g.bezierCurveTo(.22*R*2, -.54*R*2, .5*R*2, -.44*R*2, .5*R*2, -.17*R*2); g.bezierCurveTo(.5*R*2, .06*R*2, .06*R*2, .3*R*2, 0, .36*R*2); g.closePath(); }
+
+/* ---------- painted picture + avatar + backdrop ---------- */
+function paintPicture(){
+  const c = $('#pic'), r = c.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); c.width = Math.round(r.width*d); c.height = Math.round(r.height*d);
+  const g = c.getContext('2d'); g.scale(d, d); const w = r.width, h = r.height;
+  g.fillStyle = '#a9cbd6'; g.fillRect(0, 0, w, h);
+  gouache(g, x => { x.beginPath(); x.rect(0, 0, w, h); }, '#a9cbd6', {bounds:[0,0,w,h], dry:0, grain:.3});
+  gouache(g, blob(w*.2, h*.22, w*.13, h*.07, .2, 2), '#f7efe0', {bounds:[w*.05,h*.12,w*.3,h*.2]});
+  gouache(g, blob(w*.72, h*.16, w*.1, h*.05, .2, 5), '#f7efe0', {bounds:[w*.6,h*.1,w*.24,h*.14]});
+  gouache(g, blob(w*.86, h*.2, w*.06, h*.06, .05, 1), '#f2c55c', {bounds:[w*.8,h*.13,w*.13,h*.15]});
+  gouache(g, x => { x.beginPath(); x.moveTo(0, h*.55); x.bezierCurveTo(w*.25, h*.38, w*.5, h*.5, w*.7, h*.42); x.bezierCurveTo(w*.85, h*.37, w, h*.45, w, h*.45); x.lineTo(w, h); x.lineTo(0, h); x.closePath(); }, '#9bb46a', {bounds:[0,h*.35,w,h*.65]});
+  gouache(g, x => { x.beginPath(); x.moveTo(0, h*.7); x.bezierCurveTo(w*.3, h*.6, w*.6, h*.72, w, h*.62); x.lineTo(w, h); x.lineTo(0, h); x.closePath(); }, '#7a9a52', {bounds:[0,h*.58,w,h*.42]});
+  // soil rows
+  for (let i=0;i<3;i++) gouache(g, blob(w*.5, h*(.8 + i*.07), w*.55, h*.022, .3, i), '#8a5a3c', {bounds:[0,h*.75,w,h*.25], dry:10});
+  // shed + fence
+  gouache(g, x => { x.beginPath(); x.moveTo(w*.08, h*.62); x.lineTo(w*.08, h*.4); x.lineTo(w*.15, h*.33); x.lineTo(w*.22, h*.4); x.lineTo(w*.22, h*.6); x.closePath(); }, '#c86e52', {bounds:[w*.08,h*.33,w*.14,h*.29]});
+  gouache(g, x => { x.beginPath(); x.rect(w*.13, h*.48, w*.04, h*.12); }, '#4a3428', {bounds:[w*.13,h*.48,w*.04,h*.12], dry:4});
+  for (let i=0;i<7;i++) gouache(g, x => { x.beginPath(); x.rect(w*(.62 + i*.05), h*.5 - (i%2)*h*.01, w*.014, h*.13); }, '#f1e4c8', {bounds:[w*.6,h*.48,w*.4,h*.16], dry:3, shade:false});
+  // pumpkins
+  const pk = (cx, cy, s) => { for (let k=-2;k<=2;k++) gouache(g, blob(cx + k*s*.32, cy, s*.42, s*.5, .06, k+3), k%2 ? '#e0662e' : '#ec7a35', {bounds:[cx - s, cy - s*.6, s*2, s*1.2], dry:8});
+    gouache(g, x => { x.beginPath(); x.moveTo(cx, cy - s*.45); x.quadraticCurveTo(cx + s*.08, cy - s*.7, cx + s*.18, cy - s*.72); x.lineWidth = s*.12; x.strokeStyle = '#5d7a3a'; x.stroke(); x.beginPath(); x.arc(cx, cy - s*.45, s*.06, 0, 7); }, '#5d7a3a', {bounds:[cx-s*.1,cy-s*.75,s*.35,s*.35], dry:2}); };
+  pk(w*.32, h*.8, w*.1); pk(w*.55, h*.84, w*.07); pk(w*.76, h*.79, w*.085);
+  // leaves
+  for (let i=0;i<9;i++){ const x0 = w*(.15 + i*.09), y0 = h*(.9 + (i%3)*.03); gouache(g, blob(x0, y0, w*.03, h*.03, .3, i), i%2 ? '#6d8f45' : '#87a85a', {bounds:[x0 - 20, y0 - 20, 40, 40], dry:4}); }
+  // little Joe with a wheelbarrow
+  gouache(g, blob(w*.9, h*.55, w*.018, w*.018, .05, 2), '#8d5a3b', {bounds:[w*.86,h*.5,w*.08,h*.1], dry:2});
+  gouache(g, x => { x.beginPath(); x.moveTo(w*.88, h*.73); x.lineTo(w*.885, h*.59); x.lineTo(w*.915, h*.59); x.lineTo(w*.92, h*.73); x.closePath(); }, '#3f6e8c', {bounds:[w*.87,h*.58,w*.06,h*.16], dry:3});
+  gouache(g, x => { x.beginPath(); x.moveTo(w*.879, h*.53); x.lineTo(w*.921, h*.53); x.lineTo(w*.912, h*.5); x.lineTo(w*.888, h*.5); x.closePath(); }, '#e9b44c', {bounds:[w*.87,h*.49,w*.06,h*.05], dry:2});
+}
+function paintAvatar(){
+  const c = $('#ava'), g = c.getContext('2d'); g.clearRect(0,0,92,92);
+  gouache(g, blob(46, 46, 42, 42, .05, 1), '#e9b44c', {bounds:[0,0,92,92], dry:20});
+  gouache(g, x => { x.beginPath(); x.moveTo(14, 92); x.quadraticCurveTo(46, 50, 78, 92); x.closePath(); }, '#3f6e8c', {bounds:[10,55,72,37], dry:8});
+  gouache(g, blob(46, 42, 17, 19, .05, 3), '#8d5a3b', {bounds:[26,20,40,44], dry:6});
+  gouache(g, x => { x.beginPath(); x.ellipse(46, 26, 20, 7, 0, Math.PI, 0); x.rect(26, 24, 40, 4); }, '#7a9a52', {bounds:[24,18,44,12], dry:4});
+  g.fillStyle = INK; g.beginPath(); g.arc(40, 42, 2, 0, 7); g.arc(52, 42, 2, 0, 7); g.fill();
+  g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); g.arc(46, 48, 6, .3, Math.PI - .3); g.stroke();
+}
+let backdrop = null;
+function paintBackdrop(){
+  const c = $('#bg'); c.width = Math.round(W*DPR); c.height = Math.round(H*DPR); const g = c.getContext('2d'); g.setTransform(DPR,0,0,DPR,0,0);
+  g.fillStyle = '#f4e9d2'; g.fillRect(0, 0, W, H);
+  g.globalAlpha = .12; g.fillStyle = g.createPattern(GRAIN, 'repeat'); g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  gouache(g, blob(W*.86, H*.12, 120, 62, .25, 4), '#fbf6ea', {bounds:[W*.86-140, H*.12-80, 280, 160], dry:0, grain:.25});
+  gouache(g, blob(W*.1, H*.3, 150, 60, .25, 1), '#fbf6ea', {bounds:[W*.1-170, H*.3-80, 340, 160], dry:0, grain:.25});
+  gouache(g, x => { x.beginPath(); x.moveTo(0, H*.86); x.bezierCurveTo(W*.3, H*.78, W*.6, H*.9, W, H*.8); x.lineTo(W, H); x.lineTo(0, H); x.closePath(); }, '#d6dcb6', {bounds:[0,H*.78,W,H*.22], dry:0});
+  gouache(g, x => { x.beginPath(); x.moveTo(0, H*.93); x.bezierCurveTo(W*.4, H*.88, W*.7, H*.97, W, H*.9); x.lineTo(W, H); x.lineTo(0, H); x.closePath(); }, '#c4cfa0', {bounds:[0,H*.86,W,H*.14], dry:0});
+  // painted flowers along the bottom
+  for (let i=0;i<14;i++){ const x = (i + .5)*W/14 + Math.sin(i*7)*20, y = H*.95 - (i%3)*8; g.strokeStyle = '#7a9a52'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, H); g.quadraticCurveTo(x + 6, y + 20, x, y); g.stroke();
+    gouache(g, blob(x, y, 9, 9, .3, i), ['#e8573f','#e9b44c','#f2a3a1','#fbf3e2'][i%4], {bounds:[x-12,y-12,24,24], dry:3}); }
+  // the post the balloon bunch is tied to
+  const A = anchor();
+  gouache(g, x => { x.beginPath(); x.moveTo(A.x - 9, A.y + 6); x.lineTo(A.x + 9, A.y + 6); x.lineTo(A.x + 11, H); x.lineTo(A.x - 11, H); x.closePath(); }, '#9a6b47', {bounds:[A.x-12, A.y, 24, H - A.y], dry:10});
+  gouache(g, blob(A.x, A.y + 6, 13, 6, .1, 2), '#b9875e', {bounds:[A.x-14, A.y, 28, 12], dry:3});
+  g.strokeStyle = 'rgba(74,52,40,.45)'; g.lineWidth = 1.5; for (let k=0;k<6;k++){ g.beginPath(); g.moveTo(A.x - 5 + k*2, A.y + 20 + k*30); g.lineTo(A.x - 4 + k*2, A.y + 60 + k*30); g.stroke(); }
+  // a tiny sign on the post
+  g.save(); g.translate(A.x, A.y + 90); g.rotate(-.06);
+  gouache(g, x => { x.beginPath(); x.rect(-46, -16, 92, 32); }, '#fbf3e2', {bounds:[-46,-16,92,32], dry:6}); g.fillStyle = INK; g.font = '20px "Caveat Brush", cursive'; g.textAlign = 'center'; g.fillText('love this!', 0, 7); g.restore();
+}
+
+/* ---------- balloons ---------- */
+const PALETTE = ['#f2a3a1', '#e9b44c', '#a9cbd6', '#c9b6e4', '#9bc59d', '#f6c9a8'];
+const MINE = '#e8573f';
+const sprites = new Map();
+function balloonSprite(color, R){
+  const key = color + Math.round(R); if (sprites.has(key)) return sprites.get(key);
+  const s = Math.ceil(R*2.6), c = document.createElement('canvas'); c.width = c.height = Math.ceil(s*DPR); const g = c.getContext('2d'); g.scale(DPR, DPR); g.translate(s/2, s/2);
+  gouache(g, x => heartPath(x, R), color, {bounds:[-R, -R*1.1, R*2, R*1.9], dry: 30 + R});
+  // chalky highlight dabs
+  g.save(); g.globalAlpha = .75; g.strokeStyle = '#fffaf0'; g.lineCap = 'round'; g.lineWidth = Math.max(2, R*.13);
+  g.beginPath(); g.arc(-R*.42, -R*.3, R*.32, Math.PI*1.05, Math.PI*1.5); g.stroke(); g.lineWidth = Math.max(1.5, R*.08); g.beginPath(); g.arc(-R*.2, -R*.72, R*.04, 0, 7); g.stroke(); g.restore();
+  // coloured-pencil outline, a little off
+  g.strokeStyle = 'rgba(74,52,40,.55)'; g.lineWidth = 1.4; g.save(); g.translate(1.2, .8); heartPath(g, R*.99); g.stroke(); g.restore();
+  // knot
+  g.fillStyle = color; g.beginPath(); g.moveTo(-R*.09, R*.78); g.lineTo(R*.09, R*.78); g.lineTo(0, R*.66); g.closePath(); g.fill(); g.stroke();
+  const o = {c, s}; sprites.set(key, o); return o;
+}
+// each balloon: position + verlet string to the anchor
+const balloons = [];
+function anchor(){
+  const r = $('#card').getBoundingClientRect();
+  return mobile ? {x: W*.7, y: r.top - 12} : {x: Math.min(W - 70, r.right + 130), y: H*.62};
+}
+function addBalloon(color, R, mine, from){
+  const A = anchor(), N = 10;
+  const b = {color, R, mine, x: from ? from.x : A.x + (Math.random()-.5)*60, y: from ? from.y : A.y - 220 - Math.random()*80, px:0, py:0, rope:[], len: (mobile ? 105 : 150) + Math.random()*45, ph: Math.random()*6, free:false};
+  b.px = b.x; b.py = b.y;
+  for (let i=0;i<=N;i++){ const t = i/N; b.rope.push({x: lerp(b.x, A.x, t), y: lerp(b.y + R*.75, A.y, t), px: lerp(b.x, A.x, t), py: lerp(b.y + R*.75, A.y, t)}); }
+  balloons.push(b); return b;
+}
+function simulate(dt){
+  const A = anchor(), wind = Math.sin(T*.4)*14 + Math.sin(T*1.3)*6;
+  for (const b of balloons){
+    const lift = b.free ? -120 : -110 - b.R*.8;
+    const vx = (b.x - b.px)*.97, vy = (b.y - b.py)*.97; b.px = b.x; b.py = b.y;
+    b.x += vx + (wind + Math.sin(T + b.ph)*8)*dt*dt*12; b.y += vy + lift*dt*dt*12;
+    for (const p of b.rope){ if (p === b.rope[b.rope.length-1] && !b.free) continue; const vx2 = (p.x - p.px)*.96, vy2 = (p.y - p.py)*.96; p.px = p.x; p.py = p.y; p.x += vx2; p.y += vy2 + 8*dt*dt*12; }
+  }
+  for (let it=0; it<6; it++){
+    for (const b of balloons){
+      const r = b.rope, seg = b.len/(r.length-1);
+      r[0].x = b.x; r[0].y = b.y + b.R*.75;
+      if (!b.free){ r[r.length-1].x = A.x; r[r.length-1].y = A.y; }
+      for (let i=0;i<r.length-1;i++){ const p = r[i], q = r[i+1], dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1, diff = (d - seg)/d;
+        if (d <= seg && i > 0) continue; // strings go slack, they don't push
+        const w0 = i === 0 ? .35 : .5, w1 = (i + 1 === r.length - 1 && !b.free) ? 0 : .5;
+        p.x += dx*diff*w0; p.y += dy*diff*w0; q.x -= dx*diff*w1; q.y -= dy*diff*w1; if (i === 0){ b.x += dx*diff*w0; b.y += dy*diff*w0; } }
+    }
+    for (let i=0;i<balloons.length;i++) for (let j=i+1;j<balloons.length;j++){ const a = balloons[i], c = balloons[j]; const dx = c.x - a.x, dy = c.y - a.y, md = (a.R + c.R)*.82, d = Math.hypot(dx, dy) || 1;
+      if (d < md){ const o = (md - d)/2/d; a.x -= dx*o; a.y -= dy*o; c.x += dx*o; c.y += dy*o; } }
+    for (const b of balloons){ if (b.y < b.R + 6 && !b.free){ b.y = b.R + 6; } }
+  }
+  for (let i = balloons.length - 1; i >= 0; i--) if (balloons[i].free && balloons[i].y < -balloons[i].R*3) balloons.splice(i, 1);
+}
+
+/* ---------- audio ---------- */
+let ac = null, master = null, muted = false, squeak = null, NB = null;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .17; master.connect(ac.destination);
+  const b = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = b.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; NB = b; } catch(e){} }
+  if (ac && ac.state === 'suspended') ac.resume(); return ac && !muted; }
+function squeakOn(on){
+  if (!audio()){ return; }
+  if (on && !squeak){ const n = ac.createBufferSource(); n.buffer = NB; n.loop = true; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500; f.Q.value = 4;
+    const o = ac.createOscillator(), og = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain(); o.type = 'triangle'; o.frequency.value = 180; lfo.frequency.value = 7; lg.gain.value = 6; lfo.connect(lg).connect(o.frequency);
+    const g = ac.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(.35, ac.currentTime, .05); og.gain.value = .12;
+    n.connect(f).connect(g); o.connect(og).connect(g); g.connect(master); n.start(); o.start(); lfo.start(); squeak = {n, o, lfo, f, g}; }
+  else if (!on && squeak){ const s = squeak; squeak = null; s.g.gain.setTargetAtTime(0, ac.currentTime, .03); const t = ac.currentTime + .2; s.n.stop(t); s.o.stop(t); s.lfo.stop(t); }
+}
+function squeakLevel(v){ if (squeak){ squeak.o.frequency.setTargetAtTime(180 + v*420, ac.currentTime, .05); squeak.f.frequency.setTargetAtTime(500 + v*1300, ac.currentTime, .05); } }
+function tone(f, d, v, type='sine', f2){ if (!audio()) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g).connect(master); o.start(t); o.stop(t + d + .02); }
+function pop(){ if (!audio()) return; const t = ac.currentTime, n = ac.createBufferSource(); n.buffer = NB; const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 600; const g = ac.createGain();
+  g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(.001, t + .12); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t + .14); tone(160, .18, .5, 'sine', 50);
+  [784, 988, 1175, 1568].forEach((fq, i) => setTimeout(() => tone(fq, .4, .12, 'triangle'), 120 + i*70)); }
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').setAttribute('aria-pressed', muted); $('#mw').style.display = muted ? 'none' : ''; if (muted) squeakOn(false); });
+
+/* ---------- liking ---------- */
+const heart = $('#heart'), lvl = $('#level'), nEl = $('#n'), sub = $('#sub'), hint = $('#hint'), star = $('#star');
+let count = 126, liked = null, inflating = null, superCount = 0, confetti = [];
+const LEVELS = [[.0, 'like'], [.38, 'love'], [.7, 'adore!'], [1.0, 'careful…'], [1.12, 'eek!']];
+function levelName(v){ let n = LEVELS[0][1]; for (const [t, s] of LEVELS) if (v >= t) n = s; return n; }
+function nozzle(){ const r = heart.getBoundingClientRect(); return {x: r.left + r.width/2, y: r.top + r.height*.1}; }
+function startInflate(){
+  if (inflating) return; audio(); heart.classList.add('down');
+  inflating = {v:0, t0: performance.now(), wob:0};
+  squeakOn(true); hint.style.opacity = 0;
+}
+function endInflate(){
+  if (!inflating) return; heart.classList.remove('down'); squeakOn(false);
+  const f = inflating; inflating = null; lvl.classList.remove('on');
+  const held = performance.now() - f.t0;
+  if (held < 160 && liked){ unlike(); return; }
+  if (f.v < .06) f.v = .06;
+  // let go: the balloon rises and gets tied to the bunch
+  if (liked) unlike(true);
+  const R = sizeFor(f.v), n = nozzle();
+  const b = addBalloon(MINE, R, true, {x: n.x, y: n.y - R*.8});
+  b.rope.forEach((p, i) => { p.x = n.x; p.y = n.y - R*.05 + i*2; p.px = p.x; p.py = p.y; });
+  liked = b; count++; render(levelName(Math.min(f.v, .99)));
+  tone(520, .18, .25, 'triangle', 880);
+  heart.setAttribute('aria-pressed', 'true');
+}
+function sizeFor(v){ return (mobile ? 18 : 22) + v*(mobile ? 34 : 46); }
+function unlike(silent){
+  if (!liked) return; liked.free = true; liked = null; count--;
+  heart.setAttribute('aria-pressed', 'false');
+  if (!silent){ render(null); tone(700, .25, .2, 'triangle', 300); }
+}
+function superLike(){
+  const f = inflating; inflating = null; squeakOn(false); heart.classList.remove('down'); lvl.classList.remove('on');
+  const n = nozzle(), R = sizeFor(f.v); pop();
+  for (let i=0;i<70;i++){ const a = Math.random()*Math.PI*2, s = 150 + Math.random()*420; confetti.push({x: n.x, y: n.y - R*.9, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 200, r: 4 + Math.random()*6, c: [MINE, '#e9b44c', '#a9cbd6', '#9bc59d', '#f2a3a1'][i%5], a: Math.random()*6, va: (Math.random()-.5)*12, t:0, shape: i%3}); }
+  if (liked) unlike(true);
+  superCount++; count++; liked = addBalloon(MINE, sizeFor(.85), true); liked.y = H + 80; liked.x = anchor().x - 40; liked.px = liked.x; liked.py = liked.y + 4;
+  liked.rope.forEach(p => { p.x = liked.x; p.y = liked.y + 20; p.px = p.x; p.py = p.y; });
+  star.classList.add('on'); placeStar();
+  render('super');
+  heart.setAttribute('aria-pressed', 'true');
+}
+function render(kind){
+  nEl.textContent = count;
+  const map = {like:'you like this', love:'you love this', 'adore!':'you adore this', super:'you super-love this!'};
+  sub.textContent = kind ? map[kind] + (liked ? ' · tap the heart to untie' : '') : 'hold the heart to add yours';
+}
+heart.addEventListener('pointerdown', e => { e.preventDefault(); try { heart.setPointerCapture(e.pointerId); } catch(_){} startInflate(); });
+heart.addEventListener('pointerup', endInflate);
+heart.addEventListener('pointercancel', () => { if (inflating){ inflating = null; squeakOn(false); heart.classList.remove('down'); lvl.classList.remove('on'); } });
+heart.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat){ e.preventDefault(); startInflate(); } });
+heart.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); endInflate(); } });
+heart.addEventListener('blur', () => { if (inflating) endInflate(); });
+// tap your own balloon in the bunch to untie it
+$('#fx').style.pointerEvents = 'none';
+addEventListener('pointerdown', e => { if (!liked || e.target.closest('button')) return; const b = liked; if (Math.hypot(e.clientX - b.x, e.clientY - b.y) < b.R){ unlike(); } });
+
+/* ---------- layout + loop ---------- */
+const card = $('#card');
+function layout(){
+  W = innerWidth; H = innerHeight; mobile = W < 760; DPR = Math.min(2, devicePixelRatio || 1);
+  const fx = $('#fx'); fx.width = Math.round(W*DPR); fx.height = Math.round(H*DPR);
+  const cw = mobile ? W - 28 : Math.min(500, W*.4);
+  card.style.setProperty('--cw', cw + 'px');
+  const ch = card.offsetHeight || cw*1.1;
+  card.style.setProperty('--cx', (mobile ? 14 : Math.max(60, W*.5 - cw - 40)) + 'px');
+  card.style.setProperty('--cy', (mobile ? H - ch - 16 : (H - ch)/2) + 'px');
+  requestAnimationFrame(() => {
+    const ch2 = card.offsetHeight; card.style.setProperty('--cy', (mobile ? H - ch2 - 14 : (H - ch2)/2) + 'px');
+    paintPicture(); paintBackdrop(); sprites.clear();
+    const hr = heart.getBoundingClientRect();
+    const cr = card.getBoundingClientRect(); hint.style.display = mobile ? 'none' : ''; hint.style.left = (cr.right - 200) + 'px'; hint.style.top = (hr.top + hr.height/2 - 22) + 'px';
+    placeStar();
+  });
+}
+function placeStar(){ const r = card.getBoundingClientRect(); star.style.left = (r.right - 70) + 'px'; star.style.top = (r.top - 30) + 'px'; }
+let last = performance.now(), T = 0;
+const fx = $('#fx'), ctx = fx.getContext('2d');
+function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden){ last = now; return; }
+  const dt = Math.min(.033, (now - last)/1000); last = now; T += dt;
+  if (inflating){
+    const f = inflating; f.v += dt*(reduce ? .6 : .42)*(1 + f.v*.3); squeakLevel(f.v);
+    const name = levelName(f.v), n = nozzle(), R = sizeFor(f.v);
+    lvl.textContent = name; lvl.classList.add('on'); lvl.style.left = (n.x + R*.9) + 'px'; lvl.style.top = (n.y - R*1.8 - 26) + 'px';
+    if (f.v > 1.22) superLike();
+  }
+  simulate(dt);
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0, 0, W, H);
+  // strings
+  for (const b of balloons){ ctx.strokeStyle = 'rgba(74,52,40,.75)'; ctx.lineWidth = 1.6; ctx.beginPath(); b.rope.forEach((p, i) => i ? ctx.lineTo(p.x + Math.sin(i*1.7)*.6, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); }
+  // little bow at the post
+  if (balloons.some(b => !b.free)){ const A = anchor(); ctx.fillStyle = MINE; ctx.beginPath(); ctx.ellipse(A.x - 7, A.y - 2, 7, 4, -.4, 0, 7); ctx.ellipse(A.x + 7, A.y - 2, 7, 4, .4, 0, 7); ctx.fill(); }
+  for (const b of balloons){ const sp = balloonSprite(b.color, b.R); const tilt = clamp((b.x - b.rope[b.rope.length-1].x)/400, -.35, .35);
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(tilt + Math.sin(T*1.2 + b.ph)*.03); ctx.drawImage(sp.c, -sp.s/2, -sp.s/2, sp.s, sp.s);
+    if (b.mine && b === liked){ ctx.fillStyle = INK; ctx.font = `${Math.max(14, b.R*.42)}px "Caveat Brush", cursive`; ctx.textAlign = 'center'; ctx.fillText('you', 0, b.R*.12); }
+    ctx.restore(); }
+  // the balloon being blown up, stretching off the heart's nozzle
+  if (inflating){ const n = nozzle(), v = inflating.v, R = sizeFor(v), wob = v > 1 ? Math.sin(T*40)*(v - 1)*.12 : 0;
+    const sp = balloonSprite(MINE, Math.round(R)); ctx.save(); ctx.translate(n.x, n.y - R*.78); ctx.scale(1 + wob, 1 - wob); ctx.rotate(Math.sin(T*3)*.03);
+    ctx.drawImage(sp.c, -sp.s/2, -sp.s/2, sp.s, sp.s);
+    if (v > .95){ ctx.strokeStyle = `rgba(255,250,240,${clamp((v - .95)*3, 0, .9)})`; ctx.lineWidth = 2; for (let k=0;k<3;k++){ ctx.beginPath(); ctx.moveTo(-R*.3 + k*R*.25, -R*.2); ctx.lineTo(-R*.25 + k*R*.25, R*.1); ctx.stroke(); } }
+    ctx.restore(); }
+  // confetti: painted dabs
+  for (let i = confetti.length - 1; i >= 0; i--){ const c = confetti[i]; c.t += dt; c.vy += 700*dt; c.vx *= .99; c.x += c.vx*dt; c.y += c.vy*dt; c.a += c.va*dt;
+    if (c.y > H + 20){ confetti.splice(i, 1); continue; }
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a); ctx.fillStyle = c.c; ctx.beginPath();
+    if (c.shape === 0) ctx.ellipse(0, 0, c.r, c.r*.6, 0, 0, 7); else if (c.shape === 1){ heartPath(ctx, c.r*.8); } else ctx.rect(-c.r, -c.r*.4, c.r*2, c.r*.8);
+    ctx.fill(); ctx.restore(); }
+}
+makeGrain();
+// the bunch already tied to the post: other people's love
+layout();
+setTimeout(() => { const A = anchor(); for (let i=0;i<6;i++){ const b = addBalloon(PALETTE[i], (mobile ? 22 : 28) + Math.random()*(mobile ? 12 : 18), false); b.x = A.x - 120 + i*45 + (Math.random()-.5)*20; b.y = A.y - (mobile ? 170 : 230) - Math.random()*90; b.px = b.x; b.py = b.y; } }, 60);
+paintAvatar();
+addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paintBackdrop(); });
+requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>

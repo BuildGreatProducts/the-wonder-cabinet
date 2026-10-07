@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hourglass Pause</title>
+<meta name="description" content="A play/pause task timer as a 16-bit pixel-art hourglass with grain-by-grain sand simulation. Tip it to pause, stand it up to resume, flip it to start over.">
+<script type="application/json" id="component-meta">
+{"name":"Hourglass Pause","reimagines":"Play / pause toggle","category":"Toggles & Switches","description":"A focus timer in 16-bit pixel art where the hourglass is the control. Every grain is simulated: lay the glass on its side and the sand slumps and stops (paused); stand it up and the trickle resumes; flip it and the sand really does change bulbs, so the clock tells the truth.","hint":"Drag the hourglass to tip it on its side; flip it when the sand runs out"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#fff6e0;--gold:#ffd96a;--coral:#ff8a6a;--navy:#1b1f4a;--edge:#8fa0ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#141633}
+body{font-family:"Pixelify Sans",monospace;color:var(--ink);-webkit-font-smoothing:none;font-smooth:never}
+canvas#c{position:fixed;left:0;top:0;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+.ui{position:fixed;pointer-events:none}
+.box{position:absolute;background:var(--navy);pointer-events:auto;
+  box-shadow:0 -4px 0 0 #fff,0 4px 0 0 #fff,-4px 0 0 0 #fff,4px 0 0 0 #fff,0 -8px 0 0 #0a0c22,0 8px 0 0 #0a0c22,-8px 0 0 0 #0a0c22,8px 0 0 0 #0a0c22,inset 0 0 0 4px var(--edge)}
+.task{padding:18px 20px 16px}
+.task .k{font-family:"Press Start 2P",monospace;font-size:10px;color:var(--edge);letter-spacing:1px}
+.task .n{font-size:22px;margin:8px 0 12px;line-height:1.1}
+.task .time{font-family:"Press Start 2P",monospace;font-size:40px;color:var(--gold);letter-spacing:2px;text-shadow:4px 4px 0 #0a0c22}
+.task .st{font-family:"Press Start 2P",monospace;font-size:11px;margin-top:12px;display:flex;align-items:center;gap:10px}
+.task .st i{width:12px;height:12px;background:#6fe08a;box-shadow:2px 2px 0 #0a0c22}
+.task .st.paused i{background:var(--gold)}
+.task .st.done i{background:var(--coral)}
+.task .pips{display:flex;gap:6px;margin-top:12px;align-items:center;font-family:"Press Start 2P";font-size:9px;color:var(--edge)}
+.task .pips b{width:14px;height:14px;background:#3a3f8a;box-shadow:inset -3px -3px 0 #262a5c}
+.task .pips b.on{background:var(--coral);box-shadow:inset -3px -3px 0 #c8503a}
+.dialog{padding:14px 18px;font-size:18px;line-height:1.35;display:flex;gap:16px;align-items:center}
+.dialog .txt{flex:1}
+.dialog .txt em{font-style:normal;color:var(--gold)}
+.btns{display:flex;gap:16px}
+.pbtn{font-family:"Press Start 2P",monospace;font-size:11px;color:#0a0c22;background:var(--gold);border:0;padding:12px 14px 10px;cursor:pointer;position:relative;
+  box-shadow:0 -4px 0 0 #0a0c22,0 4px 0 0 #0a0c22,-4px 0 0 0 #0a0c22,4px 0 0 0 #0a0c22,inset -4px -4px 0 #c99a2e,inset 4px 4px 0 #fff2b8}
+.pbtn.alt{background:#8fa0ff;box-shadow:0 -4px 0 0 #0a0c22,0 4px 0 0 #0a0c22,-4px 0 0 0 #0a0c22,4px 0 0 0 #0a0c22,inset -4px -4px 0 #5a68c8,inset 4px 4px 0 #d8e0ff}
+.pbtn:active{transform:translateY(4px)}
+.pbtn:focus-visible{outline:4px solid #fff;outline-offset:6px}
+#glass{position:absolute;pointer-events:auto;background:transparent;border:0;cursor:grab;touch-action:none;outline:none}
+#glass:active{cursor:grabbing}
+#glass:focus-visible{outline:4px dashed var(--gold);outline-offset:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:700px){
+  .task{padding:12px 14px}
+  .task .n{font-size:17px;margin:6px 0 8px}
+  .task .time{font-size:26px}
+  .task .st{font-size:9px;margin-top:8px}
+  .task .pips{margin-top:8px}
+  .dialog{flex-direction:column;align-items:stretch;font-size:15px;gap:12px;padding:12px 14px}
+  .btns{justify-content:space-between}
+  .pbtn{font-size:10px;padding:11px 10px 9px}
+}
+</style>
+</head>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+<div class="ui" id="ui" style="inset:0">
+  <div class="box task" id="task">
+    <div class="k">FOCUS · TASK 3 OF 4</div>
+    <div class="n">Draft the Q4 investor update</div>
+    <div class="time" id="time" aria-hidden="true">18:42</div>
+    <div class="st" id="st"><i></i><span id="stTxt">RUNNING</span></div>
+    <div class="pips" aria-label="Sessions today"><span>TODAY</span><b class="on"></b><b class="on"></b><b id="pip3"></b><b></b></div>
+  </div>
+  <button id="glass" role="switch" aria-checked="false" aria-label="Pause timer by tipping the hourglass on its side"></button>
+  <div class="box dialog" id="dialog">
+    <div class="txt" id="dtxt"><em>Tip</em> the hourglass on its side to pause. Stand it up to carry on. <em>Flip</em> it when the sand runs out.</div>
+    <div class="btns"><button class="pbtn" id="bTip" aria-pressed="false">TIP / STAND</button><button class="pbtn alt" id="bFlip">FLIP</button></div>
+  </div>
+</div>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const cv = $('c'), g = cv.getContext('2d');
+const task = $('task'), dialog = $('dialog'), glassBtn = $('glass'), live = $('live');
+const timeEl = $('time'), stEl = $('st'), stTxt = $('stTxt'), dtxt = $('dtxt'), bTip = $('bTip');
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* ---------- palette (32 colours, SNES-ish) ---------- */
+const P = {
+  sky0: '#141633', sky1: '#1b1f4a', sky2: '#262a5c', sky3: '#3a3f8a', star: '#fff6c8', moon: '#ffe9a8', moon2: '#e8c870',
+  wall0: '#2e2448', wall1: '#3b2f5a', wall2: '#4a3b6e', trim: '#5a4884',
+  d0: '#4a2616', d1: '#6b3a24', d2: '#8a4b2f', d3: '#a8643c', d4: '#c98a52',
+  w0: '#5a2e18', w1: '#7a4224', w2: '#a0582e', w3: '#c8783c', w4: '#e8a35a',
+  gl0: '#4f7fb0', gl1: '#9fd8ff', gl2: '#d8f3ff',
+  s0: '#c8913e', s1: '#e0b25a', s2: '#f2d27a', s3: '#fff0b0',
+  leaf0: '#2f6a3a', leaf1: '#3f8a4a', leaf2: '#5fb85a', pot0: '#9a4a2c', pot1: '#c8643c',
+  mug0: '#9aa0c8', mug1: '#e8e8f0', steam: '#c8c8e8', flame0: '#ff8a3a', flame1: '#ffd96a', flame2: '#fff6c8', wax: '#efe6d0', wax2: '#c9bfa8',
+  city0: '#2a2e66', city1: '#ffd96a'
+};
+const SAND = [P.s0, P.s1, P.s1, P.s2, P.s2, P.s3];
+
+/* ---------- audio: chiptune blips ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .1; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function blip(f, dur, when = 0, type = 'square', slide = 1, gain = .5){
+  if (!ac) return; const t = ac.currentTime + when, o = ac.createOscillator(), gn = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); if (slide !== 1) o.frequency.exponentialRampToValueAtTime(f * slide, t + dur);
+  gn.gain.setValueAtTime(gain, t); gn.gain.setValueAtTime(0, t + dur);
+  o.connect(gn); gn.connect(master); o.start(t); o.stop(t + dur + .01);
+}
+function crunch(when = 0){
+  if (!ac) return; const n = Math.floor(ac.sampleRate * .06), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  let v = 0; for (let i = 0; i < n; i++) { if (i % 24 === 0) v = Math.random() * 2 - 1; d[i] = v * (1 - i / n); } // 8-bit stepped noise
+  const s = ac.createBufferSource(); s.buffer = b; const gn = ac.createGain(); gn.gain.value = .35; s.connect(gn); gn.connect(master); s.start(ac.currentTime + when);
+}
+const sTip = () => { blip(220, .06, 0, 'square', .6); crunch(.05); };
+const sStand = () => { blip(330, .05); blip(494, .07, .06); };
+const sFlip = () => { [262, 330, 392, 523].forEach((f, i) => blip(f, .05, i * .045, 'square', 1, .35)); crunch(.2); };
+const sDone = () => { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => blip(f, .09, i * .1, i % 2 ? 'triangle' : 'square', 1, .4)); };
+let lastTick = 0;
+const sGrain = () => { const now = performance.now(); if (now - lastTick < 90) return; lastTick = now; blip(2400 + Math.random() * 800, .012, 0, 'triangle', 1, .08); };
+
+/* ---------- the hourglass sprite: 40 x 64 local pixels ---------- */
+const HW = 40, HH = 64, CX = 20, MID = 31.5;
+const inside = new Uint8Array(HW * HH);
+const halfW = new Float32Array(HH);
+for (let y = 7; y <= 56; y++) {
+  const t = Math.abs(y - MID) / 25;
+  let w = 1 + 12.5 * (1 - Math.pow(1 - Math.min(1, t * 1.05), 2.4));
+  if (t > .86) w *= 1 - (t - .86) * 1.9;
+  halfW[y] = Math.max(1, Math.round(w));
+  for (let x = CX - halfW[y]; x < CX + halfW[y]; x++) inside[y * HW + x] = 1;
+}
+let cellsUpper = 0; for (let i = 0; i < inside.length; i++) if (inside[i] && Math.floor(i / HW) < 32) cellsUpper++;
+const N = Math.round(cellsUpper * .64);
+const grid = new Int8Array(HW * HH).fill(-1); // -1 empty, else colour index
+const spr = document.createElement('canvas'); spr.width = HW; spr.height = HH; const sg = spr.getContext('2d');
+
+/* ---------- timer state ---------- */
+const DURATION = 25 * 60;
+const rate = N / DURATION;       // grains per second through the neck
+let tokens = 0, angle = 0, av = 0, target = 0, drag = null, done = false, sessions = 2, flowing = true;
+
+function fillUpper(){
+  grid.fill(-1); let placed = 0;
+  for (let y = 7; y < 32 && placed < N; y++) for (let x = 0; x < HW && placed < N; x++) { const i = y * HW + x; if (inside[i]) { grid[i] = Math.floor(Math.random() * SAND.length); placed++; } }
+}
+// precomputed scan orders for the 8 gravity directions
+const DIRS = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];
+// two scan orders per direction (tie-broken left-first / right-first) alternated every step, so piles stay symmetric
+const ORDERS = DIRS.map(([dx, dy]) => {
+  const idx = []; for (let i = 0; i < inside.length; i++) if (inside[i]) idx.push(i);
+  const proj = i => (i % HW) * dx + Math.floor(i / HW) * dy, perp = i => (i % HW) * -dy + Math.floor(i / HW) * dx;
+  const a = idx.slice().sort((p, q) => (proj(q) - proj(p)) || (perp(p) - perp(q)));
+  const b = idx.slice().sort((p, q) => (proj(q) - proj(p)) || (perp(q) - perp(p)));
+  return [a, b];
+});
+let parity = 0;
+function gravityLocal(){ // world down expressed in sprite-local coords
+  const a = angle * Math.PI / 180; return {x: Math.sin(a), y: Math.cos(a)};
+}
+function dirIndex(gx, gy){ const a = Math.atan2(gx, gy); return ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8; }
+let crossings = 0;
+function step(unlimited){
+  const gv = gravityLocal(); const di = dirIndex(gv.x, gv.y), order = ORDERS[di][(parity ^= 1)];
+  const d0 = DIRS[di], dl = DIRS[(di + 1) % 8], dr = DIRS[(di + 7) % 8];
+  const flowSign = Math.sign(gv.y) || 1;
+  let moved = 0;
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k], c = grid[i]; if (c < 0) continue;
+    const x = i % HW, y = (i - x) / HW;
+    const tries = Math.random() < .5 ? [d0, dl, dr] : [d0, dr, dl];
+    for (let t = 0; t < 3; t++) {
+      const nx = x + tries[t][0], ny = y + tries[t][1];
+      if (nx < 0 || nx >= HW || ny < 0 || ny >= HH) continue;
+      const j = ny * HW + nx; if (!inside[j] || grid[j] >= 0) continue;
+      // crossing the neck needs a token (time has to have passed) and an upright glass
+      const cross = (y < 32) !== (ny < 32);
+      if (cross) {
+        const goingDown = (ny - y) * flowSign > 0;
+        if (!goingDown) continue;
+        if (!unlimited) { if (tokens < 1) continue; tokens -= 1; }
+        crossings++;
+        if (!unlimited && ac) sGrain();
+      }
+      grid[j] = c; grid[i] = -1; moved++; break;
+    }
+  }
+  return moved;
+}
+function upperCount(){ // grains in whichever bulb is currently "up"
+  const gv = gravityLocal(); let up = 0, lo = 0;
+  for (let i = 0; i < grid.length; i++) if (grid[i] >= 0) { if (i < 32 * HW) up++; else lo++; }
+  return gv.y >= 0 ? up : lo;
+}
+function remaining(){ return Math.max(0, (upperCount() - tokens) / rate); }
+
+/* ---------- sprite drawing ---------- */
+function px(c, x, y, w = 1, h = 1){ sg.fillStyle = c; sg.fillRect(x, y, w, h); }
+function drawSprite(){
+  sg.clearRect(0, 0, HW, HH);
+  // glass tint + back highlight
+  for (let y = 7; y <= 56; y++) { const w = halfW[y]; px('rgba(111,168,216,.22)', CX - w, y, w * 2, 1); }
+  // sand
+  for (let i = 0; i < grid.length; i++) { const c = grid[i]; if (c < 0) continue; px(SAND[c], i % HW, (i / HW) | 0); }
+  // glass outline (1px outside the interior)
+  for (let y = 7; y <= 56; y++) {
+    const w = halfW[y], wp = halfW[y - 1] || w, wn = halfW[y + 1] || w;
+    px(P.gl1, CX - w - 1, y); px(P.gl0, CX + w, y);
+    if (wp > w) { px(P.gl1, CX - wp, y, wp - w, 1); px(P.gl0, CX + w, y, wp - w, 1); }
+    if (wn > w) { px(P.gl1, CX - wn, y, wn - w, 1); px(P.gl0, CX + w, y, wn - w, 1); }
+  }
+  // specular streaks
+  for (let y = 12; y <= 26; y++) px(P.gl2, CX - halfW[y] + 2, y);
+  for (let y = 40; y <= 52; y++) px(P.gl2, CX - halfW[y] + 2, y);
+  px(P.gl2, CX - 8, 10, 2, 1); px(P.gl2, CX - 7, 54, 2, 1);
+  // wooden caps
+  const cap = (y0, flip) => {
+    px(P.w0, 2, y0, 36, 6); px(P.w2, 3, y0 + (flip ? 1 : 0), 34, 4); px(P.w3, 3, y0 + (flip ? 1 : 0), 34, 1); px(P.w4, 4, y0 + (flip ? 1 : 0), 10, 1);
+    px(P.w1, 3, y0 + (flip ? 4 : 4), 34, 1); px(P.w0, 1, y0 + 1, 1, 4); px(P.w0, 38, y0 + 1, 1, 4);
+    for (let x = 6; x < 36; x += 7) px(P.w1, x, y0 + 2, 1, 2);
+  };
+  cap(0, false); cap(58, true);
+  // turned posts
+  for (const x of [3, 35]) { px(P.w0, x, 6, 2, 52); px(P.w2, x, 6, 1, 52); for (let y = 10; y < 56; y += 9) { px(P.w3, x - 1, y, 4, 2); px(P.w0, x - 1, y + 2, 4, 1); } }
+}
+
+/* ---------- background pixel art ---------- */
+let S = 5, LW = 256, LH = 160, deskY = 128, hgx = 128, layoutMob = false;
+const bg = document.createElement('canvas'), bgc = bg.getContext('2d');
+function bpx(c, x, y, w = 1, h = 1){ bgc.fillStyle = c; bgc.fillRect(x, y, w, h); }
+let stars = [], candle = null, mug = null;
+function drawBg(){
+  bg.width = LW; bg.height = LH; bgc.clearRect(0, 0, LW, LH);
+  // wall with dithered panels
+  bpx(P.wall1, 0, 0, LW, deskY);
+  for (let y = 0; y < deskY; y++) for (let x = (y % 2); x < LW; x += 2) if ((x + y * 3) % 7 === 0) bpx(P.wall0, x, y);
+  for (let x = 0; x < LW; x += 32) { bpx(P.wall0, x, 0, 1, deskY); bpx(P.wall2, x + 1, 0, 1, deskY); }
+  bpx(P.trim, 0, deskY - 18, LW, 2); bpx(P.wall0, 0, deskY - 16, LW, 1);
+  // window
+  const wx = layoutMob ? 8 : 12, wy = layoutMob ? 92 : 58, ww = layoutMob ? 44 : 64, wh = layoutMob ? 52 : 50;
+  const win = {wx, wy, ww, wh};
+  for (let y = 0; y < wh; y++) { const t = y / wh; bpx(t < .35 ? P.sky0 : t < .7 ? P.sky1 : P.sky2, wx, wy + y, ww, 1); if (y % 2 && t > .3 && t < .4) for (let x = 0; x < ww; x += 2) bpx(P.sky1, wx + x + (y % 4 === 1 ? 1 : 0), wy + y); }
+  stars = []; for (let i = 0; i < 14; i++) stars.push({x: wx + 2 + ((i * 37) % (ww - 4)), y: wy + 2 + ((i * 23) % (wh * .55 | 0)), p: i});
+  // moon
+  const mx = wx + ww - 16, my = wy + 8;
+  for (let y = -6; y <= 6; y++) for (let x = -6; x <= 6; x++) { const d = x * x + y * y, d2 = (x + 3) * (x + 3) + (y - 2) * (y - 2); if (d <= 36 && d2 > 22) bpx(d > 25 ? P.moon2 : P.moon, mx + x, my + y); }
+  // city
+  let cx = wx; while (cx < wx + ww) { const bw = 5 + ((cx * 7) % 6), bh = 10 + ((cx * 13) % 16); bpx(P.city0, cx, wy + wh - bh, bw, bh); for (let yy = wy + wh - bh + 2; yy < wy + wh - 2; yy += 3) for (let xx = cx + 1; xx < cx + bw - 1; xx += 2) if ((xx * yy) % 5 === 0) bpx(P.city1, xx, yy); cx += bw + 1; }
+  // frame + sill
+  bpx(P.w1, wx - 3, wy - 3, ww + 6, 3); bpx(P.w1, wx - 3, wy + wh, ww + 6, 3); bpx(P.w1, wx - 3, wy, 3, wh); bpx(P.w1, wx + ww, wy, 3, wh);
+  bpx(P.w1, wx + ww / 2 - 1, wy, 2, wh); bpx(P.w1, wx, wy + wh / 2 - 1, ww, 2);
+  bpx(P.w3, wx - 3, wy - 3, ww + 6, 1); bpx(P.w2, wx - 5, wy + wh + 3, ww + 10, 2); bpx(P.w4, wx - 5, wy + wh + 3, ww + 10, 1);
+  // desk
+  bpx(P.d2, 0, deskY, LW, LH - deskY); bpx(P.d4, 0, deskY, LW, 1); bpx(P.d3, 0, deskY + 1, LW, 2); bpx(P.d0, 0, deskY + 6, LW, 1);
+  for (let y = deskY + 8; y < LH; y += 5) for (let x = (y * 7) % 13; x < LW; x += 19) bpx(P.d1, x, y, 9, 1);
+  // books (left of glass)
+  const bx = hgx - (layoutMob ? 52 : 70);
+  [[P.leaf1, 22, 5], [P.coral || '#ff8a6a', 20, 4], [P.sky3, 24, 5]].forEach(([c, w, h], i) => { const y = deskY - 5 * (i + 1); bpx('#0a0c22', bx - 1 + i, y - 1, w + 2, h + 1); bpx(c, bx + i, y, w, h - 1); bpx('#fff6e0', bx + i + w - 3, y + 1, 2, h - 3); });
+  // plant (right)
+  const px0 = hgx + (layoutMob ? 34 : 54);
+  bpx(P.pot0, px0, deskY - 10, 14, 10); bpx(P.pot1, px0 + 1, deskY - 10, 12, 8); bpx(P.d4, px0 - 1, deskY - 11, 16, 2);
+  [[-4, -24, 6, 12], [6, -30, 5, 18], [2, -20, 8, 8], [10, -22, 6, 10]].forEach(([dx, dy, w, h], i) => { bpx(P.leaf0, px0 + dx, deskY + dy, w, h); bpx(i % 2 ? P.leaf2 : P.leaf1, px0 + dx + 1, deskY + dy, w - 2, h - 2); });
+  // mug + candle positions (animated parts drawn per frame)
+  mug = {x: hgx + (layoutMob ? 40 : 84), y: deskY - 10};
+  candle = {x: hgx - (layoutMob ? 40 : 100), y: deskY - 16};
+  if (!layoutMob) { bpx(P.mug0, mug.x, mug.y, 10, 10); bpx(P.mug1, mug.x + 1, mug.y, 8, 9); bpx(P.mug0, mug.x + 10, mug.y + 2, 3, 5); bpx(P.mug1, mug.x + 10, mug.y + 3, 2, 3); bpx('#6b3a24', mug.x + 1, mug.y, 8, 2); }
+  if (layoutMob) candle = null;
+  if (candle) { bpx(P.wax2, candle.x, candle.y, 6, 16); bpx(P.wax, candle.x + 1, candle.y, 4, 15); bpx(P.wax, candle.x - 2, deskY - 2, 10, 2); bpx('#8a8a8a', candle.x - 3, deskY - 1, 12, 1); }
+}
+
+/* ---------- layout ---------- */
+function layout(){
+  const W = innerWidth, H = innerHeight; layoutMob = W < 700;
+  S = layoutMob ? 3 : Math.max(3, Math.min(6, Math.floor(Math.min(W / 240, H / 150))));
+  LW = Math.ceil(W / S); LH = Math.ceil(H / S);
+  cv.width = LW; cv.height = LH; cv.style.width = LW * S + 'px'; cv.style.height = LH * S + 'px';
+  if (layoutMob) { deskY = Math.round(LH * .7); hgx = Math.round(LW * .5); }
+  else { deskY = LH - 32; hgx = Math.round(LW * .62); }
+  drawBg();
+  // DOM UI placement on the pixel grid
+  if (layoutMob) {
+    Object.assign(task.style, {left: '16px', right: '16px', top: '16px', width: 'auto'});
+    Object.assign(dialog.style, {left: '16px', right: '16px', bottom: '16px', top: 'auto', width: 'auto'});
+  } else {
+    Object.assign(task.style, {left: S * 8 + 'px', top: S * 8 + 'px', width: Math.min(420, S * 84) + 'px', right: 'auto'});
+    Object.assign(dialog.style, {left: S * 8 + 'px', right: S * 8 + 'px', bottom: S * 5 + 'px', top: 'auto', width: 'auto'});
+  }
+  placeGlassBtn();
+}
+function glassCenter(){
+  const a = angle * Math.PI / 180, hh = Math.abs(Math.cos(a)) * HH / 2 + Math.abs(Math.sin(a)) * HW / 2;
+  return {x: hgx, y: deskY - hh + .5};
+}
+function placeGlassBtn(){
+  const c = glassCenter(), s = Math.max(HW, HH) * S;
+  Object.assign(glassBtn.style, {left: (c.x * S - s / 2) + 'px', top: (c.y * S - s / 2) + 'px', width: s + 'px', height: s + 'px'});
+}
+
+/* ---------- control ---------- */
+const norm = a => ((a % 360) + 360) % 360;
+const isSide = a => { const n = norm(a); return Math.abs(n - 90) < 1 || Math.abs(n - 270) < 1; };
+function say(t){ live.textContent = t; }
+function fmt(s){ s = Math.ceil(s); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }
+let used = false;
+function setTarget(t, why){
+  audio();
+  const before = target; target = t;
+  const paused = isSide(target);
+  glassBtn.setAttribute('aria-checked', String(paused));
+  bTip.setAttribute('aria-pressed', String(paused));
+  if (why === 'flip') { sFlip(); }
+  else if (paused) sTip(); else sStand();
+  if (!used) { used = true; }
+  setTimeout(() => announce(why), reduced ? 0 : 700);
+}
+function announce(why){
+  const paused = isSide(target), rem = remaining();
+  if (why === 'flip') {
+    if (wasDone) { say(`New session started. ${fmt(rem)} on the clock.`); dtxt.innerHTML = `<em>New session.</em> The sand is back on top: ${fmt(rem)} of focus.`; }
+    else { say(`Flipped. The sand that had fallen is now on top: ${fmt(rem)} on the clock.`); dtxt.innerHTML = `<em>Flipped!</em> The fallen sand is on top again, so <em>${fmt(rem)}</em> is on the clock.`; }
+    wasDone = false;
+  } else if (paused) { say(`Paused at ${fmt(rem)}.`); dtxt.innerHTML = `<em>Paused.</em> The sand has settled on its side at ${fmt(rem)}. Stand it up to carry on.`; }
+  else { say(`Running. ${fmt(rem)} left.`); dtxt.innerHTML = `<em>Running.</em> Stand clear of the sand. Tip it over whenever you need a break.`; }
+}
+let wasDone = false;
+function tip(){ const n = norm(target); if (isSide(n)) setTarget(target - 90, 'stand'); else setTarget(target + 90, 'tip'); }
+function flip(){ wasDone = done; setTarget(Math.round(target / 90) * 90 + 180, 'flip'); }
+bTip.addEventListener('click', tip);
+$('bFlip').addEventListener('click', flip);
+glassBtn.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tip(); }
+  else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); flip(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); setTarget(target + 90, isSide(target + 90) ? 'tip' : 'stand'); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); setTarget(target - 90, isSide(target - 90) ? 'tip' : 'stand'); }
+});
+glassBtn.addEventListener('pointerdown', e => {
+  audio(); const c = glassCenter();
+  drag = {id: e.pointerId, a0: angle, p0: Math.atan2(e.clientX - c.x * S, -(e.clientY - c.y * S)), moved: false, t: performance.now(), last: angle, v: 0};
+  try { glassBtn.setPointerCapture(e.pointerId); } catch (_) {}
+});
+glassBtn.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const c = glassCenter(); const p = Math.atan2(e.clientX - c.x * S, -(e.clientY - c.y * S));
+  let d = (p - drag.p0) * 180 / Math.PI; if (d > 180) d -= 360; if (d < -180) d += 360;
+  if (Math.abs(d) > 4) drag.moved = true;
+  if (drag.moved) { const now = performance.now(), na = drag.a0 + d; drag.v = (na - angle) / Math.max(.008, (now - drag.t) / 1000); drag.t = now; angle = na; av = 0; }
+});
+const endDrag = e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.moved) tip();
+  else {
+    const proj = angle + clamp(drag.v, -900, 900) * .12;
+    const snapped = Math.round(proj / 90) * 90, crossedFlip = Math.abs(snapped - drag.a0) >= 180;
+    av = clamp(drag.v, -900, 900) * .4;
+    if (snapped !== target) { if (crossedFlip) { wasDone = done; setTarget(snapped, 'flip'); } else setTarget(snapped, isSide(snapped) ? 'tip' : 'stand'); }
+  }
+  drag = null;
+};
+glassBtn.addEventListener('pointerup', endDrag); glassBtn.addEventListener('pointercancel', endDrag);
+
+/* ---------- frame ---------- */
+let last = performance.now(), raf = 0, tick = 0, simAcc = 0, lastShown = '';
+function frame(now){
+  const dt = Math.min(.05, (now - last) / 1000); last = now; tick++;
+  // rotation spring (with a little wobble as it lands)
+  if (!drag) {
+    if (reduced) { angle = target; av = 0; }
+    else { av += ((target - angle) * 160 - av * 16) * dt; angle += av * dt; if (Math.abs(target - angle) < .05 && Math.abs(av) < .5) { angle = target; av = 0; } }
+  }
+  const upright = !drag && Math.abs(angle - target) < 3 && !isSide(target);
+  // time only passes (tokens accrue) while the glass stands upright
+  const up = upperCount();
+  if (upright && up > 0) tokens = Math.min(tokens + rate * dt, 2.5); else if (!upright) tokens = Math.min(tokens, 0);
+  // sand sim (~90 steps/s, pixel by pixel)
+  simAcc += dt; let steps = 0;
+  while (simAcc > 1 / 90 && steps < 4) { step(false); simAcc -= 1 / 90; steps++; }
+  // completion
+  const rem = remaining();
+  if (!done && up === 0 && upright) { done = true; sessions = Math.min(4, sessions + 1); $('pip3').classList.add('on'); sDone(); burst(); dtxt.innerHTML = '<em>Session complete!</em> Take five, then flip the hourglass to start the next one.'; say('Session complete. Flip the hourglass to start again.'); }
+  if (done && up > 0) done = false;
+  const shown = fmt(rem); if (shown !== lastShown) { timeEl.textContent = shown; lastShown = shown; }
+  const paused = isSide(target);
+  stEl.className = 'st' + (done ? ' done' : paused ? ' paused' : '');
+  stTxt.textContent = done ? 'DONE — FLIP TO RESTART' : paused ? 'PAUSED — ON ITS SIDE' : (Math.abs(angle - target) > 3 || drag ? 'MOVING…' : 'RUNNING');
+  render(now);
+  placeGlassBtn();
+  raf = requestAnimationFrame(frame);
+}
+let sparks = [];
+function burst(){ const c = glassCenter(); for (let i = 0; i < 40; i++) { const a = Math.random() * Math.PI * 2, v = 30 + Math.random() * 60; sparks.push({x: c.x, y: c.y - 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life: 1 + Math.random() * .6, c: [P.s3, P.flame1, '#ff8a6a', P.gl1][i % 4]}); } }
+function render(now){
+  g.imageSmoothingEnabled = false;
+  g.drawImage(bg, 0, 0);
+  // twinkling stars + candle flame + steam (all on the pixel grid)
+  stars.forEach(s => { if (((now / 300 + s.p * 7) | 0) % 9 !== 0) { g.fillStyle = P.star; g.fillRect(s.x, s.y, 1, 1); } });
+  if (candle) {
+    const f = ((now / 120) | 0) % 3;
+    g.fillStyle = P.flame0; g.fillRect(candle.x + 2, candle.y - 5 + (f === 1 ? 1 : 0), 2, 4);
+    g.fillStyle = P.flame1; g.fillRect(candle.x + 2, candle.y - 4, 2, 3);
+    g.fillStyle = P.flame2; g.fillRect(candle.x + 2 + (f === 2 ? 1 : 0), candle.y - 3, 1, 2);
+    g.fillStyle = 'rgba(255,217,106,.10)'; g.fillRect(candle.x - 6, candle.y - 12, 14, 14);
+    g.fillStyle = '#3a3a3a'; g.fillRect(candle.x + 2, candle.y - 1, 1, 1);
+  }
+  if (mug && !layoutMob) { g.fillStyle = P.steam; for (let i = 0; i < 3; i++) { const t = ((now / 260 + i * 3) % 9) | 0; g.fillRect(mug.x + 3 + ((t + i) % 3 === 0 ? 1 : 0) + i * 2, mug.y - 2 - t, 1, 1); } }
+  // hourglass shadow on the desk
+  const c = glassCenter(), a = angle * Math.PI / 180;
+  const sw = Math.round(Math.abs(Math.cos(a)) * HW * .9 + Math.abs(Math.sin(a)) * HH * .9);
+  g.fillStyle = P.d0; g.fillRect(Math.round(c.x - sw / 2), deskY, sw, 2); g.fillStyle = P.d1; g.fillRect(Math.round(c.x - sw / 2) - 2, deskY + 2, sw + 4, 1);
+  // sprite, rotated with nearest-neighbour sampling
+  drawSprite();
+  g.save(); g.translate(Math.round(c.x), Math.round(c.y)); g.rotate(a);
+  g.drawImage(spr, -HW / 2, -HH / 2); g.restore();
+  // sparkles
+  sparks = sparks.filter(p => (p.life -= 1 / 60) > 0);
+  sparks.forEach(p => { p.vy += 120 / 60; p.x += p.vx / 60; p.y += p.vy / 60; g.fillStyle = p.c; g.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); });
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frame); } });
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 100); });
+
+/* ---------- start mid-session: 18:42 left ---------- */
+// lay the sand as a real glass would look 6 minutes in: a crater above the neck, a cone below
+(function initSand(){
+  const upN = Math.round(1122 * rate), loN = N - upN;
+  const cells = []; for (let i = 0; i < inside.length; i++) if (inside[i]) cells.push(i);
+  const xy = i => [i % HW, Math.floor(i / HW)];
+  const up = cells.filter(i => xy(i)[1] < 32).sort((a, b) => { const [ax, ay] = xy(a), [bx, by] = xy(b); return (by + Math.abs(bx - CX + .5) * .7) - (ay + Math.abs(ax - CX + .5) * .7); });
+  const lo = cells.filter(i => xy(i)[1] >= 32).sort((a, b) => { const [ax, ay] = xy(a), [bx, by] = xy(b); return (by - Math.abs(bx - CX + .5) * .9) - (ay - Math.abs(ax - CX + .5) * .9); });
+  grid.fill(-1);
+  up.slice(0, upN).forEach(i => grid[i] = Math.floor(Math.random() * SAND.length));
+  lo.slice(0, loN).forEach(i => grid[i] = Math.floor(Math.random() * SAND.length));
+  for (let i = 0; i < 60; i++) step(false);
+})();
+layout();
+document.fonts && document.fonts.ready.then(layout);
+raf = requestAnimationFrame(frame);
+window.__hourglass = {dump(){ let s=""; for(let y=0;y<HH;y++){ for(let x=0;x<HW;x++){ const i=y*HW+x; s+= grid[i]>=0?"#":(inside[i]?".":" ");} s+="\n";} return s; }, tip, flip, finish(){ for (let i = 0; i < 600; i++) step(true); }};
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Radio Preset Buttons</title>
+<meta name="description" content="A radio button group built from the thing that named it: chunky chrome 1960s car-radio presets. Push one and it latches while the others pop up, the dial needle sweeps through static, and the dashboard reacts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Yellowtail&family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Car Radio Preset Buttons","reimagines":"Radio button group","category":"Pickers & Selection","description":"Shipping speed chosen on the chrome preset buttons of a 1960s dashboard radio — the origin of the term. Push one and it mechanically latches while the others spring back up, the needle sweeps through real static to its station, the ribbon speedometer shows how fast it'll arrive and the odometer rolls your total.","hint":"Push a chrome preset to choose your delivery speed"}
+</script>
+<style>
+:root{
+  --enamel:#3b9e9a;--enamel2:#2b7c79;--enamel3:#1f5f5d;--cream:#f2e8d2;--ink:#1d1a17;--amber:#ffc664;--red:#d7322a;
+  --chrome:linear-gradient(180deg,#ffffff 0%,#e3e8ec 14%,#a9b2b9 40%,#5b5651 49%,#2e2924 51%,#7d7062 63%,#cfc3b4 84%,#f6f1ea 100%);
+  --chromeV:linear-gradient(90deg,#f4f6f8 0%,#aeb6bd 22%,#5a544f 48%,#cfc5b8 70%,#ffffff 100%);
+  --cond:"Barlow Condensed","Roboto Condensed","Arial Narrow",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#0e1418;color:var(--ink);font-family:var(--cond);overflow:hidden}
+.car{position:fixed;inset:0;overflow:hidden}
+/* windshield */
+.wind{position:absolute;left:0;right:0;top:0;height:30%;background:linear-gradient(#f2b57e 0%,#e98b67 28%,#9c5a6e 60%,#40394f 100%)}
+.wind::before{content:"";position:absolute;left:0;right:0;bottom:22%;height:2px;background:rgba(40,30,40,.6);box-shadow:0 -40px 60px 30px rgba(255,190,120,.25)}
+.wind::after{content:"";position:absolute;left:-10%;right:-10%;bottom:0;height:24%;background:linear-gradient(#3a3640,#25222b);clip-path:polygon(0 100%,46% 0,54% 0,100% 100%)}
+.glare{position:absolute;left:0;right:0;top:0;height:30%;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.18) 38%,transparent 46%,transparent 60%,rgba(255,255,255,.08) 66%,transparent 72%);pointer-events:none}
+.pad{position:absolute;left:-4%;right:-4%;top:24%;height:14%;background:linear-gradient(#3a3330,#1f1a18 60%,#141110);border-radius:50% 50% 0 0/80% 80% 0 0;box-shadow:0 10px 18px rgba(0,0,0,.5)}
+.pad::after{content:"";position:absolute;left:6%;right:6%;top:30%;border-top:2px dashed rgba(255,255,255,.12);border-radius:50%/100%;height:60%}
+/* enamel dash */
+.dash{position:absolute;left:0;right:0;top:34%;bottom:0;background:
+  linear-gradient(180deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 9%,rgba(255,255,255,0) 60%,rgba(0,0,0,.25) 100%),
+  linear-gradient(180deg,var(--enamel),var(--enamel2) 70%,var(--enamel3));}
+.dash::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");opacity:.6;mix-blend-mode:overlay}
+.trim{position:absolute;left:0;right:0;height:9px;background:var(--chrome);box-shadow:0 3px 5px rgba(0,0,0,.35)}
+.trim.t1{top:0}.trim.t2{bottom:12%}
+.script{position:absolute;left:5%;top:9%;font-family:"Yellowtail",cursive;font-size:56px;color:transparent;background:var(--chrome);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 2px 1px rgba(0,0,0,.45));transform:rotate(-6deg)}
+.step{position:absolute;left:5%;max-width:calc(45% - 370px);top:calc(9% + 82px);color:var(--cream);font-weight:600;letter-spacing:.24em;font-size:13px;text-transform:uppercase;opacity:.9}
+.step b{display:block;font-size:24px;letter-spacing:.06em;margin-top:4px}
+/* speedometer hood */
+.speedo{position:absolute;left:50%;top:24.5%;transform:translateX(-50%);width:min(760px,92vw);height:86px;border-radius:16px 16px 6px 6px;background:var(--chrome);padding:8px;box-shadow:0 8px 14px rgba(0,0,0,.45);z-index:2}
+.speedo .face{position:relative;height:100%;border-radius:10px 10px 3px 3px;background:linear-gradient(#141414,#262321);overflow:hidden;box-shadow:inset 0 3px 8px rgba(0,0,0,.8)}
+.speedo .ticks{position:absolute;left:4%;right:4%;top:10px;height:30px;display:flex;justify-content:space-between}
+.speedo .ticks span{color:#f1e6c8;font-weight:600;font-size:14px;width:0;display:flex;justify-content:center;position:relative}
+.speedo .ticks span::after{content:"";position:absolute;top:19px;width:2px;height:8px;background:#f1e6c8}
+.speedo .ribbon{position:absolute;left:4%;top:48px;height:12px;width:0;background:linear-gradient(#ff6a4d,#c21d16);border-radius:0 3px 3px 0;box-shadow:0 0 12px rgba(255,90,60,.6)}
+.speedo .lbl{position:absolute;right:12px;bottom:4px;color:#f1e6c8;font-size:11px;letter-spacing:.3em;opacity:.7}
+.speedo .lbl2{position:absolute;left:12px;bottom:4px;color:#ff8a6a;font-size:11px;letter-spacing:.2em;font-weight:600}
+.speedo::after{content:"";position:absolute;inset:8px;border-radius:10px 10px 3px 3px;background:linear-gradient(170deg,rgba(255,255,255,.18),transparent 40%);pointer-events:none}
+/* radio */
+.radio{position:absolute;left:50%;top:calc(34% + 40px);transform:translateX(-50%);width:min(700px,94vw);border-radius:22px;padding:14px;background:var(--chrome);box-shadow:0 18px 28px rgba(0,0,0,.45),0 0 0 2px rgba(0,0,0,.25);z-index:2}
+.radio .inner{border-radius:14px;background:linear-gradient(#2a2724,#13110f);padding:16px 18px 18px;box-shadow:inset 0 4px 10px rgba(0,0,0,.8)}
+.row1{display:flex;align-items:center;gap:16px}
+.knob{flex:none;width:74px;height:74px;border-radius:50%;background:radial-gradient(circle at 40% 30%,#fff,#c7ced4 30%,#6f6a64 62%,#2d2925 75%,#b9b0a5 92%,#efe8de);box-shadow:0 6px 10px rgba(0,0,0,.6),inset 0 -3px 6px rgba(0,0,0,.4);position:relative;cursor:pointer;touch-action:none;border:0}
+.knob::before{content:"";position:absolute;inset:14px;border-radius:50%;background:repeating-conic-gradient(#e9edf0 0 5deg,#8b939a 5deg 10deg);box-shadow:inset 0 2px 4px rgba(0,0,0,.4)}
+.knob::after{content:"";position:absolute;inset:26px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#a7afb6 60%,#555);}
+.knob i{position:absolute;left:50%;top:6px;width:4px;height:12px;margin-left:-2px;background:var(--red);border-radius:2px;z-index:2}
+.knob:focus-visible{outline:3px solid var(--amber);outline-offset:4px}
+.knob small{position:absolute;left:50%;bottom:-20px;transform:translateX(-50%);color:#d8cfbf;font-size:10px;letter-spacing:.25em;white-space:nowrap}
+.dial{flex:1;height:118px;border-radius:10px;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 60%,#ffd890 0%,#f6b14e 45%,#c7761f 85%,#8a4a10 100%);box-shadow:inset 0 0 0 3px #3a2c1a,inset 0 6px 14px rgba(70,30,0,.6)}
+.dial.dim{filter:brightness(.55)}
+.dial .nums{position:absolute;left:5%;right:5%;top:12px;height:30px}
+.dial .nums span{position:absolute;transform:translateX(-50%);font-weight:700;font-size:19px;color:#2a1a0c;letter-spacing:.02em}
+.dial .scale{position:absolute;left:5%;right:5%;top:42px;height:14px;background:repeating-linear-gradient(90deg,#2a1a0c 0 1.5px,transparent 1.5px 9px)}
+.dial .scale::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:#2a1a0c}
+.dial .marks{position:absolute;left:5%;right:5%;top:60px;height:16px}
+.dial .marks span{position:absolute;transform:translateX(-50%);font-size:11px;font-weight:700;color:#7a1d10;letter-spacing:.08em}
+.dial .read{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-weight:600;font-size:17px;letter-spacing:.12em;color:#3a1f08;text-transform:uppercase;transition:opacity .2s}
+.dial .kc{position:absolute;right:12px;top:10px;font-size:10px;letter-spacing:.2em;color:#5a3410;font-weight:600}
+.dial .needle{position:absolute;top:6px;bottom:6px;width:3px;margin-left:-1.5px;background:linear-gradient(#ff3b2a,#b8140c);box-shadow:0 0 6px rgba(255,40,20,.6);left:5%}
+.dial::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.45) 0%,rgba(255,255,255,0) 30%,rgba(255,255,255,0) 72%,rgba(255,255,255,.12) 80%,rgba(255,255,255,0) 88%);pointer-events:none}
+.presets{display:flex;gap:12px;margin-top:30px;padding:10px 12px 12px;border-radius:10px;background:linear-gradient(#0c0b0a,#1d1a17);box-shadow:inset 0 4px 8px rgba(0,0,0,.9)}
+.preset{flex:1;appearance:none;border:0;background:none;cursor:pointer;position:relative;height:96px;outline:none;-webkit-tap-highlight-color:transparent}
+.preset .cap{position:absolute;left:0;right:0;top:0;height:78px;border-radius:7px 7px 10px 10px;background:linear-gradient(180deg,#fff 0%,#e3e8ec 8%,#9aa2a9 17%,#3c3732 21%,#6f655b 25%,#cfc6ba 36%,#f4f0ea 58%,#e6e0d6 82%,#bfb6aa 100%);padding-top:14px;box-shadow:0 14px 0 -2px #4c4741,0 15px 0 -1px #1a1714,0 22px 12px rgba(0,0,0,.65);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;will-change:transform}
+.preset .cap::before{content:"";position:absolute;left:8px;right:8px;top:3px;height:9px;border-radius:5px;background:linear-gradient(rgba(255,255,255,.75),rgba(255,255,255,0));pointer-events:none}
+.preset .t{position:relative;font-weight:700;font-size:17px;letter-spacing:.03em;white-space:nowrap;color:#1a1714;text-transform:uppercase;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.preset .d{position:relative;font-weight:600;font-size:12.5px;color:#2b2622;letter-spacing:.04em;text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.preset .p{position:relative;font-weight:700;font-size:13px;color:#7a1d10}
+.preset:focus-visible .cap{outline:3px solid var(--amber);outline-offset:3px}
+.preset[aria-disabled="true"]{cursor:not-allowed}
+.preset[aria-disabled="true"] .cap{filter:grayscale(.4) brightness(.8)}
+.preset .tape{position:absolute;left:-4px;right:-4px;top:30px;height:22px;background:#e9dfc0;transform:rotate(-7deg);box-shadow:0 2px 3px rgba(0,0,0,.4);font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8a2a1a;display:grid;place-items:center;text-transform:uppercase;z-index:2}
+.preset .led{position:absolute;left:50%;bottom:0;width:22px;height:4px;margin-left:-11px;border-radius:2px;background:#3a1a10;transition:background .2s,box-shadow .2s}
+.preset[aria-checked="true"] .led{background:#ff8a3c;box-shadow:0 0 8px #ff8a3c}
+/* odometer plaque */
+.odo{position:absolute;right:5%;top:calc(34% + 46px);width:200px;border-radius:12px;background:var(--chrome);padding:7px;box-shadow:0 10px 16px rgba(0,0,0,.45);z-index:1}
+.odo .in{border-radius:8px;background:linear-gradient(#1b1917,#2b2724);padding:12px 12px 10px;text-align:center;color:#e7dcc3}
+.odo small{display:block;font-size:11px;letter-spacing:.3em}
+.drums{display:flex;justify-content:center;gap:2px;margin:8px 0 6px}
+.drum{width:22px;height:32px;overflow:hidden;background:linear-gradient(#0b0b0b,#2e2e2e 50%,#0b0b0b);border-radius:2px;position:relative}
+.drum.cents{background:linear-gradient(#e9e2d3,#fffaf0 50%,#e9e2d3)}
+.drum .strip{position:absolute;left:0;right:0;top:0;will-change:transform}
+.drum .strip span{display:block;height:32px;line-height:32px;font-weight:600;font-size:22px;color:#f3ead6;text-align:center}
+.drum.cents .strip span{color:#1b1917}
+.dot{color:#e7dcc3;font-weight:700;font-size:22px;line-height:32px;width:6px}
+.odo .item{font-size:12.5px;letter-spacing:.05em;line-height:1.35;opacity:.85}
+/* continue knob */
+.pull{position:absolute;left:50%;bottom:calc(12% - 34px);transform:translateX(-50%);display:flex;align-items:center;gap:0;appearance:none;border:0;background:none;cursor:pointer;z-index:3}
+.pull .stem{width:16px;height:16px;background:var(--chromeV);border-radius:2px;transition:width .35s cubic-bezier(.3,1.6,.5,1)}
+.pull .head{height:52px;padding:0 26px;border-radius:26px;background:var(--chrome);display:grid;place-items:center;font-weight:700;font-size:17px;letter-spacing:.14em;color:#1a1714;text-transform:uppercase;box-shadow:0 8px 12px rgba(0,0,0,.45);text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.pull .base{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,#9aa2a8 55%,#3d3934 80%,#cfc5b8);box-shadow:inset 0 2px 4px rgba(0,0,0,.5)}
+.pull.out .stem{width:46px}
+.pull:focus-visible .head{outline:3px solid var(--amber);outline-offset:3px}
+.pull.out .head{background:linear-gradient(180deg,#fff2c9,#f0c35a 45%,#8a5a12 51%,#d6a648 70%,#fff0c4)}
+.hint{position:absolute;left:5%;bottom:calc(12% + 22px);color:var(--cream);font-size:15px;letter-spacing:.1em;opacity:.9;transition:opacity .8s}
+.hint.gone{opacity:0}
+.mute{position:absolute;right:16px;top:16px;width:36px;height:36px;border-radius:50%;border:0;background:var(--chrome);cursor:pointer;display:grid;place-items:center;z-index:4;box-shadow:0 3px 6px rgba(0,0,0,.4)}
+.mute:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:1100px){.odo{right:2%;width:170px}.script{font-size:44px}}
+@media (max-width:900px){
+  .wind,.glare{height:120px}.pad{top:92px;height:70px}.dash{top:140px}
+  .trim.t2{bottom:62px}
+  .script{left:50%;top:8px;transform:translateX(-50%) rotate(-4deg);font-size:38px;white-space:nowrap}
+  .step{left:0;right:0;max-width:none;top:58px;text-align:center;font-size:10.5px}.step b{font-size:17px}
+  .speedo{top:242px;height:58px;padding:5px}.speedo .ticks{top:4px}.speedo .ticks span{font-size:11px}.speedo .ticks span::after{top:15px;height:6px}.speedo .ribbon{top:30px;height:8px}.speedo .lbl,.speedo .lbl2{font-size:8.5px;bottom:2px}
+  .radio{top:310px;padding:8px;border-radius:16px}
+  .radio .inner{padding:10px 8px 10px}
+  .row1{gap:8px}.knob{width:44px;height:44px}.knob::before{inset:8px}.knob::after{inset:15px}.knob i{top:3px;height:8px}.knob small{display:none}
+  .dial{height:92px}.dial .nums{top:8px}.dial .nums span{font-size:13px}.dial .scale{top:32px}.dial .marks{top:48px}.dial .marks span{font-size:9px}.dial .read{font-size:12px;letter-spacing:.05em;bottom:5px}.dial .kc{display:none}
+  .presets{gap:5px;margin-top:12px;padding:8px 5px 10px}
+  .preset{height:84px}.preset .cap{height:68px;padding-top:12px}.preset .t{font-size:11.5px;letter-spacing:0}.preset .d{font-size:9.5px}.preset .p{font-size:11px}.preset .tape{font-size:7.5px;top:24px;height:18px}
+  .odo{left:50%;right:auto;transform:translateX(-50%);top:572px;width:min(330px,88vw)}
+  .odo .in{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:10px;text-align:left;padding:8px 10px}
+  .odo small{grid-column:1/-1;text-align:center}.drums{margin:4px 0}.drum{width:18px;height:28px}.drum .strip span{height:28px;line-height:28px;font-size:18px}.dot{font-size:18px;line-height:28px}.odo .item{font-size:10.5px}
+  .hint{left:0;right:0;text-align:center;bottom:118px;font-size:12px}
+  .pull{bottom:40px}.pull .head{height:44px;font-size:14px;padding:0 18px}.pull .base{width:36px;height:36px}
+}
+@media (prefers-reduced-motion:reduce){.pull .stem{transition:none}}
+</style>
+</head>
+<body>
+<div class="car">
+  <div class="wind" aria-hidden="true"></div><div class="glare" aria-hidden="true"></div>
+  <div class="pad" aria-hidden="true"></div>
+  <div class="dash">
+    <div class="trim t1" aria-hidden="true"></div><div class="trim t2" aria-hidden="true"></div>
+    <div class="script" aria-hidden="true">Starliner</div>
+    <p class="step">Checkout · step 2 of 3<b>How fast should it come?</b></p>
+    <p class="hint" id="hint">Push a preset to tune in a delivery speed</p>
+  </div>
+  <div class="speedo" aria-hidden="true"><div class="face">
+    <div class="ticks"><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span><span>120</span></div>
+    <div class="ribbon" id="ribbon"></div><div class="lbl2" id="eta">ARRIVES —</div><div class="lbl">DELIVERY SPEED · MPH</div></div></div>
+
+  <div class="radio">
+    <div class="inner">
+      <div class="row1">
+        <button class="knob" id="vol" aria-label="Volume" role="slider" aria-valuemin="0" aria-valuemax="10" aria-valuenow="6"><i></i><small>VOLUME</small></button>
+        <div class="dial" id="dial" aria-hidden="true">
+          <div class="kc">KC × 10</div>
+          <div class="nums" id="nums"></div><div class="scale"></div><div class="marks" id="marks"></div>
+          <div class="read" id="read">Push a button</div>
+          <div class="needle" id="needle"></div>
+        </div>
+        <button class="knob" id="tune" aria-label="Tune to next delivery option"><i></i><small>TUNING</small></button>
+      </div>
+      <div class="presets" role="radiogroup" aria-label="Delivery speed" id="presets"></div>
+    </div>
+  </div>
+
+  <div class="odo" aria-live="polite">
+    <div class="in">
+      <small>ORDER TOTAL</small>
+      <div class="drums" id="drums" aria-hidden="true"></div>
+      <p class="item" id="items">Atomic starburst wall clock · $118.50<br><span id="shipline">Shipping · choose a speed</span></p>
+      <span class="sr" id="totalsr"></span>
+    </div>
+  </div>
+
+  <button class="pull" id="pull" disabled aria-disabled="true"><span class="base"></span><span class="stem"></span><span class="head" id="pullTxt">Choose a speed</span></button>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sound"><svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6.5h3l4-3.5v12l-4-3.5H2z" fill="#1d1a17"/><path id="mw" d="M12 5.5c1.8 1.8 1.8 5.2 0 7" stroke="#1d1a17" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></button>
+</div>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const SUB=118.50;
+const OPTS=[
+  {t:'Standard',d:'5–7 days',p:0,price:'Free',kc:62,mph:24,eta:'Wed 14 – Fri 16 Oct',code:'STD',notes:[392,440,523.25]},
+  {t:'Tracked',d:'3–4 days',p:4.95,price:'$4.95',kc:78,mph:44,eta:'Mon 12 – Tue 13 Oct',code:'TRK',notes:[440,554.37,659.25]},
+  {t:'Express',d:'2 days',p:9.95,price:'$9.95',kc:96,mph:66,eta:'Friday 9 October',code:'EXP',notes:[523.25,659.25,783.99]},
+  {t:'Next day',d:'by 6 pm',p:14.95,price:'$14.95',kc:118,mph:88,eta:'Tomorrow, Thu 8 Oct, by 6 pm',code:'NXT',notes:[587.33,739.99,880]},
+  {t:'Courier',d:'today',p:24,price:'$24.00',kc:146,mph:112,eta:'',code:'CUR',disabled:'Not in 94117'}
+];
+const KMIN=53,KMAX=162;
+const kcPos=kc=>(kc-KMIN)/(KMAX-KMIN);
+/* dial printing */
+const nums=$('nums');[60,70,80,100,120,140,160].forEach(n=>{const s=document.createElement('span');s.textContent=n;s.style.left=(kcPos(n)*100)+'%';nums.appendChild(s);});
+const marks=$('marks');OPTS.forEach(o=>{const s=document.createElement('span');s.textContent=o.code;s.style.left=(kcPos(o.kc)*100)+'%';marks.appendChild(s);});
+/* presets */
+const pg=$('presets');
+const btns=OPTS.map((o,i)=>{const b=document.createElement('button');b.className='preset';b.type='button';b.setAttribute('role','radio');b.setAttribute('aria-checked','false');
+  b.setAttribute('aria-label',`${o.t}, ${o.d}, ${o.price}${o.disabled?', unavailable for your ZIP code':''}`);b.tabIndex=i===0?0:-1;
+  if(o.disabled)b.setAttribute('aria-disabled','true');
+  b.innerHTML=`<span class="cap"><span class="t">${o.t}</span><span class="d">${o.d}</span><span class="p">${o.price}</span>${o.disabled?`<span class="tape">${o.disabled}</span>`:''}</span><span class="led"></span>`;
+  pg.appendChild(b);return b;});
+const caps=btns.map(b=>b.querySelector('.cap'));
+/* odometer drums */
+const drumsEl=$('drums');const DIG=6;const drums=[];
+for(let i=0;i<DIG;i++){if(i===4){const d=document.createElement('span');d.className='dot';d.textContent='.';drumsEl.appendChild(d);}
+  const dr=document.createElement('div');dr.className='drum'+(i>=4?' cents':'');const st=document.createElement('div');st.className='strip';
+  for(let k=0;k<11;k++){const s=document.createElement('span');s.textContent=k%10;st.appendChild(s);}dr.appendChild(st);drumsEl.appendChild(dr);drums.push({st,v:0,t:0});}
+const dollar=document.createElement('span');dollar.className='dot';dollar.style.width='14px';dollar.textContent='$';drumsEl.prepend(dollar);
+
+/* sound */
+let AC=null,master=null,noiseG=null,noiseF=null,muted=false,volume=.6;
+function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}
+  master=AC.createGain();master.gain.value=muted?0:.18*volume/.6;master.connect(AC.destination);
+  const n=AC.sampleRate*2,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(Math.random()<.02?2:.6);
+  const s=AC.createBufferSource();s.buffer=b;s.loop=true;noiseF=AC.createBiquadFilter();noiseF.type='bandpass';noiseF.frequency.value=1800;noiseF.Q.value=.6;noiseG=AC.createGain();noiseG.gain.value=0;s.connect(noiseF).connect(noiseG).connect(master);s.start();}
+  if(AC.state==='suspended')AC.resume();return AC}
+function clunk(depth=1){const a=audio();if(!a)return;const t=a.currentTime;
+  const o=a.createOscillator(),g=a.createGain();o.type='square';o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(55,t+.06);const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=700;
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5*depth,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+.12);o.connect(f).connect(g).connect(master);o.start(t);o.stop(t+.14);
+  const n=Math.floor(a.sampleRate*.025),b=a.createBuffer(1,n,a.sampleRate),dd=b.getChannelData(0);for(let i=0;i<n;i++)dd[i]=(Math.random()*2-1)*Math.pow(1-i/n,4);
+  const s=a.createBufferSource();s.buffer=b;const g2=a.createGain();g2.gain.value=.45*depth;const f2=a.createBiquadFilter();f2.type='highpass';f2.frequency.value=2500;s.connect(f2).connect(g2).connect(master);s.start(t);}
+function ping(){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.value=2600;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.003);g.gain.exponentialRampToValueAtTime(.0001,t+.08);o.connect(g).connect(master);o.start(t);o.stop(t+.1);}
+function jingle(notes){const a=audio();if(!a)return;const t=a.currentTime;notes.forEach((f,i)=>{const o=a.createOscillator(),o2=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();o.type='triangle';o2.type='sine';o.frequency.value=f;o2.frequency.value=f*2;lp.type='lowpass';lp.frequency.value=2200;
+  const st=t+i*.13;g.gain.setValueAtTime(.0001,st);g.gain.exponentialRampToValueAtTime(.16,st+.01);g.gain.exponentialRampToValueAtTime(.0001,st+.55);o.connect(lp);o2.connect(lp);lp.connect(g).connect(master);o.start(st);o2.start(st);o.stop(st+.6);o2.stop(st+.6);});}
+$('mute').addEventListener('click',()=>{muted=!muted;$('mute').setAttribute('aria-pressed',muted);$('mute').setAttribute('aria-label',muted?'Unmute sound':'Mute sound');$('mw').style.opacity=muted?.15:1;if(master)master.gain.value=muted?0:.18*volume/.6;});
+
+/* physics */
+const st=OPTS.map(()=>({y:0,v:0,goal:0}));   // y in px of travel
+const TRAVEL=16;
+let sel=-1, pressing=-1;
+let needle={x:kcPos(55),v:0,goal:kcPos(55)}, ribbon={x:0,v:0,goal:0}, total={x:SUB,goal:SUB}, settled=true;
+function press(i,down){
+  if(OPTS[i].disabled){if(down){st[i].v=30;clunk(.25);const b=btns[i];b.animate([{transform:'translateX(0)'},{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}],{duration:220});$('live').textContent='Same-day courier is not available for ZIP code 94117';}return}
+  if(down){pressing=i;st[i].goal=TRAVEL*1.25;}
+  else{pressing=-1;choose(i);}
+}
+function choose(i){
+  audio();const prev=sel;sel=i;
+  st.forEach((s,k)=>{if(k===i){s.goal=TRAVEL;}else{if(s.goal>0||s.y>1){s.goal=0;s.v=-260-Math.random()*60;}}});
+  btns.forEach((b,k)=>{b.setAttribute('aria-checked',String(k===i));b.tabIndex=k===i?0:-1;});
+  clunk(1);if(prev>=0&&prev!==i)setTimeout(()=>ping(),40);
+  const o=OPTS[i];needle.goal=kcPos(o.kc);ribbon.goal=o.mph/120;total.goal=SUB+o.p;settled=false;
+  $('read').style.opacity=.15;$('hint').classList.add('gone');
+  $('eta').textContent='ARRIVES '+o.eta.toUpperCase();$('shipline').textContent=`${o.t} shipping · ${o.price}`;
+  const pull=$('pull');pull.disabled=false;pull.setAttribute('aria-disabled','false');pull.classList.remove('out');$('pullTxt').textContent='Continue to payment';
+  $('totalsr').textContent=`Total $${(SUB+o.p).toFixed(2)}`;
+  $('live').textContent=`${o.t} selected. ${o.eta}. Total $${(SUB+o.p).toFixed(2)}`;
+}
+btns.forEach((b,i)=>{
+  b.addEventListener('pointerdown',e=>{audio();press(i,true);try{b.setPointerCapture(e.pointerId)}catch(_){}});
+  b.addEventListener('pointerup',()=>{if(pressing===i)press(i,false);});
+  b.addEventListener('pointercancel',()=>{if(pressing===i){pressing=-1;st[i].goal=sel===i?TRAVEL:0;}});
+  b.addEventListener('click',e=>{if(e.detail===0){press(i,true);setTimeout(()=>press(i,false),90);}});
+  b.addEventListener('keydown',e=>{let k=-1;if(e.key==='ArrowRight'||e.key==='ArrowDown')k=1;else if(e.key==='ArrowLeft'||e.key==='ArrowUp')k=-1;else return;
+    e.preventDefault();let j=i;do{j=(j+k+OPTS.length)%OPTS.length;}while(OPTS[j].disabled);btns[j].focus();press(j,true);setTimeout(()=>press(j,false),90);});
+});
+/* tuning knob = next preset; volume knob */
+let tuneRot=0,volRot=(volume-.5)*270;
+$('tune').addEventListener('click',()=>{audio();let j=sel;do{j=(j+1)%OPTS.length;}while(OPTS[j].disabled);tuneRot+=72;$('tune').style.transform=`rotate(${tuneRot}deg)`;press(j,true);setTimeout(()=>press(j,false),90);});
+(function vol(){const k=$('vol');let drag=false,sy=0,sv=0;const set=v=>{volume=Math.max(0,Math.min(1,v));k.style.transform=`rotate(${(volume-.5)*270}deg)`;k.setAttribute('aria-valuenow',Math.round(volume*10));if(master&&!muted)master.gain.value=.18*volume/.6;};
+  set(volume);k.addEventListener('pointerdown',e=>{audio();drag=true;sy=e.clientY;sv=volume;try{k.setPointerCapture(e.pointerId)}catch(_){}});
+  k.addEventListener('pointermove',e=>{if(drag)set(sv+(sy-e.clientY)/160);});k.addEventListener('pointerup',()=>drag=false);
+  k.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowRight'){e.preventDefault();set(volume+.1);}else if(e.key==='ArrowDown'||e.key==='ArrowLeft'){e.preventDefault();set(volume-.1);}});})();
+$('pull').addEventListener('click',()=>{if(sel<0)return;audio();const p=$('pull');p.classList.add('out');clunk(.7);$('pullTxt').textContent='On to payment';$('live').textContent='Continuing to payment';
+  document.querySelector('.dial').animate([{filter:'brightness(1)'},{filter:'brightness(1.35)'},{filter:'brightness(1)'}],{duration:700});});
+
+/* loop */
+let lt=performance.now();
+let DH=32;const mq=matchMedia('(max-width:900px)');const updDH=()=>{DH=mq.matches?28:32};updDH();mq.addEventListener('change',updDH);
+function setDrum(i,val){const d=drums[i];d.st.style.transform=`translateY(${-val*DH}px)`;}
+const capShadow=[];
+function loop(now){
+  const real=Math.min(.12,(now-lt)/1000);lt=now;const nSub=Math.max(1,Math.ceil(real/(1/120)));
+  for(let ss=0;ss<nSub;ss++)if(!document.hidden)physics(real/nSub,ss===nSub-1);
+  requestAnimationFrame(loop);
+}
+function physics(dt,draw){
+  {
+    st.forEach((s,i)=>{const k=pressing===i?1400:900,c=pressing===i?40:22;const a=(s.goal-s.y)*k-s.v*c;s.v+=a*dt;s.y+=s.v*dt;
+      if(s.y<-1.5){s.y=-1.5;s.v=Math.abs(s.v)*.3;}
+      if(RM){s.y=s.goal;s.v=0;}
+      if(!draw)return;const yk=s.y.toFixed(1);if(capShadow[i]===yk)return;capShadow[i]=yk;
+      caps[i].style.transform=`translateY(${yk}px)`;
+      caps[i].style.boxShadow=`0 ${14-s.y*.8}px 0 -2px #4c4741,0 ${15-s.y*.8}px 0 -1px #1a1714,0 ${22-s.y}px ${12-s.y*.5}px rgba(0,0,0,${.65-s.y*.02})`;});
+    // needle
+    const pn=needle.x;const na=(needle.goal-needle.x)*42-needle.v*9.5;needle.v+=na*dt;needle.x+=needle.v*dt;if(RM){needle.x=needle.goal;needle.v=0;}
+    if(draw)$('needle').style.left=(5+needle.x*90)+'%';
+    const sp=Math.abs(needle.x-pn)/Math.max(dt,.001);
+    if(noiseG&&draw){const near=Math.abs(needle.x-needle.goal);noiseG.gain.setTargetAtTime(Math.min(.5,sp*1.6+(near>.004?.08:0))*(sel>=0?1:0),AC.currentTime,.03);noiseF.frequency.setTargetAtTime(900+Math.random()*2200,AC.currentTime,.02);}
+    if(!settled&&Math.abs(needle.x-needle.goal)<.003&&Math.abs(needle.v)<.02){settled=true;const o=OPTS[sel];$('read').textContent=`${o.t} · ${o.d} · ${o.price}`;$('read').style.opacity=1;jingle(o.notes);}
+    // ribbon
+    const ra=(ribbon.goal-ribbon.x)*30-ribbon.v*7;ribbon.v+=ra*dt;ribbon.x+=ribbon.v*dt;if(RM){ribbon.x=ribbon.goal;}
+    if(draw)$('ribbon').style.width=(Math.max(0,ribbon.x)*92)+'%';
+    // odometer
+    {const df=total.goal-total.x,stp=Math.sign(df)*Math.max(Math.abs(df)*Math.min(1,dt*(RM?60:5)),dt*1.2);total.x=Math.abs(stp)>=Math.abs(df)?total.goal:total.x+stp;}
+    if(!draw)return;const v=total.x*100;
+    for(let i=0;i<DIG;i++){const place=Math.pow(10,DIG-1-i);let digit=(v/place)%10;const lower=v%place;
+      // drums only roll in the last unit of their lower wheel
+      const frac=place>1?Math.max(0,(lower-(place-1))):digit-Math.floor(digit);setDrum(i,Math.floor(digit)+(place>1?frac:frac));}
+  }
+}
+requestAnimationFrame(loop);
+window.__radio={choose:i=>{press(i,true);setTimeout(()=>press(i,false),90);}};
+})();
+</script>
+</body>
+</html>

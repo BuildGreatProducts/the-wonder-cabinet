@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pull-Chain Theme</title>
+<meta name="description" content="A dark-mode toggle reimagined as the pull chain of a pendant lamp in an Edward Hopper-style painted reading room.">
+<script type="application/json" id="component-meta">
+{"name":"Pull-Chain Theme","reimagines":"Dark-mode toggle","category":"Toggles & Switches","description":"The reading app lives inside a Hopper-style painted room. Tug the pendant lamp's beaded chain and the light switches: warm lamplight floods out from the bulb, or the room falls into moonlit blue. Swing the lamp and its pool of light slides across the page.","hint":"Pull the lamp's chain down and let go"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2a2017; --muted:#6d5a43; --accent:#8e2f1c; --sign:#1f4335; --rule:rgba(60,40,20,.25);
+  --sheet-sh: rgba(40,20,10,.0);
+}
+:root[data-theme="dark"]{
+  --ink:#e8dcc4; --muted:#9aa5b0; --accent:#e39a6a; --sign:#c7a14a; --rule:rgba(220,210,190,.18);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#3a2a1d}
+:root[data-theme="dark"] body{background:#141a22}
+body{font-family:"Newsreader",Georgia,serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+canvas{position:fixed;inset:0;display:block}
+#bg{z-index:0}
+#lt{z-index:1;pointer-events:none}
+#fx{z-index:5;pointer-events:none;view-transition-name:fx}
+.sign{position:fixed;z-index:3;left:7vw;top:26px;display:flex;align-items:baseline;gap:14px;pointer-events:none}
+.sign .brand{font-family:"Antonio",sans-serif;font-weight:700;font-size:38px;letter-spacing:.06em;text-transform:uppercase;color:var(--sign);filter:url(#paintEdge);text-shadow:0 0 1px rgba(0,0,0,.2)}
+.sign .sub{font-family:"Antonio",sans-serif;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);filter:url(#paintEdge)}
+.sheet{position:fixed;z-index:2;left:7vw;top:96px;width:min(600px,50vw);height:calc(100dvh - 160px);max-height:640px}
+.scroll{position:absolute;inset:0;overflow:auto;padding:46px 54px 40px 56px;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
+.kicker{font-family:"Antonio",sans-serif;font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+h1{font-family:"Antonio",sans-serif;font-weight:600;font-size:44px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;margin:0 0 12px;filter:url(#paintEdge)}
+.by{font-style:italic;color:var(--muted);font-size:15px;margin:0 0 20px;padding-bottom:16px;border-bottom:1.5px solid var(--rule)}
+.scroll p{font-size:18.5px;line-height:1.55;margin:0 0 14px;text-wrap:pretty}
+.scroll p.lede::first-letter{font-family:"Antonio",sans-serif;font-weight:700;float:left;font-size:58px;line-height:.9;margin:4px 8px 0 0;color:var(--accent)}
+blockquote{margin:18px 0 18px;padding:0 0 0 18px;border-left:3px solid var(--accent);font-style:italic;font-size:21px;line-height:1.35}
+.placard{position:fixed;z-index:3;right:calc(4.5vw + 6px);top:66vh;width:214px;padding:16px 18px 14px;font-family:"Antonio",sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:12px;color:var(--ink);pointer-events:none}
+.placard b{display:block;font-weight:600;color:var(--muted);font-size:11px;letter-spacing:.3em;margin-bottom:6px}
+.placard span{display:block;font-size:20px;letter-spacing:.08em;filter:url(#paintEdge)}
+.placard small{display:block;margin-top:6px;font-family:"Newsreader",serif;text-transform:none;letter-spacing:0;font-style:italic;font-size:13px;color:var(--muted)}
+#pull{position:fixed;z-index:6;left:0;top:0;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;border:0;background:transparent;cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;padding:0}
+#pull:active{cursor:grabbing}
+#pull:focus{outline:none}
+#pull:focus-visible{outline:2px dashed var(--sign);outline-offset:-6px}
+.pull-hint{position:fixed;z-index:6;left:0;top:0;font-family:"Antonio",sans-serif;text-transform:uppercase;letter-spacing:.2em;font-size:12px;font-weight:600;color:var(--sign);pointer-events:none;white-space:nowrap;transition:opacity .6s;filter:url(#paintEdge)}
+.pull-hint.gone{opacity:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html.vt *{transition:none!important}
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+html.vt-off::view-transition-old(root){z-index:2}
+html.vt-off::view-transition-new(root){z-index:1}
+::view-transition-group(fx){animation:none}
+::view-transition-old(fx){display:none}
+::view-transition-new(fx){animation:none}
+@media (max-width:700px){
+  .sign{left:20px;top:18px;gap:8px;flex-direction:column}
+  .sign .brand{font-size:30px}
+  .sign .sub{font-size:11px}
+  .sheet{left:14px;right:14px;width:auto;top:250px;height:calc(100dvh - 268px);max-height:none}
+  .scroll{padding:30px 24px 30px 26px}
+  h1{font-size:32px}
+  .scroll p{font-size:17px}
+  .placard{display:none}
+}
+@media (prefers-reduced-motion:reduce){ .pull-hint{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="lt" aria-hidden="true"></canvas>
+<header class="sign" aria-label="Margins reading room"><span class="brand">Margins</span><span class="sub">the reading room</span></header>
+<main class="sheet" id="sheet">
+  <div class="scroll" tabindex="0" aria-label="Article">
+    <p class="kicker">Travel · Long read</p>
+    <h1>The slow return of the night train</h1>
+    <p class="by">By Ines Halvorsen · 9 min read · 4 October 2026</p>
+    <p class="lede">At 21:42 the platform at Wien Hauptbahnhof smells of brake dust and oranges. A conductor in a navy waistcoat checks names against a clipboard, and nobody hurries, because the whole point of this train is that you sleep through the hurrying.</p>
+    <p>Ten years ago most of Europe's sleeper routes were being quietly retired. They were costly to run, awkward to timetable and easy to undercut with a budget flight. Now operators are ordering carriages faster than the factories in Kraków and Ulm can build them.</p>
+    <blockquote>"You lose an evening and gain a morning. Most people decide that's a fair trade."</blockquote>
+    <p>The economics turn on one stubborn idea: a bed is worth more than a seat. A couchette sold twice a night, outbound and back, earns more than a daytime carriage that sits half-empty after the morning rush.</p>
+    <p>Somewhere past Linz the corridor lights dim to amber. A boy in the next compartment is reading under a blanket with a torch. The window shows nothing but your own reflection and, now and then, a level crossing ringing for no one.</p>
+    <p>By the time the train noses into Venezia Santa Lucia the coffee is terrible and nobody minds.</p>
+  </div>
+</main>
+<aside class="placard" aria-hidden="true"><b>Theme</b><span id="themeName">Light · lamp on</span><small>Follows the lamp in this room</small></aside>
+<canvas id="fx" aria-hidden="true"></canvas>
+<button id="pull" role="switch" aria-checked="false" aria-label="Dark mode — pull the lamp chain"></button>
+<div class="pull-hint" id="hint" aria-hidden="true">Pull for dark</div>
+<div class="sr" aria-live="polite" id="live"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="paintEdge" x="-5%" y="-10%" width="110%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<script>
+(() => {
+'use strict';
+const root = document.documentElement;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const bg = document.getElementById('bg'), bx = bg.getContext('2d');
+const fx = document.getElementById('fx'), fc = fx.getContext('2d');
+const lt = document.getElementById('lt'), lc = lt.getContext('2d');
+const sheetEl = document.getElementById('sheet');
+const pullBtn = document.getElementById('pull');
+const hint = document.getElementById('hint');
+const live = document.getElementById('live');
+const themeName = document.getElementById('themeName');
+
+let W = 0, H = 0, DPR = 1, mobile = false;
+let dark = false;
+let S = 1, pivot = {x:0, y:-8}, cordLen = 120, N = 17, seg = 11, extMax = 28;
+let th = 0, om = 0;               // lamp angle, angular velocity
+const beads = [];
+let grab = -1, target = null, ext = 0, extV = 0, armed = false, overPull = 0;
+let auto = null;                  // keyboard-driven pull
+let heat = 1, light = 1, flick = 0; // filament heat, light level, flicker timer
+let toggles = [], blown = false, blownT = 0, newBulb = 1;
+let sceneOn = null, sceneOff = null, sheetR = null, winR = null, plR = null;
+const placardEl = document.querySelector('.placard');
+const motes = [];
+
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const hsl = (c, dl = 0) => `hsl(${c[0]} ${c[1]}% ${clamp(c[2] + dl, 0, 100)}%)`;
+
+/* ---------- sound ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = 0.16; master.connect(ac.destination); } catch(e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function noiseBurst(freq, q, dur, gain){
+  if (!ac) return;
+  const n = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+  const s = ac.createBufferSource(); s.buffer = buf;
+  const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  const g = ac.createGain(); g.gain.value = gain;
+  s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+function ping(freq, dur, gain){
+  if (!ac) return;
+  const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+  o.frequency.value = freq; o.type = 'triangle';
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+}
+const sClick = () => { noiseBurst(3400, 2.2, .045, 1.1); ping(2100, .05, .12); };
+const sClack = () => { noiseBurst(1500, 1.6, .07, 1.0); ping(820, .07, .1); };
+const sPop = () => { noiseBurst(900, .7, .25, 1.4); for (let i = 0; i < 5; i++) setTimeout(() => ping(rnd(3200, 5200), .12, .05), 90 + i * 55); };
+const sRattle = (v) => noiseBurst(rnd(5200, 7000), 6, .02, Math.min(.35, v));
+
+/* ---------- painting the room ---------- */
+function brush(g, x0, y0, x1, y1, n, col, o){
+  g.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const x = rnd(x0, x1), y = rnd(y0, y1), an = o.ang + rnd(-o.aj, o.aj);
+    const L = rnd(o.len[0], o.len[1]) * DPRs, wd = rnd(o.w[0], o.w[1]) * DPRs;
+    const dx = Math.cos(an) * L / 2, dy = Math.sin(an) * L / 2, bend = rnd(-.18, .18) * L;
+    const nx = -Math.sin(an), ny = Math.cos(an);
+    g.globalAlpha = rnd(o.a[0], o.a[1]);
+    g.strokeStyle = `hsl(${col[0] + rnd(-o.dh, o.dh)} ${clamp(col[1] + rnd(-o.ds, o.ds), 0, 100)}% ${clamp(col[2] + rnd(-o.dl, o.dl), 0, 100)}%)`;
+    g.lineWidth = wd;
+    g.beginPath(); g.moveTo(x - dx, y - dy); g.quadraticCurveTo(x + nx * bend, y + ny * bend, x + dx, y + dy); g.stroke();
+    if (Math.random() < .55) { // dry-brush bristle streaks
+      g.globalAlpha *= .7; g.lineWidth = wd * .18;
+      g.strokeStyle = hsl(col, rnd(-o.dl * 1.8, o.dl * 1.8));
+      for (let k = -1; k <= 1; k += 2) {
+        const off = wd * .32 * k;
+        g.beginPath(); g.moveTo(x - dx + nx * off, y - dy + ny * off); g.quadraticCurveTo(x + nx * (bend + off), y + ny * (bend + off), x + dx * .8 + nx * off, y + dy * .8 + ny * off); g.stroke();
+      }
+    }
+  }
+  g.globalAlpha = 1;
+}
+let DPRs = 1;
+function paintRect(g, x, y, w, h, col, o){
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  g.fillStyle = hsl(col); g.fillRect(x, y, w, h);
+  brush(g, x - 10, y - 10, x + w + 10, y + h + 10, Math.max(8, (w * h) / (o.dens * DPR * DPR)), col, o);
+  g.restore();
+}
+function paintPoly(g, pts, col, o, alpha = 1){
+  g.save(); g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.clip();
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  g.globalAlpha = alpha; g.fillStyle = hsl(col); g.fillRect(x0, y0, x1 - x0, y1 - y0);
+  brush(g, x0, y0, x1, y1, Math.max(8, ((x1 - x0) * (y1 - y0)) / (o.dens * DPR * DPR)), col, Object.assign({}, o, {a: [o.a[0] * alpha, o.a[1] * alpha]}));
+  g.restore();
+}
+const BR = {ang: 0, aj: .25, len: [18, 54], w: [5, 12], dh: 3, ds: 7, dl: 6.5, a: [.14, .34], dens: 80};
+
+function paintScene(night){
+  const c = document.createElement('canvas'); c.width = W * DPR; c.height = H * DPR;
+  const g = c.getContext('2d'); g.scale(DPR, DPR); DPRs = 1;
+  const P = night ? {
+    wall:[214,24,23], ceil:[218,22,18], wain:[200,22,14], floor:[222,22,11], trim:[210,18,30],
+    sky:[226,42,13], sky2:[220,40,20], bldg:[232,14,17], winLit:[44,80,62], frame:[205,22,10], sheet:[212,22,19], curtain:[210,18,36]
+  } : {
+    wall:[36,48,60], ceil:[42,40,72], wain:[148,22,30], floor:[14,46,28], trim:[30,30,40],
+    sky:[204,38,34], sky2:[22,55,58], bldg:[10,40,33], winLit:[44,85,64], frame:[168,26,20], sheet:[43,42,87], curtain:[40,40,84]
+  };
+  const wainY = H * (mobile ? .9 : .8), floorY = H * (mobile ? .96 : .9);
+  // ceiling band + wall
+  paintRect(g, 0, 0, W, H * .055, P.ceil, Object.assign({}, BR, {dl: 3}));
+  paintRect(g, 0, H * .055, W, wainY - H * .055, P.wall, BR);
+  // soft painted gradient of wall light (top darker in night, bottom warmer by day)
+  const wg = g.createLinearGradient(0, 0, 0, wainY);
+  if (night) { wg.addColorStop(0, 'rgba(5,10,20,.45)'); wg.addColorStop(1, 'rgba(5,10,20,0)'); }
+  else { wg.addColorStop(0, 'rgba(70,40,10,.18)'); wg.addColorStop(1, 'rgba(255,220,150,.10)'); }
+  g.fillStyle = wg; g.fillRect(0, 0, W, wainY);
+  // picture rail
+  paintRect(g, 0, H * .055, W, 7, P.trim, Object.assign({}, BR, {w: [2, 4], len: [30, 80], dens: 30}));
+  // wainscot + floor
+  paintRect(g, 0, wainY, W, floorY - wainY, P.wain, Object.assign({}, BR, {aj: .08}));
+  paintRect(g, 0, wainY - 4, W, 6, P.trim, Object.assign({}, BR, {w: [2, 4], dens: 30}));
+  paintRect(g, 0, floorY, W, H - floorY, P.floor, Object.assign({}, BR, {aj: .04, len: [40, 120], w: [3, 7]}));
+
+  // window
+  const w = winR;
+  if (w) {
+    // outside sky
+    const sg = g.createLinearGradient(0, w.y, 0, w.y + w.h);
+    sg.addColorStop(0, hsl(P.sky)); sg.addColorStop(1, hsl(P.sky2));
+    g.fillStyle = sg; g.fillRect(w.x, w.y, w.w, w.h);
+    brush(g, w.x, w.y, w.x + w.w, w.y + w.h * .5, (w.w * w.h) / 400, P.sky, Object.assign({}, BR, {dl: 4, a: [.1, .2]}));
+    // building across the street
+    const bTop = w.y + w.h * .28;
+    paintRect(g, w.x, bTop, w.w, w.h - (bTop - w.y), P.bldg, Object.assign({}, BR, {aj: .1, w: [3, 8]}));
+    // cornice
+    paintRect(g, w.x, bTop, w.w, 6, night ? [230, 12, 24] : [24, 30, 52], Object.assign({}, BR, {w: [2, 4], dens: 25}));
+    // building windows
+    const cols = 3, rows = 3, ww = w.w / (cols * 2 + 1), wh = (w.h - (bTop - w.y)) / (rows * 2 + 1.3);
+    for (let r = 0; r < rows; r++) for (let k = 0; k < cols; k++) {
+      const lit = night ? ((r * 3 + k) % 3 !== 1) : ((r + k) % 4 === 0);
+      paintRect(g, w.x + ww * (k * 2 + 1), bTop + wh * (r * 2 + 1.2), ww, wh, lit ? P.winLit : (night ? [230, 20, 9] : [200, 20, 18]), Object.assign({}, BR, {w: [2, 5], len: [6, 16], dens: 20}));
+    }
+    // sheer curtain on the left side of the window
+    paintPoly(g, [[w.x, w.y], [w.x + w.w * .3, w.y], [w.x + w.w * .22, w.y + w.h], [w.x, w.y + w.h]], P.curtain, Object.assign({}, BR, {ang: Math.PI / 2, aj: .08, len: [40, 90], w: [3, 7], a: [.15, .3]}), .62);
+    // frame
+    const f = Math.max(9, w.w * .05);
+    const frame = (x, y, ww2, hh) => paintRect(g, x, y, ww2, hh, P.frame, Object.assign({}, BR, {w: [2, 5], len: [10, 30], dens: 20, ang: ww2 > hh ? 0 : Math.PI / 2, aj: .05}));
+    frame(w.x - f, w.y - f, w.w + 2 * f, f); frame(w.x - f, w.y + w.h, w.w + 2 * f, f * 1.4);
+    frame(w.x - f, w.y, f, w.h); frame(w.x + w.w, w.y, f, w.h);
+    frame(w.x, w.y + w.h * .48, w.w, f * .8); frame(w.x + w.w * .5 - f * .3, w.y, f * .6, w.h);
+    // sill
+    paintRect(g, w.x - f * 2, w.y + w.h + f * 1.3, w.w + f * 4, f * .9, night ? [210, 14, 30] : [36, 30, 76], Object.assign({}, BR, {w: [2, 4], dens: 20}));
+    // moonlight / streetlight thrown across the wall at night
+    if (night) {
+      const dx = -w.w * 1.15, dy = w.h * .55;
+      const proj = (x, y) => [x + dx + (y - w.y) * -.35, y + dy];
+      const quad = (x0, y0, x1, y1) => [proj(x0, y0), proj(x1, y0), proj(x1, y1), proj(x0, y1)];
+      const mc = [205, 34, 44];
+      [[0, 0, .5 - .03, .48 - .02], [.5 + .03, 0, 1, .48 - .02], [0, .48 + .04, .5 - .03, 1], [.5 + .03, .48 + .04, 1, 1]].forEach(q => {
+        const pts = quad(w.x + w.w * q[0], w.y + w.h * q[1], w.x + w.w * q[2], w.y + w.h * q[3]).map(p => [p[0], Math.min(p[1], wainY + 30)]);
+        paintPoly(g, pts, mc, Object.assign({}, BR, {ang: -.3, a: [.15, .3]}), .55);
+      });
+    }
+  }
+  // the reading sheet (painted paper pinned to the wall)
+  const s = sheetR;
+  if (s) {
+    if (night) { // long moon shadow, cast down-left
+      g.fillStyle = 'rgba(2,6,14,.55)';
+      g.beginPath(); g.moveTo(s.x + s.w, s.y + 10); g.lineTo(s.x + s.w - 16, s.y + 34); g.lineTo(s.x + s.w - 16, s.y + s.h + 26); g.lineTo(s.x - 16, s.y + s.h + 26); g.lineTo(s.x, s.y + s.h); g.lineTo(s.x + s.w, s.y + s.h); g.closePath(); g.fill();
+    }
+    paintRect(g, s.x, s.y, s.w, s.h, P.sheet, Object.assign({}, BR, {dl: night ? 3 : 2.5, a: [.1, .22], dens: 70, w: [6, 14]}));
+    // subtle page light gradient
+    const pg = g.createLinearGradient(s.x, s.y, s.x + s.w, s.y + s.h);
+    if (night) { pg.addColorStop(0, 'rgba(120,150,190,.06)'); pg.addColorStop(1, 'rgba(0,0,0,.18)'); }
+    else { pg.addColorStop(0, 'rgba(120,80,30,.08)'); pg.addColorStop(1, 'rgba(255,240,200,.08)'); }
+    g.fillStyle = pg; g.fillRect(s.x, s.y, s.w, s.h);
+    // pins
+    [[s.x + 26, s.y + 18], [s.x + s.w - 26, s.y + 18]].forEach(p => {
+      g.fillStyle = night ? '#6b3b2b' : '#8e2f1c'; g.beginPath(); g.arc(p[0], p[1], 4.5, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,230,200,.45)'; g.beginPath(); g.arc(p[0] - 1.3, p[1] - 1.4, 1.5, 0, 7); g.fill();
+    });
+  }
+  // small framed placard under the window
+  if (plR) {
+    const q = plR;
+    g.fillStyle = night ? 'rgba(0,0,0,.45)' : 'rgba(60,35,15,.3)'; g.fillRect(q.x - 12, q.y + 4, q.w + 8, q.h + 10);
+    paintRect(g, q.x - 8, q.y - 8, q.w + 16, q.h + 16, night ? [24, 20, 12] : [20, 40, 22], Object.assign({}, BR, {w: [2, 4], len: [8, 22], dens: 18}));
+    paintRect(g, q.x, q.y, q.w, q.h, night ? [212, 20, 17] : [42, 42, 86], Object.assign({}, BR, {w: [3, 7], len: [10, 26], dens: 25, dl: 2.5}));
+  }
+  // canvas grain
+  const grain = document.createElement('canvas'); grain.width = grain.height = 128;
+  const gg = grain.getContext('2d'), id = gg.createImageData(128, 128);
+  for (let i = 0; i < id.data.length; i += 4) { const v = Math.random() * 255; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 22; }
+  gg.putImageData(id, 0, 0);
+  g.globalCompositeOperation = 'overlay'; g.fillStyle = g.createPattern(grain, 'repeat'); g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = 'source-over';
+  return c;
+}
+
+/* ---------- lamp sprite ---------- */
+const lampSprite = {};
+function makeLamp(on){
+  const sc = S * DPR, cw = Math.ceil(200 * sc), ch = Math.ceil(112 * sc);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+  const g = c.getContext('2d'); g.scale(sc, sc); g.translate(100, 4);
+  DPRs = 1 / S * .6;
+  // brass canopy
+  const cap = new Path2D('M-11 0 L11 0 L13 15 L-13 15 Z');
+  g.save(); g.clip(cap); g.fillStyle = on ? '#b38a3e' : '#4e4a42'; g.fillRect(-14, 0, 28, 16);
+  brush(g, -14, 0, 14, 16, 12, on ? [40, 50, 50] : [40, 8, 30], Object.assign({}, BR, {ang: Math.PI / 2, w: [1, 3], len: [6, 14]}));
+  g.fillStyle = on ? 'rgba(255,235,180,.55)' : 'rgba(170,190,220,.25)'; g.fillRect(-7, 0, 3, 15); g.restore();
+  // dome
+  const dome = new Path2D('M-13 14 C-20 34 -48 48 -78 70 L-84 78 L84 78 L78 70 C48 48 20 34 13 14 Z');
+  g.save(); g.clip(dome);
+  const dg = g.createLinearGradient(-84, 0, 84, 0);
+  if (on) { dg.addColorStop(0, '#1d3a2c'); dg.addColorStop(.32, '#3d6b52'); dg.addColorStop(.5, '#2c5440'); dg.addColorStop(1, '#16291f'); }
+  else { dg.addColorStop(0, '#0e1a1a'); dg.addColorStop(.32, '#2a3d44'); dg.addColorStop(.6, '#18262a'); dg.addColorStop(1, '#0a1214'); }
+  g.fillStyle = dg; g.fillRect(-90, 10, 180, 70);
+  brush(g, -84, 12, 84, 78, 70, on ? [150, 30, 30] : [195, 20, 18], Object.assign({}, BR, {ang: .4, aj: .5, len: [8, 26], w: [2, 6], a: [.15, .35]}));
+  // painted highlight stripe
+  g.globalAlpha = on ? .5 : .28; g.strokeStyle = on ? '#cfe3c6' : '#8fb0c8'; g.lineWidth = 3.5; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-10, 22); g.quadraticCurveTo(-30, 46, -58, 66); g.stroke();
+  g.globalAlpha = 1; g.restore();
+  // rim
+  g.fillStyle = on ? '#c79a48' : '#4a463e';
+  g.beginPath(); g.ellipse(0, 78, 85, 4.2, 0, 0, Math.PI * 2); g.fill();
+  // inner lip glow
+  g.fillStyle = on ? '#fff3cf' : '#26323a';
+  g.beginPath(); g.ellipse(0, 79.5, 78, 2.8, 0, 0, Math.PI); g.fill();
+  return c;
+}
+
+/* ---------- layout ---------- */
+function layout(){
+  const oldN = N;
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; mobile = W < 700;
+  for (const c of [bg, fx, lt]) { c.width = W * DPR; c.height = H * DPR; c.style.width = W + 'px'; c.style.height = H + 'px'; }
+  const r = sheetEl.getBoundingClientRect();
+  sheetR = {x: r.left, y: r.top, w: r.width, h: r.height};
+  const pr = placardEl.getBoundingClientRect(); plR = pr.width ? {x: pr.left, y: pr.top, w: pr.width, h: pr.height} : null;
+  if (mobile) {
+    S = .58; pivot = {x: W - 92, y: -8}; cordLen = 58; N = 13; seg = 9.5; extMax = 22;
+    winR = {x: W * .44, y: 82, w: W * .26, h: 120};
+  } else {
+    S = Math.min(1.05, Math.max(.8, H / 800)); pivot = {x: Math.round(sheetR.x + sheetR.w + (W - sheetR.x - sheetR.w) * .38), y: -8};
+    cordLen = Math.max(70, H * .14); N = 17; seg = 11.5 * S; extMax = 28 * S;
+    const wx = Math.max(pivot.x + 130 * S, W * .78);
+    winR = {x: wx, y: H * .18, w: Math.min(W - wx - 40, 250), h: H * .42};
+  }
+  sceneOn = paintScene(false); sceneOff = paintScene(true);
+  lampSprite.on = makeLamp(true); lampSprite.off = makeLamp(false);
+  drawBg();
+  if (beads.length !== N || oldN !== N) initChain(); else {
+    const A = anchor(); const dx = A.x - beads[0].x, dy = A.y - beads[0].y;
+    beads.forEach(b => { b.x += dx; b.y += dy; b.px += dx; b.py += dy; });
+  }
+  if (!motes.length) for (let i = 0; i < 46; i++) motes.push({x: rnd(0, W), y: rnd(0, H), vx: 0, vy: 0, r: rnd(.6, 1.7), ph: rnd(0, 6)});
+}
+function drawBg(){ bx.setTransform(1, 0, 0, 1, 0, 0); bx.drawImage(dark ? sceneOff : sceneOn, 0, 0); }
+
+function L2W(x, y){ const c = Math.cos(th), s = Math.sin(th); return {x: pivot.x + x * c + y * s, y: pivot.y - x * s + y * c}; }
+const shade = (u, v) => L2W(u * S, cordLen + 4 * S + v * S);
+const anchor = () => shade(60, 79);
+const bulbPos = () => shade(0, 86);
+function initChain(){
+  beads.length = 0; const A = anchor();
+  for (let i = 0; i < N; i++) beads.push({x: A.x, y: A.y + i * seg, px: A.x, py: A.y + i * seg});
+}
+
+/* ---------- physics ---------- */
+const G = 1500;
+function step(h){
+  const A = anchor();
+  // chain verlet
+  for (let i = 1; i < N; i++) {
+    if (i === grab) continue;
+    const b = beads[i], vx = (b.x - b.px) * .996, vy = (b.y - b.py) * .996;
+    b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + G * h * h;
+  }
+  beads[0].x = A.x; beads[0].y = A.y; beads[0].px = A.x; beads[0].py = A.y;
+  overPull = 0;
+  if (grab >= 0 && target) {
+    let tx = target.x, ty = target.y;
+    const dx = tx - A.x, dy = ty - A.y, d = Math.hypot(dx, dy) || 1;
+    const reach = grab * seg + extMax;
+    if (d > reach) { overPull = d - reach; tx = A.x + dx / d * reach; ty = A.y + dy / d * reach; }
+    const need = Math.min(d, reach) - grab * seg;
+    if (need > ext) { ext = clamp(need, 0, extMax); extV = 0; }
+    else { ext += (Math.max(0, need) - ext) * .2; }
+    const b = beads[grab]; b.px = b.x; b.py = b.y; b.x = tx; b.y = ty;
+  } else {
+    extV += (-ext * 900 - extV * 26) * h; ext += extV * h;
+    if (ext < 0) { ext = 0; if (extV < 0) extV *= -.25; }
+  }
+  // constraints (inextensible links)
+  for (let k = 0; k < 14; k++) {
+    for (let i = 0; i < N - 1; i++) {
+      const a = beads[i], b = beads[i + 1];
+      const rest = i === 0 ? seg + ext : seg;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1e-6;
+      if (d <= rest) continue;
+      const wa = (i === 0 || i === grab) ? 0 : 1, wb = (i + 1 === grab) ? 0 : 1;
+      if (!wa && !wb) continue;
+      const diff = (d - rest) / d / (wa + wb);
+      a.x += dx * diff * wa; a.y += dy * diff * wa;
+      b.x -= dx * diff * wb; b.y -= dy * diff * wb;
+    }
+  }
+  // lamp pendulum, tugged by chain tension
+  const b1 = beads[1], tx = b1.x - A.x, ty = b1.y - A.y, tl = Math.hypot(tx, ty) || 1;
+  const T = 120 + overPull * 140 + (grab >= 0 ? ext * 8 : 0);
+  const Fx = T * tx / tl, Fy = T * ty / tl;
+  const rx = A.x - pivot.x, ry = A.y - pivot.y;
+  const Leff = cordLen + 60 * S;
+  om += (-(G / Leff) * Math.sin(th) * .55 - om * 1.15 + (Fx * ry - Fy * rx) / (Leff * Leff * 14)) * h;
+  th += om * h; th = clamp(th, -.55, .55);
+
+  // switch mechanism
+  if (!armed && ext > extMax * .72) { armed = true; sClick(); }
+  if (armed && ext < extMax * .25) { armed = false; sClack(); toggle(); }
+  // filament
+  const want = (!dark && !blown) ? 1 : 0;
+  if (want > heat) heat = Math.min(1, heat + h * 7); else heat = Math.max(0, heat - h * (blown ? 4 : .9));
+  flick = Math.max(0, flick - h);
+  let lt = want;
+  if (flick > 0) lt = (Math.sin(flick * 90) > .2 ? 1 : .35) * want;
+  light += (lt - light) * Math.min(1, h * (want ? 14 : 5));
+  if (blown) { blownT -= h; if (blownT <= 0) { blown = false; newBulb = 0; setDark(false, true); } }
+  newBulb = Math.min(1, newBulb + h * 1.2);
+}
+
+/* ---------- toggling ---------- */
+function toggle(){
+  if (blown) return;
+  const now = performance.now();
+  toggles = toggles.filter(t => now - t < 6000); toggles.push(now);
+  if (toggles.length >= 8 && dark) { // flicked too often: the bulb flares and gives up
+    toggles = []; blown = true; blownT = 3.4; flick = 0; light = 1.5; sPop();
+    live.textContent = 'The bulb blew. A new one is on its way.';
+    hint.textContent = 'Fetching a new bulb…'; hint.classList.remove('gone');
+    return;
+  }
+  setDark(!dark, true);
+}
+function setDark(d, fromLamp, isBlow){
+  dark = d;
+  if (!d) flick = reduced ? 0 : .22;
+  const apply = () => {
+    root.dataset.theme = d ? 'dark' : 'light';
+    drawBg();
+    pullBtn.setAttribute('aria-checked', String(d));
+    themeName.textContent = d ? 'Dark · lamp off' : 'Light · lamp on';
+    hint.textContent = d ? 'Pull for light' : 'Pull for dark';
+  };
+  live.textContent = isBlow ? live.textContent : (d ? 'Dark mode on' : 'Light mode on');
+  if (!reduced && document.startViewTransition) {
+    const b = bulbPos(), r = Math.hypot(Math.max(b.x, W - b.x), Math.max(b.y, H - b.y)) + 40;
+    root.classList.toggle('vt-off', d); root.classList.add('vt');
+    let t;
+    try { t = document.startViewTransition(apply); } catch (e) { apply(); root.classList.remove('vt'); return; }
+    t.ready.then(() => {
+      const from = `circle(0px at ${b.x}px ${b.y}px)`, to = `circle(${r}px at ${b.x}px ${b.y}px)`;
+      root.animate({clipPath: d ? [to, from] : [from, to]}, {duration: d ? 1150 : 850, easing: d ? 'cubic-bezier(.55,0,.35,1)' : 'cubic-bezier(.2,.8,.25,1)', pseudoElement: d ? '::view-transition-old(root)' : '::view-transition-new(root)'});
+    }).catch(() => {});
+    t.finished.finally(() => root.classList.remove('vt'));
+  } else apply();
+  seen++;
+  if (seen >= 3) hint.classList.add('gone');
+}
+let seen = 0;
+
+/* ---------- drawing ---------- */
+function polyPath(g, pts){ g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); }
+function draw(t){
+  let g = lc; g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  const B = bulbPos();
+  const ax = {x: Math.sin(th), y: Math.cos(th)};
+  const lv = clamp(light, 0, 1.6);
+  // Hopper light: a hard-edged hyperbolic patch where the cone meets the wall
+  const perp = {x: Math.cos(th), y: -Math.sin(th)};
+  const AP = (u, v) => ({x: B.x + perp.x * u + ax.x * v, y: B.y + perp.y * u + ax.y * v});
+  const tanA = Math.tan(.6), dW = 62 * S, v0 = dW / tanA, vmax = Math.max(W, H) * 1.5;
+  const L = [], R = [];
+  for (let i = 0; i <= 48; i++) { const v = v0 + (vmax - v0) * Math.pow(i / 48, 2.2); const u = Math.sqrt(Math.max(0, (v * tanA) ** 2 - dW * dW)); L.push(AP(-u, v)); R.push(AP(u, v)); }
+  const patch = L.concat(R.reverse());
+  const lk = Math.min(1, lv);
+  if (lv > .01) {
+    // gentle room falloff away from the lamp
+    g.save(); g.globalCompositeOperation = 'multiply';
+    const vc = AP(0, v0 * 2.2), vg = g.createRadialGradient(vc.x, vc.y, 60, vc.x, vc.y, Math.max(W, H) * .95);
+    vg.addColorStop(0, 'rgba(255,255,255,0)'); vg.addColorStop(1, `rgba(120,90,60,${.38 * lk})`);
+    g.fillStyle = vg; g.fillRect(0, 0, W, H); g.restore();
+    // the lit patch
+    g.save(); polyPath(g, patch); g.clip();
+    g.globalCompositeOperation = 'soft-light';
+    const pc = AP(0, v0 * 1.15), pg = g.createRadialGradient(pc.x, pc.y, 0, pc.x, pc.y, H * 1.1);
+    pg.addColorStop(0, `rgba(255,226,150,${.9 * lk})`); pg.addColorStop(.45, `rgba(255,206,120,${.62 * lk})`); pg.addColorStop(1, `rgba(255,190,110,${.25 * lk})`);
+    g.fillStyle = pg; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'screen';
+    const sg = g.createRadialGradient(pc.x, pc.y, 0, pc.x, pc.y, H * .8);
+    sg.addColorStop(0, `rgba(255,214,140,${.2 * lk})`); sg.addColorStop(1, 'rgba(255,200,120,0)');
+    g.fillStyle = sg; g.fillRect(0, 0, W, H);
+    // hard sheet shadow, only visible where the lamp light lands
+    if (sheetR) {
+      const s = sheetR; let vx = s.x + s.w / 2 - B.x, vy = s.y + s.h / 2 - B.y; const vl = Math.hypot(vx, vy) || 1;
+      g.globalCompositeOperation = 'multiply'; g.beginPath(); g.rect(0, 0, W, H); g.rect(s.x, s.y, s.w, s.h); g.clip('evenodd');
+      g.fillStyle = `rgba(150,95,55,${.8 * lk})`; g.fillRect(s.x + vx / vl * 26, s.y + vy / vl * 26, s.w, s.h);
+    }
+    g.restore();
+    // faint warm haze just under the shade
+    const hz = g.createRadialGradient(B.x, B.y, 0, B.x, B.y, 150 * S);
+    hz.addColorStop(0, `rgba(255,220,150,${.3 * lk})`); hz.addColorStop(1, 'rgba(255,220,150,0)');
+    g.fillStyle = hz; g.beginPath(); g.arc(B.x, B.y, 150 * S, 0, 7); g.fill();
+  }
+  // soft contact shadow of the sheet (always)
+  if (sheetR && !dark) {
+    const s = sheetR; g.save(); g.beginPath(); g.rect(0, 0, W, H); g.rect(s.x, s.y, s.w, s.h); g.clip('evenodd');
+    g.fillStyle = 'rgba(60,35,15,.22)'; g.fillRect(s.x - 7, s.y + 9, s.w, s.h); g.restore();
+  }
+  g = fc; g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  // dust motes in the beam
+  if (lv > .05 && !reduced) {
+    g.save(); g.globalCompositeOperation = 'screen';
+    for (const m of motes) {
+      const rx = m.x - B.x, ry = m.y - B.y, along = rx * ax.x + ry * ax.y, across = Math.abs(rx * ax.y - ry * ax.x);
+      const inCone = along > 0 && across < along * .55 + 70 * S;
+      if (!inCone) continue;
+      const a = Math.min(1, lv) * (.35 + .35 * Math.sin(t * .0012 + m.ph)) * Math.max(0, 1 - along / (H * 1.1));
+      g.fillStyle = `rgba(255,236,190,${a})`; g.beginPath(); g.arc(m.x, m.y, m.r, 0, 7); g.fill();
+    }
+    g.restore();
+  }
+  // cord
+  const top = L2W(0, 0), cb = L2W(0, cordLen + 4 * S);
+  g.strokeStyle = dark ? '#0b0f14' : '#2a1d14'; g.lineWidth = 2.6 * S; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(cb.x, cb.y); g.stroke();
+  // bulb glow (behind shade rim)
+  const hv = Math.max(heat * (blown ? 0 : 1), 0);
+  if (lv > .02 || hv > .02) {
+    const gr = g.createRadialGradient(B.x, B.y, 0, B.x, B.y, 120 * S);
+    const k = Math.max(lv, hv * .3);
+    gr.addColorStop(0, `rgba(255,240,200,${.9 * Math.min(1, k)})`); gr.addColorStop(.25, `rgba(255,205,130,${.4 * Math.min(1, k)})`); gr.addColorStop(1, 'rgba(255,180,90,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(B.x, B.y, 120 * S, 0, 7); g.fill();
+  }
+  // bulb glass + filament
+  const bulbDrop = (1 - newBulb) * 30 * S;
+  if (!blown) {
+    const BB = shade(0, 86 + (1 - newBulb) * 30);
+    g.save(); g.globalAlpha = newBulb;
+    const glass = g.createRadialGradient(BB.x - 4 * S, BB.y - 4 * S, 1, BB.x, BB.y, 15 * S);
+    if (lv > .3) { glass.addColorStop(0, '#fffdf3'); glass.addColorStop(1, '#ffd98a'); }
+    else { glass.addColorStop(0, `rgba(220,225,230,.7)`); glass.addColorStop(1, `rgba(90,100,110,.6)`); }
+    g.fillStyle = glass; g.beginPath(); g.arc(BB.x, BB.y, 14 * S, 0, 7); g.fill();
+    if (hv > .02 && lv < .9) { // cooling filament
+      g.strokeStyle = `rgba(255,${120 + 100 * hv},${40 * hv},${hv})`; g.lineWidth = 1.4 * S;
+      const fl = shade(-5, 86 + bulbDrop / S), fr = shade(5, 86 + bulbDrop / S);
+      g.beginPath(); g.moveTo(fl.x, fl.y); g.quadraticCurveTo(B.x, B.y - 5 * S, fr.x, fr.y); g.stroke();
+    }
+    g.restore();
+  } else {
+    // broken bulb: dark jagged stump
+    g.fillStyle = 'rgba(60,70,80,.8)'; const BB = B;
+    g.beginPath(); g.moveTo(BB.x - 8 * S, BB.y - 8 * S); g.lineTo(BB.x - 6 * S, BB.y - 1 * S); g.lineTo(BB.x - 2 * S, BB.y - 4 * S); g.lineTo(BB.x + 2 * S, BB.y + 1 * S); g.lineTo(BB.x + 7 * S, BB.y - 5 * S); g.lineTo(BB.x + 8 * S, BB.y - 8 * S); g.fill();
+  }
+  // shade sprite
+  const spr = lv > .5 ? lampSprite.on : lampSprite.off;
+  g.save(); const st = L2W(0, cordLen); g.translate(st.x, st.y); g.rotate(-th);
+  g.drawImage(spr, -100 * S, -4 * S + 4 * S, 200 * S, 112 * S); g.restore();
+  // chain
+  const beadCol = dark ? '#5b6670' : '#c79a48', linkCol = dark ? '#2b333a' : '#6b4f22';
+  g.strokeStyle = linkCol; g.lineWidth = .9;
+  g.beginPath(); g.moveTo(beads[0].x, beads[0].y); for (let i = 1; i < N; i++) g.lineTo(beads[i].x, beads[i].y); g.stroke();
+  const br = 2.5 * Math.max(.8, S);
+  for (let i = 1; i < N - 1; i++) {
+    const b = beads[i]; g.fillStyle = beadCol; g.beginPath(); g.arc(b.x, b.y, br, 0, 7); g.fill();
+    g.fillStyle = dark ? 'rgba(170,200,230,.5)' : 'rgba(255,240,200,.8)'; g.beginPath(); g.arc(b.x - br * .35, b.y - br * .35, br * .38, 0, 7); g.fill();
+  }
+  // handle (turned walnut pull)
+  const hb = beads[N - 1], hp = beads[N - 2], ang = Math.atan2(hb.x - hp.x, hb.y - hp.y);
+  g.save(); g.translate(hb.x, hb.y); g.rotate(-ang); const hs = Math.max(.75, S);
+  g.fillStyle = dark ? '#3e3a35' : '#b8923f'; g.fillRect(-2.5 * hs, -1 * hs, 5 * hs, 5 * hs);
+  const hg = g.createLinearGradient(-8 * hs, 0, 8 * hs, 0);
+  if (dark) { hg.addColorStop(0, '#0f1418'); hg.addColorStop(.35, '#3a4652'); hg.addColorStop(1, '#0c1014'); }
+  else { hg.addColorStop(0, '#3b1d0e'); hg.addColorStop(.35, '#8a4f2a'); hg.addColorStop(1, '#2a140a'); }
+  g.fillStyle = hg; g.beginPath(); g.moveTo(-3 * hs, 4 * hs); g.bezierCurveTo(-10 * hs, 10 * hs, -9 * hs, 24 * hs, 0, 27 * hs); g.bezierCurveTo(9 * hs, 24 * hs, 10 * hs, 10 * hs, 3 * hs, 4 * hs); g.closePath(); g.fill();
+  g.strokeStyle = dark ? 'rgba(150,180,210,.35)' : 'rgba(255,220,170,.55)'; g.lineWidth = 1.6 * hs; g.beginPath(); g.moveTo(-4 * hs, 9 * hs); g.quadraticCurveTo(-6 * hs, 17 * hs, -2 * hs, 23 * hs); g.stroke();
+  g.restore();
+  // place the accessible button + hint on the handle
+  const hx = hb.x + Math.sin(ang) * 14 * hs, hy = hb.y + Math.cos(ang) * 14 * hs;
+  pullBtn.style.transform = `translate(${hx}px,${hy}px)`;
+  hint.style.transform = `translate(${hx - hint.offsetWidth - 20}px,${hy - 7}px)`;
+}
+function polyPathAppend(g, pts){ pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); }
+
+/* ---------- motes ---------- */
+function stepMotes(dt, t){
+  for (const m of motes) {
+    m.vx += rnd(-1, 1) * 6 * dt; m.vy += (rnd(-1, 1) * 6 - 2) * dt;
+    m.vx *= .98; m.vy *= .98; m.x += m.vx * dt * 6; m.y += m.vy * dt * 6;
+    if (m.x < 0 || m.x > W || m.y < 0 || m.y > H) { m.x = rnd(0, W); m.y = rnd(H * .2, H); }
+  }
+}
+
+/* ---------- input ---------- */
+function nearestBead(x, y){
+  let best = -1, bd = 1e9;
+  for (let i = 2; i < N; i++) { const b = beads[i], d = Math.hypot(b.x - x, b.y - y); if (d < bd) { bd = d; best = i; } }
+  const hb = beads[N - 1];
+  if (Math.hypot(hb.x - x, hb.y - y - 14) < 30) return N - 1;
+  return bd < 18 ? best : -1;
+}
+let dragId = null;
+function startDrag(e, idx){
+  audio(); grab = idx; target = {x: e.clientX, y: e.clientY}; dragId = e.pointerId; auto = null;
+  if (idx === N - 1) target.y -= 12;
+  try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
+  e.preventDefault();
+}
+pullBtn.addEventListener('pointerdown', e => startDrag(e, N - 1));
+window.addEventListener('pointerdown', e => {
+  if (grab >= 0 || e.target === pullBtn) return;
+  const i = nearestBead(e.clientX, e.clientY); if (i > 0) startDrag(e, i);
+});
+window.addEventListener('pointermove', e => {
+  if (e.pointerId !== dragId || grab < 0) return;
+  target = {x: e.clientX, y: e.clientY - (grab === N - 1 ? 12 : 0)};
+});
+const endDrag = e => {
+  if (e.pointerId !== dragId) return;
+  const b = beads[grab];
+  if (b && Math.abs(b.x - b.px) > 6) sRattle(.2);
+  grab = -1; target = null; dragId = null;
+};
+window.addEventListener('pointerup', endDrag);
+window.addEventListener('pointercancel', endDrag);
+pullBtn.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); audio(); if (!auto && grab < 0) auto = {t: 0, x0: beads[N - 1].x, y0: beads[N - 1].y}; }
+});
+function stepAuto(dt){
+  if (!auto) return;
+  auto.t += dt;
+  const A = anchor(), reach = (N - 1) * seg + extMax + 30;
+  if (auto.t < .32) { grab = N - 1; const k = Math.min(1, auto.t / .22); const e = 1 - Math.pow(1 - k, 3); target = {x: auto.x0 + (A.x - auto.x0) * .2 * e, y: auto.y0 + (A.y + reach - auto.y0) * e}; }
+  else { grab = -1; target = null; auto = null; }
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), acc = 0, raf = 0, prevSpeed = 0;
+function frame(now){
+  const dt = Math.min(.05, (now - last) / 1000); last = now; acc += dt;
+  stepAuto(dt);
+  const hstep = 1 / 120;
+  while (acc >= hstep) { step(hstep); acc -= hstep; }
+  stepMotes(dt, now);
+  // soft bead rattle when the chain whips
+  const hb = beads[N - 1], sp = Math.hypot(hb.x - hb.px, hb.y - hb.py);
+  if (ac && grab < 0 && sp > 4 && prevSpeed <= 4) sRattle(.08 + Math.min(.25, sp / 40));
+  prevSpeed = sp;
+  draw(now);
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) cancelAnimationFrame(raf);
+  else { last = performance.now(); raf = requestAnimationFrame(frame); }
+});
+let rt = 0;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+document.fonts && document.fonts.ready.then(() => { const r = sheetEl.getBoundingClientRect(); if (!sheetR || r.top !== sheetR.y) layout(); });
+layout();
+raf = requestAnimationFrame(frame);
+window.__pullChain = {toggle, pull(){ auto = {t: 0, x0: beads[N - 1].x, y0: beads[N - 1].y}; }, state: () => dark};
+})();
+</script>
+</body>
+</html>

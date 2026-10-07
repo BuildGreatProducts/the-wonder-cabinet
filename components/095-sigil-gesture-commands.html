@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sigil Gesture Commands</title>
+<meta name="description" content="Commands as chalk sigils on a blackboard: draw a tick, circle, Z, caret, cross or loop and a magic circle recognises it, then burns the command into your task list.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cabin+Sketch:wght@400;700&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Sigil Gesture Commands","reimagines":"Keyboard shortcuts / commands","category":"Novel Interactions","description":"Instead of memorising shortcuts, you draw sigils in chalk. A $1 unistroke recogniser reads your tick, circle, Z, caret, cross or loop; a magic circle snaps your scrawl into a clean sigil and burns the command into the task list. Every sigil also has a key, so the board teaches you its own shortcuts.","hint":"Draw a sigil anywhere on the board — a tick marks the selected task done"}
+</script>
+<style>
+:root{--slate:#1f2b25;--chalk:#f1efe4;--chalk-soft:rgba(241,239,228,.62);--yellow:#f3e39b;--pink:#f2b2ad;--blue:#a8d4e6;--wood:#7a5233}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#3b2716}
+body{font-family:"Kalam","Comic Sans MS",cursive;color:var(--chalk);-webkit-font-smoothing:antialiased}
+#frame{position:fixed;inset:0;padding:18px 18px 46px;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 2px, rgba(0,0,0,.06) 2px 6px), linear-gradient(180deg,#8a5c38,#5e3c22 70%,#4a2f1a)}
+#board{position:relative;width:100%;height:100%;overflow:hidden;border-radius:2px;touch-action:none;cursor:crosshair;
+  background:
+    radial-gradient(40% 30% at 70% 40%, rgba(255,255,255,.05), rgba(255,255,255,0) 70%),
+    radial-gradient(35% 25% at 22% 70%, rgba(255,255,255,.045), rgba(255,255,255,0) 70%),
+    radial-gradient(50% 40% at 50% 10%, rgba(255,255,255,.03), rgba(255,255,255,0) 70%),
+    linear-gradient(170deg,#24332c,#1c2722 60%,#1a241f);
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.45), inset 0 6px 20px rgba(0,0,0,.6)}
+#board > svg.tex{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.tray{position:absolute;left:18px;right:18px;bottom:12px;height:24px;border-radius:2px;background:linear-gradient(180deg,#9b6a42,#6b4528);box-shadow:0 -2px 0 rgba(0,0,0,.35) inset, 0 4px 8px rgba(0,0,0,.4)}
+.stick{position:absolute;bottom:14px;height:8px;border-radius:3px;box-shadow:0 2px 2px rgba(0,0,0,.35)}
+.eraser{position:absolute;bottom:13px;width:96px;height:20px;border-radius:3px;background:linear-gradient(180deg,#d9c39b 0 40%,#3a3a3a 40%);box-shadow:0 3px 4px rgba(0,0,0,.4)}
+.chalky{filter:url(#chalk)}
+#ink{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.panel{position:absolute;pointer-events:none}
+.panel h1{font-family:"Cabin Sketch",cursive;font-weight:700;font-size:40px;margin:0;line-height:1;letter-spacing:.01em}
+.panel .sub{font-size:16px;color:var(--chalk-soft);margin-top:4px}
+#list{list-style:none;margin:18px 0 0;padding:0;pointer-events:auto}
+#list li{position:relative;display:flex;align-items:baseline;gap:10px;padding:7px 10px 7px 34px;font-size:23px;line-height:1.25;cursor:pointer;border-radius:4px;transition:transform .5s cubic-bezier(.3,1.3,.5,1), opacity .4s, color .3s}
+#list li:focus-visible{outline:2px dashed var(--yellow);outline-offset:2px}
+#list li .meta{font-size:15px;color:var(--chalk-soft);white-space:nowrap}
+#list li .arrow{position:absolute;left:-26px;top:8px;width:24px;height:22px;opacity:0;transition:opacity .2s}
+#list li.sel .arrow{opacity:1}
+#list li.done .t{color:rgba(241,239,228,.45)}
+#list li.snz{opacity:.55}
+#list li .mk{position:absolute;inset:0;pointer-events:none;overflow:visible;width:100%;height:100%}
+#list li.erasing{animation:erase .7s forwards}
+@keyframes erase{0%{filter:url(#chalk) blur(0)}60%{opacity:.4;filter:url(#chalk) blur(1.5px)}100%{opacity:0;filter:url(#chalk) blur(3px);transform:translateX(30px)}}
+.circleHint{position:absolute;pointer-events:none;text-align:center;color:rgba(168,212,230,.55);font-family:"Cabin Sketch",cursive;font-size:19px}
+.legend{position:absolute;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;pointer-events:auto}
+.legend button{font:inherit;color:var(--chalk);background:none;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;border-radius:6px}
+.legend button:hover{background:rgba(255,255,255,.04)}
+.legend button:focus-visible{outline:2px dashed var(--yellow);outline-offset:1px}
+.legend svg{width:46px;height:46px;overflow:visible}
+.legend .nm{font-size:15px;line-height:1.1}
+.legend kbd{font:inherit;font-size:12.5px;color:var(--chalk-soft);border:1.5px solid rgba(241,239,228,.35);border-radius:4px;padding:0 5px;line-height:1.3}
+.legend button.flash{animation:flash 1s}
+@keyframes flash{0%,100%{background:none}30%{background:rgba(243,227,155,.16)}}
+.toast{position:absolute;pointer-events:none;font-size:22px;color:var(--yellow);text-align:center;opacity:0;transition:opacity .4s, transform .6s;transform:translateY(8px)}
+.toast.show{opacity:1;transform:none}
+.toast.bad{color:var(--pink)}
+.mute{position:absolute;right:26px;bottom:14px;z-index:3;border:0;background:none;color:#f1e3cf;opacity:.8;cursor:pointer;padding:2px}
+.mute svg{width:16px;height:16px;display:block}
+.mute:focus-visible{outline:2px dashed var(--yellow)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  #frame{padding:10px 10px 38px}
+  .panel h1{font-size:30px}
+  .panel .sub{font-size:14px}
+  #list{margin-top:8px}
+  #list li{font-size:16.5px;padding:4px 6px 4px 28px;gap:6px}
+  #list li .meta{font-size:12px}
+  #list li .arrow{width:18px;top:5px;left:-18px}
+  .legend{grid-template-columns:repeat(3,1fr);gap:2px}
+  .legend svg{width:34px;height:34px}
+  .legend .nm{font-size:13px}
+  .legend kbd{font-size:11px}
+  .tray{left:10px;right:10px;bottom:8px;height:20px}
+  .toast{font-size:18px}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="chalk" x="-5%" y="-25%" width="110%" height="150%">
+    <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="5" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -2.4 1.75" result="holes"/>
+    <feComposite in="SourceGraphic" in2="holes" operator="in" result="grain"/>
+    <feDisplacementMap in="grain" in2="n" scale="1.8" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<div id="frame">
+  <div id="board" aria-label="Blackboard. Draw a sigil to run a command on the selected task.">
+    <svg class="tex" aria-hidden="true">
+      <filter id="smear"><feTurbulence type="fractalNoise" baseFrequency=".008 .03" numOctaves="3" seed="12"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .09 -.01"/></filter>
+      <filter id="dust"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="2"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -3 1.32"/></filter>
+      <rect width="100%" height="100%" filter="url(#smear)"/><rect width="100%" height="100%" filter="url(#dust)" opacity=".18"/>
+    </svg>
+    <canvas id="ink"></canvas>
+    <section class="panel chalky" id="tasks" aria-label="Studio task list">
+      <h1>Studio list</h1>
+      <div class="sub">Théâtre Lumen · Tuesday 7 October</div>
+      <ol id="list" role="listbox" aria-label="Tasks — use arrow keys to choose, then a sigil key"></ol>
+    </section>
+    <div class="circleHint chalky" id="circleHint">draw a sigil anywhere</div>
+    <div class="legend chalky" id="legend" aria-label="Grimoire of sigils"></div>
+    <svg id="fx" aria-hidden="true"></svg>
+    <div class="toast chalky" id="toast" role="status" aria-live="polite"></div>
+  </div>
+  <div class="tray"></div>
+  <div class="stick" style="left:70px;width:52px;background:#f4f1e6"></div>
+  <div class="stick" style="left:136px;width:38px;background:#f3d9d6"></div>
+  <div class="stick" style="left:186px;width:44px;background:#f2e7a8"></div>
+  <div class="eraser" style="left:46%"></div>
+  <button class="mute" id="mute" aria-label="Mute chalk sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); if (p) p.appendChild(n); return n; };
+const board = $('#board'), ink = $('#ink'), ix = ink.getContext('2d'), fx = $('#fx');
+
+/* ---------------- tasks ---------------- */
+let tasks = [
+  {id:1, t:'Reply to Odile about the mural quote', meta:'today'},
+  {id:2, t:'Order 40 m of linen for the stage curtains', meta:'Wed'},
+  {id:3, t:'Renew theatre-lumen.fr before it lapses', meta:'Fri 10 Oct'},
+  {id:4, t:'Sketch the poster for the 21 Nov premiere', meta:'next week'},
+  {id:5, t:'Pay the lighting rental — 1 250 €', meta:'Thu'},
+  {id:6, t:'Call the piano tuner', meta:'whenever'},
+];
+tasks.forEach(t => Object.assign(t, {done:false, star:false, snz:false}));
+let sel = 0; const history = [];
+const list = $('#list');
+function chalkPath(d, color = '#f1efe4', w = 2.4){ return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`; }
+function renderList(focus){
+  list.innerHTML = '';
+  tasks.forEach((t, i) => {
+    const li = document.createElement('li'); li.dataset.id = t.id; li.setAttribute('role', 'option'); li.tabIndex = i === sel ? 0 : -1;
+    li.className = (i === sel ? 'sel ' : '') + (t.done ? 'done ' : '') + (t.snz ? 'snz' : '');
+    li.setAttribute('aria-selected', i === sel);
+    const status = [t.done && 'done', t.star && 'starred', t.snz && 'snoozed until tomorrow'].filter(Boolean).join(', ');
+    li.setAttribute('aria-label', t.t + (status ? ` — ${status}` : ''));
+    li.innerHTML = `<svg class="arrow" viewBox="0 0 24 22">${chalkPath('M2 11 C 8 10, 14 11, 20 11 M14 5 L21 11 L14 17', '#f3e39b', 2.4)}</svg><span class="t">${t.t}</span><span class="meta">${t.snz ? 'snoozed · Wed 8 Oct' : t.meta}</span><svg class="mk"></svg>`;
+    list.appendChild(li);
+    li.addEventListener('click', () => { sel = i; renderList(true); });
+  });
+  requestAnimationFrame(() => decorate());
+  if (focus) { const li = list.children[sel]; li && li.focus({preventScroll:true}); }
+}
+function decorate(){
+  [...list.children].forEach((li, i) => {
+    const t = tasks[i], svg = li.querySelector('.mk'), tx = li.querySelector('.t'), r = li.getBoundingClientRect(), tr = tx.getBoundingClientRect();
+    const x0 = tr.left - r.left, x1 = tr.right - r.left, y = tr.top - r.top + tr.height*0.55, w = r.width, h = r.height;
+    let s = '';
+    if (t.done){
+      const lastLine = tx.getClientRects(); [...lastLine].forEach(lr => { const yy = lr.top - r.top + lr.height*0.58; s += chalkPath(`M${lr.left - r.left - 4} ${yy + 1} C ${(lr.left + lr.right)/2 - r.left} ${yy - 3}, ${lr.right - r.left - 20} ${yy + 3}, ${lr.right - r.left + 6} ${yy - 1}`, '#f1efe4', 2.2); });
+      s += chalkPath(`M${x0 - 27} ${y - 3} l5 7 l12 -15`, '#f3e39b', 2.8);
+    }
+    if (t.star){ s += chalkPath(`M${w*0.5} ${2} C ${w + 4} ${-2}, ${w + 8} ${h + 4}, ${w*0.5} ${h + 1} C ${-6} ${h + 4}, ${-4} ${-2}, ${w*0.55} ${4}`, '#f3e39b', 2); }
+    if (t.snz){ s += `<text x="${w - 6}" y="${12}" text-anchor="end" font-family="Cabin Sketch" font-size="15" fill="#a8d4e6">z z z</text>`; }
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.innerHTML = s;
+  });
+}
+
+/* ---------------- $1 unistroke recogniser ---------------- */
+const N = 64, SQ = 250, HALF = 0.5*Math.sqrt(2*SQ*SQ), A = Math.PI/4, PREC = Math.PI/90, PHI = 0.5*(-1 + Math.sqrt(5));
+const pathLen = p => p.slice(1).reduce((s, q, i) => s + Math.hypot(q.x - p[i].x, q.y - p[i].y), 0);
+function resample(pts, n){
+  const I = pathLen(pts)/(n - 1); let D = 0; const out = [pts[0]], p = pts.map(q => ({x:q.x, y:q.y}));
+  for (let i = 1; i < p.length; i++){ const d = Math.hypot(p[i].x - p[i-1].x, p[i].y - p[i-1].y);
+    if (D + d >= I && d > 0){ const qx = p[i-1].x + ((I - D)/d)*(p[i].x - p[i-1].x), qy = p[i-1].y + ((I - D)/d)*(p[i].y - p[i-1].y); const q = {x:qx, y:qy}; out.push(q); p.splice(i, 0, q); D = 0; } else D += d; }
+  while (out.length < n) out.push(p[p.length - 1]);
+  return out.slice(0, n);
+}
+const centroid = p => ({x: p.reduce((s, q) => s + q.x, 0)/p.length, y: p.reduce((s, q) => s + q.y, 0)/p.length});
+function rotateBy(p, a){ const c = centroid(p), cos = Math.cos(a), sin = Math.sin(a); return p.map(q => ({x:(q.x - c.x)*cos - (q.y - c.y)*sin + c.x, y:(q.x - c.x)*sin + (q.y - c.y)*cos + c.y})); }
+function scaleTo(p, s){ const xs = p.map(q => q.x), ys = p.map(q => q.y), w = Math.max(...xs) - Math.min(...xs) || 1, h = Math.max(...ys) - Math.min(...ys) || 1, mx = Math.min(...xs), my = Math.min(...ys);
+  // keep thin gestures from exploding: scale uniformly when one side is tiny
+  const ratio = Math.min(w, h)/Math.max(w, h); if (ratio < 0.25){ const k = s/Math.max(w, h); return p.map(q => ({x:(q.x - mx)*k, y:(q.y - my)*k})); }
+  return p.map(q => ({x:(q.x - mx)*s/w, y:(q.y - my)*s/h})); }
+function translateTo(p){ const c = centroid(p); return p.map(q => ({x:q.x - c.x, y:q.y - c.y})); }
+const pathDist = (a, b) => a.reduce((s, q, i) => s + Math.hypot(q.x - b[i].x, q.y - b[i].y), 0)/a.length;
+function distAtAngle(p, T, a){ return pathDist(rotateBy(p, a), T); }
+function bestDist(p, T){
+  let a = -A, b = A, x1 = PHI*a + (1 - PHI)*b, f1 = distAtAngle(p, T, x1), x2 = (1 - PHI)*a + PHI*b, f2 = distAtAngle(p, T, x2);
+  while (Math.abs(b - a) > PREC){ if (f1 < f2){ b = x2; x2 = x1; f2 = f1; x1 = PHI*a + (1 - PHI)*b; f1 = distAtAngle(p, T, x1); } else { a = x1; x1 = x2; f1 = f2; x2 = (1 - PHI)*a + PHI*b; f2 = distAtAngle(p, T, x2); } }
+  return Math.min(f1, f2);
+}
+function normalize(pts){ let p = resample(pts, N); const c = centroid(p); p = rotateBy(p, -Math.atan2(c.y - p[0].y, c.x - p[0].x)); p = scaleTo(p, SQ); return translateTo(p); }
+function poly(...ps){ const out = []; for (let i = 0; i < ps.length - 1; i++){ for (let k = 0; k < 20; k++){ const t = k/20; out.push({x: ps[i][0] + (ps[i+1][0] - ps[i][0])*t, y: ps[i][1] + (ps[i+1][1] - ps[i][1])*t}); } } out.push({x: ps[ps.length-1][0], y: ps[ps.length-1][1]}); return out; }
+function fnPts(n, f){ const o = []; for (let i = 0; i <= n; i++){ const [x, y] = f(i/n); o.push({x, y}); } return o; }
+
+/* the grimoire: each sigil, its command and its key */
+const SIGILS = [
+  {id:'check', name:'Done', key:'D', keyLabel:'D', draw:[[0,.55],[.35,1],[1,0]]},
+  {id:'circle', name:'Star', key:'S', keyLabel:'S', circle:true},
+  {id:'zed', name:'Snooze', key:'Z', keyLabel:'Z', draw:[[0,0],[1,0],[0,1],[1,1]]},
+  {id:'caret', name:'To top', key:'T', keyLabel:'T', draw:[[0,1],[.5,0],[1,1]]},
+  {id:'cross', name:'Erase', key:'Delete', keyLabel:'Del', draw:[[0,0],[1,1],[1,0],[0,1]]},
+  {id:'loop', name:'Undo', key:'u', keyLabel:'U', loop:true},
+];
+const TEMPLATES = [];
+function addT(id, pts){ TEMPLATES.push({id, P: normalize(pts)}); }
+function sampleGlyph(id){ // templates are sampled from the very glyphs shown in the grimoire
+  const p = document.createElementNS(NS, 'path'); p.setAttribute('d', glyph(id, 100)); fx.appendChild(p);
+  const L = p.getTotalLength(), out = []; for (let i = 0; i <= 80; i++){ const q = p.getPointAtLength(L*i/80); out.push({x:q.x, y:q.y}); } p.remove(); return out;
+}
+const mirror = pts => pts.map(p => ({x: 100 - p.x, y: p.y}));
+function buildTemplates(){
+  TEMPLATES.length = 0;
+  addT('check', poly([0,.55],[.35,1],[1,0])); addT('check', poly([0,.6],[.3,1],[1,-.2]));
+  const c = sampleGlyph('circle'); addT('circle', c); addT('circle', c.slice().reverse());
+  addT('zed', poly([0,0],[1,0],[0,1],[1,1])); addT('zed', poly([0,1],[.25,0],[.5,1],[.75,0],[1,1]));
+  addT('caret', poly([0,1],[.5,0],[1,1]));
+  addT('cross', poly([0,0],[1,1],[1,0],[0,1])); addT('cross', poly([0,0],[1,1],[0,1],[1,0])); addT('cross', poly([1,0],[0,1],[0,0],[1,1])); addT('cross', poly([1,0],[0,1],[1,1],[0,0]));
+  const lp = sampleGlyph('loop'); addT('loop', lp); addT('loop', mirror(lp)); addT('loop', lp.slice().reverse()); addT('loop', mirror(lp).reverse());
+}
+function recognize(raw){
+  if (raw.length < 6 || pathLen(raw) < 40) return null;
+  const P = normalize(raw); let best = null;
+  for (const T of TEMPLATES){ const d = bestDist(P, T.P), score = 1 - d/HALF; if (!best || score > best.score) best = {id: T.id, score}; }
+  return best;
+}
+
+/* the clean sigil glyph for each command, in a unit box */
+function glyph(id, size){
+  const s = size, m = s*0.12, W = s - m*2, P = (x, y) => `${(m + x*W).toFixed(1)} ${(m + y*W).toFixed(1)}`;
+  switch (id){
+    case 'check': return `M${P(0,.55)} L${P(.35,.92)} L${P(1,.05)}`;
+    case 'circle': return `M${P(.5,0)} A${W/2} ${W/2} 0 1 1 ${P(.5,1)} A${W/2} ${W/2} 0 1 1 ${P(.5,0)}`;
+    case 'zed': return `M${P(.05,.08)} L${P(.95,.08)} L${P(.05,.92)} L${P(.95,.92)}`;
+    case 'caret': return `M${P(.05,.85)} L${P(.5,.12)} L${P(.95,.85)}`;
+    case 'cross': return `M${P(.08,.08)} L${P(.92,.92)} M${P(.92,.08)} L${P(.08,.92)}`;
+    case 'loop': return `M${P(.05,.8)} C ${P(.6,.85)}, ${P(.95,.35)}, ${P(.6,.12)} C ${P(.3,.0)}, ${P(.15,.45)}, ${P(.45,.6)} C ${P(.7,.72)}, ${P(.9,.6)}, ${P(1,.5)}`;
+  }
+}
+buildTemplates();
+const legend = $('#legend');
+SIGILS.forEach(sg => {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.id = sg.id;
+  b.setAttribute('aria-label', `${sg.name} — draw the sigil or press ${sg.keyLabel}`);
+  b.innerHTML = `<svg viewBox="0 0 46 46">${chalkPath(glyph(sg.id, 46), '#f1efe4', 2.6)}</svg><span class="nm">${sg.name}</span><kbd>${sg.keyLabel}</kbd>`;
+  b.addEventListener('click', () => castByKey(sg.id));
+  legend.appendChild(b); sg.btn = b;
+});
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false, nb = null, scratchG = null, scratchF = null;
+function audio(){
+  if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination);
+    nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+    const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; scratchF = ac.createBiquadFilter(); scratchF.type = 'bandpass'; scratchF.frequency.value = 3000; scratchF.Q.value = 2.5; scratchG = ac.createGain(); scratchG.gain.value = 0; s.connect(scratchF).connect(scratchG).connect(master); s.start();
+  } catch(e){ ac = null; }
+}
+function scratch(speed){ if (!ac) return; const t = ac.currentTime; scratchG.gain.setTargetAtTime(muted ? 0 : Math.min(.5, speed/2500) * (0.6 + Math.random()*0.6), t, .02); scratchF.frequency.setTargetAtTime(2200 + Math.min(speed, 3000)*0.8, t, .03); }
+function chime(base = 880){ if (!ac || muted) return; const t = ac.currentTime; [1, 1.5, 2, 2.67].forEach((m, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = base*m; g.gain.setValueAtTime(.0001, t + i*.06); g.gain.exponentialRampToValueAtTime(.12/(i + 1), t + i*.06 + .02); g.gain.exponentialRampToValueAtTime(.0001, t + i*.06 + 1.2); o.connect(g).connect(master); o.start(t + i*.06); o.stop(t + i*.06 + 1.3); }); }
+function hiss(dur = .5, f = 1800, g0 = .25){ if (!ac || muted) return; const t = ac.currentTime, s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; fl.type = 'bandpass'; fl.frequency.setValueAtTime(f, t); fl.frequency.exponentialRampToValueAtTime(f*0.4, t + dur); g.gain.setValueAtTime(g0, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(fl).connect(g).connect(master); s.start(t, Math.random()*.5, dur + .05); }
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute chalk sounds' : 'Mute chalk sounds'); $('#mw').style.opacity = muted ? 0 : 1; if (muted && scratchG) scratchG.gain.value = 0; });
+
+/* ---------------- chalk drawing ---------------- */
+let BW = 0, BH = 0, dpr = 1, grain = null;
+function makeGrain(){
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const id = x.createImageData(64, 64);
+  for (let i = 0; i < id.data.length; i += 4){ const v = Math.random(); id.data[i] = 245; id.data[i+1] = 243; id.data[i+2] = 232; id.data[i+3] = v < .22 ? 0 : 140 + v*115; }
+  x.putImageData(id, 0, 0); return ix.createPattern(c, 'repeat');
+}
+function layout(){
+  const r = board.getBoundingClientRect(); BW = r.width; BH = r.height; dpr = Math.min(2, devicePixelRatio || 1);
+  ink.width = Math.round(BW*dpr); ink.height = Math.round(BH*dpr); ix.setTransform(dpr, 0, 0, dpr, 0, 0); grain = makeGrain();
+  fx.setAttribute('viewBox', `0 0 ${BW} ${BH}`);
+  const mobile = BW < 700, tp = $('#tasks'), lg = $('#legend'), ch = $('#circleHint'), toast = $('#toast');
+  if (!mobile){
+    Object.assign(tp.style, {left:'48px', top:'38px', width: Math.min(560, BW*0.46) + 'px'});
+    Object.assign(lg.style, {left:'40px', bottom:'18px', width: Math.min(560, BW*0.46) + 'px', top:'auto'});
+    circle = {x: BW*0.5 + Math.min(560, BW*0.46)/2 + 40, y: BH*0.47, r: Math.min(BH*0.36, (BW - Math.min(560, BW*0.46) - 140)/2)};
+  } else {
+    Object.assign(tp.style, {left:'22px', top:'14px', width:(BW - 30) + 'px'});
+    Object.assign(lg.style, {left:'8px', right:'8px', bottom:'8px', width:'auto', top:'auto'});
+    const top = tp.offsetHeight + 24, bottom = BH - lg.offsetHeight - 16;
+    circle = {x: BW/2, y: (top + bottom)/2, r: Math.max(60, Math.min((bottom - top)/2 - 6, BW*0.42))};
+  }
+  Object.assign(ch.style, {left:(circle.x - 120) + 'px', width:'240px', top:(mobile ? circle.y + circle.r*0.42 : circle.y + circle.r + 6) + 'px'});
+  Object.assign(toast.style, {left:(circle.x - 200) + 'px', width:'400px', top:(circle.y - 18) + 'px'});
+  drawRestCircle();
+  decorate();
+}
+let circle = {x:0, y:0, r:0};
+let restCircle = null;
+function drawRestCircle(){
+  if (restCircle) restCircle.remove();
+  restCircle = el('g', {class:'chalky', opacity:.35}, fx);
+  const {x, y, r} = circle;
+  el('circle', {cx:x, cy:y, r, fill:'none', stroke:'#a8d4e6', 'stroke-width':2}, restCircle);
+  el('circle', {cx:x, cy:y, r:r*0.86, fill:'none', stroke:'#a8d4e6', 'stroke-width':1.4, 'stroke-dasharray':'2 7'}, restCircle);
+  for (let i = 0; i < 6; i++){ const a = -Math.PI/2 + i*Math.PI/3; const gx = x + Math.cos(a)*r*0.93, gy = y + Math.sin(a)*r*0.93;
+    el('path', {d: glyph(SIGILS[i].id, 26), transform:`translate(${gx - 13} ${gy - 13})`, fill:'none', stroke:'#a8d4e6', 'stroke-width':1.6, 'stroke-linecap':'round'}, restCircle); }
+  const pts = []; for (let i = 0; i < 5; i++){ const a = -Math.PI/2 + i*Math.PI*4/5; pts.push(`${x + Math.cos(a)*r*0.8} ${y + Math.sin(a)*r*0.8}`); }
+  el('path', {d:'M' + pts.join(' L') + 'Z', fill:'none', stroke:'#a8d4e6', 'stroke-width':1, opacity:.6}, restCircle);
+}
+let strokes = [], cur = null, lastUp = 0, judgeT = 0, lastPt = null, lastTime = 0, smudges = [];
+function chalkSeg(a, b, w, color){
+  ix.save(); ix.strokeStyle = color || grain; ix.lineCap = 'round'; ix.lineJoin = 'round'; ix.lineWidth = w;
+  ix.globalAlpha = .92; ix.beginPath(); ix.moveTo(a.x, a.y); ix.lineTo(b.x, b.y); ix.stroke();
+  // ragged chalk edge: sparse flecks
+  ix.fillStyle = grain; const d = Math.hypot(b.x - a.x, b.y - a.y);
+  for (let k = 0; k < d/2; k++){ const t = Math.random(), px = a.x + (b.x - a.x)*t + (Math.random() - .5)*w*1.5, py = a.y + (b.y - a.y)*t + (Math.random() - .5)*w*1.5; ix.globalAlpha = Math.random()*.5; ix.fillRect(px, py, 1.2, 1.2); }
+  ix.restore();
+}
+function local(e){ const r = board.getBoundingClientRect(); return {x: e.clientX - r.left, y: e.clientY - r.top, t: e.timeStamp}; }
+board.addEventListener('pointerdown', e => {
+  if (e.button > 0) return;
+  if (e.target.closest('#list li') || e.target.closest('.legend button')) return;
+  audio(); board.setPointerCapture(e.pointerId);
+  clearTimeout(judgeT);
+  const p = local(e);
+  if (performance.now() - lastUp > 520){ strokes = []; }
+  cur = [p]; strokes.push(cur); lastPt = p; lastTime = p.t;
+  dust(p.x, p.y, 3);
+});
+board.addEventListener('pointermove', e => {
+  if (!cur) return;
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ev of (evs.length ? evs : [e])){ const p = local(ev); if (Math.hypot(p.x - lastPt.x, p.y - lastPt.y) < 1.5) continue;
+    const sp = Math.hypot(p.x - lastPt.x, p.y - lastPt.y) / Math.max(1, p.t - lastTime) * 1000;
+    chalkSeg(lastPt, p, 5.2 - Math.min(2, sp/1500)); cur.push(p);
+    if (Math.random() < .25) dust(p.x, p.y, 1);
+    scratch(sp); lastPt = p; lastTime = p.t; }
+});
+function up(){
+  if (!cur) return; cur = null; lastUp = performance.now(); scratch(0);
+  clearTimeout(judgeT); judgeT = setTimeout(judge, 460);
+}
+board.addEventListener('pointerup', up); board.addEventListener('pointercancel', up);
+
+/* ---------------- dust particles ---------------- */
+let parts = [];
+function dust(x, y, n, color, tx, ty){
+  for (let i = 0; i < n; i++) parts.push({x, y, vx:(Math.random() - .5)*40 + (tx != null ? (tx - x)*(.9 + Math.random()*.6) : 0), vy:(Math.random() - .2)*30 + (ty != null ? (ty - y)*(.9 + Math.random()*.6) : 0), life:1, decay:.6 + Math.random()*.8, r:.6 + Math.random()*1.6, c: color || '241,239,228', homing: tx != null});
+}
+
+/* ---------------- judging & casting ---------------- */
+const toast = $('#toast'); let toastT = 0;
+function say(text, bad){ toast.textContent = text; toast.classList.toggle('bad', !!bad); toast.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove('show'), 1900); }
+function targetIndexFor(pts){
+  const r = board.getBoundingClientRect(), c = centroid(pts);
+  for (let i = 0; i < list.children.length; i++){ const lr = list.children[i].getBoundingClientRect(); if (c.x + r.left >= lr.left - 10 && c.x + r.left <= lr.right + 10 && c.y + r.top >= lr.top - 4 && c.y + r.top <= lr.bottom + 4) return i; }
+  return sel;
+}
+function judge(){
+  const all = strokes.flat(); strokes = [];
+  if (all.length < 4 || pathLen(all) < 14) return; // a stray tap, not a sigil
+  const res = recognize(all);
+  const xs = all.map(p => p.x), ys = all.map(p => p.y);
+  const box = {x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys)};
+  if (!res || res.score < 0.74){
+    fizzle(box);
+    const near = res && res.score > 0.6 ? SIGILS.find(s => s.id === res.id) : null;
+    say(near ? `Almost — did you mean ${near.name}? Try the sigil again.` : 'Not a sigil I know. Try one from the grimoire.', true);
+    if (near) near.btn.classList.remove('flash'), void near.btn.offsetWidth, near.btn.classList.add('flash');
+    return;
+  }
+  const ti = targetIndexFor(all);
+  cast(res.id, {x: box.x + box.w/2, y: box.y + box.h/2, r: Math.max(46, Math.max(box.w, box.h)*0.62)}, ti, all);
+}
+function fizzle(box){
+  hiss(.6, 1400, .2);
+  // the scrawl smears: blur it into the slate
+  const pad = 20, x = Math.max(0, box.x - pad), y = Math.max(0, box.y - pad), w = Math.min(BW - x, box.w + pad*2), h = Math.min(BH - y, box.h + pad*2);
+  smear(x, y, w, h);
+  for (let i = 0; i < 18; i++) dust(x + Math.random()*w, y + Math.random()*h, 1, '242,178,173');
+}
+function smear(x, y, w, h){
+  if (w <= 0 || h <= 0) return;
+  const img = document.createElement('canvas'); img.width = Math.ceil(w*dpr); img.height = Math.ceil(h*dpr);
+  img.getContext('2d').drawImage(ink, x*dpr, y*dpr, w*dpr, h*dpr, 0, 0, w*dpr, h*dpr);
+  ix.save(); ix.clearRect(x, y, w, h); ix.globalAlpha = .28; ix.filter = 'blur(5px)'; ix.drawImage(img, x + 6, y + 2, w, h); ix.restore();
+}
+function cast(id, at, ti, rawPts){
+  const sg = SIGILS.find(s => s.id === id); if (!sg) return;
+  sg.btn.classList.remove('flash'); void sg.btn.offsetWidth; sg.btn.classList.add('flash');
+  if (rawPts){ const pad = 26, xs = rawPts.map(p => p.x), ys = rawPts.map(p => p.y), x = Math.min(...xs) - pad, y = Math.min(...ys) - pad; ix.clearRect(x, y, Math.max(...xs) - x + pad, Math.max(...ys) - y + pad); }
+  // a magic circle forms around the sigil, the scrawl snaps clean, then it burns into the task
+  const g = el('g', {class:'chalky'}, fx), R = at.r;
+  const ring = el('circle', {cx:at.x, cy:at.y, r:R, fill:'none', stroke:'#a8d4e6', 'stroke-width':2.4}, g);
+  const ring2 = el('circle', {cx:at.x, cy:at.y, r:R*0.8, fill:'none', stroke:'#a8d4e6', 'stroke-width':1.4}, g);
+  const pathId = 'ring' + Math.random().toString(36).slice(2);
+  el('path', {id:pathId, d:`M${at.x - R*0.9} ${at.y} a${R*0.9} ${R*0.9} 0 1 1 ${R*1.8} 0 a${R*0.9} ${R*0.9} 0 1 1 ${-R*1.8} 0`, fill:'none'}, g);
+  const label = el('text', {'font-family':'Cabin Sketch', 'font-size':Math.max(11, R*0.16), fill:'#a8d4e6', 'letter-spacing':2}, g);
+  const tp = el('textPath', {href:'#' + pathId}, label); tp.textContent = (` ✦ ${sg.name.toUpperCase()}`).repeat(Math.max(2, Math.round(R/26)));
+  const gl = el('path', {d: glyph(id, R*1.1), transform:`translate(${at.x - R*0.55} ${at.y - R*0.55})`, fill:'none', stroke:'#f3e39b', 'stroke-width':3.4, 'stroke-linecap':'round', 'stroke-linejoin':'round'}, g);
+  [ring, ring2, gl].forEach((n, i) => { const L = n.getTotalLength ? n.getTotalLength() : 600; n.style.strokeDasharray = L; n.style.strokeDashoffset = reduce ? 0 : L; if (!reduce) n.animate([{strokeDashoffset: L}, {strokeDashoffset: 0}], {duration: 380 + i*120, delay: i*60, fill:'forwards', easing:'cubic-bezier(.4,.1,.2,1)'}); });
+  if (!reduce) label.animate([{opacity:0}, {opacity:1}], {duration:400, delay:200, fill:'forwards'});
+  g.style.transformOrigin = `${at.x}px ${at.y}px`;
+  if (!reduce) g.animate([{transform:'rotate(0deg)'}, {transform:'rotate(14deg)'}], {duration:1300, fill:'forwards', easing:'ease-out'});
+  chime(id === 'loop' ? 660 : 880);
+  const li = list.children[ti];
+  setTimeout(() => {
+    // burn: dust streams from the circle to its target, the circle fades to a smudge
+    const r = board.getBoundingClientRect(), lr = li ? li.getBoundingClientRect() : null;
+    const tx = lr ? lr.left - r.left + 40 : at.x, ty = lr ? lr.top - r.top + lr.height/2 : at.y;
+    if (!reduce) for (let i = 0; i < 70; i++){ const a = Math.random()*Math.PI*2; dust(at.x + Math.cos(a)*R, at.y + Math.sin(a)*R, 1, i % 3 ? '243,227,155' : '168,212,230', tx, ty); }
+    hiss(.7, 3200, .12);
+    const anim = g.animate([{opacity:1, filter:'url(#chalk) blur(0px)'}, {opacity:0, filter:'url(#chalk) blur(3px)'}], {duration: reduce ? 1 : 700, fill:'forwards'});
+    anim.onfinish = () => g.remove();
+    setTimeout(() => apply(id, ti), reduce ? 0 : 420);
+  }, reduce ? 50 : 820);
+}
+function snapshot(){ return {tasks: tasks.map(t => ({...t})), sel}; }
+function apply(id, ti){
+  const t = tasks[ti];
+  if (id === 'loop'){
+    const prev = history.pop();
+    if (!prev){ say('Nothing to undo.', true); return; }
+    tasks = prev.tasks; sel = Math.min(prev.sel, tasks.length - 1); renderList(); say('Undone.'); return;
+  }
+  if (!t){ say('Choose a task first.', true); return; }
+  history.push(snapshot());
+  if (id === 'check'){ t.done = !t.done; say(t.done ? `Done: ${t.t}` : `Reopened: ${t.t}`); renderList(); }
+  else if (id === 'circle'){ t.star = !t.star; say(t.star ? 'Starred.' : 'Unstarred.'); renderList(); }
+  else if (id === 'zed'){ t.snz = !t.snz; say(t.snz ? 'Snoozed until Wednesday.' : 'Back on today’s list.'); renderList(); }
+  else if (id === 'caret'){ tasks.splice(ti, 1); tasks.unshift(t); sel = 0; flip(() => renderList()); say('Moved to the top.'); }
+  else if (id === 'cross'){
+    const li = list.children[ti]; li.classList.add('erasing'); hiss(.7, 900, .3);
+    setTimeout(() => { tasks.splice(ti, 1); sel = Math.min(sel, tasks.length - 1); renderList(); say('Erased. Draw a loop to undo.'); }, reduce ? 0 : 650);
+  }
+}
+function flip(update){
+  const before = new Map([...list.children].map(li => [li.dataset.id, li.getBoundingClientRect().top]));
+  update();
+  if (reduce) return;
+  [...list.children].forEach(li => { const b = before.get(li.dataset.id); if (b == null) return; const dy = b - li.getBoundingClientRect().top; if (dy) li.animate([{transform:`translateY(${dy}px)`}, {transform:'none'}], {duration:520, easing:'cubic-bezier(.3,1.3,.5,1)'}); });
+}
+/* keyboard: every sigil is also a key; the board draws it for you */
+function castByKey(id){
+  audio(); const sg = SIGILS.find(s => s.id === id);
+  const at = {x: circle.x, y: circle.y, r: circle.r*0.6};
+  cast(id, at, sel, null);
+}
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('.legend')) { if (e.key !== 'Tab') {} }
+  const k = e.key;
+  if (k === 'ArrowDown' || k === 'ArrowUp'){ e.preventDefault(); sel = Math.max(0, Math.min(tasks.length - 1, sel + (k === 'ArrowDown' ? 1 : -1))); renderList(true); return; }
+  if ((e.metaKey || e.ctrlKey) && (k === 'z' || k === 'Z')){ e.preventDefault(); castByKey('loop'); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const map = {d:'check', s:'circle', z:'zed', t:'caret', Delete:'cross', Backspace:'cross', u:'loop'};
+  const id = map[k] || map[k.toLowerCase && k.toLowerCase()];
+  if (id){ e.preventDefault(); castByKey(id); }
+});
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), raf = 0;
+const pc = document.createElement('canvas'); // particles drawn on the ink canvas each frame would smear it, so they get their own layer
+pc.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none'; board.appendChild(pc); const px = pc.getContext('2d');
+function sizePC(){ pc.width = Math.round(BW*dpr); pc.height = Math.round(BH*dpr); px.setTransform(dpr, 0, 0, dpr, 0, 0); }
+function frame(t){
+  const dt = Math.min(.05, (t - last)/1000); last = t;
+  px.clearRect(0, 0, BW, BH);
+  for (const p of parts){
+    if (p.homing){ p.x += p.vx*dt*1.1; p.y += p.vy*dt*1.1; p.life -= dt*1.3; }
+    else { p.vy += 120*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*p.decay; }
+    px.globalAlpha = Math.max(0, p.life)*.8; px.fillStyle = `rgb(${p.c})`; px.beginPath(); px.arc(p.x, p.y, p.r, 0, 7); px.fill();
+  }
+  px.globalAlpha = 1; parts = parts.filter(p => p.life > 0);
+  // old chalk slowly fades back into the slate
+  if (!cur && performance.now() - lastUp > 2600){ ix.save(); ix.globalCompositeOperation = 'destination-out'; ix.globalAlpha = .012; ix.fillRect(0, 0, BW, BH); ix.restore(); }
+  raf = requestAnimationFrame(frame);
+}
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else start(); });
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); sizePC(); }, 100); });
+renderList(); layout(); sizePC(); start();
+document.fonts && document.fonts.ready.then(() => { layout(); });
+window.__sigil = (name, ox, oy, sz) => { // test hook: draw a template sigil as if by hand
+  const shapes = {check:[[0,.55],[.35,1],[1,0]], caret:[[0,1],[.5,0],[1,1]], zed:[[0,0],[1,0],[0,1],[1,1]]};
+  let pts = [];
+  if (name === 'circle') pts = fnPts(48, t => [0.5 + 0.5*Math.cos(-1.5 + t*6.4), 0.5 + 0.5*Math.sin(-1.5 + t*6.4)]).map(p => [p.x, p.y]);
+  else { const s = shapes[name]; for (let i = 0; i < s.length - 1; i++) for (let k = 0; k < 12; k++){ const f = k/12; pts.push([s[i][0] + (s[i+1][0] - s[i][0])*f, s[i][1] + (s[i+1][1] - s[i][1])*f]); } pts.push(s[s.length - 1]); }
+  const P = pts.map(([x, y]) => ({x: ox + x*sz + (Math.random() - .5)*4, y: oy + y*sz + (Math.random() - .5)*4, t: 0}));
+  for (let i = 1; i < P.length; i++) chalkSeg(P[i-1], P[i], 5);
+  strokes = [P]; lastUp = performance.now(); clearTimeout(judgeT); judgeT = setTimeout(judge, 300);
+};
+})();
+</script>
+</body>
+</html>

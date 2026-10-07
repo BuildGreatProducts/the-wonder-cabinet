@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Candle Sleep Timer</title>
+<meta name="description" content="A sleep timer painted like a Georges de La Tour candlelit still life: drag the candle's height to set minutes, watch it melt and drip as the rain plays, and at the end it snuffs out with a wisp of smoke.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;1,400&family=Spectral+SC:wght@500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Candle Sleep Timer","reimagines":"Timer duration input","category":"Sliders, Knobs & Dials","description":"Set a sleep timer for rain sounds by drawing a candle taller or shorter in a candlelit oil painting. The flame flickers and lights the whole scene, the candle melts and drips as time passes, and when time is up it snuffs out in a curl of smoke as the rain fades to silence.","hint":"Drag the candle taller or shorter to set the minutes, then let go"}
+</script>
+<style>
+  :root{ --ink:#f1dcb4; --dim:rgba(241,220,180,.62); --gilt:#b48a43; --serif:'Spectral', 'Iowan Old Style', Georgia, serif; --sc:'Spectral SC', 'Spectral', Georgia, serif; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0b0705}
+  body{overflow:hidden; color:var(--ink); font-family:var(--serif)}
+  #paint{position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none}
+  .frame{position:fixed; inset:0; pointer-events:none; box-shadow: inset 0 0 0 10px #2a1c10, inset 0 0 0 12px #6d5023, inset 0 0 0 13px #1a1008, inset 0 0 90px 40px rgba(0,0,0,.65)}
+  .now{position:fixed; left:38px; top:30px; font-family:var(--sc); font-size:14px; letter-spacing:.14em; color:var(--dim); line-height:1.6}
+  .now b{display:block; font-family:var(--serif); font-weight:400; font-style:italic; font-size:21px; letter-spacing:0; color:var(--ink)}
+  .plaque{position:fixed; right:42px; bottom:40px; width:320px; padding:18px 22px 16px; background:linear-gradient(160deg, rgba(34,22,13,.92), rgba(16,10,6,.94)); border:1px solid #6d5023;
+    box-shadow:0 0 0 4px rgba(16,10,6,.9), 0 0 0 5px #3d2b15, 0 18px 40px rgba(0,0,0,.6)}
+  .plaque h1{font-family:var(--sc); font-weight:500; font-size:14px; letter-spacing:.2em; margin:0 0 6px; color:var(--gilt)}
+  .mins{font-size:58px; line-height:1; font-weight:400}
+  .mins small{font-size:22px; font-style:italic; margin-left:6px}
+  .ends{font-style:italic; font-size:17px; margin:4px 0 12px; color:var(--dim); min-height:1.3em}
+  .row{display:flex; gap:10px; flex-wrap:wrap}
+  .b{font-family:var(--sc); font-weight:500; font-size:14px; letter-spacing:.12em; color:var(--ink); background:transparent; border:1px solid rgba(180,138,67,.7); padding:8px 14px 7px; cursor:pointer; transition:background .2s, color .2s}
+  .b:hover{background:rgba(180,138,67,.16)}
+  .b.primary{background:linear-gradient(180deg, #c99a4c, #8c6428); color:#1a1008; border-color:#d9b46a}
+  .b:focus-visible{outline:1px dashed var(--ink); outline-offset:4px}
+  .b[disabled]{opacity:.35; cursor:default}
+  .hint{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); font-style:italic; font-size:15px; color:var(--dim); white-space:nowrap; transition:opacity 1.2s; pointer-events:none}
+  .mute{position:fixed; left:38px; bottom:34px; font-family:var(--sc); font-size:12px; letter-spacing:.14em; background:none; border:1px solid rgba(180,138,67,.5); color:var(--dim); padding:4px 10px; cursor:pointer}
+  .mute:focus-visible{outline:1px dashed var(--ink); outline-offset:3px}
+  #candleKey{position:fixed; outline:none; touch-action:none; cursor:ns-resize}
+  #candleKey:focus-visible{outline:1px dashed rgba(241,220,180,.6); outline-offset:6px}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    .frame{box-shadow: inset 0 0 0 6px #2a1c10, inset 0 0 0 7px #6d5023, inset 0 0 60px 20px rgba(0,0,0,.65)}
+    .now{left:20px; top:18px; font-size:11px}
+    .now b{font-size:16px}
+    .plaque{left:14px; right:14px; bottom:14px; width:auto; padding:12px 16px 12px}
+    .plaque h1{font-size:12px}
+    .mins{font-size:40px}
+    .mins small{font-size:17px}
+    .ends{font-size:14px; margin:2px 0 8px}
+    .b{font-size:12px; padding:7px 10px 6px}
+    .hint{bottom:auto; top:118px; font-size:12.5px; white-space:normal; width:80%; text-align:center}
+    .mute{left:auto; right:20px; bottom:auto; top:18px; font-size:10px}
+  }
+</style>
+</head>
+<body>
+<canvas id="paint" aria-hidden="true"></canvas>
+<div id="candleKey" role="slider" tabindex="0" aria-label="Sleep timer length — the candle's height" aria-valuemin="5" aria-valuemax="90" aria-valuenow="30" aria-valuetext="30 minutes"></div>
+<div class="frame" aria-hidden="true"></div>
+<div class="now">Now playing<b>Rain on a Tin Roof</b>Sleep Sounds · vol. II</div>
+<section class="plaque" aria-labelledby="pl">
+  <h1 id="pl">Sleep timer</h1>
+  <div class="mins" aria-live="off"><span id="mins">30</span><small id="unit">minutes</small></div>
+  <div class="ends" id="ends" aria-live="polite">Set the candle, then let go to begin.</div>
+  <div class="row">
+    <button class="b primary" id="go">Light &amp; begin</button>
+    <button class="b" id="fade" disabled>Fade out now</button>
+  </div>
+</section>
+<div class="hint" id="hint">Drag the candle taller or shorter to set the minutes — let go to begin. Tap the flame to snuff it.</div>
+<button class="mute" id="mute" aria-pressed="false">Rain · on</button>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const MINM = 5, MAXM = 90;
+  const START = new Date(2026, 9, 7, 23, 14, 0).getTime(), T0 = performance.now();
+
+  // ---------- state ----------
+  let minutes = 30, remaining = 30 * 60, running = false, lit = true, flame = 1, speed = 1, fading = false, fadeRate = 1;
+  let ended = false, dragging = false, interacted = false;
+  const drips = [], smoke = [];
+  let pool = 0;
+
+  // ---------- canvas + painterly texture ----------
+  const cv = $('paint'), c = cv.getContext('2d');
+  const tex = document.createElement('canvas'), tx = tex.getContext('2d');
+  let W = 0, H = 0, dpr = 1, G = {};
+  function noise2(x, y){ return Math.sin(x * 1.7 + Math.sin(y * 1.3)) * .5 + Math.sin(y * 2.1 + Math.sin(x * .7) * 2) * .5; }
+  function layout(){
+    dpr = Math.min(2, devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const mob = W < 760;
+    const u = Math.min(W, H);
+    G = mob ? { cx: W * .5, base: H * .6, cw: u * .15, hmin: H * .05, hmax: H * .3, table: H * .52, front: H * .82 }
+            : { cx: W * .42, base: H * .76, cw: u * .085, hmin: H * .05, hmax: H * .44, table: H * .64, front: H * 1.02 };
+    // painterly texture: brush strokes along a flow field + canvas weave
+    tex.width = Math.round(W * dpr); tex.height = Math.round(H * dpr);
+    tx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tx.fillStyle = '#808080'; tx.fillRect(0, 0, W, H);
+    let r = 7; const R = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    const n = Math.round(W * H / 260);
+    tx.lineCap = 'round';
+    for (let i = 0; i < n; i++){
+      const x = R() * W, y = R() * H, a = (y > G.table ? (R() - .5) * .25 : -1.15 + noise2(x / 220, y / 220) * .5), len = 14 + R() * 50;
+      const v = R() < .5 ? 255 : 0;
+      tx.strokeStyle = `rgba(${v},${v},${v},${.035 + R() * .05})`; tx.lineWidth = 1.5 + R() * 5;
+      tx.beginPath(); tx.moveTo(x, y); tx.quadraticCurveTo(x + Math.cos(a) * len * .5 + (R() - .5) * 6, y + Math.sin(a) * len * .5 + (R() - .5) * 6, x + Math.cos(a) * len, y + Math.sin(a) * len); tx.stroke();
+    }
+    // canvas weave
+    tx.globalAlpha = .07;
+    for (let y = 0; y < H; y += 3){ tx.fillStyle = y % 6 ? '#000' : '#fff'; tx.fillRect(0, y, W, 1); }
+    for (let x = 0; x < W; x += 3){ tx.fillStyle = x % 6 ? '#fff' : '#000'; tx.fillRect(x, 0, 1, H); }
+    tx.globalAlpha = 1;
+    // a few craquelure lines
+    tx.strokeStyle = 'rgba(0,0,0,.12)'; tx.lineWidth = .7;
+    for (let i = 0; i < 70; i++){ let x = R() * W, y = R() * H; tx.beginPath(); tx.moveTo(x, y); for (let k = 0; k < 6; k++){ x += (R() - .5) * 40; y += (R() - .5) * 40; tx.lineTo(x, y); } tx.stroke(); }
+    // hit area for the candle slider
+    placeKey();
+  }
+  function candleH(){ const m = Math.max(0, remaining / 60); return G.hmin + (Math.min(MAXM, m) / MAXM) * (G.hmax - G.hmin); }
+  function placeKey(){
+    const k = $('candleKey'), h = candleH() + 60;
+    k.style.left = (G.cx - G.cw * 1.4) + 'px'; k.style.width = (G.cw * 2.8) + 'px';
+    k.style.top = (G.base - h - 30) + 'px'; k.style.height = (h + 30) + 'px';
+  }
+
+  // ---------- painting ----------
+  let t = 0, flick = 1, sway = 0;
+  function paint(){
+    const mob = W < 760;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    const ch = candleH(), top = G.base - ch, cw = G.cw;
+    const fx = G.cx + sway * 6, fy = top - 30 - 22 * flame;
+    // 1) wall: warm umber, scumbled
+    c.fillStyle = '#5a3a20'; c.fillRect(0, 0, W, H);
+    const wg = c.createLinearGradient(0, 0, W, 0); wg.addColorStop(0, '#4a2e18'); wg.addColorStop(.5, '#6b4526'); wg.addColorStop(1, '#3d2614');
+    c.fillStyle = wg; c.fillRect(0, 0, W, G.table);
+    // 2) table: dark walnut, lit edge
+    const tg = c.createLinearGradient(0, G.table, 0, H); tg.addColorStop(0, '#7a4a24'); tg.addColorStop(.25, '#5b341a'); tg.addColorStop(1, '#2a160a');
+    c.fillStyle = tg; c.fillRect(0, G.table, W, H - G.table);
+    c.fillStyle = 'rgba(255,214,150,.35)'; c.fillRect(0, G.table - 1, W, 3);
+    // grain
+    c.strokeStyle = 'rgba(30,14,4,.35)'; c.lineWidth = 1.2;
+    for (let i = 0; i < 9; i++){ const y = G.table + 12 + i * (H - G.table) / 9; c.beginPath(); c.moveTo(0, y); for (let x = 0; x <= W; x += 60) c.lineTo(x, y + Math.sin(x / 90 + i) * 3); c.stroke(); }
+
+    // 3a) the sleeper: fell asleep reading, head on folded arms (De La Tour red)
+    c.filter = 'blur(1.1px)'; sleeper(top); c.filter = 'none';
+    // 3) the book (open, left) with shadow cast away from the flame
+    const bx = G.cx - (mob ? W * .3 : W * .24), by = G.base + (mob ? 10 : 6), bw = mob ? W * .26 : W * .17, bh = bw * .32;
+    c.save(); c.globalAlpha = .55; c.fillStyle = '#120804';
+    c.beginPath(); c.ellipse(bx - bw * .25, by + bh * .55, bw * .62, bh * .45, 0, 0, 7); c.fill(); c.restore();
+    for (const side of [-1, 1]){
+      c.beginPath();
+      c.moveTo(bx, by - bh * .15); c.quadraticCurveTo(bx + side * bw * .25, by - bh * .55, bx + side * bw * .5, by - bh * .35);
+      c.lineTo(bx + side * bw * .54, by + bh * .3); c.quadraticCurveTo(bx + side * bw * .25, by + bh * .1, bx, by + bh * .45); c.closePath();
+      const pg = c.createLinearGradient(bx, 0, bx + side * bw * .5, 0); pg.addColorStop(0, '#bfa477'); pg.addColorStop(1, side > 0 ? '#f3dfb4' : '#d9c08e');
+      c.fillStyle = pg; c.fill();
+      c.strokeStyle = 'rgba(60,35,15,.6)'; c.lineWidth = 1; c.stroke();
+      c.strokeStyle = 'rgba(60,35,15,.35)'; c.lineWidth = 1.3;
+      for (let k = 0; k < 7; k++){ const yy = by - bh * .22 + k * bh * .075, x0 = bx + side * bw * .08, x1 = bx + side * bw * (.44 - (k === 6 ? .18 : 0)); c.beginPath(); c.moveTo(x0, yy + Math.abs(x0 - bx) * .1); c.lineTo(x1, yy - bh * .05 + Math.abs(x1 - bx) * .12); c.stroke(); }
+    }
+    // 4) pocket watch (lying on the table, right) — shows the time left
+    const wx = G.cx + (mob ? W * .3 : W * .2), wy = G.base + (mob ? 18 : 12), wr = mob ? W * .1 : W * .045;
+    c.save(); c.globalAlpha = .5; c.fillStyle = '#120804'; c.beginPath(); c.ellipse(wx + wr * .5, wy + wr * .2, wr * 1.1, wr * .45, 0, 0, 7); c.fill(); c.restore();
+    c.save(); c.translate(wx, wy); c.scale(1, .5);
+    c.fillStyle = '#8a6428'; c.beginPath(); c.arc(0, 0, wr * 1.08, 0, 7); c.fill();
+    const rg = c.createLinearGradient(-wr, -wr, wr, wr); rg.addColorStop(0, '#f4d38a'); rg.addColorStop(.5, '#a8792f'); rg.addColorStop(1, '#5e3f15');
+    c.strokeStyle = rg; c.lineWidth = wr * .14; c.beginPath(); c.arc(0, 0, wr * .95, 0, 7); c.stroke();
+    c.fillStyle = '#efe2c4'; c.beginPath(); c.arc(0, 0, wr * .86, 0, 7); c.fill();
+    c.strokeStyle = '#2a1a0c'; c.lineWidth = 1.2;
+    for (let k = 0; k < 12; k++){ const a = k / 12 * Math.PI * 2; c.beginPath(); c.moveTo(Math.cos(a) * wr * .72, Math.sin(a) * wr * .72); c.lineTo(Math.cos(a) * wr * .82, Math.sin(a) * wr * .82); c.stroke(); }
+    const rem = remaining / 60, ma = -Math.PI / 2 + (rem % 60) / 60 * Math.PI * 2, ha = -Math.PI / 2 + Math.min(rem, 720) / 720 * Math.PI * 2;
+    c.lineWidth = 2.4; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(ha) * wr * .45, Math.sin(ha) * wr * .45); c.stroke();
+    c.lineWidth = 1.6; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(ma) * wr * .7, Math.sin(ma) * wr * .7); c.stroke();
+    c.fillStyle = '#2a1a0c'; c.beginPath(); c.arc(0, 0, 2.2, 0, 7); c.fill();
+    c.restore();
+    // crown + chain trailing toward the book
+    c.strokeStyle = '#a8792f'; c.lineWidth = 2; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(wx, wy - wr * .55); c.bezierCurveTo(wx - wr, wy - wr * .2, wx - wr * 1.8, wy + wr * .5, wx - wr * 2.6, wy + wr * .25); c.stroke(); c.setLineDash([]);
+
+    // 5) brass dish + wax pool
+    const dw = cw * 2.1;
+    c.fillStyle = '#2a1608'; c.beginPath(); c.ellipse(G.cx + 6, G.base + 8, dw * 1.05, dw * .26, 0, 0, 7); c.fill();
+    const dg = c.createLinearGradient(G.cx - dw, 0, G.cx + dw, 0); dg.addColorStop(0, '#5a3a14'); dg.addColorStop(.35, '#e6b866'); dg.addColorStop(.6, '#a87a32'); dg.addColorStop(1, '#3d270c');
+    c.fillStyle = dg; c.beginPath(); c.ellipse(G.cx, G.base + 4, dw, dw * .24, 0, 0, 7); c.fill();
+    c.fillStyle = '#7a5520'; c.beginPath(); c.ellipse(G.cx, G.base, dw * .82, dw * .17, 0, 0, 7); c.fill();
+    if (pool > 0){ c.fillStyle = '#e8dcc0'; c.beginPath(); c.ellipse(G.cx + cw * .1, G.base + 1, Math.min(dw * .8, cw * .55 + pool * cw * .5), Math.min(dw * .16, cw * .12 + pool * cw * .1), 0, 0, 7); c.fill(); }
+
+    // 6) candle: beeswax-cream with subsurface glow near the flame
+    const cg = c.createLinearGradient(G.cx - cw / 2, 0, G.cx + cw / 2, 0);
+    cg.addColorStop(0, '#9c8a68'); cg.addColorStop(.35, '#efe3c6'); cg.addColorStop(.75, '#d6c49c'); cg.addColorStop(1, '#7d6a4a');
+    c.fillStyle = cg;
+    c.beginPath(); c.moveTo(G.cx - cw / 2, G.base); c.lineTo(G.cx - cw / 2, top); c.quadraticCurveTo(G.cx, top + cw * .14, G.cx + cw / 2, top); c.lineTo(G.cx + cw / 2, G.base); c.closePath(); c.fill();
+    if (lit || flame > .05){
+      const sg = c.createLinearGradient(0, top - 4, 0, top + cw * 1.6);
+      sg.addColorStop(0, `rgba(255,190,90,${.75 * flame})`); sg.addColorStop(1, 'rgba(255,190,90,0)');
+      c.fillStyle = sg; c.fillRect(G.cx - cw / 2, top - 2, cw, cw * 1.6);
+    }
+    // melted cup at the top
+    c.fillStyle = 'rgba(255,236,190,.85)'; c.beginPath(); c.ellipse(G.cx, top + 2, cw * .46, cw * .1, 0, 0, 7); c.fill();
+    // drips
+    for (const d of drips){
+      if (d.y0 < top - 2) continue;
+      const x = G.cx + d.u * cw * .5, len = d.len;
+      c.strokeStyle = '#efe3c6'; c.lineWidth = d.w; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(x, Math.max(top + 2, d.y0)); c.lineTo(x + d.u * 1.5, d.y0 + len); c.stroke();
+      c.fillStyle = '#f6ecd4'; c.beginPath(); c.arc(x + d.u * 1.5, d.y0 + len, d.w * .62, 0, 7); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = d.w * .3; c.beginPath(); c.moveTo(x - d.w * .2, Math.max(top + 2, d.y0)); c.lineTo(x - d.w * .2, d.y0 + len * .9); c.stroke();
+    }
+    // wick
+    c.strokeStyle = '#1a0e06'; c.lineWidth = 2.4; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(G.cx, top + 2); c.quadraticCurveTo(G.cx + 2, top - 10, G.cx + 4 + sway * 2, top - 16); c.stroke();
+    if (!lit && ember > 0){ c.fillStyle = `rgba(255,110,30,${ember})`; c.beginPath(); c.arc(G.cx + 4, top - 16, 2.6, 0, 7); c.fill(); }
+
+    // 7) CHIAROSCURO: multiply the whole scene by the candle's light
+    const L = Math.max(.0, flame) * flick;
+    const R0 = Math.max(W, H) * (.4 + .2 * L);
+    const lg = c.createRadialGradient(fx, fy + 20, 0, fx, fy + 20, R0);
+    const amb = 4 + 4 * (1 - L);
+    lg.addColorStop(0, `rgb(${Math.round(amb + 251 * L)},${Math.round(amb + 236 * L)},${Math.round(amb + 210 * L)})`);
+    lg.addColorStop(.12, `rgb(${Math.round(amb + 230 * L)},${Math.round(amb + 190 * L)},${Math.round(amb + 140 * L)})`);
+    lg.addColorStop(.32, `rgb(${Math.round(amb + 128 * L)},${Math.round(amb + 84 * L)},${Math.round(amb + 50 * L)})`);
+    lg.addColorStop(.6, `rgb(${Math.round(amb + 26 * L)},${Math.round(amb + 15 * L)},${Math.round(amb + 8 * L)})`);
+    lg.addColorStop(1, `rgb(${amb},${amb - 1},${amb - 2})`);
+    c.globalCompositeOperation = 'multiply'; c.fillStyle = lg; c.fillRect(0, 0, W, H);
+    // brushwork
+    c.globalCompositeOperation = 'soft-light'; c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(tex, 0, 0); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 8) flame (additive)
+    c.globalCompositeOperation = 'lighter';
+    if (flame > .02){
+      const fh = (34 + 18 * flame) * flick * flame, fwid = 9 * Math.max(.4, flame);
+      const halo = c.createRadialGradient(fx, fy + 10, 0, fx, fy + 10, 140 * flame);
+      halo.addColorStop(0, `rgba(255,170,70,${.28 * flame})`); halo.addColorStop(1, 'rgba(255,120,30,0)');
+      c.fillStyle = halo; c.beginPath(); c.arc(fx, fy + 10, 140 * flame, 0, 7); c.fill();
+      const baseY = top - 14, tipX = G.cx + 4 + sway * 14, tipY = baseY - fh;
+      const fg = c.createLinearGradient(0, baseY, 0, tipY);
+      fg.addColorStop(0, 'rgba(90,120,255,.55)'); fg.addColorStop(.12, 'rgba(255,230,170,.95)'); fg.addColorStop(.55, 'rgba(255,190,90,.9)'); fg.addColorStop(1, 'rgba(255,120,30,0)');
+      c.fillStyle = fg;
+      c.beginPath(); c.moveTo(G.cx + 4, baseY + 6);
+      c.bezierCurveTo(G.cx + 4 - fwid * 1.2, baseY - 2, tipX - fwid * .5, baseY - fh * .6, tipX, tipY);
+      c.bezierCurveTo(tipX + fwid * .5, baseY - fh * .6, G.cx + 4 + fwid * 1.2, baseY - 2, G.cx + 4, baseY + 6);
+      c.fill();
+      c.fillStyle = `rgba(255,250,235,${.8 * flame})`; c.beginPath(); c.ellipse(G.cx + 4 + sway * 4, baseY - fh * .25, fwid * .38, fh * .22, 0, 0, 7); c.fill();
+    }
+    c.globalCompositeOperation = 'source-over';
+    // 9) smoke wisps (painted, soft)
+    // a single curling ribbon: consecutive puffs joined, widening and thinning as they rise
+    c.lineCap = 'round';
+    for (let i = 1; i < smoke.length; i++){
+      const a = smoke[i - 1], b2 = smoke[i];
+      if (Math.abs(a.born - b2.born) > .08) continue;
+      const k = Math.max(0, 1 - b2.life / b2.max);
+      c.strokeStyle = `rgba(205,195,180,${(.2 * k * k).toFixed(3)})`; c.lineWidth = 1.2 + b2.life * 5;
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b2.x, b2.y); c.stroke();
+    }
+  }
+
+  function sleeper(candleTop){
+    const k = Math.min(W, H) / 800, cx = G.cx, ty = G.table, b = reduce ? 0 : Math.sin(t * .75) * 2.2 * k;
+    const X = v => cx + v * k, Y = v => ty + v * k;
+    const lin = (x0, y0, x1, y1, stops) => { const g = c.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; };
+    // back & shoulders
+    c.fillStyle = lin(X(-470), 0, X(-170), 0, [[0, '#140603'], [.6, '#4a140a'], [1, '#8a2a16']]);
+    c.beginPath(); c.moveTo(X(-500), Y(120));
+    c.bezierCurveTo(X(-505), Y(-110), X(-440), Y(-235) + b, X(-345), Y(-222) + b);
+    c.bezierCurveTo(X(-262), Y(-212) + b, X(-215), Y(-140) + b * .6, X(-176), Y(-26));
+    c.lineTo(X(-176), Y(120)); c.closePath(); c.fill();
+    // fold highlights on the garment
+    c.strokeStyle = 'rgba(190,70,40,.35)'; c.lineWidth = 6 * k; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(X(-300), Y(-200) + b); c.quadraticCurveTo(X(-250), Y(-140) + b, X(-235), Y(-60)); c.stroke();
+    // far forearm (under the head)
+    c.fillStyle = lin(0, Y(-10), 0, Y(34), [[0, '#7a2213'], [1, '#2a0904']]);
+    c.beginPath(); c.roundRect(X(-350), Y(-6), 190 * k, 40 * k, 20 * k); c.fill();
+    // near forearm: red sleeve, white cuff, lit hand reaching toward the candle
+    c.fillStyle = lin(0, Y(-44), 0, Y(6), [[0, '#c4421f'], [.45, '#8e2513'], [1, '#3a0c05']]);
+    c.beginPath(); c.roundRect(X(-372), Y(-44) + b * .3, 230 * k, 48 * k, 24 * k); c.fill();
+    c.fillStyle = lin(X(-170), 0, X(-140), 0, [[0, '#cbb894'], [1, '#f2e6cc']]);
+    c.beginPath(); c.roundRect(X(-168), Y(-46) + b * .3, 28 * k, 52 * k, 10 * k); c.fill();
+    c.fillStyle = lin(X(-150), 0, X(-96), 0, [[0, '#b3693d'], [1, '#f0b886']]);
+    c.beginPath(); c.ellipse(X(-122), Y(-14) + b * .3, 30 * k, 17 * k, -.1, 0, 7); c.fill();
+    c.strokeStyle = 'rgba(110,50,25,.55)'; c.lineWidth = 1.6 * k;
+    for (let f = 0; f < 3; f++){ c.beginPath(); c.moveTo(X(-112 + f * 7), Y(-26) + b * .3); c.quadraticCurveTo(X(-100 + f * 7), Y(-14) + b * .3, X(-108 + f * 7), Y(-2) + b * .3); c.stroke(); }
+    // head resting on the arms, face turned down and away
+    const hx = X(-250), hy = Y(-86) + b;
+    c.save(); c.translate(hx, hy); c.rotate(-.42);
+    c.fillStyle = (() => { const g = c.createRadialGradient(36 * k, 10 * k, 4 * k, 0, 0, 74 * k); g.addColorStop(0, '#8a5228'); g.addColorStop(.5, '#3d1d0c'); g.addColorStop(1, '#120603'); return g; })();
+    c.beginPath(); c.ellipse(0, 0, 66 * k, 54 * k, 0, 0, 7); c.fill();
+    // bun
+    c.beginPath(); c.arc(-58 * k, -26 * k, 26 * k, 0, 7); c.fill();
+    // hair strands catching the light
+    c.strokeStyle = 'rgba(214,140,70,.45)'; c.lineWidth = 1.6 * k;
+    for (let i = 0; i < 6; i++){ c.beginPath(); c.arc(-10 * k, 0, (34 + i * 5) * k, -.9, .5); c.stroke(); }
+    // cheek + ear on the lit side
+    c.fillStyle = (() => { const g = c.createLinearGradient(20 * k, 0, 70 * k, 0); g.addColorStop(0, '#7a3d1e'); g.addColorStop(1, '#f2b585'); return g; })();
+    c.beginPath(); c.ellipse(44 * k, 26 * k, 28 * k, 22 * k, .5, 0, 7); c.fill();
+    c.fillStyle = '#d99266'; c.beginPath(); c.ellipse(22 * k, 2 * k, 9 * k, 13 * k, .3, 0, 7); c.fill();
+    c.strokeStyle = 'rgba(90,40,20,.6)'; c.lineWidth = 1.4 * k; c.beginPath(); c.arc(23 * k, 2 * k, 5 * k, -1, 1.6); c.stroke();
+    // closed eye lash line, just visible
+    c.strokeStyle = 'rgba(60,25,10,.7)'; c.lineWidth = 2 * k; c.beginPath(); c.arc(50 * k, 22 * k, 8 * k, .4, 1.6); c.stroke();
+    c.restore();
+  }
+
+  // ---------- simulation ----------
+  let ember = 0, dripT = 0;
+  function sim(dt){
+    t += dt;
+    // flicker: layered noise with occasional gutters
+    const target = reduce ? 1 : 1 + .06 * Math.sin(t * 11.3) + .05 * Math.sin(t * 17.9 + 1) + .04 * Math.sin(t * 5.1) + (Math.random() - .5) * .05;
+    flick += (target - flick) * .4;
+    sway += ((reduce ? 0 : Math.sin(t * 1.3) * .35 + Math.sin(t * 3.7) * .2) - sway) * .1;
+    flame += ((lit ? 1 : 0) - flame) * Math.min(1, dt * (lit ? 3 : 9));
+    if (running && lit){
+      const sp = fading ? fadeRate : speed;
+      remaining = Math.max(0, remaining - dt * sp);
+      pool = Math.min(1, pool + dt * sp / (MAXM * 60) * .9);
+      // drips spawn as the candle burns
+      dripT += dt * (fading ? 6 : 1);
+      if (dripT > (reduce ? 6 : 2.4) && drips.length < 26){
+        dripT = 0;
+        const u = (Math.random() < .5 ? -1 : 1) * (.55 + Math.random() * .45);
+        drips.push({ u, y0: G.base - candleH() + 3, len: 0, max: 10 + Math.random() * Math.min(80, candleH() * .6), w: 3 + Math.random() * 3.5, v: 18 + Math.random() * 14 });
+      }
+      if (remaining <= 0) snuff(true);
+    }
+    for (const d of drips){ if (d.len < d.max){ d.v *= Math.exp(-dt * .8); d.len = Math.min(d.max, d.len + d.v * dt); } }
+    // smoke
+    for (let i = smoke.length - 1; i >= 0; i--){
+      const s = smoke[i]; s.life += dt; s.y -= s.vy * dt; s.x += Math.sin(s.life * 2.4 + s.ph) * (8 + s.life * 22) * dt + s.vx * dt;
+      if (s.life > s.max) smoke.splice(i, 1);
+    }
+    if (smokeT > 0){ smokeT -= dt; const top = G.base - candleH(); smokeClock += dt; smoke.push({ x: G.cx + 4, y: top - 18, vx: 3, vy: 46, life: 0, max: 4, ph: smokeClock * 1.3, born: smokeClock }); }
+    if (!lit) ember = Math.max(0, ember - dt * .5);
+    placeKey();
+  }
+  let smokeT = 0, smokeClock = 0;
+
+  // ---------- UI text ----------
+  const fmtClock = ms => { const d = new Date(ms); return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); };
+  let lastText = '';
+  function ui(){
+    const m = Math.ceil(remaining / 60 - 1e-6);
+    const nowMs = START + (performance.now() - T0);
+    let mins, unit, ends;
+    if (ended){ mins = '—'; unit = ''; }
+    else { mins = String(running ? m : minutes); unit = (running ? m : minutes) === 1 ? 'minute' : 'minutes'; }
+    if (ended) ends = endedText;
+    else if (fading) ends = 'Fading the rain out now…';
+    else if (running) ends = `Rain stops at ${fmtClock(nowMs + remaining * 1000)} · ${remaining >= 60 ? m + ' min left' : Math.ceil(remaining) + ' s left'}`;
+    else ends = 'Set the candle, then let go to begin.';
+    const key = mins + unit + ends;
+    if (key !== lastText){ lastText = key; $('mins').textContent = mins; $('unit').textContent = unit; $('ends').textContent = ends; }
+    const k = $('candleKey'), v = running ? m : minutes;
+    k.setAttribute('aria-valuenow', v); k.setAttribute('aria-valuetext', `${v} minutes${running ? ' remaining' : ''}`);
+    $('go').textContent = ended ? 'Light again' : running ? 'Snuff now' : 'Light & begin';
+    $('fade').disabled = !running || fading;
+  }
+  let endedText = '';
+
+  // ---------- control ----------
+  function begin(){
+    audio(); ended = false; fading = false; lit = true; running = true; remaining = minutes * 60;
+    rainOn(); interacted = true; $('hint').style.opacity = 0;
+  }
+  function snuff(natural){
+    if (!lit) return;
+    lit = false; running = false; fading = false; ember = 1; smokeT = reduce ? .3 : 2.2;
+    ended = true;
+    endedText = natural ? `Goodnight. The rain faded at ${fmtClock(START + (performance.now() - T0))}.` : 'Snuffed. The rain is fading.';
+    rainOff(natural ? 4 : 2.5); puff();
+  }
+  function relight(){ audio(); lit = true; ended = false; drips.length = 0; pool = 0; remaining = minutes * 60; running = false; strike(); }
+
+  // drag the candle
+  const key = $('candleKey');
+  let dragY0 = 0, m0 = 0, lastStep = 30;
+  function minsFromY(y){
+    const h = Math.max(G.hmin, Math.min(G.hmax, G.base - y));
+    const m = MINM + (h - G.hmin) / (G.hmax - G.hmin) * (MAXM - MINM);
+    return Math.max(MINM, Math.min(MAXM, Math.round(m / 5) * 5));
+  }
+  key.addEventListener('pointerdown', e => {
+    audio();
+    const top = G.base - candleH();
+    // tapping the flame snuffs it; tapping a dark wick relights
+    if (e.clientY < top - 6){
+      if (lit && running){ snuff(false); return; }
+      if (!lit){ relight(); return; }
+    }
+    dragging = true; key.setPointerCapture(e.pointerId);
+    if (ended) relight();
+    running = false; fading = false;
+    dragY0 = e.clientY; m0 = minutes;
+  });
+  key.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const h0 = G.hmin + (m0 - MINM) / (MAXM - MINM) * (G.hmax - G.hmin);
+    const m = minsFromY(G.base - h0 + (e.clientY - dragY0));
+    if (m !== minutes){ minutes = m; remaining = m * 60; tick(); }
+  });
+  const end = () => { if (!dragging) return; dragging = false; begin(); };
+  key.addEventListener('pointerup', end); key.addEventListener('pointercancel', end);
+  key.addEventListener('keydown', e => {
+    let d = 0;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') d = 5; else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') d = -5;
+    else if (e.key === 'PageUp') d = 15; else if (e.key === 'PageDown') d = -15;
+    else if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); $('go').click(); return; }
+    else return;
+    e.preventDefault(); audio();
+    if (ended) relight();
+    minutes = Math.max(MINM, Math.min(MAXM, minutes + d)); remaining = minutes * 60; tick();
+    if (running) remaining = minutes * 60;
+  });
+  $('go').addEventListener('click', () => {
+    audio();
+    if (ended){ relight(); begin(); }
+    else if (running) snuff(false);
+    else begin();
+  });
+  $('fade').addEventListener('click', () => { if (!running) return; fading = true; fadeRate = Math.max(1, remaining / 5.5); rainOff(5.5); });
+
+  // ---------- audio: rain on a tin roof ----------
+  let ac = null, master, rainG, mute = false, dropTimer = null;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination);
+      const len = ac.sampleRate * 3, b = ac.createBuffer(2, len, ac.sampleRate);
+      for (let ch = 0; ch < 2; ch++){ const d = b.getChannelData(ch); let br = 0; for (let i = 0; i < len; i++){ const w = Math.random() * 2 - 1; br = (br + .02 * w) / 1.02; d[i] = br * 3.5 + w * .08; } }
+      const s = ac.createBufferSource(); s.buffer = b; s.loop = true;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600;
+      rainG = ac.createGain(); rainG.gain.value = 0;
+      s.connect(lp); lp.connect(rainG); rainG.connect(master); s.start();
+    } catch(_) { ac = null; }
+  }
+  function ping(){
+    if (!ac || mute || !rainG || rainG.gain.value < .05) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'triangle'; o.frequency.value = 2200 + Math.random() * 2600;
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.05 * rainG.gain.value, n + .002); g.gain.exponentialRampToValueAtTime(.0001, n + .09);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .1);
+  }
+  function rainOn(){
+    if (!ac) return;
+    rainG.gain.cancelScheduledValues(ac.currentTime); rainG.gain.setTargetAtTime(mute ? 0 : .9, ac.currentTime, .8);
+    clearInterval(dropTimer); dropTimer = setInterval(() => { if (Math.random() < .7) ping(); }, 70);
+  }
+  function rainOff(sec){
+    if (!ac) return;
+    rainG.gain.cancelScheduledValues(ac.currentTime); rainG.gain.setTargetAtTime(0, ac.currentTime, sec / 4);
+    setTimeout(() => clearInterval(dropTimer), sec * 1000);
+  }
+  function tick(){ if (!ac || mute) return; const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = 900; g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.05, n + .003); g.gain.exponentialRampToValueAtTime(.0001, n + .05); o.connect(g); g.connect(master); o.start(n); o.stop(n + .06); }
+  function puff(){
+    if (!ac) return;
+    const n = ac.currentTime, len = ac.sampleRate * .35, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / len);
+    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700;
+    const g = ac.createGain(); g.gain.value = .5; s.connect(f); f.connect(g); g.connect(master); s.start(n);
+  }
+  function strike(){
+    if (!ac) return;
+    const n = ac.currentTime, len = ac.sampleRate * .5, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2) * (i < len * .1 ? 1.5 : .5);
+    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2500; f.Q.value = .7;
+    const g = ac.createGain(); g.gain.value = .35; s.connect(f); f.connect(g); g.connect(master); s.start(n);
+  }
+  $('mute').addEventListener('click', () => {
+    audio(); mute = !mute; $('mute').textContent = mute ? 'Rain · off' : 'Rain · on'; $('mute').setAttribute('aria-pressed', mute);
+    if (ac && rainG) rainG.gain.setTargetAtTime(mute || !running ? 0 : .9, ac.currentTime, .3);
+  });
+
+  // ---------- loop ----------
+  let last = performance.now(), live = true;
+  function frame(now){
+    if (!live) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    sim(dt); paint(); ui();
+    requestAnimationFrame(frame);
+  }
+  // timer keeps counting in the background; only the painting pauses
+  let hiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){ live = false; hiddenAt = performance.now(); }
+    else { const away = (performance.now() - hiddenAt) / 1000; if (running && lit){ remaining = Math.max(0, remaining - away); if (remaining <= 0) snuff(true); } live = true; last = performance.now(); requestAnimationFrame(frame); }
+  });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 80); });
+  layout();
+  requestAnimationFrame(frame);
+  window.__candle = { begin(m){ minutes = m || minutes; begin(); }, fade(){ $('fade').click(); }, set(m){ minutes = m; remaining = m * 60; }, age(s){ remaining = Math.max(1, remaining - s); for (let i = 0; i < 10; i++){ drips.push({ u:(Math.random()<.5?-1:1)*(.55+Math.random()*.45), y0: G.base - candleH() + 3, len: 0, max: 10 + Math.random()*60, w: 3 + Math.random()*3.5, v: 30 }); } pool = .5; } };
+})();
+</script>
+</body>
+</html>

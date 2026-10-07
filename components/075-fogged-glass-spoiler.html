@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fogged Glass Spoiler</title>
+<meta name="description" content="A spoiler hidden behind a fogged-up window on a rainy night: wipe the condensation with your finger to read it, drips run down from what you've wiped, and the glass slowly fogs over again.">
+<script type="application/json" id="component-meta">
+{"name":"Fogged Glass Spoiler","reimagines":"Spoiler / content-warning reveal","category":"Overlays & Reveals","description":"A watch-party chat seen against a rainy night window. Theo's spoiler sits behind condensation: wipe it with a finger (it squeaks), drips run down from the cleared patches, and the glass breathes itself foggy again over a few seconds, so a peek stays a peek.","hint":"Wipe the fogged glass with your finger to read the spoiler"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root{ --txt:#e9eef4; --dim:#93a3b5; --amber:#ffb36b; --teal:#5fd0c8; --rose:#ff7a9c; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;background:#05070c;color:var(--txt);font-family:'Instrument Sans',system-ui,sans-serif}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #win{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .shade{position:fixed;inset:0;pointer-events:none;background:
+    radial-gradient(60% 90% at 50% 50%,rgba(3,5,10,.62),rgba(3,5,10,.25) 70%,rgba(3,5,10,.55)),
+    linear-gradient(rgba(3,5,10,.5),transparent 18%,transparent 82%,rgba(3,5,10,.6))}
+  .letter{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 12px #07080c,inset 0 0 60px 30px rgba(0,0,0,.6)}
+
+  .col{position:relative;z-index:2;height:100%;max-width:660px;margin:0 auto;padding:22px 20px 18px;display:flex;flex-direction:column}
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid rgba(233,238,244,.12)}
+  header h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:29px;line-height:1;letter-spacing:.005em}
+  header h1 i{color:var(--amber)}
+  header p{font-size:13px;color:var(--dim);white-space:nowrap}
+  header p b{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal);margin-right:6px;vertical-align:1px}
+  .thread{flex:1;min-height:0;overflow:auto;padding:16px 0 6px;display:flex;flex-direction:column;gap:14px;scrollbar-width:none}
+  .msg{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}
+  .av{width:34px;height:34px;border-radius:50%;position:relative;
+    background:radial-gradient(circle at 50% 50%,var(--c) 0 40%,transparent 72%);filter:blur(.3px)}
+  .av::after{content:"";position:absolute;inset:3px;border-radius:50%;border:1.5px solid var(--c);opacity:.6}
+  .who{font-size:13.5px;font-weight:600;color:var(--c)}
+  .who time{font-weight:400;color:var(--dim);margin-left:8px;font-size:12.5px}
+  .say{font-size:17px;line-height:1.45;margin-top:2px;text-shadow:0 1px 12px rgba(0,0,0,.6)}
+
+  .spoil{margin-top:6px}
+  .tag{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--amber);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
+  .tag svg{width:14px;height:14px}
+  .pane{position:relative;height:clamp(150px,26vh,210px);border-radius:14px;overflow:hidden;touch-action:none;cursor:grab;
+    box-shadow:0 0 0 1px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.2),0 18px 40px -16px rgba(0,0,0,.9)}
+  .pane.wiping{cursor:grabbing}
+  .pane canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .pane .gl{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.1),transparent 30%,transparent 70%,rgba(255,255,255,.05));border-radius:inherit}
+  .tools{display:flex;align-items:center;gap:14px;margin-top:8px;font-size:13px;color:var(--dim)}
+  .tools button{white-space:nowrap;font-size:13px;font-weight:500;color:var(--txt);padding:6px 11px;border-radius:999px;background:rgba(233,238,244,.08);box-shadow:inset 0 0 0 1px rgba(233,238,244,.16)}
+  .tools button:hover{background:rgba(233,238,244,.16)}
+  .meter{margin-left:auto;display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+  .meter i{display:block;width:70px;height:3px;border-radius:2px;background:rgba(233,238,244,.15);overflow:hidden}
+  .meter i b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--amber))}
+
+  .composer{display:flex;gap:10px;align-items:center;margin-top:10px;padding:10px 10px 10px 16px;border-radius:999px;background:rgba(12,16,24,.55);box-shadow:inset 0 0 0 1px rgba(233,238,244,.14);backdrop-filter:blur(8px)}
+  .composer input{flex:1;min-width:0;background:none;border:0;color:var(--txt);font:inherit;font-size:15px;outline:none}
+  .composer input::placeholder{color:#7d8ca0}
+  .composer button{width:36px;height:36px;border-radius:50%;background:var(--amber);color:#1a1006;display:grid;place-items:center}
+  .composer button svg{width:16px;height:16px}
+  .mute{position:fixed;right:16px;top:16px;z-index:3;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--dim);background:rgba(12,16,24,.5);box-shadow:inset 0 0 0 1px rgba(233,238,244,.14)}
+  .mute svg{width:16px;height:16px}
+  .mute[aria-pressed="true"] .w{display:none}
+  .mute:not([aria-pressed="true"]) .x{display:none}
+
+  @media (max-width:700px){
+    .col{padding:14px 14px 12px}
+    header h1{font-size:25px}
+    header p{display:none}
+    .say{font-size:15.5px}
+    .mute{top:12px;right:12px}
+    .pane{height:clamp(170px,27vh,220px)}
+    .tools{gap:8px}.meter i{width:40px}.meter span{white-space:nowrap}
+  }
+</style>
+</head>
+<body>
+  <canvas id="win" aria-hidden="true"></canvas>
+  <div class="shade" aria-hidden="true"></div>
+  <div class="letter" aria-hidden="true"></div>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute rain and glass sounds"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path class="w" d="M11 5.5c1 .8 1 4.2 0 5M13 4c2 1.8 2 6.2 0 8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+
+  <div class="col">
+    <header><h1>Lighthouse Keepers · <i>finale night</i></h1><p><b></b>4 watching · Thursday 22 October 2026</p></header>
+    <div class="thread" id="thread" aria-live="polite">
+      <div class="msg" style="--c:#5fd0c8"><span class="av" aria-hidden="true"></span><div><p class="who">Maya <time>21:58</time></p><p class="say">Okay, who’s finished episode 8?</p></div></div>
+      <div class="msg" style="--c:#ffb36b"><span class="av" aria-hidden="true"></span><div><p class="who">Theo <time>22:01</time></p><p class="say">Just now. I need to talk about the last ten minutes. Hiding it so nobody gets burned:</p>
+        <div class="spoil">
+          <p class="tag" id="spTag"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1 7s2.4-4 6-4 6 4 6 4-2.4 4-6 4-6-4-6-4z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="7" r="1.8" fill="currentColor"/><path d="M2 12L12 2" stroke="currentColor" stroke-width="1.3"/></svg>Spoiler · season 3 finale</p>
+          <div class="pane" id="pane" role="img" aria-labelledby="spTag" aria-describedby="spHelp">
+            <canvas id="glass"></canvas><span class="gl"></span>
+          </div>
+          <div class="tools">
+            <button id="wipeBtn" aria-controls="pane">Wipe the glass</button>
+            <button id="breathe">Breathe on it</button>
+            <span class="meter" aria-hidden="true"><i><b id="bar"></b></i><span id="pct">fogged</span></span>
+          </div>
+          <p class="sr" id="spHelp">Fogged glass hiding a spoiler. Drag across it to wipe, or press Wipe the glass.</p>
+          <p class="sr" id="spText" aria-live="polite"></p>
+        </div>
+      </div></div>
+      <div class="msg" style="--c:#ff7a9c"><span class="av" aria-hidden="true"></span><div><p class="who">Priya <time>22:03</time></p><p class="say">Theo, some of us are only on episode 6.</p></div></div>
+      <div class="msg" style="--c:#5fd0c8"><span class="av" aria-hidden="true"></span><div><p class="who">Maya <time>22:03</time></p><p class="say">It fogs back up on its own. Wipe at your own risk.</p></div></div>
+    </div>
+    <form class="composer" id="composer" autocomplete="off"><label class="sr" for="say">Message</label><input id="say" placeholder="Say something about episode 8…"><button aria-label="Send message"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
+  </div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, w | 0); c.height = Math.max(1, h | 0); return c; };
+  const SPOILER = 'Ines was the keeper all along. The 1986 logbook is in her handwriting, and the lamp going dark in episode 2 was her signal to the boat.';
+
+  /* ————————————— the night city, out of focus ————————————— */
+  const win = $('#win'), wctx = win.getContext('2d');
+  let W = 0, H = 0, DPR = 1, bokeh = null, bokehSharp = null, drops = null, lights = [];
+  const PAL = ['#ffb36b', '#ff9a4a', '#ffd38a', '#5fd0c8', '#3fa7d6', '#ff7a9c', '#e84a5f', '#fff1d6', '#9ad1ff'];
+  function rng(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+  function makeLights() {
+    const R = rng(42); lights = [];
+    for (let i = 0; i < 230; i++) {
+      const band = R(), y = band < .45 ? .18 + R() * .5 : band < .8 ? .55 + R() * .25 : .78 + R() * .16;
+      const r = 5 + Math.pow(R(), 2.8) * 58;
+      lights.push({ x: R(), y, r, c: PAL[(R() * PAL.length) | 0], a: (.1 + R() * .5) * (r > 40 ? .45 : 1) });
+    }
+    for (let i = 0; i < 40; i++) lights.push({ x: R(), y: .8 + R() * .12, r: 4 + R() * 14, c: R() < .5 ? '#e84a5f' : '#fff1d6', a: .4 + R() * .4, street: 1 });
+  }
+  function paintBokeh(c, w, h, sharp) {
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#060912'); g.addColorStop(.45, '#0d1426'); g.addColorStop(.75, '#1a1226'); g.addColorStop(1, '#0a0810');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    const glowG = c.createRadialGradient(w * .5, h * .78, 0, w * .5, h * .78, w * .7);
+    glowG.addColorStop(0, 'rgba(255,140,70,.18)'); glowG.addColorStop(1, 'rgba(255,140,70,0)'); c.fillStyle = glowG; c.fillRect(0, 0, w, h);
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const s = Math.max(w, h) / 1400;
+    for (const L of lights) {
+      const x = L.x * w, y = L.y * h, r = L.r * s * (L.street ? 1 : 1.4) * (sharp ? .55 : 1);
+      const gr = c.createRadialGradient(x, y, 0, x, y, r);
+      if (sharp) { gr.addColorStop(0, L.c); gr.addColorStop(.25, L.c); gr.addColorStop(.6, hexA(L.c, .15)); gr.addColorStop(1, hexA(L.c, 0)); }
+      else { gr.addColorStop(0, hexA(L.c, .55)); gr.addColorStop(.82, hexA(L.c, .42)); gr.addColorStop(.93, hexA(L.c, .62)); gr.addColorStop(1, hexA(L.c, 0)); }
+      c.globalAlpha = L.a * (sharp ? 1.2 : 1); c.fillStyle = gr; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      if (L.street && !sharp) { c.globalAlpha = L.a * .25; c.fillStyle = L.c; c.fillRect(x - r * 3, y - 1, r * 6, 2); }
+    }
+    c.restore();
+  }
+  function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
+  function makeDrops() {
+    drops = mk(W * DPR, H * DPR); const c = drops.getContext('2d'); c.scale(DPR, DPR);
+    const R = rng(7), n = Math.round(W * H / 2600);
+    for (let i = 0; i < n; i++) drawDrop(c, R() * W, R() * H, Math.pow(R(), 3) * 7 + 1.2);
+  }
+  function drawDrop(c, x, y, r) {
+    // a water bead acts like a tiny lens: an upside-down, sharper view of the city
+    c.save(); c.beginPath(); c.ellipse(x, y, r, r * 1.1, 0, 0, 7); c.clip();
+    const sx = x * DPR, sy = y * DPR, sr = r * DPR * 5;
+    c.translate(x, y); c.scale(1, -1);
+    try { c.filter = 'brightness(1.8) saturate(1.3)'; c.drawImage(bokehSharp, sx - sr, sy - sr, sr * 2, sr * 2, -r, -r * 1.1, r * 2, r * 2.2); c.filter = 'none'; } catch (e) {}
+    c.restore();
+    c.save(); const g = c.createRadialGradient(x - r * .3, y - r * .4, 0, x, y, r * 1.1);
+    g.addColorStop(0, 'rgba(255,255,255,.5)'); g.addColorStop(.28, 'rgba(255,255,255,0)'); g.addColorStop(.88, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.18)');
+    c.fillStyle = g; c.beginPath(); c.ellipse(x, y, r, r * 1.1, 0, 0, 7); c.fill();
+    c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,230,200,.22)'; c.lineWidth = Math.max(.6, r * .18);
+    c.beginPath(); c.ellipse(x, y + r * .08, r * .8, r * .9, 0, .35, Math.PI - .35); c.stroke(); c.restore();
+  }
+  const sliders = [];
+  function sizeWin() {
+    W = innerWidth; H = innerHeight; DPR = Math.min(1.5, devicePixelRatio || 1);
+    win.width = W * DPR; win.height = H * DPR;
+    bokeh = mk(W * DPR, H * DPR); bokeh.getContext('2d').setTransform(DPR, 0, 0, DPR, 0, 0); paintBokeh(bokeh.getContext('2d'), W, H, false);
+    bokehSharp = mk(W * DPR, H * DPR); bokehSharp.getContext('2d').setTransform(DPR, 0, 0, DPR, 0, 0); paintBokeh(bokehSharp.getContext('2d'), W, H, true);
+    makeDrops();
+  }
+  function spawnSlider() { sliders.push({ x: Math.random() * W, y: -10, r: 3 + Math.random() * 3.5, v: 0, stick: Math.random() * .5, trail: [] }); }
+  function drawWindow(dt, t) {
+    const c = wctx; c.setTransform(1, 0, 0, 1, 0, 0);
+    c.drawImage(bokeh, 0, 0);
+    // a car's headlights slide across the out-of-focus street now and then
+    const cyc = (t / 9000) % 1;
+    if (cyc < .35 && !reduce) { const p = cyc / .35, x = (-.2 + p * 1.4) * W; const g = c.createRadialGradient(x * DPR, H * .82 * DPR, 0, x * DPR, H * .82 * DPR, W * .25 * DPR); g.addColorStop(0, 'rgba(255,240,210,.22)'); g.addColorStop(1, 'rgba(255,240,210,0)'); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(0, 0, win.width, win.height); c.globalCompositeOperation = 'source-over'; }
+    c.drawImage(drops, 0, 0);
+    if (reduce) return;
+    // sliding drops: stick, slip, and wipe a clean trail through the beads
+    if (sliders.length < 7 && Math.random() < dt * 1.2) spawnSlider();
+    const dc = drops.getContext('2d');
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (let i = sliders.length - 1; i >= 0; i--) {
+      const s = sliders[i];
+      if (s.stick > 0) s.stick -= dt; else { s.v = Math.min(260, s.v + 500 * dt); s.y += s.v * dt; s.x += (Math.random() - .5) * 1.2; if (Math.random() < dt * 1.5) { s.stick = .1 + Math.random() * .5; s.v = 0; } }
+      dc.save(); dc.globalCompositeOperation = 'destination-out'; dc.beginPath(); dc.arc(s.x, s.y, s.r * .9, 0, 7); dc.fill(); dc.restore();
+      if (Math.random() < .08) drawDrop(dc, s.x + (Math.random() - .5) * 2, s.y - s.r * 2, s.r * .35);
+      drawDrop(c, s.x, s.y, s.r);
+      if (s.y > H + 20) sliders.splice(i, 1);
+    }
+  }
+
+  /* ————————————— the fogged pane ————————————— */
+  const pane = $('#pane'), gcv = $('#glass'), g = gcv.getContext('2d');
+  let PW = 0, PH = 0, sharp = null, fog = null, mask = null, tmp = null, MS = .5;
+  const drips = [];
+  function sizePane() {
+    const r = pane.getBoundingClientRect(); PW = r.width; PH = r.height;
+    const d = Math.min(2, devicePixelRatio || 1);
+    gcv.width = PW * d; gcv.height = PH * d; g.setTransform(d, 0, 0, d, 0, 0);
+    // what's behind the glass: the crisp city and the message itself
+    sharp = mk(PW * d, PH * d); const s = sharp.getContext('2d'); s.scale(d, d);
+    s.drawImage(bokehSharp, r.left * DPR, r.top * DPR, PW * DPR, PH * DPR, 0, 0, PW, PH);
+    const PL = [], RL = rng(9);
+    for (let i = 0; i < 9; i++) PL.push({ x: RL() * PW, y: RL() * PH, c: PAL[(RL() * PAL.length) | 0], r: 3 + RL() * 6 });
+    s.save(); s.globalCompositeOperation = 'lighter';
+    for (const L of PL) { const gr = s.createRadialGradient(L.x, L.y, 0, L.x, L.y, L.r * 6); gr.addColorStop(0, L.c); gr.addColorStop(.18, hexA(L.c, .5)); gr.addColorStop(1, hexA(L.c, 0)); s.fillStyle = gr; s.beginPath(); s.arc(L.x, L.y, L.r * 6, 0, 7); s.fill(); }
+    s.restore();
+    s.fillStyle = 'rgba(4,6,12,.5)'; s.fillRect(0, 0, PW, PH);
+    const fs = clamp(PW / 21, 18, 29);
+    s.font = `${fs}px 'Instrument Serif', Georgia, serif`; s.fillStyle = '#f6f1e8'; s.textBaseline = 'top';
+    s.shadowColor = 'rgba(255,179,107,.45)'; s.shadowBlur = 14;
+    const lines = wrap(s, SPOILER, PW - 48);
+    const lh = fs * 1.22, top = Math.max(14, (PH - lines.length * lh) / 2);
+    lines.forEach((ln, i) => s.fillText(ln, 24, top + i * lh));
+    s.shadowBlur = 0;
+    // the condensation: blurred, milky, beaded with tiny droplets
+    fog = mk(PW * d, PH * d); const f = fog.getContext('2d'); f.scale(d, d);
+    f.filter = 'blur(18px) saturate(1.15) brightness(1.2)'; f.drawImage(bokehSharp, (r.left - 20) * DPR, (r.top - 20) * DPR, (PW + 40) * DPR, (PH + 40) * DPR, -20, -20, PW + 40, PH + 40);
+    f.filter = 'blur(10px)'; f.globalAlpha = .5; f.drawImage(sharp, 0, 0, PW, PH); f.globalAlpha = 1; f.filter = 'none';
+    f.save(); f.globalCompositeOperation = 'lighter';
+    for (const L of PL) { const rr = L.r * 14, gr = f.createRadialGradient(L.x, L.y, 0, L.x, L.y, rr); gr.addColorStop(0, hexA(L.c, .38)); gr.addColorStop(1, hexA(L.c, 0)); f.fillStyle = gr; f.beginPath(); f.arc(L.x, L.y, rr, 0, 7); f.fill(); }
+    f.restore();
+    f.fillStyle = 'rgba(178,196,218,.3)'; f.fillRect(0, 0, PW, PH);
+    const hz = f.createLinearGradient(0, 0, 0, PH); hz.addColorStop(0, 'rgba(230,236,245,.18)'); hz.addColorStop(1, 'rgba(230,236,245,.04)'); f.fillStyle = hz; f.fillRect(0, 0, PW, PH);
+    const R = rng(3);
+    for (let i = 0; i < PW * PH / 22; i++) { const x = R() * PW, y = R() * PH, rr = .35 + Math.pow(R(), 5) * 1.9; f.fillStyle = `rgba(255,255,255,${.08 + R() * .2})`; f.beginPath(); f.arc(x, y, rr, 0, 7); f.fill(); f.fillStyle = 'rgba(20,30,40,.12)'; f.beginPath(); f.arc(x + rr * .4, y + rr * .5, rr * .7, 0, 7); f.fill(); }
+    const fresh = !mask;
+    const old = mask;
+    mask = mk(PW * MS, PH * MS);
+    const m = mask.getContext('2d'); m.fillStyle = '#fff'; m.fillRect(0, 0, mask.width, mask.height);
+    if (!fresh && old) m.drawImage(old, 0, 0, mask.width, mask.height);
+    tmp = mk(gcv.width, gcv.height);
+    dirty = true;
+  }
+  function wrap(c, text, maxW) { const words = text.split(' '), out = []; let line = ''; for (const w of words) { const t = line ? line + ' ' + w : w; if (c.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; } if (line) out.push(line); return out; }
+  let dirty = true;
+  function compose() {
+    const d = gcv.width / PW;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, gcv.width, gcv.height);
+    g.drawImage(sharp, 0, 0);
+    const t = tmp.getContext('2d'); t.globalCompositeOperation = 'source-over'; t.clearRect(0, 0, tmp.width, tmp.height);
+    t.drawImage(fog, 0, 0); t.globalCompositeOperation = 'destination-in'; t.imageSmoothingEnabled = true; t.drawImage(mask, 0, 0, tmp.width, tmp.height);
+    g.drawImage(tmp, 0, 0);
+    // drips ride on top: little lenses with a bright cap
+    g.setTransform(d, 0, 0, d, 0, 0);
+    for (const k of drips) {
+      const gr = g.createRadialGradient(k.x - k.r * .3, k.y - k.r * .3, 0, k.x, k.y, k.r * 1.3);
+      gr.addColorStop(0, 'rgba(255,255,255,.75)'); gr.addColorStop(.35, 'rgba(255,255,255,.12)'); gr.addColorStop(1, 'rgba(0,0,0,.35)');
+      g.fillStyle = gr; g.beginPath(); g.ellipse(k.x, k.y, k.r, k.r * 1.25, 0, 0, 7); g.fill();
+    }
+  }
+  // wiping
+  let wiping = false, last = null, lastT = 0, wipeSpeed = 0, lastWipeAt = -1e9;
+  function brush(x0, y0, x1, y1, rad) {
+    const m = mask.getContext('2d'); m.save(); m.globalCompositeOperation = 'destination-out'; m.scale(MS, MS);
+    const dist = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(dist / 3));
+    for (let i = 0; i <= n; i++) {
+      const x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * i / n;
+      const gr = m.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, 'rgba(0,0,0,.9)'); gr.addColorStop(.55, 'rgba(0,0,0,.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      m.fillStyle = gr; m.beginPath(); m.arc(x, y, rad, 0, 7); m.fill();
+    }
+    m.restore();
+    // water gathers at the bottom of the wiped band and starts to run
+    if (Math.random() < Math.min(.9, dist / 40) && drips.length < 26) drips.push({ x: x1 + (Math.random() - .5) * rad, y: y1 + rad * .55, r: 1.6 + Math.random() * 1.8, v: 0, stick: .2 + Math.random() * .8 });
+    lastWipeAt = performance.now(); dirty = true;
+  }
+  function local(e) { const r = pane.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  const R0 = () => clamp(PW / 18, 22, 34);
+  pane.addEventListener('pointerdown', e => { audioOn(); wiping = true; pane.classList.add('wiping'); try { pane.setPointerCapture(e.pointerId); } catch (_) {} last = local(e); lastT = performance.now(); brush(last.x, last.y, last.x, last.y, R0()); wake(); e.preventDefault(); });
+  pane.addEventListener('pointermove', e => {
+    if (!wiping) return;
+    const p = local(e), now = performance.now(), dist = Math.hypot(p.x - last.x, p.y - last.y);
+    wipeSpeed = dist / Math.max(1, now - lastT) * 1000; lastT = now;
+    brush(last.x, last.y, p.x, p.y, R0()); last = p; squeak(wipeSpeed); wake();
+  });
+  const endWipe = () => { wiping = false; pane.classList.remove('wiping'); squeak(0); };
+  pane.addEventListener('pointerup', endWipe); pane.addEventListener('pointercancel', endWipe);
+
+  // keyboard / button path: a virtual finger zig-zags across the glass
+  let auto = null;
+  $('#wipeBtn').addEventListener('click', () => { audioOn(); auto = { t: 0, prev: null }; wake(); });
+  $('#breathe').addEventListener('click', () => { audioOn(); breath = 1; breathSound(); wake(); });
+  let breath = 0;
+  function autoWipe(dt) {
+    auto.t += dt / (reduce ? .3 : 1.5); const t = Math.min(1, auto.t);
+    const rows = 4, seg = t * rows, row = Math.min(rows - 1, Math.floor(seg)), f = seg - row;
+    const x = row % 2 ? PW * (.95 - f * .9) : PW * (.05 + f * .9), y = PH * (.18 + row * .22);
+    const p = { x, y };
+    if (auto.prev) { brush(auto.prev.x, auto.prev.y, p.x, p.y, R0() * 1.2); squeak(700); }
+    auto.prev = p;
+    if (t >= 1) { auto = null; squeak(0); }
+  }
+
+  /* ————————————— sound: rain on the glass, a finger squeak, a breath ————————————— */
+  let AC = null, master = null, muted = false, sq = null, rain = null;
+  function audioOn() {
+    try {
+      if (!AC) {
+        AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : .16; master.connect(AC.destination);
+        const n = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = n.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (Math.random() < .002 ? 3 : .35);
+        rain = AC.createBufferSource(); rain.buffer = n; rain.loop = true;
+        const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; const rg = AC.createGain(); rg.gain.value = .22;
+        rain.connect(lp).connect(rg).connect(master); rain.start();
+        const sn = AC.createBuffer(1, AC.sampleRate, AC.sampleRate), sd = sn.getChannelData(0); for (let i = 0; i < sd.length; i++) sd[i] = Math.random() * 2 - 1;
+        const src = AC.createBufferSource(); src.buffer = sn; src.loop = true;
+        const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 18; bp.frequency.value = 1400;
+        const sg = AC.createGain(); sg.gain.value = 0; src.connect(bp).connect(sg).connect(master); src.start();
+        sq = { bp, sg };
+      }
+      if (AC.state === 'suspended') AC.resume();
+    } catch (e) { AC = null; }
+  }
+  function squeak(speed) {
+    if (!sq || muted) return;
+    const t = AC.currentTime, v = clamp((speed - 120) / 1400, 0, 1);
+    sq.bp.frequency.setTargetAtTime(900 + v * 1800 + Math.random() * 120, t, .03);
+    sq.sg.gain.setTargetAtTime(v * .35, t, .04);
+  }
+  function breathSound() {
+    if (!AC || muted) return;
+    const t = AC.currentTime, n = AC.createBuffer(1, AC.sampleRate * 1.2, AC.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const s = AC.createBufferSource(); s.buffer = n; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+    const ga = AC.createGain(); ga.gain.setValueAtTime(0, t); ga.gain.linearRampToValueAtTime(.5, t + .35); ga.gain.exponentialRampToValueAtTime(.001, t + 1.1);
+    s.connect(lp).connect(ga).connect(master); s.start(t);
+  }
+  $('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Turn sounds on' : 'Mute rain and glass sounds'); if (master) master.gain.value = muted ? 0 : .16; });
+
+  /* ————————————— clearness tracking (for the meter and screen readers) ————————————— */
+  const probe = mk(40, 14), pctx = probe.getContext('2d', { willReadFrequently: true });
+  let revealed = false, lastProbe = 0;
+  function measure() {
+    pctx.clearRect(0, 0, 40, 14); pctx.drawImage(mask, 0, 0, 40, 14);
+    const d = pctx.getImageData(0, 0, 40, 14).data; let s = 0; for (let i = 3; i < d.length; i += 4) s += d[i];
+    const clear = 1 - s / (255 * 40 * 14);
+    $('#bar').style.width = Math.round(clear * 100) + '%';
+    $('#pct').textContent = clear < .04 ? 'fogged' : `${Math.round(clear * 100)}% clear`;
+    if (!revealed && clear > .45) { revealed = true; $('#spText').textContent = 'Spoiler revealed: ' + SPOILER; }
+    if (revealed && clear < .08) { revealed = false; $('#spText').textContent = 'The glass has fogged over again.'; }
+    return clear;
+  }
+
+  /* ————————————— loop ————————————— */
+  let raf = 0, lastF = 0;
+  function wake() { if (!raf && !document.hidden) { lastF = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0; const dt = Math.min(.05, (now - lastF) / 1000); lastF = now;
+    drawWindow(dt, now);
+    if (auto) autoWipe(dt);
+    // breath: fog rolls back in all at once
+    if (breath > 0) { const m = mask.getContext('2d'); m.globalAlpha = .12; m.fillStyle = '#fff'; m.fillRect(0, 0, mask.width, mask.height); m.globalAlpha = 1; breath -= dt * 1.2; dirty = true; drips.length = 0; }
+    // the glass fogs itself back up a little while after you stop wiping
+    if (!wiping && now - lastWipeAt > 1800 && (Math.floor(now / 90) !== Math.floor((now - dt * 1000) / 90))) {
+      const m = mask.getContext('2d'); m.globalAlpha = reduce ? .03 : .018; m.fillStyle = '#fff'; m.fillRect(0, 0, mask.width, mask.height); m.globalAlpha = 1; dirty = true;
+    }
+    // drips: stick, slip, and draw a clean line down through the fog
+    for (let i = drips.length - 1; i >= 0; i--) {
+      const k = drips[i];
+      if (reduce) { drips.splice(i, 1); continue; }
+      if (k.stick > 0) { k.stick -= dt; continue; }
+      const oy = k.y; k.v = Math.min(70, k.v + 90 * dt); k.y += k.v * dt; k.x += (Math.random() - .5) * .8;
+      if (Math.random() < dt * 1.4) { k.stick = .15 + Math.random() * .7; k.v = 0; }
+      const m = mask.getContext('2d'); m.save(); m.globalCompositeOperation = 'destination-out'; m.scale(MS, MS); m.strokeStyle = 'rgba(0,0,0,.85)'; m.lineWidth = k.r * 1.6; m.lineCap = 'round'; m.beginPath(); m.moveTo(k.x, oy); m.lineTo(k.x, k.y); m.stroke(); m.restore();
+      dirty = true;
+      if (k.y > PH + 8) drips.splice(i, 1);
+    }
+    if (dirty) { compose(); dirty = false; }
+    if (now - lastProbe > 250) { lastProbe = now; measure(); }
+    raf = requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+
+  // composer: your message joins the thread
+  $('#composer').addEventListener('submit', e => {
+    e.preventDefault(); const v = $('#say').value.trim(); if (!v) return;
+    const d = document.createElement('div'); d.className = 'msg'; d.style.setProperty('--c', '#9ad1ff');
+    const tm = new Date(); const hh = String(tm.getHours()).padStart(2, '0') + ':' + String(tm.getMinutes()).padStart(2, '0');
+    d.innerHTML = `<span class="av" aria-hidden="true"></span><div><p class="who">You <time>${hh}</time></p><p class="say"></p></div>`;
+    d.querySelector('.say').textContent = v; $('#thread').appendChild(d); $('#say').value = ''; $('#thread').scrollTop = 1e6;
+  });
+
+  let st = 0;
+  $('#thread').addEventListener('scroll', () => { clearTimeout(st); st = setTimeout(() => { sizePane(); wake(); }, 120); });
+  let rt = 0;
+  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { sizeWin(); sizePane(); wake(); }, 80); });
+  makeLights();
+  function start() { sizeWin(); sizePane(); wake(); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(start); else start();
+  window.__fog = { wipe: () => $('#wipeBtn').click(), breathe: () => $('#breathe').click(), measure: () => measure() };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toy Theatre Modal</title>
+<meta name="description" content="A booking-review modal staged in a hand-coloured Victorian toy paper theatre: engraved curtains part, the playbill slides on from the wings on a tin slide, and the curtain drops when you close it.">
+<script type="application/json" id="component-meta">
+{"name":"Toy Theatre Modal","reimagines":"Modal dialog","category":"Overlays & Reveals","description":"The booking review opens as a performance in a penny-plain, twopence-coloured paper theatre. The lamp dims, engraved curtains gather and tie back, a limelight swings onto its mark and the playbill slides on from the wings on a tin slide. Close it and the tiebacks let go so the curtain drops. Focus, Escape and the inert backdrop all work like a proper modal.","hint":"Pick your seats, then press Review booking to raise the curtain"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#231812; --card:#efe2c2; --card2:#e7d6b0;
+    --carmine:#b8312f; --carmine-d:#7e1a1e; --ochre:#d9a441; --prussian:#2b4a6e;
+    --paper:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .12 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    height:100dvh;display:flex;flex-direction:column;overflow:hidden;
+    background:#2a1b14;color:var(--ink);
+    font-family:'IM Fell English',Georgia,serif;
+  }
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:2px dashed var(--carmine);outline-offset:3px}
+
+  /* ——— printed header strip ——— */
+  .bar{
+    position:relative;z-index:6;flex:0 0 auto;height:48px;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 22px;
+    background:var(--paper),linear-gradient(#f1e5c8,#e6d5ae);
+    border-bottom:1px solid var(--ink);box-shadow:0 1px 0 #f7eed8 inset,0 3px 0 -1px rgba(35,24,18,.35),0 6px 14px rgba(0,0,0,.45);
+  }
+  .bar::after{content:"";position:absolute;left:0;right:0;bottom:3px;border-bottom:1px solid rgba(35,24,18,.6)}
+  .brand{display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+  .brand b{font-family:'Abril Fatface',serif;font-weight:400;font-size:20px;letter-spacing:.01em}
+  .brand i{font-size:13px;color:#5a4330}
+  .steps{display:flex;gap:6px;align-items:center;font-family:'IM Fell English SC',serif;font-size:14px;color:#6d5640}
+  .steps .dot{width:5px;height:5px;background:var(--ink);transform:rotate(45deg);opacity:.5}
+  .steps b{font-weight:400;color:var(--ink);text-decoration:underline;text-decoration-color:var(--carmine);text-decoration-thickness:2px;text-underline-offset:4px}
+  .mute{width:32px;height:32px;display:grid;place-items:center;border:1px solid var(--ink);border-radius:50%;background:rgba(255,255,255,.2)}
+  .mute svg{width:17px;height:17px}
+  .mute[aria-pressed="true"] .wave{display:none}
+  .mute:not([aria-pressed="true"]) .x{display:none}
+
+  /* ——— stage ——— */
+  .stage{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+  #cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .billing{position:absolute;left:0;right:0;pointer-events:none;text-align:center;color:#f6e7c1;will-change:transform,opacity}
+  .billing .half{position:relative}
+  .billing .r{position:absolute;inset:0}
+  .billing .l{clip-path:inset(0 50% 0 0)}
+  .billing .r{clip-path:inset(0 0 0 50%)}
+  .billing .sm{display:block;font-family:'IM Fell English SC',serif;font-size:clamp(12px,1.5vw,16px);letter-spacing:.18em;text-shadow:0 1px 0 rgba(35,10,10,.8)}
+  .billing .show{display:block;font-family:'Abril Fatface',serif;font-size:clamp(46px,8.5vw,98px);line-height:1;letter-spacing:.02em;
+    -webkit-text-stroke:1.2px #2a0c0c;text-shadow:3px 3px 0 rgba(42,12,12,.55)}
+  .billing .it{display:block;font-style:italic;font-size:clamp(13px,1.6vw,17px);margin-top:.35em;text-shadow:0 1px 0 rgba(35,10,10,.8)}
+
+  .slot{position:absolute;overflow:hidden;z-index:3;pointer-events:none}
+  .rig{position:absolute;left:50%;bottom:6px;width:min(372px,calc(100% - 22px));transform-origin:50% 100%;pointer-events:auto}
+  .rig[hidden]{display:none}
+  .rig .wire{position:absolute;right:50%;bottom:-3px;width:200vw;height:2px;background:linear-gradient(#cfc8b8,#6d665a);box-shadow:0 1px 1px rgba(0,0,0,.4)}
+  .rig .foot{position:absolute;left:50%;bottom:-7px;width:76px;height:10px;margin-left:-38px;border-radius:1px;
+    background:linear-gradient(#d8d2c4,#8b8475 55%,#5b554a);box-shadow:0 2px 3px rgba(0,0,0,.45);border:1px solid #3a352d}
+
+  /* the playbill (dialog) */
+  .dialog{
+    position:relative;max-height:var(--maxh,320px);overflow:auto;
+    background:var(--paper),linear-gradient(#f4ead0,#eadbb6);
+    padding:16px 22px 14px;border:1px solid #6d5640;
+    box-shadow:0 1px 0 #fff8e6 inset,6px 8px 0 -2px rgba(20,10,6,.35),0 18px 30px -12px rgba(0,0,0,.7);
+    scrollbar-width:thin;
+  }
+  .dialog::before{content:"";position:absolute;inset:5px;border:2px solid var(--ink);pointer-events:none}
+  .dialog::after{content:"";position:absolute;inset:9px;border:1px solid var(--ink);pointer-events:none}
+  .dialog:focus{outline:none}
+  .dialog:focus-visible{outline:none}
+  .crown{font-family:'IM Fell English SC',serif;font-size:13px;letter-spacing:.2em;text-align:center;color:#5a4330}
+  .dialog h2{font-family:'Abril Fatface',serif;font-weight:400;font-size:42px;line-height:.95;text-align:center;letter-spacing:.03em;margin-top:3px;color:var(--carmine-d)}
+  .dialog .sub{text-align:center;font-style:italic;font-size:15px;margin-top:2px}
+  .fleuron{display:block;margin:7px auto 6px;width:150px;height:12px}
+  .lines{list-style:none;font-size:15px}
+  .lines li{display:flex;align-items:baseline;gap:6px;padding:2px 0}
+  .lines li .lead{flex:1;border-bottom:1.5px dotted rgba(35,24,18,.55);transform:translateY(-4px)}
+  .lines li span:last-child{white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}
+  .lines .total{font-family:'IM Fell English SC',serif;font-size:18px;border-top:1px solid var(--ink);margin-top:4px;padding-top:4px}
+  .actions{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px}
+  .btn-bill{
+    position:relative;min-height:42px;padding:0 18px;
+    font-family:'Abril Fatface',serif;font-size:16px;letter-spacing:.04em;color:#fbefd2;
+    background:radial-gradient(120% 140% at 30% 20%,#cf4a3e,#a52a2a 55%,#7e1a1e);
+    border:1px solid var(--ink);box-shadow:inset 0 0 0 2px #f2e3bd,inset 0 0 0 3px var(--ink),3px 3px 0 rgba(35,24,18,.55);
+    transition:transform .1s, box-shadow .1s;
+  }
+  .btn-bill:hover{transform:translate(-1px,-1px);box-shadow:inset 0 0 0 2px #f2e3bd,inset 0 0 0 3px var(--ink),4px 4px 0 rgba(35,24,18,.55)}
+  .btn-bill:active{transform:translate(2px,2px);box-shadow:inset 0 0 0 2px #f2e3bd,inset 0 0 0 3px var(--ink),1px 1px 0 rgba(35,24,18,.55)}
+  .btn-bill[aria-busy="true"]{filter:sepia(.5);cursor:progress}
+  .btn-it{font-style:italic;font-size:16px;text-decoration:underline;text-decoration-style:wavy;text-decoration-color:rgba(184,49,47,.7);text-underline-offset:4px;padding:6px 2px}
+  .x{position:absolute;top:13px;right:14px;width:30px;height:30px;display:grid;place-items:center;z-index:1}
+  .x svg{width:16px;height:16px}
+  .x:hover svg path{stroke:var(--carmine)}
+  .done-view{display:none;text-align:center}
+  .dialog.booked .review-view{display:none}
+  .dialog.booked .done-view{display:block}
+  .ref{display:inline-block;margin:6px 0 4px;padding:3px 12px;border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:2px;font-family:'IM Fell English SC',serif;font-size:16px;letter-spacing:.14em}
+  .done-view p{font-size:15px;line-height:1.35}
+
+  /* ——— the table with the printed seat plan & ticket ——— */
+  .aud{
+    position:relative;flex:0 0 auto;height:clamp(214px,29vh,250px);
+    display:grid;grid-template-columns:1fr 300px;gap:26px;padding:14px 24px 16px;
+    background:
+      repeating-linear-gradient(91deg, rgba(0,0,0,.10) 0 2px, transparent 2px 11px, rgba(255,210,160,.04) 11px 13px, transparent 13px 23px),
+      linear-gradient(#3b2618,#24160e);
+    box-shadow:inset 0 10px 18px -8px rgba(0,0,0,.8);
+  }
+  .sheet{
+    position:relative;min-width:0;padding:8px 10px 6px;
+    background:var(--paper),linear-gradient(#f1e5c7,#e5d3aa);
+    box-shadow:0 1px 0 #fff6df inset,0 10px 18px -6px rgba(0,0,0,.7);
+    transform:rotate(-.5deg);
+  }
+  .sheet h3{font-family:'IM Fell English SC',serif;font-weight:400;font-size:14px;letter-spacing:.2em;text-align:center;line-height:1}
+  .sheet h3 small{font-family:'IM Fell English',serif;font-style:italic;letter-spacing:0;font-size:12px;color:#6d5640}
+  .seatmap{position:absolute;left:10px;right:10px;top:26px;bottom:6px}
+  .seat{
+    position:absolute;width:var(--sw,15px);height:var(--sw,15px);margin:calc(var(--sw,15px)*-.5) 0 0 calc(var(--sw,15px)*-.5);
+    border-radius:50% 50% 38% 38%;border:1px solid var(--ink);
+    background:#f8eed6;box-shadow:inset 0 -2px 0 rgba(35,24,18,.15);
+    transition:background .25s, transform .15s;
+  }
+  .seat:hover{transform:scale(1.25)}
+  .seat[aria-disabled="true"]{background:repeating-linear-gradient(45deg,rgba(35,24,18,.85) 0 1px,transparent 1px 3px),#e4d3ad;cursor:not-allowed;transform:none}
+  .seat[aria-pressed="true"]{background:radial-gradient(circle at 38% 32%,#e8786a,#b8312f 55%,#7e1a1e)}
+  .seat.mine{background:radial-gradient(circle at 38% 32%,#f6d98a,#d9a441 55%,#9a6a1c)}
+  .seat:focus-visible{outline-offset:2px}
+  .rowlab{position:absolute;font-family:'IM Fell English SC',serif;font-size:12px;color:#6d5640;transform:translate(-50%,-50%);pointer-events:none}
+  .legend{position:absolute;right:12px;top:6px;display:flex;gap:10px;font-size:12px;font-style:italic;color:#5a4330}
+  .legend i{display:inline-block;width:9px;height:9px;border:1px solid var(--ink);border-radius:50%;margin-right:4px;vertical-align:-1px}
+
+  .ticket{
+    position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:11px 16px 10px 22px;
+    background:var(--paper),linear-gradient(#f3e8cc,#e8d7b0);
+    box-shadow:0 10px 18px -6px rgba(0,0,0,.7);transform:rotate(.8deg);
+    -webkit-mask:radial-gradient(circle at 0 8px,transparent 4px,#000 4.5px) 0 0/100% 16px repeat-y;
+            mask:radial-gradient(circle at 0 8px,transparent 4px,#000 4.5px) 0 0/100% 16px repeat-y;
+  }
+  .ticket::before{content:"";position:absolute;inset:4px 4px 4px 12px;border:1px solid var(--ink);pointer-events:none}
+  .admit{font-family:'IM Fell English SC',serif;font-size:12px;letter-spacing:.24em;color:var(--carmine-d)}
+  .ticket h1{font-family:'Abril Fatface',serif;font-weight:400;font-size:25px;line-height:1;letter-spacing:.02em}
+  .ticket .meta{font-style:italic;font-size:13px;color:#4a3828}
+  .chips{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:4px;font-family:'IM Fell English SC',serif;font-size:15px;min-height:19px}
+  .chips .empty{font-family:'IM Fell English',serif;font-style:italic;font-size:13px;color:#6d5640}
+  .tfoot{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  .sumtotal{font-size:13px;font-style:italic;line-height:1.1}
+  .sumtotal b{display:block;font-family:'IM Fell English SC',serif;font-style:normal;font-weight:400;font-size:22px}
+  .cta{white-space:nowrap}
+  .cta:disabled{filter:grayscale(.9) opacity(.6);cursor:not-allowed;transform:none}
+  .plaque{display:flex;align-items:center;gap:6px;font-size:13px;font-style:italic;color:#5a4330;margin-top:3px;transition:opacity .6s}
+  .plaque svg{width:26px;height:13px;flex:0 0 auto}
+  .plaque.gone{opacity:0}
+  .note{font-size:12.5px;font-style:italic;color:var(--carmine-d);min-height:15px}
+
+  .house{position:fixed;left:0;right:0;bottom:0;top:var(--audtop,70%);z-index:5;background:#0a0503;opacity:0;pointer-events:none;transition:opacity .9s ease}
+  body.show .house{opacity:.8;pointer-events:auto;cursor:pointer}
+  .bar{transition:filter .9s ease}
+  body.show .bar{filter:brightness(.3) sepia(.4)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  @media (max-width:720px){
+    .bar{padding:0 12px;height:44px}
+    .steps{display:none}
+    .brand i{display:none}
+    .aud{height:auto;grid-template-columns:1fr;gap:12px;padding:12px 12px 14px}
+    .sheet{height:132px}
+    .legend{display:none}
+    .dialog{padding:14px 16px 12px}
+    .dialog h2{font-size:36px}
+    .lines{font-size:14px}
+    .ticket h1{font-size:21px}
+  }
+  @media (prefers-reduced-motion:reduce){ .house{transition:opacity .2s} }
+</style>
+</head>
+<body>
+  <header class="bar" id="bar">
+    <div class="brand"><b>The Lantern Playhouse</b><i>— booking office, by appointment</i></div>
+    <nav class="steps" aria-label="Booking steps"><span>The play</span><span class="dot"></span><b aria-current="step">Seats</b><span class="dot"></span><span>Review</span><span class="dot"></span><span>Payment</span></nav>
+    <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sound">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 7h3l4.5-3.5v11L5.5 11h-3z" fill="none" stroke="#231812" stroke-width="1.2" stroke-linejoin="round"/><path d="M3.5 8h1.5M3.5 9h1.5M3.5 10h1.5" stroke="#231812" stroke-width=".6"/><path class="wave" d="M12 6.5c1.2 1 1.2 4 0 5M14 5c2.2 2 2.2 6 0 8" fill="none" stroke="#231812" stroke-width="1.2" stroke-linecap="round"/><path class="x" d="M12 7l4 4M16 7l-4 4" stroke="#b8312f" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
+  </header>
+
+  <main class="stage" id="stage">
+    <canvas id="cv" aria-hidden="true"></canvas>
+    <div class="billing" id="billing" aria-hidden="true">
+      <div class="half l"><span class="sm">This evening will be performed</span><span class="show">Hamlet</span><span class="it">Thursday 12 November 2026, at half past seven</span></div>
+      <div class="half r"><span class="sm">This evening will be performed</span><span class="show">Hamlet</span><span class="it">Thursday 12 November 2026, at half past seven</span></div>
+    </div>
+    <div class="slot" id="slot">
+      <div class="rig" id="rig" hidden>
+        <span class="wire" aria-hidden="true"></span><span class="foot" aria-hidden="true"></span>
+        <div class="dialog" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle" aria-describedby="dlgSub" tabindex="-1">
+          <button class="x" id="close" aria-label="Close booking review"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="#231812" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="8" r="7.2" fill="none" stroke="#231812" stroke-width=".8"/></svg></button>
+          <div class="review-view">
+            <p class="crown">Theatre Royal · Lantern</p>
+            <h2 id="dlgTitle">Hamlet</h2>
+            <p class="sub" id="dlgSub">Thursday 12 November 2026 · half past seven</p>
+            <svg class="fleuron" viewBox="0 0 150 12" aria-hidden="true"><path d="M2 6h52M96 6h52" stroke="#231812" stroke-width="1"/><path d="M75 1c-4 0-6 5-12 5 6 0 8 5 12 5s6-5 12-5c-6 0-8-5-12-5z" fill="#b8312f" stroke="#231812" stroke-width=".8"/><circle cx="58" cy="6" r="1.6" fill="#231812"/><circle cx="92" cy="6" r="1.6" fill="#231812"/></svg>
+            <ul class="lines" id="lines"></ul>
+            <div class="actions">
+              <button class="btn-bill" id="confirm">Confirm booking</button>
+              <button class="btn-it" id="change">Change seats</button>
+            </div>
+          </div>
+          <div class="done-view" aria-live="polite">
+            <p class="crown">Theatre Royal · Lantern</p>
+            <h2 id="doneTitle">Bravo!</h2>
+            <p class="sub">You are booked for Hamlet</p>
+            <svg class="fleuron" viewBox="0 0 150 12" aria-hidden="true"><path d="M2 6h52M96 6h52" stroke="#231812" stroke-width="1"/><path d="M75 1c-4 0-6 5-12 5 6 0 8 5 12 5s6-5 12-5c-6 0-8-5-12-5z" fill="#d9a441" stroke="#231812" stroke-width=".8"/></svg>
+            <p id="doneSeats">Stalls F11, F12</p>
+            <span class="ref" id="ref">LNT-26-4827</span>
+            <p>Your tickets are in your account, and a copy is on its way to you.</p>
+            <div class="actions"><button class="btn-bill" id="done">Back to the house</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <section class="aud" id="aud" aria-label="Seat selection">
+    <div class="sheet">
+      <h3>Plan of the Stalls <small>— the stage is above</small></h3>
+      <div class="legend" aria-hidden="true"><span><i style="background:#f8eed6"></i>free</span><span><i style="background:repeating-linear-gradient(45deg,#231812 0 1px,#e4d3ad 1px 3px)"></i>taken</span><span><i style="background:#b8312f"></i>chosen</span></div>
+      <div class="seatmap" id="seatmap" role="group" aria-label="Stalls seating plan. Use arrow keys to move between seats and Space to choose."></div>
+    </div>
+    <div class="ticket">
+      <div>
+        <p class="admit">Admit — Stalls</p>
+        <h1>Hamlet</h1>
+        <p class="meta">Thursday 12 November 2026 · 7.30pm</p>
+        <div class="chips" id="chips" aria-live="polite"></div>
+      </div>
+      <div>
+        <p class="note" id="note" role="status"></p>
+        <div class="tfoot">
+          <p class="sumtotal"><span id="count">Two tickets</span><b id="total">£86.50</b></p>
+          <button class="btn-bill cta" id="open" aria-haspopup="dialog">Review booking</button>
+        </div>
+        <p class="plaque" id="plaque"><svg viewBox="0 0 26 13" aria-hidden="true"><path d="M1 4.5h13c1.5 0 2-1.5 3.5-1.5H24c1 0 1 1.6 0 1.6h-5.5M17 4.6h4.5c1 0 1 1.5 0 1.5H17m0 0h4c1 0 1 1.5 0 1.5h-4m0 0h3c1 0 1 1.5 0 1.5h-6C11 9.2 9 8 6.5 8H1" fill="#f3e8cc" stroke="#231812" stroke-width=".9" stroke-linejoin="round"/><path d="M1 4.5V8" stroke="#231812" stroke-width="2"/></svg>Pick your seats, then raise the curtain.</p>
+      </div>
+    </div>
+  </section>
+  <div class="house" id="house" aria-hidden="true"></div>
+  <p class="sr" id="live" aria-live="assertive"></p>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const stage = $('#stage'), cv = $('#cv'), ctx = cv.getContext('2d');
+  const dlg = $('#dlg'), rig = $('#rig'), slot = $('#slot'), openBtn = $('#open'), bar = $('#bar'), aud = $('#aud'), house = $('#house');
+  const billing = $('#billing'), bl = billing.querySelector('.l'), br = billing.querySelector('.r');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const INK = '#231812';
+
+  /* ———————— sound (WebAudio only, after a gesture) ———————— */
+  let AC = null, master = null, muted = false;
+  function audio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : .18; master.connect(AC.destination); } catch (e) { AC = null; } }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  function noiseBuf(sec) { const b = AC.createBuffer(1, Math.max(1, AC.sampleRate * sec | 0), AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  function swish(dur, f0, f1, vol) {
+    if (!audio() || muted) return;
+    const t = AC.currentTime, src = AC.createBufferSource(); src.buffer = noiseBuf(dur);
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = .8; bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = AC.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + dur * .35); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    src.connect(bp).connect(g).connect(master); src.start(t);
+  }
+  function thump(vol = .5) {
+    if (!audio() || muted) return;
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(48, t + .18);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .25);
+    o.connect(g).connect(master); o.start(t); o.stop(t + .3);
+    swish(.12, 2400, 900, vol * .3);
+  }
+  function tick(f = 900) {
+    if (!audio() || muted) return;
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * .45, t + .05);
+    g.gain.setValueAtTime(.12, t); g.gain.exponentialRampToValueAtTime(.001, t + .07);
+    o.connect(g).connect(master); o.start(t); o.stop(t + .08);
+  }
+  function slideRasp(dur) { swish(dur, 3200, 1800, .05); }
+  function applause() {
+    if (!audio() || muted) return;
+    const sec = 2.6, sr = AC.sampleRate, b = AC.createBuffer(2, sr * sec, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = b.getChannelData(ch);
+      for (let k = 0; k < 520; k++) {
+        const tt = Math.pow(Math.random(), .8) * (sec - .1), env = Math.min(1, tt / .25) * Math.max(0, 1 - Math.pow(tt / sec, 2.2));
+        if (Math.random() > env) continue;
+        const s0 = Math.floor(tt * sr), len = Math.floor(sr * (.006 + Math.random() * .01)), amp = .25 + Math.random() * .5;
+        for (let i = 0; i < len && s0 + i < d.length; i++) d[s0 + i] += (Math.random() * 2 - 1) * amp * Math.exp(-i / (len * .25));
+      }
+    }
+    const src = AC.createBufferSource(); src.buffer = b;
+    const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = .5;
+    const g = AC.createGain(); g.gain.value = .5; src.connect(bp).connect(g).connect(master); src.start();
+  }
+  $('#mute').addEventListener('click', e => {
+    muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+    if (master) master.gain.value = muted ? 0 : .18;
+  });
+
+  /* ———————— engraving & watercolour toolkit ———————— */
+  const mk = () => document.createElement('canvas');
+  const noiseCv = mk(); noiseCv.width = noiseCv.height = 180;
+  { const n = noiseCv.getContext('2d'), id = n.createImageData(180, 180);
+    for (let i = 0; i < id.data.length; i += 4) { const v = 200 + Math.random() * 55; id.data[i] = v; id.data[i + 1] = v * .96; id.data[i + 2] = v * .88; id.data[i + 3] = 255; }
+    n.putImageData(id, 0, 0); }
+  function wash(c, path, col, a = .85, ox = 1.3, oy = .9) {
+    c.save(); c.globalCompositeOperation = 'multiply'; c.translate(ox, oy);
+    c.globalAlpha = a; c.fillStyle = col; c.fill(path);
+    c.globalAlpha = a * .45; c.strokeStyle = col; c.lineWidth = 2.2; c.filter = 'blur(1.2px)'; c.stroke(path);
+    c.restore();
+  }
+  function hatch(c, path, ang, gap, lw, alpha = .7, box) {
+    c.save(); c.clip(path); c.strokeStyle = INK; c.globalAlpha = alpha; c.lineWidth = lw;
+    const [x, y, w, h] = box, R = Math.hypot(w, h) / 2;
+    c.translate(x + w / 2, y + h / 2); c.rotate(ang);
+    c.beginPath(); for (let d = -R; d <= R; d += gap) { c.moveTo(-R, d); c.lineTo(R, d); } c.stroke();
+    c.restore();
+  }
+  function ink(c, path, lw = 1, a = 1) { c.save(); c.globalAlpha = a; c.strokeStyle = INK; c.lineWidth = lw; c.lineJoin = 'round'; c.stroke(path); c.restore(); }
+  function paperGrain(c, path, a = .5) { c.save(); if (path) c.clip(path); c.globalCompositeOperation = 'multiply'; c.globalAlpha = a; c.fillStyle = c.createPattern(noiseCv, 'repeat'); c.fillRect(0, 0, W, H); c.restore(); }
+  function cardShadow(c, path, blur = 14, ox = 4, oy = 7, a = .55) {
+    c.save(); c.shadowColor = `rgba(10,4,2,${a})`; c.shadowBlur = blur; c.shadowOffsetX = ox; c.shadowOffsetY = oy;
+    c.fillStyle = '#efe2c2'; c.fill(path); c.restore();
+  }
+
+  /* ———————— geometry ———————— */
+  let W = 0, H = 0, DPR = 1, G = {};
+  const bgCv = mk(), frCv = mk(), spCv = mk(), cuCv = mk();
+  const bgX = bgCv.getContext('2d'), frX = frCv.getContext('2d'), spX = spCv.getContext('2d'), cuX = cuCv.getContext('2d');
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    W = Math.max(1, r.width); H = Math.max(1, r.height); DPR = Math.min(2, window.devicePixelRatio || 1);
+    for (const c of [cv, bgCv, frCv, spCv, cuCv]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    const mob = W < 640;
+    const m = mob ? 6 : clamp(W * .025, 14, 34), crestH = mob ? 16 : clamp(H * .06, 18, 34);
+    const px0 = m, px1 = W - m, py0 = m + crestH;
+    const fw = mob ? 18 : clamp((px1 - px0) * .08, 40, 96);
+    const topBand = mob ? 30 : clamp(H * .11, 44, 66);
+    const x0 = px0 + fw, x1 = px1 - fw, yT = py0 + topBand;
+    const pitH = mob ? 40 : clamp(H * .12, 46, 70);
+    const yF = H - pitH * .5, valH = mob ? 20 : clamp(H * .07, 26, 42);
+    G = { mob, m, crestH, px0, px1, py0, fw, topBand, x0, x1, yT, pitH, yF, valH, cx: W / 2, openW: x1 - x0, openH: yF - yT };
+    G.horizon = yT + G.openH * .7; G.seaY = yT + G.openH * .53;
+    G.poolY = G.horizon + (yF - G.horizon) * .5; G.srcY = yT - G.openH * .4;
+    G.ns = mob ? 3 : 5;
+    G.openPath = openingPath(); G.cardPath = procPath();
+    buildScene(); buildFront(); buildSpot();
+    curtainDirty = true;
+    placeSlot(); placeBilling(); layoutSeats();
+    house.style.setProperty('--audtop', aud.getBoundingClientRect().top + 'px');
+  }
+  function swagPts(i) { // scalloped pelmet edge
+    const { x0, openW, yT, valH, ns } = G, sw = openW / ns;
+    return { xa: x0 + i * sw, xb: x0 + (i + 1) * sw, top: yT + valH * .3, low: yT + valH * 1.12, sw };
+  }
+  function openingPath() {
+    const p = new Path2D(), { x0, x1, yT, valH } = G;
+    p.moveTo(x0, H + 20); p.lineTo(x0, yT + valH * .3);
+    for (let i = 0; i < G.ns; i++) { const s = swagPts(i); p.bezierCurveTo(s.xa + s.sw * .12, s.low, s.xb - s.sw * .12, s.low, s.xb, s.top); }
+    p.lineTo(x1, H + 20); p.closePath();
+    return p;
+  }
+  function procPath() {
+    const p = new Path2D(), { px0, px1, py0, m, cx } = G, cw = G.mob ? 34 : clamp(W * .07, 44, 96);
+    p.moveTo(px0, H + 20); p.lineTo(px0, py0); p.lineTo(cx - cw * 1.7, py0);
+    p.bezierCurveTo(cx - cw * 1.2, py0, cx - cw * 1.25, m + 4, cx - cw * .5, m + 2);
+    p.quadraticCurveTo(cx, m - 6, cx + cw * .5, m + 2);
+    p.bezierCurveTo(cx + cw * 1.25, m + 4, cx + cw * 1.2, py0, cx + cw * 1.7, py0);
+    p.lineTo(px1, py0); p.lineTo(px1, H + 20); p.closePath();
+    G.crestW = cw;
+    return p;
+  }
+
+  /* ———————— back scene: wall, Elsinore backdrop, floor, wings ———————— */
+  function buildScene() {
+    const c = bgX, { x0, x1, yT, yF, openW, openH, cx, horizon, seaY } = G;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
+    // nursery wallpaper behind the toy
+    c.fillStyle = '#3a2a24'; c.fillRect(0, 0, W, H);
+    for (let x = 0; x < W; x += 28) { c.fillStyle = (x / 28) % 2 ? 'rgba(0,0,0,.12)' : 'rgba(255,220,180,.03)'; c.fillRect(x, 0, 14, H); }
+    c.fillStyle = 'rgba(217,164,65,.08)';
+    for (let y = 14; y < H; y += 34) for (let x = 7 + ((y / 34) % 2) * 14; x < W; x += 28) { c.beginPath(); c.arc(x, y, 2, 0, 7); c.fill(); }
+    const lamp = c.createRadialGradient(W * .15, -40, 10, W * .15, -40, W * .8);
+    lamp.addColorStop(0, 'rgba(255,200,120,.22)'); lamp.addColorStop(1, 'rgba(255,200,120,0)');
+    c.fillStyle = lamp; c.fillRect(0, 0, W, H);
+
+    c.save(); c.beginPath(); c.rect(x0, yT, openW, H - yT); c.clip();
+    // card base of the backdrop
+    c.fillStyle = '#e9dcbc'; c.fillRect(x0, yT, openW, H - yT);
+    // sky wash + engraved sky lines (heavier at the zenith)
+    const sky = new Path2D(); sky.rect(x0, yT, openW, seaY - yT);
+    const sg = c.createLinearGradient(0, yT, 0, seaY); sg.addColorStop(0, '#2b3f63'); sg.addColorStop(1, '#8aa0b2');
+    wash(c, sky, sg, .9, 0, 0);
+    const moonX = x0 + openW * .74, moonY = yT + (seaY - yT) * .36, mr = clamp(openH * .07, 14, 30);
+    c.save(); c.beginPath(); c.rect(x0, yT, openW, seaY - yT); c.arc(moonX, moonY, mr * 1.9, 0, Math.PI * 2, true); c.clip('evenodd');
+    c.strokeStyle = INK;
+    for (let y = yT + 1; y < seaY; y += 3.1) { const k = (y - yT) / (seaY - yT); c.globalAlpha = .55; c.lineWidth = lerp(1.25, .2, Math.pow(k, .7)); c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); }
+    c.restore();
+    // moon and halo
+    c.globalAlpha = 1; c.fillStyle = '#f4e9c8'; c.beginPath(); c.arc(moonX, moonY, mr, 0, 7); c.fill();
+    c.strokeStyle = INK; c.lineWidth = .9; c.stroke();
+    for (let k = 1; k < 4; k++) { c.globalAlpha = .35 / k; c.beginPath(); c.arc(moonX, moonY, mr * (1 + k * .28), 0, 7); c.stroke(); }
+    c.globalAlpha = .25; c.fillStyle = '#b9ad8a'; c.beginPath(); c.arc(moonX - mr * .3, moonY - mr * .1, mr * .22, 0, 7); c.arc(moonX + mr * .25, moonY + mr * .3, mr * .15, 0, 7); c.fill();
+    c.globalAlpha = 1;
+    // cloud banks
+    cloud(c, x0 + openW * .05, yT + (seaY - yT) * .62, openW * .32, (seaY - yT) * .13);
+    cloud(c, x0 + openW * .55, yT + (seaY - yT) * .78, openW * .38, (seaY - yT) * .1);
+    // sea with engraved swell and moon glitter
+    const sea = new Path2D(); sea.rect(x0, seaY, openW, horizon - seaY + 2);
+    wash(c, sea, '#3b5873', .9, 0, 0);
+    c.strokeStyle = INK; c.lineWidth = .7; c.globalAlpha = .7;
+    for (let y = seaY + 2; y < horizon + 2; y += 3.4) {
+      c.beginPath();
+      for (let x = x0; x <= x1; x += 6) { const yy = y + Math.sin(x * .09 + y * .7) * 1.1; x === x0 ? c.moveTo(x, yy) : c.lineTo(x, yy); }
+      c.stroke();
+    }
+    c.globalAlpha = 1; c.strokeStyle = '#f4e9c8'; c.lineWidth = 1.4;
+    for (let y = seaY + 3; y < horizon; y += 3.4) { const w = 4 + Math.random() * 12 * (1 - (y - seaY) / (horizon - seaY) * .5); const xx = moonX + (Math.random() - .5) * mr * 2; c.beginPath(); c.moveTo(xx - w / 2, y); c.lineTo(xx + w / 2, y); c.stroke(); }
+    // Elsinore on its cliff
+    castle(c, x0 + openW * .2, seaY + 3, openH / 330);
+    // stage floor
+    const fl = new Path2D(); fl.rect(x0, horizon, openW, H - horizon);
+    wash(c, fl, '#a9773f', .95, 0, 0);
+    const vpY = horizon - openH * 1.4;
+    c.strokeStyle = INK; c.lineWidth = .8; c.globalAlpha = .55;
+    for (let k = -22; k <= 22; k++) { const xb = cx + k * openW / 16, xt = cx + (xb - cx) * (horizon - vpY) / (H - vpY); c.beginPath(); c.moveTo(xt, horizon); c.lineTo(xb, H); c.stroke(); }
+    for (let i = 1; i < 9; i++) { const y = horizon + (H - horizon) * Math.pow(i / 9, 1.5); c.lineWidth = .5; c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke(); }
+    c.globalAlpha = 1; c.strokeStyle = INK; c.lineWidth = 1; c.beginPath(); c.moveTo(x0, horizon); c.lineTo(x1, horizon); c.stroke();
+    // spike mark
+    c.fillStyle = '#f4e9c8'; c.fillRect(cx - 9, G.poolY + 5, 18, 2); c.fillRect(cx - 1, G.poolY, 2, 12);
+    // wings: two pairs of painted stone flats
+    for (const side of [-1, 1]) {
+      wing(c, side, openW * .17, yT + openH * .16, .78, 1);
+      wing(c, side, openW * .095, yT - 4, 1, 0);
+    }
+    c.restore();
+  }
+  function cloud(c, x, y, w, h) {
+    const p = new Path2D(); p.moveTo(x, y + h);
+    const n = 6; for (let i = 0; i < n; i++) { const a = x + w * i / n, b = x + w * (i + 1) / n; p.bezierCurveTo(a, y + h * (i % 2 ? .1 : -.3), b, y + h * (i % 2 ? -.4 : .2), b, y + h * (i === n - 1 ? 1 : .5)); }
+    p.closePath();
+    wash(c, p, '#c9ccc8', .75, 1, 1);
+    hatch(c, p, 0, 2.6, .5, .45, [x, y + h * .45, w, h]);
+    ink(c, p, .8, .8);
+  }
+  function castle(c, bx, by, s) {
+    const p = new Path2D();
+    p.moveTo(bx - 80 * s, by); p.bezierCurveTo(bx - 60 * s, by - 16 * s, bx - 50 * s, by - 26 * s, bx - 30 * s, by - 28 * s);
+    p.lineTo(bx + 150 * s, by - 30 * s); p.bezierCurveTo(bx + 170 * s, by - 20 * s, bx + 180 * s, by - 8 * s, bx + 200 * s, by); p.closePath();
+    const rect = (x, y, w, h, cren) => {
+      p.moveTo(x, by - 28 * s); p.lineTo(x, y);
+      if (cren) { const n = Math.max(2, Math.round(w / (9 * s))); for (let i = 0; i < n; i++) { const a = x + w * i / n, b = x + w * (i + .5) / n; p.lineTo(a, y - 6 * s); p.lineTo(b, y - 6 * s); p.lineTo(b, y); p.lineTo(x + w * (i + 1) / n, y); } }
+      else p.lineTo(x + w, y);
+      p.lineTo(x + w, by - 28 * s); p.closePath();
+    };
+    rect(bx - 6 * s, by - 112 * s, 64 * s, 0, true);
+    rect(bx - 40 * s, by - 142 * s, 28 * s, 0, false);
+    rect(bx + 58 * s, by - 126 * s, 30 * s, 0, true);
+    rect(bx + 88 * s, by - 72 * s, 72 * s, 0, true);
+    p.moveTo(bx - 44 * s, by - 142 * s); p.lineTo(bx - 26 * s, by - 186 * s); p.lineTo(bx - 8 * s, by - 142 * s); p.closePath();
+    wash(c, p, '#5a6352', .95, 1.2, .8);
+    hatch(c, p, Math.PI / 2, 2.3, .55, .6, [bx - 90 * s, by - 190 * s, 300 * s, 190 * s]);
+    ink(c, p, .9);
+    c.save(); c.globalAlpha = .9;
+    for (const [wx, wy] of [[10, 80], [30, 80], [-28, 112], [-26, 80], [70, 98], [100, 52], [130, 52]]) {
+      c.fillStyle = '#f2c461'; c.beginPath(); c.moveTo(bx + wx * s - 3 * s, by - wy * s + 8 * s); c.lineTo(bx + wx * s - 3 * s, by - wy * s + 2 * s); c.arc(bx + wx * s, by - wy * s + 2 * s, 3 * s, Math.PI, 0); c.lineTo(bx + wx * s + 3 * s, by - wy * s + 8 * s); c.closePath(); c.fill();
+    }
+    c.restore();
+    c.strokeStyle = INK; c.lineWidth = 1; c.beginPath(); c.moveTo(bx - 26 * s, by - 186 * s); c.lineTo(bx - 26 * s, by - 204 * s); c.stroke();
+    const f = new Path2D(); f.moveTo(bx - 26 * s, by - 204 * s); f.lineTo(bx - 8 * s, by - 199 * s); f.lineTo(bx - 26 * s, by - 194 * s); f.closePath();
+    wash(c, f, '#b8312f', 1, 0, 0); ink(c, f, .7);
+  }
+  function wing(c, side, w, top, shade, banner) {
+    const { x0, x1 } = G, out = side < 0 ? x0 - 6 : x1 + 6, inn = side < 0 ? x0 + w : x1 - w;
+    const p = new Path2D(), bottom = H + 10;
+    p.moveTo(out, top); p.lineTo(inn - side * 8, top); p.lineTo(inn - side * 8, top + 16);
+    p.lineTo(inn, top + 26); p.lineTo(inn, bottom); p.lineTo(out, bottom); p.closePath();
+    cardShadow(c, p, 10, side < 0 ? 6 : -6, 2, .5);
+    wash(c, p, shade < 1 ? '#7b7d6c' : '#8e8d78', .95, 0, 0);
+    c.save(); c.clip(p); c.strokeStyle = INK; c.lineWidth = .7; c.globalAlpha = .6;
+    for (let y = top + 26, r = 0; y < bottom; y += 16, r++) {
+      c.beginPath(); c.moveTo(Math.min(out, inn), y); c.lineTo(Math.max(out, inn), y); c.stroke();
+      for (let x = Math.min(out, inn) + (r % 2) * 14; x < Math.max(out, inn); x += 28) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 16); c.stroke(); }
+    }
+    c.globalAlpha = .45; c.lineWidth = .5;
+    const sx = inn - side * 10;
+    for (let x = 0; x < 9; x++) { c.beginPath(); c.moveTo(sx - side * x * 1.6, top); c.lineTo(sx - side * x * 1.6, bottom); c.stroke(); }
+    c.restore();
+    if (shade < 1) { c.save(); c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(40,40,70,.35)'; c.fill(p); c.restore(); }
+    ink(c, p, 1.1);
+    if (banner) {
+      const bx = (out + inn) / 2 + side * 2, bw = Math.min(26, Math.abs(inn - out) * .5), by0 = top + 40, bh = (G.openH) * .32;
+      const b = new Path2D(); b.moveTo(bx - bw / 2, by0); b.lineTo(bx + bw / 2, by0); b.lineTo(bx + bw / 2, by0 + bh); b.lineTo(bx, by0 + bh - bw * .5); b.lineTo(bx - bw / 2, by0 + bh); b.closePath();
+      wash(c, b, '#b8312f', .95); hatch(c, b, Math.PI / 2, 2.4, .5, .35, [bx - bw, by0, bw * 2, bh]); ink(c, b, .9);
+      const cr = new Path2D(); cr.arc(bx, by0 + bh * .38, bw * .28, 0, 7); wash(c, cr, '#d9a441', 1, 0, 0); ink(c, cr, .7);
+      c.strokeStyle = INK; c.lineWidth = 1.2; c.beginPath(); c.moveTo(bx - bw / 2 - 3, by0); c.lineTo(bx + bw / 2 + 3, by0); c.stroke();
+    }
+  }
+
+  /* ———————— front card: proscenium + orchestra pit ———————— */
+  function buildFront() {
+    const c = frX, { px0, px1, py0, fw, topBand, x0, x1, yT, valH, cx, m, mob, pitH } = G;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
+    const card = new Path2D(); card.addPath(G.cardPath); card.addPath(G.openPath);
+    // cut card standing in front of the scene
+    c.save(); c.shadowColor = 'rgba(8,3,1,.7)'; c.shadowBlur = 22; c.shadowOffsetX = 5; c.shadowOffsetY = 10;
+    c.fillStyle = '#efe2c2'; c.fill(card, 'evenodd'); c.restore();
+    c.save(); c.clip(card, 'evenodd');
+    // carmine side panels with diagonal engraving
+    for (const side of [-1, 1]) {
+      const a = side < 0 ? px0 : x1, p = new Path2D(); p.rect(a, py0, fw, H - py0);
+      wash(c, p, '#b8312f', .85, 0, 0);
+      hatch(c, p, side * .7, 3.2, .45, .45, [a, py0, fw, H - py0]);
+    }
+    // ochre frieze band
+    const fb = new Path2D(); fb.rect(px0, py0, px1 - px0, topBand * .42);
+    wash(c, fb, '#d9a441', .9, 0, 0);
+    hatch(c, fb, 0, 2.2, .4, .35, [px0, py0, px1 - px0, topBand * .42]);
+    // painted pelmet swags
+    const pel = new Path2D(), yP = py0 + topBand * .42;
+    pel.moveTo(x0 - 4, yP); pel.lineTo(x1 + 4, yP); pel.lineTo(x1, yT + valH * .3);
+    for (let i = G.ns - 1; i >= 0; i--) { const s = swagPts(i); pel.bezierCurveTo(s.xb - s.sw * .12, s.low, s.xa + s.sw * .12, s.low, s.xa, s.top); }
+    pel.closePath();
+    wash(c, pel, '#a8282a', .92, 0, 0);
+    for (let i = 0; i < G.ns; i++) {
+      const s = swagPts(i);
+      for (let f = 1; f <= 5; f++) {
+        const k = f / 6, yy = yP + (s.low - yP) * k * .95, side = (s.top - yP) * k;
+        const q = new Path2D(); q.moveTo(s.xa + 3, yP + side * .9); q.bezierCurveTo(s.xa + s.sw * .16, yy, s.xb - s.sw * .16, yy, s.xb - 3, yP + side * .9);
+        ink(c, q, lerp(1.4, .5, k), .75);
+      }
+      const q = new Path2D(); q.moveTo(s.xa, s.top); q.bezierCurveTo(s.xa + s.sw * .12, s.low, s.xb - s.sw * .12, s.low, s.xb, s.top);
+      c.save(); c.strokeStyle = '#d9a441'; c.lineWidth = 6; c.globalCompositeOperation = 'multiply'; c.stroke(q); c.restore();
+      c.save(); c.setLineDash([1, 2.4]); c.strokeStyle = INK; c.lineWidth = 6; c.globalAlpha = .55; c.stroke(q); c.restore();
+      ink(c, q, 1);
+    }
+    // lettering in the frieze
+    if (!mob) {
+      c.save(); c.font = `${Math.round(clamp(topBand * .27, 12, 17))}px 'IM Fell English SC', Georgia, serif`;
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK;
+      const ty = py0 + topBand * .22, gapX = G.crestW * 1.9;
+      c.fillText('Theatre  Royal', (x0 + cx - gapX) / 2, ty);
+      c.fillText('Lantern  Playhouse', (x1 + cx + gapX) / 2, ty);
+      c.restore();
+    }
+    // gilt columns with fluting, capitals and bases
+    for (const side of [-1, 1]) {
+      const cw = Math.max(10, fw * .36), colX = side < 0 ? x0 - cw - 2 : x1 + 2;
+      const col = new Path2D(); col.rect(colX, yP, cw, H - yP);
+      wash(c, col, '#dcae4d', .95, 0, 0);
+      c.save(); c.clip(col); c.strokeStyle = INK;
+      for (let k = 0; k <= 4; k++) { const fx = colX + cw * (k + .5) / 5; c.lineWidth = k === 0 || k === 4 ? 1 : .6; c.globalAlpha = .7; c.beginPath(); c.moveTo(fx, yP); c.lineTo(fx, H); c.stroke(); }
+      hatch(c, col, 0, 2.2, .35, .3, [colX + cw * .7, yP, cw * .3, H - yP]);
+      c.restore(); ink(c, col, 1);
+      const capY = yP + 2; const cap = new Path2D(); cap.rect(colX - 4, capY, cw + 8, 9);
+      wash(c, cap, '#dcae4d', 1, 0, 0); ink(c, cap, .9);
+      for (const sx of [colX - 3, colX + cw + 3]) { const v = new Path2D(); v.arc(sx, capY + 12, 4, 0, 7); ink(c, v, .8); const v2 = new Path2D(); v2.arc(sx, capY + 12, 1.6, 0, 7); ink(c, v2, .8); }
+      // opera box with painted patrons
+      if (!mob && fw > 56) {
+        const bxw = fw - cw - 14, bx = side < 0 ? px0 + 6 : x1 + cw + 8, by = yT + G.openH * .28, bh = Math.min(110, G.openH * .34);
+        const box = new Path2D(); box.moveTo(bx, by + bh); box.lineTo(bx, by + bxw * .5); box.arc(bx + bxw / 2, by + bxw * .5, bxw / 2, Math.PI, 0); box.lineTo(bx + bxw, by + bh); box.closePath();
+        wash(c, box, '#6f8db0', .9, 0, 0); hatch(c, box, 0, 2.4, .35, .35, [bx, by, bxw, bh]);
+        c.save(); c.clip(box);
+        c.fillStyle = INK;
+        for (let k = 0; k < 2; k++) {
+          const hx = bx + bxw * (.32 + k * .38), hy = by + bh * .58;
+          c.beginPath(); c.arc(hx, hy, bxw * .12, 0, 7); c.fill();
+          c.beginPath(); c.ellipse(hx, hy + bxw * .32, bxw * .2, bxw * .18, 0, Math.PI, 0); c.fill();
+          if (k === 0) { c.fillRect(hx - bxw * .1, hy - bxw * .3, bxw * .2, bxw * .17); c.fillRect(hx - bxw * .16, hy - bxw * .14, bxw * .32, 2); }
+          else { c.beginPath(); c.arc(hx, hy - bxw * .1, bxw * .14, Math.PI, 0); c.fill(); c.strokeStyle = '#f4e9c8'; c.lineWidth = .8; c.beginPath(); c.arc(hx + bxw * .18, hy, 2.4, 0, 7); c.stroke(); }
+        }
+        c.restore();
+        const rail = new Path2D(); rail.rect(bx - 2, by + bh * .72, bxw + 4, bh * .28);
+        wash(c, rail, '#dcae4d', 1, 0, 0);
+        c.save(); c.clip(rail); c.strokeStyle = INK; c.lineWidth = .8; for (let x = bx; x < bx + bxw; x += 5) { c.beginPath(); c.moveTo(x, by + bh * .76); c.lineTo(x, by + bh); c.stroke(); } c.restore();
+        ink(c, rail, 1); ink(c, box, 1.1);
+        const sw = new Path2D(); sw.moveTo(bx, by + bxw * .5); sw.quadraticCurveTo(bx + bxw / 2, by + bxw * 1.1, bx + bxw, by + bxw * .5); sw.lineTo(bx + bxw, by + bxw * .3); sw.quadraticCurveTo(bx + bxw / 2, by + bxw * .7, bx, by + bxw * .3); sw.closePath();
+        wash(c, sw, '#b8312f', .95); ink(c, sw, .8);
+      }
+    }
+    // crest medallion with laurels
+    const cr = G.mob ? 13 : clamp(G.crestW * .38, 16, 30), cy = m + cr * .95;
+    for (const side of [-1, 1]) {
+      for (let k = 0; k < 5; k++) {
+        const a = -.3 + k * .32, lx = cx + side * (cr * 1.25 + k * cr * .32), ly = cy + cr * .5 - k * cr * .1;
+        const lf = new Path2D(); lf.ellipse(lx, ly, cr * .22, cr * .09, side * a, 0, 7);
+        wash(c, lf, '#6e7f3a', .95, 0, 0); ink(c, lf, .6);
+      }
+    }
+    const med = new Path2D(); med.ellipse(cx, cy, cr * 1.15, cr, 0, 0, 7);
+    wash(c, med, '#dcae4d', 1, 0, 0); hatch(c, med, .5, 2.4, .4, .35, [cx - cr * 1.2, cy - cr, cr * 2.4, cr * 2]); ink(c, med, 1.2);
+    const med2 = new Path2D(); med2.ellipse(cx, cy, cr * .86, cr * .72, 0, 0, 7); ink(c, med2, .7);
+    const lan = new Path2D(); lan.moveTo(cx - cr * .3, cy - cr * .32); lan.lineTo(cx + cr * .3, cy - cr * .32); lan.lineTo(cx + cr * .22, cy + cr * .38); lan.lineTo(cx - cr * .22, cy + cr * .38); lan.closePath();
+    wash(c, lan, '#2b4a6e', 1, 0, 0); ink(c, lan, .8);
+    const flame = new Path2D(); flame.ellipse(cx, cy + cr * .04, cr * .09, cr * .2, 0, 0, 7); wash(c, flame, '#f2c461', 1, 0, 0);
+    paperGrain(c, null, .55);
+    c.restore();
+    ink(c, card, 1.3);
+    const inner = new Path2D(); inner.addPath(G.openPath); ink(c, inner, 1.6);
+
+    // orchestra pit cut-out with the band in silhouette
+    const pt = H - pitH, pit = new Path2D();
+    pit.moveTo(x0 - 6, H + 4); pit.lineTo(x0 - 6, pt + pitH * .45);
+    const heads = []; const n = Math.max(6, Math.round(G.openW / 46));
+    for (let i = 0; i < n; i++) heads.push({ x: x0 + G.openW * (i + .5) / n + (i % 2 ? 4 : -3), r: pitH * (.12 + (i % 3) * .015), cond: i === Math.floor(n / 2) });
+    for (const h of heads) {
+      const hy = pt + pitH * (h.cond ? .2 : .32);
+      pit.lineTo(h.x - h.r * 2.4, pt + pitH * .45);
+      pit.quadraticCurveTo(h.x - h.r * 2, hy + h.r * 1.4, h.x - h.r * .7, hy + h.r * 1.1);
+      pit.arc(h.x, hy, h.r, Math.PI * .75, Math.PI * .25);
+      pit.quadraticCurveTo(h.x + h.r * 2, hy + h.r * 1.4, h.x + h.r * 2.4, pt + pitH * .45);
+      h.y = hy;
+    }
+    pit.lineTo(x1 + 6, pt + pitH * .45); pit.lineTo(x1 + 6, H + 4); pit.closePath();
+    G.heads = heads;
+    c.save(); c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 12; c.shadowOffsetY = -2; c.fillStyle = '#1e1511'; c.fill(pit); c.restore();
+    // instruments poking up
+    c.strokeStyle = '#1e1511'; c.lineWidth = 3; c.lineCap = 'round';
+    heads.forEach((h, i) => {
+      if (h.cond || i % 3 === 1) return;
+      const a = i % 2 ? -.5 : .45, L = pitH * .55;
+      c.beginPath(); c.moveTo(h.x + h.r * 1.2, h.y + h.r * 1.4); c.lineTo(h.x + h.r * 1.2 + Math.sin(a) * L, h.y + h.r * 1.4 - Math.cos(a) * L); c.stroke();
+      c.beginPath(); c.arc(h.x + h.r * 1.2 + Math.sin(a) * L, h.y + h.r * 1.4 - Math.cos(a) * L, 2.6, 0, 7); c.fillStyle = '#1e1511'; c.fill();
+    });
+    c.lineCap = 'butt';
+    // brass rail of the pit with footlight flames
+    const rail = new Path2D(); rail.rect(x0 - 8, H - pitH * .42, G.openW + 16, pitH * .42 + 4);
+    c.save(); c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = 8; c.shadowOffsetY = -2; c.fillStyle = '#efe2c2'; c.fill(rail); c.restore();
+    wash(c, rail, '#c0883a', .95, 0, 0);
+    c.save(); c.clip(rail); c.strokeStyle = INK; c.lineWidth = .9;
+    for (let x = x0; x < x1; x += 9) { c.beginPath(); c.moveTo(x, H - pitH * .34); c.lineTo(x, H); c.stroke(); }
+    c.restore();
+    ink(c, rail, 1.1);
+    G.flames = [];
+    const nf = Math.max(6, Math.round(G.openW / 64));
+    for (let i = 0; i < nf; i++) G.flames.push(x0 + G.openW * (i + .5) / nf);
+    paperGrain(c, rail, .4);
+  }
+
+  function buildSpot() {
+    const c = spX, { cx, srcY, poolY, openW } = G;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
+    const rx = clamp(openW * .2, 110, 230), ry = rx * .2;
+    c.save(); c.filter = 'blur(10px)';
+    const g = c.createLinearGradient(0, srcY, 0, poolY);
+    g.addColorStop(0, 'rgba(255,238,205,0)'); g.addColorStop(.35, 'rgba(255,236,200,.08)'); g.addColorStop(1, 'rgba(255,232,190,.2)');
+    c.fillStyle = g; c.beginPath(); c.moveTo(cx - 8, srcY); c.lineTo(cx + 8, srcY); c.lineTo(cx + rx, poolY); c.lineTo(cx - rx, poolY); c.closePath(); c.fill();
+    c.restore();
+    c.save(); c.translate(cx, poolY); c.scale(1, ry / rx);
+    const pg = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+    pg.addColorStop(0, 'rgba(255,240,215,.55)'); pg.addColorStop(.6, 'rgba(255,226,180,.3)'); pg.addColorStop(1, 'rgba(255,210,150,0)');
+    c.fillStyle = pg; c.beginPath(); c.arc(0, 0, rx, 0, Math.PI * 2); c.fill();
+    c.restore();
+    G.rx = rx;
+  }
+
+  /* ———————— the engraved curtain (cloth physics, engraved shading) ———————— */
+  const NR = 22, NF = 8.5;
+  const ramp = [[0, 58, 8, 16], [.4, 116, 20, 28], [.75, 166, 36, 38], [1.0, 204, 76, 62], [1.3, 234, 150, 120]];
+  function washRGB(l) {
+    l = clamp(l, 0, 1.3);
+    for (let i = 1; i < ramp.length; i++) if (l <= ramp[i][0]) { const a = ramp[i - 1], b = ramp[i], t = (l - a[0]) / (b[0] - a[0]); return `rgb(${a[1] + (b[1] - a[1]) * t | 0},${a[2] + (b[2] - a[2]) * t | 0},${a[3] + (b[3] - a[3]) * t | 0})`; }
+    return 'rgb(238,168,136)';
+  }
+  const WASH = Array.from({ length: 27 }, (_, i) => washRGB(i * 1.3 / 26));
+  let curtainDirty = true;
+  const edgeX = { l: 0, r: 0 };
+  function curtainGrid(side, pv, ph, wob) {
+    const { x0, x1, yT, openH } = G, outer = side < 0 ? x0 - 2 : x1 + 2, dir = side < 0 ? 1 : -1, span = G.openW / 2 + 5;
+    const NS = Math.max(50, Math.round(span / 4.2));
+    const X = new Float32Array((NS + 1) * (NR + 1)), Y = new Float32Array((NS + 1) * (NR + 1)), L = new Float32Array(NS * NR);
+    for (let i = 0; i <= NS; i++) {
+      const u = i / NS, hemT = 1 - .17 * Math.pow(u, 1.8) * Math.max(0, ph);
+      for (let j = 0; j <= NR; j++) {
+        const t = (j / NR) * hemT, pp = clamp(pv + (ph - pv) * t, -.05, 1.08);
+        const gather = pp * (.70 + .245 * Math.exp(-Math.pow((t - .6) / .2, 2)));
+        X[i * (NR + 1) + j] = outer + dir * span * u * (1 - gather) + wob * Math.sin(u * 7 + t * 4) * t * 14 * u;
+        Y[i * (NR + 1) + j] = yT + openH * t;
+      }
+    }
+    return { X, Y, L, NS, dir, span, outer };
+  }
+  function renderCurtains() {
+    const c = cuX, { yT, yF } = G;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
+    const wob = clamp(S.pv * .08 + (S.ph - S.p) * .6, -1.2, 1.2), grids = [];
+    for (const side of [-1, 1]) {
+      const g = curtainGrid(side, S.p, S.ph, wob); grids.push(g);
+      const { X, Y, L, NS, span } = g, restW = span / NS, R1 = NR + 1;
+      const fills = WASH.map(() => new Path2D());
+      for (let i = 0; i < NS; i++) {
+        const uc = (i + .5) / NS, ph = uc * NF * Math.PI * 2, cosp = Math.cos(ph), sinp = Math.sin(ph) * -side;
+        for (let j = 0; j < NR; j++) {
+          const a = i * R1 + j, b = (i + 1) * R1 + j;
+          const ratio = clamp(Math.abs(X[b] - X[a]) / restW, 0, 1), depth = .3 + .62 * (1 - ratio);
+          let l = .9 - depth * .52 * (1 - cosp);
+          l += .3 * Math.pow(Math.max(0, sinp * .85 + cosp * .25), 6) * (.55 + .45 * ratio);
+          L[i * NR + j] = l;
+          const pad = .7 * -side, p = fills[clamp(Math.round(l / 1.3 * 26), 0, 26)];
+          p.moveTo(X[a], Y[a]); p.lineTo(X[b] + pad, Y[b]); p.lineTo(X[b + 1] + pad, Y[b + 1] + .7); p.lineTo(X[a + 1], Y[a + 1] + .7); p.closePath();
+        }
+      }
+      fills.forEach((p, k) => { c.fillStyle = WASH[k]; c.fill(p); });
+      // engraved shading: one line per strip, its weight following the fold's tone
+      const lines = Array.from({ length: 10 }, () => new Path2D());
+      for (let i = 0; i < NS; i++) {
+        for (let j = 0; j < NR; j++) {
+          const l = L[i * NR + j], w = clamp((1.02 - l) * 2.1, 0, 2.2), k = Math.round(w / .25);
+          if (k < 1) continue;
+          const a = i * R1 + j, b = (i + 1) * R1 + j;
+          const xa = (X[a] + X[b]) / 2, xb = (X[a + 1] + X[b + 1]) / 2;
+          lines[Math.min(9, k)].moveTo(xa, Y[a]); lines[Math.min(9, k)].lineTo(xb, Y[a + 1] + .5);
+        }
+      }
+      c.strokeStyle = 'rgba(38,8,12,.9)';
+      lines.forEach((p, k) => { if (k) { c.lineWidth = k * .25; c.stroke(p); } });
+      // cross-hatching in the deepest folds
+      c.lineWidth = .5; c.strokeStyle = 'rgba(38,8,12,.6)';
+      const xh = new Path2D();
+      for (let i = 0; i < NS; i += 1) for (let j = 0; j < NR; j++) {
+        if (L[i * NR + j] > .42) continue;
+        const a = i * R1 + j, b = (i + 1) * R1 + j, h = (Y[a + 1] - Y[a]);
+        for (let q = 0; q < 3; q++) { const y = Y[a] + h * (q + .3) / 3; xh.moveTo(X[a] - 1, y); xh.lineTo(X[b] + 1, y + 2.2); }
+      }
+      c.stroke(xh);
+    }
+    // the lamp is dimmed when the play is on
+    c.globalCompositeOperation = 'source-atop';
+    let g = c.createLinearGradient(0, yT, 0, yF);
+    g.addColorStop(0, 'rgba(30,6,8,.45)'); g.addColorStop(.18, 'rgba(30,6,8,.1)'); g.addColorStop(.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(40,8,8,.25)');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = `rgba(14,4,6,${.45 * S.spot})`; c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'source-over';
+    // gilt braid along the leading edge and hem, fringe, tiebacks
+    for (const gr of grids) {
+      const { X, Y, NS, dir, outer } = gr, R1 = NR + 1, edge = new Path2D();
+      for (let j = 0; j <= NR; j++) { const k = NS * R1 + j; j ? edge.lineTo(X[k], Y[k]) : edge.moveTo(X[k], Y[k]); }
+      for (let i = NS; i >= 0; i--) { const k = i * R1 + NR; edge.lineTo(X[k], Y[k]); }
+      c.save(); c.globalAlpha = 1 - .35 * S.spot;
+      c.strokeStyle = '#d9a441'; c.lineWidth = 6; c.lineJoin = 'round'; c.stroke(edge);
+      c.strokeStyle = INK; c.lineWidth = .8; c.stroke(edge);
+      c.setLineDash([1.2, 2.2]); c.lineWidth = 5; c.globalAlpha *= .5; c.stroke(edge); c.setLineDash([]);
+      c.globalAlpha = 1 - .35 * S.spot;
+      const fr = new Path2D(), sw = (S.ph - S.p) * 10 * dir;
+      for (let i = 0; i <= NS; i++) { const k = i * R1 + NR; fr.moveTo(X[k], Y[k] + 2); fr.lineTo(X[k] + sw, Y[k] + 10); }
+      c.strokeStyle = '#c0883a'; c.lineWidth = 2; c.stroke(fr); c.strokeStyle = INK; c.lineWidth = .5; c.stroke(fr);
+      const ta = smooth(.12, .55, S.p);
+      if (ta > 0) {
+        const jt = Math.round(NR * .6 * (1 - .17 * Math.max(0, S.ph))), k = NS * R1 + jt, ty = Y[k], tx = X[k] + dir * 3;
+        c.globalAlpha *= ta;
+        const cord = new Path2D(); cord.moveTo(outer, ty - 8); cord.quadraticCurveTo((outer + tx) / 2, ty + 12, tx, ty);
+        c.strokeStyle = '#d9a441'; c.lineWidth = 4.5; c.stroke(cord); c.strokeStyle = INK; c.lineWidth = .7; c.stroke(cord);
+        c.setLineDash([2, 3]); c.lineWidth = 4; c.globalAlpha *= .6; c.stroke(cord); c.setLineDash([]);
+        tassel(c, tx, ty);
+      }
+      c.restore();
+    }
+    const tb = G.billY != null ? (G.billY - yT) / G.openH : .45, jb = clamp(Math.round(tb * NR), 0, NR);
+    edgeX.l = grids[0].X[grids[0].NS * (NR + 1) + jb]; edgeX.r = grids[1].X[grids[1].NS * (NR + 1) + jb];
+  }
+  function tassel(c, x, y) {
+    c.save(); c.translate(x, y);
+    const b = new Path2D(); b.arc(0, 8, 4.5, 0, 7);
+    c.fillStyle = '#d9a441'; c.fill(b); c.strokeStyle = INK; c.lineWidth = .8; c.stroke(b);
+    const sk = new Path2D(); sk.moveTo(-3, 11); sk.lineTo(-6, 28); sk.lineTo(6, 28); sk.lineTo(3, 11); sk.closePath();
+    c.fillStyle = '#d9a441'; c.fill(sk); c.stroke(sk);
+    c.beginPath(); for (let i = -5; i <= 5; i += 2) { c.moveTo(i * .5, 13); c.lineTo(i, 28); } c.lineWidth = .5; c.stroke();
+    c.restore();
+  }
+
+  /* ———————— state ———————— */
+  const S = { p: 0, pv: 0, ph: 0, phv: 0, target: 0, spot: 0, spotX: -1, spotXv: 0, open: false, time: 0, card: 0, cardV: 0, cardT: 0, banner: -1, bannerV: 0, bannerT: -1 };
+  const motes = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), vx: 0, vy: 0, s: .6 + Math.random() * 1.4, ph: Math.random() * 6.28 }));
+  const roses = [];
+
+  function placeSlot() {
+    if (!G.yT) return;
+    const top = G.yT + G.valH * 1.12 + 2, bottom = G.yF - 2;
+    Object.assign(slot.style, { left: G.x0 + 'px', width: G.openW + 'px', top: top + 'px', height: (bottom - top) + 'px' });
+    G.slotTop = top; G.slotW = G.openW;
+    dlg.style.setProperty('--maxh', (bottom - top - 12) + 'px');
+    const cardBottomY = Math.min(bottom - 6, Math.max(G.poolY + 30, top + dlg.offsetHeight + 8));
+    rig.style.bottom = (bottom - cardBottomY) + 'px';
+    G.cardBottom = cardBottomY;
+  }
+  function placeBilling() {
+    const bh = billing.offsetHeight, y = G.yT + G.valH + (G.openH - G.valH) * .4 - bh / 2;
+    billing.style.top = y + 'px'; G.billY = y + bh / 2;
+  }
+
+  let lastFocus = null, litTimer = 0;
+  function openDialog() {
+    if (S.open) return;
+    audio();
+    S.open = true; S.target = 1; S.spotX = -1; S.spotXv = 0;
+    lastFocus = document.activeElement;
+    document.body.classList.add('show');
+    aud.inert = true; bar.inert = true;
+    $('#plaque').classList.add('gone');
+    renderLines();
+    rig.hidden = false; placeSlot();
+    S.card = -(G.slotW / 2 + rig.offsetWidth / 2 + 40); S.cardV = 0; S.cardT = S.card;
+    swish(1.4, 260, 1300, .14);
+    clearTimeout(litTimer);
+    litTimer = setTimeout(() => { S.cardT = 0; slideRasp(.5); dlg.focus({ preventScroll: true }); }, reduce ? 0 : 420);
+    if (reduce) { S.p = S.ph = 1; S.spot = 1; S.spotX = 0; S.card = 0; curtainDirty = true; }
+    wake();
+  }
+  function closeDialog() {
+    if (!S.open) return;
+    S.open = false; clearTimeout(litTimer);
+    S.cardT = -(G.slotW / 2 + rig.offsetWidth / 2 + 60); slideRasp(.35);
+    S.bannerT = -1;
+    setTimeout(() => { S.target = 0; S.dropping = true; swish(.6, 1200, 300, .12); }, reduce ? 0 : 160);
+    document.body.classList.remove('show');
+    aud.inert = false; bar.inert = false;
+    if (reduce) { S.p = S.ph = 0; S.spot = 0; S.card = S.cardT; rig.hidden = true; curtainDirty = true; }
+    (lastFocus && lastFocus.isConnected ? lastFocus : openBtn).focus({ preventScroll: true });
+    wake();
+  }
+  openBtn.addEventListener('click', openDialog);
+  $('#close').addEventListener('click', closeDialog);
+  $('#change').addEventListener('click', closeDialog);
+  $('#done').addEventListener('click', closeDialog);
+  house.addEventListener('click', closeDialog);
+  document.addEventListener('keydown', e => {
+    if (!S.open) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeDialog(); return; }
+    if (e.key === 'Tab') {
+      const f = [...dlg.querySelectorAll('button')].filter(b => b.offsetParent !== null && !b.disabled);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === dlg)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  /* ———————— the booking itself ———————— */
+  const ROWS = 'ABCDEF', PRICE = r => r < 3 ? 52 : 42, FEE = 1.25, WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+  const seats = []; let booked = false;
+  (function makeSeats() {
+    let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const map = $('#seatmap');
+    for (let r = 0; r < ROWS.length; r++) {
+      const n = 14 + r * 2;
+      for (let k = 0; k < n; k++) {
+        const num = k + 1, id = ROWS[r] + num;
+        let taken = rnd() < (r < 3 ? .42 : .26);
+        if (r === 5 && num >= 10 && num <= 13) taken = false;
+        const b = document.createElement('button');
+        b.className = 'seat'; b.tabIndex = -1;
+        b.setAttribute('aria-label', `Row ${ROWS[r]} seat ${num}, £${PRICE(r)}${taken ? ', taken' : ''}`);
+        if (taken) b.setAttribute('aria-disabled', 'true'); else b.setAttribute('aria-pressed', 'false');
+        const seat = { r, k, n, num, id, taken, sel: false, el: b };
+        b.addEventListener('click', () => toggleSeat(seat));
+        b.addEventListener('keydown', e => seatKey(e, seat));
+        seats.push(seat); map.appendChild(b);
+      }
+      for (const side of [0, 1]) { const l = document.createElement('span'); l.className = 'rowlab'; l.textContent = ROWS[r]; l.dataset.r = r; l.dataset.side = side; map.appendChild(l); }
+    }
+    for (const id of ['F11', 'F12']) { const st = seats.find(x => x.id === id); st.sel = true; st.el.setAttribute('aria-pressed', 'true'); }
+  })();
+  let roving = seats.find(x => x.id === 'F11'); roving.el.tabIndex = 0;
+  function setRoving(st) { roving.el.tabIndex = -1; roving = st; st.el.tabIndex = 0; st.el.focus(); }
+  function seatKey(e, st) {
+    const inRow = seats.filter(x => x.r === st.r); let next = null;
+    if (e.key === 'ArrowRight') next = inRow[Math.min(inRow.length - 1, st.k + 1)];
+    else if (e.key === 'ArrowLeft') next = inRow[Math.max(0, st.k - 1)];
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const r2 = st.r + (e.key === 'ArrowUp' ? -1 : 1);
+      if (r2 >= 0 && r2 < ROWS.length) { const row2 = seats.filter(x => x.r === r2); next = row2[clamp(Math.floor((st.k + .5) / st.n * row2.length), 0, row2.length - 1)]; }
+    } else if (e.key === 'Home') next = inRow[0]; else if (e.key === 'End') next = inRow[inRow.length - 1];
+    if (next) { e.preventDefault(); setRoving(next); }
+  }
+  const note = $('#note');
+  function toggleSeat(st) {
+    if (roving !== st) { roving.el.tabIndex = -1; roving = st; st.el.tabIndex = 0; }
+    if (st.taken) { note.textContent = `${st.id} is already taken.`; return; }
+    if (booked) { booked = false; seats.forEach(x => x.el.classList.remove('mine')); openBtn.textContent = 'Review booking'; }
+    const count = seats.filter(x => x.sel).length;
+    if (!st.sel && count >= 6) { note.textContent = 'Up to six seats per booking.'; return; }
+    st.sel = !st.sel; st.el.setAttribute('aria-pressed', st.sel); note.textContent = '';
+    audio(); tick(st.sel ? 1000 : 700); updateSummary();
+  }
+  const fmt = v => '£' + v.toFixed(2);
+  const selected = () => seats.filter(x => x.sel).sort((a, b) => a.r - b.r || a.num - b.num);
+  function updateSummary() {
+    const sel = selected();
+    $('#chips').innerHTML = sel.length ? sel.map(s => `<span>${s.id}</span>`).join('') : '<span class="empty">No seats chosen yet</span>';
+    const sub = sel.reduce((a, s) => a + PRICE(s.r), 0);
+    $('#count').textContent = `${WORDS[sel.length]} ticket${sel.length === 1 ? '' : 's'}`;
+    $('#total').textContent = fmt(sub + FEE * sel.length);
+    openBtn.disabled = !sel.length;
+  }
+  function renderLines() {
+    const sel = selected(), groups = {};
+    sel.forEach(s => { (groups[PRICE(s.r)] = groups[PRICE(s.r)] || []).push(s.id); });
+    let html = '', sub = 0;
+    for (const p of Object.keys(groups).sort((a, b) => b - a)) { const ids = groups[p]; sub += ids.length * p; html += `<li><span>Stalls ${ids.join(', ')}</span><span class="lead"></span><span>${ids.length} × ${fmt(+p)}</span></li>`; }
+    html += `<li><span>Booking fee</span><span class="lead"></span><span>${fmt(FEE * sel.length)}</span></li>`;
+    html += `<li class="total"><span>Total</span><span class="lead"></span><span>${fmt(sub + FEE * sel.length)}</span></li>`;
+    $('#lines').innerHTML = html;
+    $('#doneSeats').textContent = 'Stalls ' + sel.map(s => s.id).join(', ');
+    dlg.classList.toggle('booked', booked);
+  }
+  $('#confirm').addEventListener('click', e => {
+    const b = e.currentTarget; if (b.getAttribute('aria-busy') === 'true') return;
+    b.setAttribute('aria-busy', 'true'); b.textContent = 'Holding your seats…';
+    setTimeout(() => {
+      b.removeAttribute('aria-busy'); b.textContent = 'Confirm booking';
+      booked = true; $('#ref').textContent = 'LNT-26-' + (4000 + Math.floor(Math.random() * 5999));
+      selected().forEach(s => s.el.classList.add('mine'));
+      openBtn.textContent = 'View booking';
+      renderLines(); placeSlot(); $('#done').focus();
+      $('#live').textContent = 'Booking confirmed.';
+      applause(); throwRoses(); S.bannerT = 1; S.banner = -1; S.bannerV = 0; wake();
+    }, 900);
+  });
+
+  function layoutSeats() {
+    const map = $('#seatmap'), w = map.clientWidth, h = map.clientHeight;
+    if (!w || !h) return;
+    const gap = h / (ROWS.length + .1), spacing = Math.min(24, (w - 40) / 24.5), sw = Math.max(9, Math.min(15, spacing * .66));
+    map.style.setProperty('--sw', sw + 'px');
+    const R0 = w * 1.05, cy = gap * .5 - R0;
+    for (const st of seats) {
+      const R = R0 + st.r * gap, a = (st.k - (st.n - 1) / 2) * spacing / R;
+      st.el.style.left = (w / 2 + R * Math.sin(a)) + 'px'; st.el.style.top = (cy + R * Math.cos(a)) + 'px';
+    }
+    map.querySelectorAll('.rowlab').forEach(l => {
+      const r = +l.dataset.r, n = 14 + r * 2, R = R0 + r * gap, a = ((l.dataset.side === '1' ? n + .3 : -1.3) - (n - 1) / 2) * spacing / R;
+      l.style.left = (w / 2 + R * Math.sin(a)) + 'px'; l.style.top = (cy + R * Math.cos(a)) + 'px';
+    });
+  }
+
+  /* ———————— paper roses & a Bravo banner ———————— */
+  function throwRoses() {
+    if (reduce) return;
+    for (let i = 0; i < 7; i++) {
+      const tx = G.cx + (Math.random() - .5) * G.openW * .6, ty = G.horizon + (G.yF - G.horizon) * (.3 + Math.random() * .6);
+      const sx = G.cx + (Math.random() - .5) * G.openW * .9, sy = H + 30, T = .8 + Math.random() * .35;
+      roses.push({ x: sx, y: sy, vx: (tx - sx) / T, vy: (ty - sy - .5 * 1400 * T * T) / T, ty, rot: Math.random() * 6, vr: (Math.random() - .5) * 9, delay: i * .14 + Math.random() * .1, landed: false });
+    }
+  }
+  function drawRose(c, r) {
+    c.save(); c.translate(r.x, r.y); c.rotate(r.rot);
+    c.strokeStyle = '#4b6b2a'; c.lineWidth = 2.2; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(4, 12, 1, 26); c.stroke();
+    c.strokeStyle = INK; c.lineWidth = .6; c.stroke();
+    c.fillStyle = '#7f9a3e'; c.beginPath(); c.ellipse(5, 13, 5, 2.2, .6, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = '#c23a36'; c.beginPath(); c.arc(0, -2, 6.5, 0, 7); c.fill(); c.lineWidth = .9; c.stroke();
+    c.lineWidth = .7; c.beginPath(); for (let a = 0; a < 9; a += .3) { const rr = a * .65; c.lineTo(Math.cos(a) * rr, -2 + Math.sin(a) * rr); } c.stroke();
+    c.restore();
+  }
+  function drawBanner(c) {
+    const { cx, yT, valH } = G, w = G.mob ? 150 : 210, h = G.mob ? 30 : 38;
+    const y = lerp(yT - 80, yT + valH * 1.12 + h / 2 - 4, (S.banner + 1) / 2);
+    if (S.banner <= -.99) return;
+    c.save(); c.beginPath(); c.rect(G.x0, yT, G.openW, H); c.clip(); c.strokeStyle = INK; c.lineWidth = .8;
+    c.beginPath(); c.moveTo(cx - w * .35, yT - 10); c.lineTo(cx - w * .35, y - h / 2); c.moveTo(cx + w * .35, yT - 10); c.lineTo(cx + w * .35, y - h / 2); c.stroke();
+    c.translate(cx, y); c.rotate(S.bannerV * .0006);
+    const p = new Path2D(); p.moveTo(-w / 2, -h / 2); p.lineTo(w / 2, -h / 2); p.lineTo(w / 2 + 16, 0); p.lineTo(w / 2, h / 2); p.lineTo(-w / 2, h / 2); p.lineTo(-w / 2 - 16, 0); p.closePath();
+    c.fillStyle = '#efe2c2'; c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = 8; c.shadowOffsetY = 4; c.fill(p); c.shadowColor = 'transparent';
+    c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(217,164,65,.55)'; c.fill(p); c.globalCompositeOperation = 'source-over';
+    c.lineWidth = 1.1; c.stroke(p);
+    c.font = `${h * .72}px 'Abril Fatface', serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#9b2224'; c.fillText('Bravo!', 0, 1);
+    c.restore();
+  }
+
+  /* ———————— loop ———————— */
+  let raf = 0, last = 0, idle = 0;
+  function wake() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } idle = 0; }
+  function frame(now) {
+    raf = 0;
+    const dt = Math.min(.033, (now - last) / 1000); last = now; S.time += dt;
+    const k = S.target ? 26 : 40, cdamp = S.target ? 9.4 : 8.2, prevP = S.p;
+    S.pv += (k * (S.target - S.p) - cdamp * S.pv) * dt; S.p += S.pv * dt;
+    const k2 = S.target ? 34 : 72, c2 = S.target ? 6.2 : 5.2;
+    S.phv += (k2 * (S.p - S.ph) - c2 * S.phv) * dt; S.ph += S.phv * dt;
+    if (S.dropping && prevP > .02 && S.p <= .02) { thump(.45); S.dropping = false; }
+    // card on its tin slide, leaning into the motion
+    S.cardV += (90 * (S.cardT - S.card) - 13 * S.cardV) * dt; S.card += S.cardV * dt;
+    if (!S.open && Math.abs(S.card - S.cardT) < 2 && !rig.hidden) rig.hidden = true;
+    const lean = clamp(-S.cardV * .00008, -.07, .07) + Math.sin(S.time * 9) * clamp(Math.abs(S.cardV) * .00001, 0, .01);
+    rig.style.transform = `translateX(calc(-50% + ${S.card.toFixed(1)}px)) rotate(${lean.toFixed(4)}rad)`;
+    // banner on strings
+    S.bannerV += (60 * (S.bannerT - S.banner) - 5 * S.bannerV) * dt; S.banner += S.bannerV * dt;
+    const spotT = S.open ? 1 : 0;
+    S.spot += (spotT - S.spot) * Math.min(1, dt * (S.open ? (S.p > .35 ? 3.2 : .8) : 5));
+    if (S.open && S.p > .25) { S.spotXv += (-140 * S.spotX - 9 * S.spotXv) * dt; S.spotX += S.spotXv * dt; }
+    const moving = Math.abs(S.pv) > .002 || Math.abs(S.phv) > .002 || Math.abs(S.p - S.target) > .001 || Math.abs(S.ph - S.p) > .001;
+    if (moving || Math.abs(S.spot - spotT) > .002) curtainDirty = true;
+    if (curtainDirty) { renderCurtains(); curtainDirty = false; }
+    draw(dt);
+    const bo = 1 - smooth(.04, .35, S.p);
+    billing.style.opacity = bo;
+    const rest = G.openW / 2 + 3;
+    bl.style.transform = `translateX(${edgeX.l - (G.x0 + rest)}px)`; br.style.transform = `translateX(${edgeX.r - (G.x1 - rest)}px)`;
+    const busy = moving || S.spot > .002 || roses.length || S.open || Math.abs(S.card - S.cardT) > .5 || Math.abs(S.banner - S.bannerT) > .002;
+    if (busy) idle = 0; else idle++;
+    if (idle < 3) raf = requestAnimationFrame(frame);
+  }
+
+  function draw(dt) {
+    const c = ctx, { cx, x0, openW, yT, yF } = G;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(bgCv, 0, 0);
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.fillStyle = `rgba(10,6,14,${.5 - .2 * S.spot})`; c.fillRect(x0, yT, openW, H - yT);
+    if (S.spot > .003) {
+      const off = S.spotX * openW * .32, shear = off / (G.poolY - G.srcY);
+      c.save(); c.globalAlpha = S.spot; c.globalCompositeOperation = 'lighter';
+      c.setTransform(DPR, 0, shear * DPR, DPR, -shear * G.srcY * DPR, 0);
+      c.drawImage(spCv, 0, 0, W, H);
+      c.restore();
+      c.save(); c.globalCompositeOperation = 'lighter';
+      for (const m of motes) {
+        if (!reduce) {
+          m.vx += (Math.random() - .5) * .00004; m.vy += (Math.random() - .5) * .00004 - .000004;
+          m.vx *= .985; m.vy *= .985; m.x = (m.x + m.vx + 1) % 1; m.y = (m.y + m.vy + 1) % 1;
+        }
+        const y = lerp(G.srcY + 40, G.poolY, m.y), f = (y - G.srcY) / (G.poolY - G.srcY), half = lerp(8, G.rx, f), axis = cx + off * f;
+        const x = axis + (m.x - .5) * 2 * half * 1.1, inside = 1 - smooth(.75, 1.05, Math.abs(x - axis) / half);
+        if (inside <= 0 || y < yT) continue;
+        c.fillStyle = `rgba(255,236,200,${.5 * inside * S.spot * (.35 + .65 * (.5 + .5 * Math.sin(S.time * 2 + m.ph)))})`;
+        c.beginPath(); c.arc(x, y, m.s * .6, 0, 7); c.fill();
+      }
+      c.restore();
+      if (!rig.hidden) {
+        const a = S.spot * (1 - clamp(Math.abs(S.card) / 300, 0, 1)), sx = cx + S.card * .9, sy = (G.cardBottom || G.poolY) + 2;
+        if (a > .01) { c.save(); c.translate(sx, sy); c.scale(1, .09); const g = c.createRadialGradient(0, 0, 0, 0, 0, 200); g.addColorStop(0, `rgba(10,4,2,${.5 * a})`); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 200, 0, 7); c.fill(); c.restore(); }
+      }
+    }
+    for (let i = roses.length - 1; i >= 0; i--) {
+      const r = roses[i];
+      if (r.delay > 0) { r.delay -= dt; continue; }
+      if (!r.landed) { r.vy += 1400 * dt; r.x += r.vx * dt; r.y += r.vy * dt; r.rot += r.vr * dt; if (r.vy > 0 && r.y >= r.ty) { r.y = r.ty; r.landed = true; r.rot = (Math.random() - .5) * 2.2 + Math.PI / 2; } }
+      if (!S.open && S.p < .05) { roses.splice(i, 1); continue; }
+      if (r.y < H + 10) drawRose(c, r);
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(cuCv, 0, 0);
+    c.setTransform(DPR, 0, 0, DPR, 0, 0); drawBanner(c);
+    c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(frCv, 0, 0);
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // painted footlight flames, glowing when the play is on
+    const fl = .3 + .7 * S.spot, fy = H - G.pitH * .42;
+    for (const fx of G.flames) {
+      const flick = reduce ? 1 : .85 + .15 * Math.sin(S.time * 13 + fx);
+      c.save(); c.globalCompositeOperation = 'lighter';
+      const g = c.createRadialGradient(fx, fy - 6, 0, fx, fy - 6, 40);
+      g.addColorStop(0, `rgba(255,190,100,${.35 * fl * flick})`); g.addColorStop(1, 'rgba(255,170,80,0)');
+      c.fillStyle = g; c.fillRect(fx - 40, fy - 46, 80, 50); c.restore();
+      const p = new Path2D(); p.moveTo(fx, fy - 13 * flick); p.quadraticCurveTo(fx + 5, fy - 4, fx, fy); p.quadraticCurveTo(fx - 5, fy - 4, fx, fy - 13 * flick);
+      c.fillStyle = '#f2c461'; c.fill(p); c.strokeStyle = INK; c.lineWidth = .7; c.stroke(p);
+    }
+    // the conductor beats time while the play is on
+    const cond = G.heads && G.heads.find(h => h.cond);
+    if (cond) {
+      const beat = S.spot > .1 && !reduce ? Math.sin(S.time * 5.2) : 0, sx = cond.x + cond.r * 1.1, sy = cond.y + cond.r * 1.3;
+      const ex = sx + 9, ey = sy - 10 - beat * 6, bx = ex + 14 * Math.cos(-1.1 + beat * .5), by = ey + 14 * Math.sin(-1.1 + beat * .5);
+      c.strokeStyle = '#1e1511'; c.lineWidth = 3.4; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(sx, sy); c.lineTo(ex, ey); c.stroke();
+      c.strokeStyle = '#efe2c2'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(ex, ey); c.lineTo(bx, by); c.stroke(); c.lineCap = 'butt';
+    }
+    // the room lamp dims for the performance
+    if (S.spot > .002) {
+      c.fillStyle = `rgba(10,5,3,${.45 * S.spot})`;
+      c.fillRect(0, 0, x0, H); c.fillRect(G.x1, 0, W - G.x1, H); c.fillRect(x0, 0, openW, yT + G.valH * .3); c.fillRect(x0, H - G.pitH, openW, G.pitH);
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  const ro = new ResizeObserver(() => { resize(); wake(); });
+  ro.observe(stage); ro.observe($('#seatmap'));
+  updateSummary();
+  if (document.fonts) document.fonts.ready.then(() => { resize(); wake(); });
+  resize(); wake();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balance Scale Allocator</title>
+<meta name="description" content="A budget split slider drawn as a medieval illuminated manuscript: move gold coins between the pans of a gilded balance to divide the month's purse between saving and spending.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Grenze+Gotisch:wght@500;700&family=Grenze:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Balance Scale Allocator","reimagines":"Split slider / allocation","category":"Sliders, Knobs & Dials","description":"Divide the month's purse between Saved and Spent on an illuminated manuscript page. Gold coins move between the pans of a gilded balance; the beam tilts with damped physics, the pans swing on their chains, and sealing the ledger stamps it in red wax.","hint":"Drag a coin to the other pan, or tap it to send it across"}
+</script>
+<style>
+  :root{
+    --vellum:#f1e3c2; --vellum2:#e7d3a9; --ink:#2b1d14; --red:#b3301e; --blue:#22418f; --green:#3e7a52; --gold:#c9a03a;
+    --black:'UnifrakturMaguntia', 'Old English Text MT', serif;
+    --goth:'Grenze Gotisch', 'UnifrakturMaguntia', serif;
+    --body:'Grenze', 'Palatino', Georgia, serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#cbb27f; color:var(--ink); font-family:var(--body); overflow:hidden}
+  .page{position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(ellipse 140px 90px at 88% 86%, rgba(150,105,40,.16), transparent 70%),
+      radial-gradient(ellipse 60px 40px at 12% 18%, rgba(150,105,40,.14), transparent 70%),
+      radial-gradient(130% 100% at 50% 45%, #f5e9cc 30%, var(--vellum) 60%, #dcc493 100%);}
+  .page::before{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:.55;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018 .03' numOctaves='4' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .42 0 0 0 0 .22 0 0 0 .32 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  #border{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  .cols{position:absolute; inset:44px 70px 40px 96px; display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:44px; align-items:center}
+  .mini{position:relative; height:100%; min-height:0; display:flex; align-items:center; justify-content:center}
+  #scene{width:100%; height:100%; max-height:720px; overflow:visible; touch-action:none; user-select:none; -webkit-user-select:none}
+  .coin{cursor:grab}
+  .coin:active{cursor:grabbing}
+  .text{min-width:0}
+  .rubric{font-family:var(--body); font-style:italic; color:var(--red); font-size:16px; margin:0 0 4px}
+  h1{font-family:var(--black); font-weight:400; font-size:52px; line-height:1; margin:0 0 10px; color:var(--ink)}
+  h1 .r{color:var(--red)}
+  .incipit{font-size:19px; line-height:1.38; margin:0 0 14px; text-align:justify; hyphens:auto}
+  .cap{float:left; width:78px; height:78px; margin:4px 10px 0 0}
+  .ledger{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; margin:6px 0 10px; border-top:1.5px solid var(--ink); border-bottom:1.5px solid var(--ink); padding:8px 0 6px; position:relative}
+  .ledger::after{content:""; position:absolute; left:0; right:0; bottom:3px; border-bottom:.8px solid var(--ink)}
+  .ledger::before{content:""; position:absolute; left:0; right:0; top:3px; border-top:.8px solid var(--ink)}
+  .side h2{font-family:var(--goth); font-weight:700; font-size:20px; margin:4px 0 0; letter-spacing:.02em}
+  .side.save h2{color:var(--blue)} .side.spend h2{color:var(--red)}
+  .amt{font-family:var(--goth); font-weight:500; font-size:44px; line-height:1.05}
+  .pct{font-size:17px}
+  .roman{font-style:italic; font-size:15px; color:#6b5235}
+  .gloss{font-size:16.5px; font-style:italic; margin:4px 0 12px; display:flex; gap:10px; align-items:center; min-height:2.6em}
+  .gloss svg{flex:none}
+  .gloss.ok{color:var(--green)}
+  .seal{font-family:var(--goth); font-weight:700; font-size:21px; letter-spacing:.03em; color:#f6e7c4; background:var(--red); border:2px solid var(--ink); padding:9px 22px 8px; cursor:pointer; position:relative;
+    box-shadow:inset 0 0 0 3px #b3301e, inset 0 0 0 4.5px #e7c46a, 2px 3px 0 rgba(43,29,20,.35)}
+  .seal:hover{filter:brightness(1.07)}
+  .seal:active{transform:translateY(2px); box-shadow:inset 0 0 0 3px #b3301e, inset 0 0 0 4.5px #e7c46a}
+  .seal:focus-visible, .mute:focus-visible, #scene:focus-visible{outline:2px dashed var(--blue); outline-offset:5px}
+  .hint{font-style:italic; color:var(--red); font-size:15.5px; margin:12px 0 0; transition:opacity 1s}
+  .done{font-size:16px; margin:10px 0 0; min-height:1.3em}
+  .mute{position:absolute; right:22px; bottom:16px; font-family:var(--goth); font-size:13px; background:none; border:1px solid var(--ink); padding:3px 9px; cursor:pointer; color:var(--ink)}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  #waxwrap{position:absolute; pointer-events:none; width:120px; height:120px; opacity:0}
+  @media (max-width: 760px){
+    .cols{inset:16px 14px 12px 34px; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto; gap:4px}
+    .text{display:contents}
+    .top{order:0}
+    .mini{order:1}
+    .bottom{order:2}
+    .rubric{font-size:12px; margin:0}
+    h1{font-size:30px; margin:0 0 2px}
+    .incipit{font-size:13px; line-height:1.3; margin:2px 0 0}
+    .cap{width:40px; height:40px; margin:2px 6px 0 0}
+    .ledger{margin:2px 0 4px; padding:5px 0 3px}
+    .side h2{font-size:15px}
+    .amt{font-size:28px}
+    .pct{font-size:13px}
+    .roman{font-size:12px}
+    .gloss{font-size:13px; margin:2px 0 6px; min-height:2.4em}
+    .gloss svg{width:30px}
+    .seal{font-size:16px; padding:7px 16px 6px}
+    .hint{font-size:12.5px; margin:6px 0 0}
+    .done{font-size:13px; margin:4px 0 0}
+    .mute{right:10px; bottom:12px; font-size:11px}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <svg id="border" aria-hidden="true"></svg>
+  <div class="cols">
+    <div class="mini">
+      <svg id="scene" viewBox="0 0 600 640" role="slider" tabindex="0" aria-label="Amount to save this month" aria-valuemin="0" aria-valuemax="3200" aria-valuenow="800" aria-valuetext="£800 saved, £2,400 spent">
+        <defs>
+          <linearGradient id="g-gold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#9a7020"/><stop offset=".3" stop-color="#f2d47c"/><stop offset=".5" stop-color="#c9a03a"/><stop offset=".72" stop-color="#f7e3a0"/><stop offset="1" stop-color="#a77d26"/>
+          </linearGradient>
+          <pattern id="punch" width="7" height="7" patternUnits="userSpaceOnUse">
+            <rect width="7" height="7" fill="url(#g-gold)"/>
+            <circle cx="3.5" cy="3.5" r=".9" fill="#8a6418" opacity=".55"/>
+          </pattern>
+          <pattern id="diaper" width="40" height="40" patternUnits="userSpaceOnUse">
+            <rect width="40" height="40" fill="#22418f"/>
+            <path d="M20 0L40 20L20 40L0 20Z" fill="#b3301e"/>
+            <path d="M20 0L40 20L20 40L0 20Z" fill="none" stroke="#e7c46a" stroke-width="1.6"/>
+            <circle cx="20" cy="20" r="3.2" fill="#e7c46a"/><circle cx="0" cy="0" r="2.6" fill="#e7c46a"/><circle cx="40" cy="0" r="2.6" fill="#e7c46a"/><circle cx="0" cy="40" r="2.6" fill="#e7c46a"/><circle cx="40" cy="40" r="2.6" fill="#e7c46a"/>
+            <path d="M20 13v14M13 20h14" stroke="#f1e3c2" stroke-width="1" opacity=".7"/>
+          </pattern>
+          <clipPath id="arch"><path d="M60 640V210C60 90 170 22 300 22S540 90 540 210V640Z"/></clipPath>
+          <g id="ivy"><path d="M0 0c-6-4-12-2-12 4 4-1 6 1 6 4 4-2 6-6 6-8zM0 0c6-4 12-2 12 4-4-1-6 1-6 4-4-2-6-6-6-8z" fill="url(#g-gold)" stroke="#2b1d14" stroke-width="1"/></g>
+        </defs>
+        <!-- miniature panel -->
+        <g clip-path="url(#arch)">
+          <rect x="0" y="0" width="600" height="640" fill="url(#diaper)"/>
+          <!-- hillock with millefleur -->
+          <path d="M40 640C80 560 180 540 300 546S520 560 560 640Z" fill="#3e7a52" stroke="#2b1d14" stroke-width="2.5"/>
+          <g id="flowers"></g>
+        </g>
+        <path d="M60 640V210C60 90 170 22 300 22S540 90 540 210V640" fill="none" stroke="url(#punch)" stroke-width="16"/>
+        <path d="M52 640V210C52 84 166 14 300 14S548 84 548 210V640" fill="none" stroke="#2b1d14" stroke-width="2"/>
+        <path d="M68 640V210C68 96 174 30 300 30S532 96 532 210V640" fill="none" stroke="#2b1d14" stroke-width="2"/>
+
+        <!-- column -->
+        <path d="M270 600h60l-8-24h-44z" fill="url(#punch)" stroke="#2b1d14" stroke-width="2"/>
+        <rect x="286" y="190" width="28" height="388" fill="#22418f" stroke="#2b1d14" stroke-width="2"/>
+        <path d="M292 196v376" stroke="#5f7fd0" stroke-width="3" opacity=".7"/>
+        <g fill="url(#punch)" stroke="#2b1d14" stroke-width="1.8">
+          <rect x="280" y="300" width="40" height="12" rx="3"/><rect x="280" y="430" width="40" height="12" rx="3"/><rect x="276" y="556" width="48" height="14" rx="3"/>
+        </g>
+        <!-- crown fulcrum -->
+        <path d="M268 196l6-26 13 14 13-22 13 22 13-14 6 26z" fill="url(#punch)" stroke="#2b1d14" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="287" cy="184" r="2.5" fill="#b3301e"/><circle cx="313" cy="184" r="2.5" fill="#22418f"/>
+
+        <!-- beam -->
+        <g id="beam">
+          <path d="M92 166h416v8H92z" fill="url(#punch)" stroke="#2b1d14" stroke-width="2"/>
+          <path d="M300 150l-8 16h16z" fill="url(#punch)" stroke="#2b1d14" stroke-width="1.8"/>
+          <path d="M300 150v-8" stroke="#2b1d14" stroke-width="2.5"/>
+          <circle cx="300" cy="170" r="9" fill="#b3301e" stroke="#2b1d14" stroke-width="2"/>
+          <circle cx="300" cy="170" r="3" fill="url(#g-gold)"/>
+          <!-- fleur-de-lis finials -->
+          <g id="fleurs"></g>
+        </g>
+        <g id="panL"></g>
+        <g id="panR"></g>
+        <g id="air"></g>
+      </svg>
+    </div>
+
+    <section class="text" aria-labelledby="ttl">
+      <div class="top">
+        <p class="rubric">Here beginneth the reckoning of the purse for October, in the year of 2026.</p>
+        <h1 id="ttl"><span class="r">O</span>f the Monthly Purse</h1>
+        <p class="incipit"><svg class="cap" viewBox="0 0 78 78" aria-hidden="true">
+          <rect x="1" y="1" width="76" height="76" fill="#22418f" stroke="#2b1d14" stroke-width="2"/>
+          <rect x="5" y="5" width="68" height="68" fill="#b3301e"/>
+          <path d="M5 5h68v68H5z" fill="none" stroke="#e7c46a" stroke-width="1.5" stroke-dasharray="2 3"/>
+          <path d="M14 16h50v12h-6l-2-5H44v38l6 3v4H28v-4l6-3V23H22l-2 5h-6z" fill="url(#g-gold)" stroke="#2b1d14" stroke-width="1.6"/>
+          <path d="M18 64c6-10 14-6 12 0-2 5-9 2-6-2" fill="none" stroke="#f1e3c2" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M60 64c-6-10-14-6-12 0 2 5 9 2 6-2" fill="none" stroke="#f1e3c2" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>he purse holdeth three thousand two hundred pounds for this month. Divide it between that which shall be <b style="color:#22418f">saved</b> and that which shall be <b style="color:#b3301e">spent</b> by moving the coins from one pan unto the other. The heavier pan shall sink.</p>
+      </div>
+      <div class="bottom">
+        <div class="ledger" aria-live="polite">
+          <div class="side save"><h2>To be Saved</h2><div class="amt" id="saveAmt">£800</div><div class="pct"><span id="savePct">25%</span> · <span class="roman" id="saveRom">DCCC</span></div></div>
+          <div class="side spend"><h2>To be Spent</h2><div class="amt" id="spendAmt">£2,400</div><div class="pct"><span id="spendPct">75%</span> · <span class="roman" id="spendRom">MMCCCC</span></div></div>
+        </div>
+        <div class="gloss" id="gloss"></div>
+        <button class="seal" id="seal">Seal the ledger</button>
+        <p class="hint" id="hint">Drag a coin unto the other pan — or tap it to send it across.</p>
+        <p class="done" id="done" aria-live="polite"></p>
+      </div>
+    </section>
+  </div>
+  <svg id="waxwrap" viewBox="0 0 120 120" aria-hidden="true">
+    <defs><radialGradient id="waxG" cx=".38" cy=".34" r=".7"><stop offset="0" stop-color="#e0503c"/><stop offset=".55" stop-color="#b52618"/><stop offset="1" stop-color="#7d150d"/></radialGradient></defs>
+    <path id="waxBlob" d="" fill="url(#waxG)" stroke="#6d140f" stroke-width="2"/>
+    <circle cx="60" cy="60" r="34" fill="none" stroke="#6d140f" stroke-width="2.5"/>
+    <circle cx="60" cy="60" r="30" fill="none" stroke="#d24a3a" stroke-width="1" opacity=".7"/>
+    <text x="60" y="54" text-anchor="middle" font-family="UnifrakturMaguntia, serif" font-size="22" fill="#5e100a" stroke="#e8705c" stroke-width=".6" paint-order="stroke">Oct</text>
+    <text x="60" y="76" text-anchor="middle" font-family="Grenze Gotisch, serif" font-weight="700" font-size="15" fill="#5e100a" stroke="#e8705c" stroke-width=".5" paint-order="stroke">MMXXVI</text>
+    <ellipse cx="44" cy="36" rx="10" ry="5" fill="#fff" opacity=".18" transform="rotate(-30 44 36)"/>
+  </svg>
+  <button class="mute" id="mute" aria-pressed="false">Sound: on</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+  const TOTAL = 3200, PX = 300, PY = 170, ARM = 208, CH = 150, MAXT = 15 * Math.PI / 180;
+  const ROMAN = n => { const v = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[10,'X']]; let s = ''; for (const [a, r] of v) while (n >= a){ s += r; n -= a; } return s || 'nulla'; };
+  const fmt = n => '£' + n.toLocaleString('en-GB');
+
+  // ---------- decorations ----------
+  (function flowers(){
+    const g = $('flowers'); let r = 5; const R = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 34; i++){
+      const x = 70 + R() * 460, y = 566 + R() * 66; if (y < 548 + Math.abs(x - 300) * .1) continue;
+      const c = ['#f1e3c2','#b3301e','#e7c46a','#f1e3c2'][i % 4];
+      const f = mk('g', { transform:`translate(${x.toFixed(1)} ${y.toFixed(1)})` }, g);
+      mk('path', { d:'M0 0v-8', stroke:'#1f4a2e', 'stroke-width':1.4 }, f);
+      for (let k = 0; k < 5; k++){ const a = k / 5 * Math.PI * 2; mk('circle', { cx:(Math.cos(a)*2.6).toFixed(2), cy:(-8 + Math.sin(a)*2.6).toFixed(2), r:1.9, fill:c, stroke:'#2b1d14', 'stroke-width':.6 }, f); }
+      mk('circle', { cx:0, cy:-8, r:1.2, fill:'#e7c46a' }, f);
+    }
+    const fl = $('fleurs');
+    for (const [x, s] of [[92, -1], [508, 1]]){
+      const g2 = mk('g', { transform:`translate(${x} 170) scale(${s} 1)` }, fl);
+      mk('path', { d:'M0 -6c10-10 18-4 14 4-3 5-9 2-8-2M0 6c10 10 18 4 14-4M0 -6v12M0 0h18', fill:'url(#punch)', stroke:'#2b1d14', 'stroke-width':1.8, 'stroke-linejoin':'round' }, g2);
+    }
+  })();
+
+  // page border: Gothic bar frame + ivy tendrils + a snail drollery
+  function border(){
+    const s = $('border'), w = innerWidth, h = innerHeight, mob = w < 760;
+    s.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const bx = mob ? 14 : 46, top = mob ? 10 : 26, bot = h - (mob ? 10 : 22);
+    let o = `<defs><linearGradient id="bg-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a7020"/><stop offset=".35" stop-color="#f2d47c"/><stop offset=".6" stop-color="#c9a03a"/><stop offset="1" stop-color="#f3dc92"/></linearGradient></defs>`;
+    // bar: alternating blue/red segments with white filigree
+    const segs = Math.round((bot - top) / 70);
+    for (let i = 0; i < segs; i++){
+      const y0 = top + i * (bot - top) / segs, y1 = top + (i + 1) * (bot - top) / segs;
+      o += `<rect x="${bx - 5}" y="${y0}" width="10" height="${y1 - y0}" fill="${i % 2 ? '#b3301e' : '#22418f'}" stroke="#2b1d14" stroke-width="1.4"/>`;
+      o += `<path d="M${bx} ${y0 + 6}q3 ${(y1 - y0) / 4} 0 ${(y1 - y0) / 2}t0 ${(y1 - y0) / 2 - 12}" fill="none" stroke="#f1e3c2" stroke-width="1"/>`;
+      o += `<circle cx="${bx}" cy="${y0}" r="5" fill="url(#bg-gold)" stroke="#2b1d14" stroke-width="1.2"/>`;
+    }
+    // top bar
+    o += `<rect x="${bx}" y="${top - 4}" width="${w * (mob ? .5 : .32)}" height="8" fill="#22418f" stroke="#2b1d14" stroke-width="1.4"/>`;
+    // tendrils with ivy leaves
+    let r = 13; const R = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    for (let y = top + 40; y < bot - 30; y += mob ? 90 : 72){
+      const dir = R() < .5 ? -1 : 1, len = mob ? 14 : 30 + R() * 16;
+      if (mob && dir < 0) continue;
+      const ex = bx + dir * len, ey = y + 20;
+      o += `<path d="M${bx} ${y}c${dir * len * .6} -14 ${dir * len} 4 ${dir * len} 20" fill="none" stroke="#2b1d14" stroke-width="1.2"/>`;
+      o += `<g transform="translate(${ex} ${ey}) rotate(${dir * 20}) scale(${mob ? .7 : 1})"><path d="M0 0c-6-4-12-2-12 4 4-1 6 1 6 4 4-2 6-6 6-8zM0 0c6-4 12-2 12 4-4-1-6 1-6 4-4-2-6-6-6-8z" fill="url(#bg-gold)" stroke="#2b1d14" stroke-width="1"/></g>`;
+    }
+    // snail drollery in the lower margin
+    if (!mob){
+      const sx = w * .58, sy = h - 14;
+      o += `<g id="snail" style="pointer-events:auto;cursor:pointer" transform="translate(${sx} ${sy})">
+        <path d="M-40 0c10-2 46-2 56 0 6-6 10-14 6-20" fill="#c9b38b" stroke="#2b1d14" stroke-width="1.6"/>
+        <g class="stalks"><path d="M16 -14l6 -12M20 -12l10 -9" stroke="#2b1d14" stroke-width="1.5"/><circle cx="22" cy="-26" r="1.8" fill="#2b1d14"/><circle cx="30" cy="-21" r="1.8" fill="#2b1d14"/></g>
+        <circle cx="-14" cy="-14" r="15" fill="#b3301e" stroke="#2b1d14" stroke-width="1.8"/>
+        <path d="M-14 -14m0 -9a9 9 0 1 1 -8 6a5 5 0 1 1 5 4" fill="none" stroke="#e7c46a" stroke-width="2"/>
+      </g>`;
+      o += `<text x="${sx - 140}" y="${h - 12}" font-family="Grenze, serif" font-style="italic" font-size="13" fill="#6b5235">fol. x verso</text>`;
+    }
+    s.innerHTML = o;
+    const sn = document.getElementById('snail');
+    if (sn) sn.addEventListener('click', () => { const st = sn.querySelector('.stalks'); st.style.transition = 'opacity .2s'; st.style.opacity = 0; clink(.3, 1.2); setTimeout(() => st.style.opacity = 1, 1600); });
+  }
+
+  // ---------- coins ----------
+  const DEN = [400,400,400,400,200,200,200,200,200,200,100,100,100,100];
+  const RAD = { 400: 22, 200: 18, 100: 14.5 };
+  const coins = DEN.map((d, i) => ({ id:i, d, r:RAD[d], side: (i === 0 || i === 4 || i === 5) ? 0 : 1, el:null, lx:0, ly:0, tx:0, ty:0, rot:(Math.random() - .5) * 30 }));
+  const pans = [ { side:0, g:$('panL'), pile:null, phi:0, w:0, hx:0, hy:0, dip:0, dipV:0 }, { side:1, g:$('panR'), pile:null, phi:0, w:0, hx:0, hy:0, dip:0, dipV:0 } ];
+  function buildPan(p){
+    const g = p.g; g.innerHTML = '';
+    // chains (three, as links)
+    for (const x of [-74, 0, 74]){
+      mk('path', { d:`M0 0L${x} ${CH - 4}`, stroke:'#2b1d14', 'stroke-width':4.2, 'stroke-dasharray':'0.1 6', 'stroke-linecap':'round', fill:'none', opacity: x === 0 ? .55 : 1 }, g);
+      mk('path', { d:`M0 0L${x} ${CH - 4}`, stroke:'#e7c46a', 'stroke-width':2.2, 'stroke-dasharray':'0.1 6', 'stroke-linecap':'round', fill:'none', opacity: x === 0 ? .55 : 1 }, g);
+    }
+    mk('circle', { cx:0, cy:0, r:6, fill:'url(#punch)', stroke:'#2b1d14', 'stroke-width':1.8 }, g);
+    p.pile = mk('g', {}, g);
+    // bowl (drawn after pile so coins sit inside its lip)
+    mk('path', { d:`M-90 ${CH}C-80 ${CH + 30} 80 ${CH + 30} 90 ${CH}Z`, fill:'url(#punch)', stroke:'#2b1d14', 'stroke-width':2.2 }, g);
+    mk('path', { d:`M-92 ${CH}H92`, stroke:'#2b1d14', 'stroke-width':3, 'stroke-linecap':'round' }, g);
+    mk('path', { d:`M-60 ${CH + 12}C-30 ${CH + 20} 30 ${CH + 20} 60 ${CH + 12}`, fill:'none', stroke:p.side ? '#b3301e' : '#22418f', 'stroke-width':3 }, g);
+    const t = mk('text', { x:0, y:CH + 46, 'text-anchor':'middle', 'font-family':'Grenze Gotisch, serif', 'font-weight':700, 'font-size':22, fill:'#f1e3c2', stroke:'#2b1d14', 'stroke-width':3, 'paint-order':'stroke' }, g);
+    t.textContent = p.side ? 'Spent' : 'Saved';
+  }
+  function coinEl(c){
+    const g = mk('g', { class:'coin', 'data-id':c.id });
+    mk('circle', { cx:1.5, cy:2, r:c.r, fill:'rgba(43,29,20,.35)' }, g);
+    mk('circle', { cx:0, cy:0, r:c.r, fill:'url(#g-gold)', stroke:'#2b1d14', 'stroke-width':1.8 }, g);
+    mk('circle', { cx:0, cy:0, r:c.r - 4, fill:'none', stroke:'#8a6418', 'stroke-width':1, 'stroke-dasharray':'1 2.2' }, g);
+    const t = mk('text', { x:0, y:c.r * .2, 'text-anchor':'middle', 'font-family':'Grenze Gotisch, serif', 'font-weight':700, 'font-size':(c.r * .62).toFixed(1), fill:'#5a3e0e' }, g);
+    t.textContent = ROMAN(c.d);
+    mk('path', { d:`M${-c.r * .45} ${-c.r * .42}a${c.r * .7} ${c.r * .7} 0 0 1 ${c.r * .7} ${-c.r * .25}`, fill:'none', stroke:'#fff7d8', 'stroke-width':1.6, 'stroke-linecap':'round', opacity:.8 }, g);
+    const tt = mk('title', {}, g); tt.textContent = `${fmt(c.d)} coin`;
+    return g;
+  }
+  // pile layout: big coins at the bottom, rows narrowing upward
+  function layoutPile(side){
+    const list = coins.filter(c => c.side === side && !c.air).sort((a, b) => b.d - a.d || a.id - b.id);
+    let rows = [], row = [], width = 0, maxW = 170;
+    for (const c of list){
+      if (width + c.r * 2 > maxW && row.length){ rows.push(row); row = []; width = 0; maxW = Math.max(70, maxW - 24); }
+      row.push(c); width += c.r * 2;
+    }
+    if (row.length) rows.push(row);
+    let base = CH - 2;
+    rows.forEach((rw, ri) => {
+      const w = rw.reduce((s, c) => s + c.r * 2, 0); let x = -w / 2;
+      const maxR = Math.max(...rw.map(c => c.r));
+      rw.forEach((c, k) => { c.tx = x + c.r + (ri % 2 ? 4 : 0); c.ty = base - c.r; x += c.r * 2 - 1; });
+      base -= maxR * 1.55;
+    });
+  }
+
+  // ---------- state & ui ----------
+  let theta = 0, thetaV = 0, interacted = false;
+  function sums(){ let s = 0; coins.forEach(c => { if (c.side === 0 && !c.air) s += c.d; }); return [s, coins.reduce((a, c) => a + (c.side === 1 && !c.air ? c.d : 0), 0)]; }
+  function updateUI(){
+    const save = coins.reduce((a, c) => a + (c.side === 0 ? c.d : 0), 0), spend = TOTAL - save;
+    $('saveAmt').textContent = fmt(save); $('spendAmt').textContent = fmt(spend);
+    const sp = Math.round(save / TOTAL * 100);
+    $('savePct').textContent = sp + '%'; $('spendPct').textContent = (100 - sp) + '%';
+    $('saveRom').textContent = ROMAN(save); $('spendRom').textContent = ROMAN(spend);
+    const sc = $('scene');
+    sc.setAttribute('aria-valuenow', save); sc.setAttribute('aria-valuetext', `${fmt(save)} saved, ${fmt(spend)} spent`);
+    const gl = $('gloss');
+    const hand = `<svg width="40" height="22" viewBox="0 0 40 22" aria-hidden="true"><path d="M2 8h20c4 0 4 5 0 5h10c3 0 3 4 0 4h-3c2 0 2 4 0 4H10C5 21 2 18 2 14z" fill="#f1e3c2" stroke="#2b1d14" stroke-width="1.4" stroke-linejoin="round"/><path d="M22 8h14c3 0 3 4 0 4H24" fill="#f1e3c2" stroke="#2b1d14" stroke-width="1.4"/><path d="M0 6c-1 4-1 10 2 14" stroke="#b3301e" stroke-width="3" fill="none"/></svg>`;
+    if (save === 0) gl.innerHTML = hand + '<span>Nothing is laid by. The steward’s rule asketh at least a fifth part — £640.</span>', gl.className = 'gloss';
+    else if (save < 640) gl.innerHTML = hand + `<span>The steward’s rule asketh a fifth part (£640). Lay by ${fmt(640 - save)} more.</span>`, gl.className = 'gloss';
+    else if (spend < 1600) gl.innerHTML = hand + '<span>Bold thrift! Yet rent and bread need at least £1,600 of spending.</span>', gl.className = 'gloss';
+    else gl.innerHTML = hand + '<span>Well kept: the fifth part is laid by, after the steward’s rule.</span>', gl.className = 'gloss ok';
+    $('seal').disabled = false;
+  }
+
+  // ---------- pointer ----------
+  const scene = $('scene'), air = $('air');
+  function svgPt(e){ const m = scene.getScreenCTM(); const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()); return { x:p.x, y:p.y }; }
+  function panToScene(p, x, y){ const c = Math.cos(p.phi), s = Math.sin(p.phi); return { x: p.hx + x * c - y * s, y: p.hy + x * s + y * c }; }
+  let drag = null;
+  scene.addEventListener('pointerdown', e => {
+    const ce = e.target.closest('.coin'); if (!ce) return;
+    audio(); touched();
+    const c = coins[+ce.dataset.id]; if (c.flying) return;
+    const p = svgPt(e), pan = pans[c.side];
+    const sp = panToScene(pan, c.lx, c.ly);
+    c.air = true; c.sx = sp.x; c.sy = sp.y; air.appendChild(c.el);
+    drag = { c, ox: p.x - sp.x, oy: p.y - sp.y, x0: p.x, y0: p.y, moved: false, from: c.side };
+    scene.setPointerCapture(e.pointerId);
+    layoutPile(c.side);
+    e.preventDefault();
+  });
+  scene.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = svgPt(e);
+    if (Math.hypot(p.x - drag.x0, p.y - drag.y0) > 6) drag.moved = true;
+    drag.c.sx = p.x - drag.ox; drag.c.sy = p.y - drag.oy;
+  });
+  const drop = () => {
+    if (!drag) return;
+    const c = drag.c;
+    let to = drag.from;
+    if (!drag.moved) to = 1 - drag.from;
+    else {
+      // nearest pan bowl within reach
+      let best = null, bd = 1e9;
+      pans.forEach(p => { const q = panToScene(p, 0, CH - 30), d = Math.hypot(q.x - c.sx, q.y - c.sy); if (d < bd){ bd = d; best = p; } });
+      if (best && bd < 170) to = best.side;
+    }
+    drag = null;
+    fly(c, to);
+  };
+  scene.addEventListener('pointerup', drop); scene.addEventListener('pointercancel', drop);
+  scene.addEventListener('keydown', e => {
+    let dir = 0;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') dir = 1;       // save more
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') dir = -1; // spend more
+    else if (e.key === 'Home' || e.key === 'End'){ e.preventDefault(); audio(); touched(); const from = e.key === 'Home' ? 0 : 1; coins.filter(c => c.side === from && !c.air).forEach((c, k) => setTimeout(() => sendFrom(c), k * 90)); return; }
+    else return;
+    e.preventDefault(); audio(); touched();
+    const from = dir > 0 ? 1 : 0;
+    const c = coins.filter(c => c.side === from && !c.air).sort((a, b) => a.d - b.d)[0];
+    if (c) sendFrom(c); else { clink(.2, .6); }
+  });
+  function sendFrom(c){
+    const sp = panToScene(pans[c.side], c.lx, c.ly);
+    c.air = true; c.sx = sp.x; c.sy = sp.y; air.appendChild(c.el); layoutPile(c.side);
+    fly(c, 1 - c.side);
+  }
+  function fly(c, to){
+    const from = c.side;
+    if (from !== to) breakSeal();
+    c.side = to; c.flying = true;
+    layoutPile(to);
+    const p = pans[to];
+    const st = performance.now(), x0 = c.sx, y0 = c.sy, dur = reduce ? 1 : 520;
+    c.anim = now => {
+      const k = Math.min(1, (now - st) / dur), e = k * (2 - k);
+      const tgt = panToScene(p, 0, CH - 34);
+      c.sx = x0 + (tgt.x - x0) * e; c.sy = y0 + (tgt.y - y0) * e - Math.sin(k * Math.PI) * (from === to ? 30 : 110);
+      c.spin = (c.spin || 0) + 14;
+      if (k >= 1){
+        c.anim = null; c.flying = false; c.air = false;
+        // place in pile at a position corresponding to where it landed
+        const loc = sceneToPan(p, c.sx, c.sy); c.lx = loc.x; c.ly = loc.y; c.vy = 0;
+        p.pile.appendChild(c.el);
+        layoutPile(to);
+        land(p, c);
+      }
+    };
+    updateUI();
+  }
+  function sceneToPan(p, x, y){ const dx = x - p.hx, dy = y - p.hy, c = Math.cos(-p.phi), s = Math.sin(-p.phi); return { x: dx * c - dy * s, y: dx * s + dy * c }; }
+  function land(p, c){
+    const k = c.d / 400;
+    p.dipV += 70 * k;
+    thetaV += (p.side ? 1 : -1) * .9 * k;
+    p.w += (Math.random() - .5) * 1.2 * k;
+    clink(.5 + k * .5, c.d === 400 ? 1 : c.d === 200 ? 1.25 : 1.5);
+    updateUI();
+  }
+  function touched(){ if (!interacted){ interacted = true; setTimeout(() => $('hint').style.opacity = .5, 1200); } }
+
+  // ---------- seal ----------
+  let sealed = false;
+  function breakSeal(){
+    if (!sealed) return; sealed = false;
+    const w = $('waxwrap');
+    w.getAnimations().forEach(a => a.cancel());
+    w.animate([{ opacity:1, transform:'scale(1) rotate(-10deg)' }, { opacity:0, transform:'scale(.9) rotate(-4deg) translateY(30px)' }], { duration: reduce ? 1 : 500, easing:'ease-in', fill:'forwards' });
+    $('done').textContent = 'The seal is broken — the purse was divided anew. Seal the ledger again when content.';
+    $('seal').textContent = 'Seal the ledger';
+    clink(.25, .7);
+  }
+  $('seal').addEventListener('click', () => {
+    audio(); touched();
+    const save = coins.reduce((a, c) => a + (c.side === 0 ? c.d : 0), 0);
+    sealed = true; $('seal').textContent = 'Ledger sealed';
+    $('done').textContent = `Sealed this 7th day of October 2026. ${fmt(save)} shall pass into the Rainy Day Fund upon the first of November.`;
+    const w = $('waxwrap'), r = $('seal').getBoundingClientRect();
+    // blobby wax outline
+    let d = ''; for (let i = 0; i <= 24; i++){ const a = i / 24 * Math.PI * 2, rr = 44 + Math.sin(i * 2.7) * 3 + (i % 5 === 0 ? 6 : 0); d += (i ? 'L' : 'M') + (60 + Math.cos(a) * rr).toFixed(1) + ' ' + (60 + Math.sin(a) * rr).toFixed(1); }
+    $('waxBlob').setAttribute('d', d + 'Z');
+    const mob = innerWidth < 760;
+    w.style.left = (r.right + (mob ? -96 : 14)) + 'px'; w.style.top = (r.top + r.height / 2 - 60 + (mob ? -70 : 0)) + 'px';
+    w.style.width = w.style.height = (mob ? 90 : 120) + 'px';
+    w.animate([{ opacity:0, transform:'scale(1.9) rotate(-20deg)' }, { opacity:1, transform:'scale(.92) rotate(-8deg)', offset:.55 }, { opacity:1, transform:'scale(1) rotate(-10deg)' }], { duration: reduce ? 1 : 650, easing:'cubic-bezier(.5,0,.6,1)', fill:'forwards' });
+    setTimeout(() => thud(), reduce ? 0 : 360);
+  });
+
+  // ---------- audio ----------
+  let ac = null, master, mute = false;
+  function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; } try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .17; master.connect(ac.destination); } catch(_) {} }
+  function clink(a, pitch){
+    if (!ac || mute) return;
+    const n = ac.currentTime, f0 = 1250 * pitch * (0.97 + Math.random() * .06);
+    [[1, 1, 1.1], [2.76, .5, .5], [5.4, .3, .28], [8.93, .18, .16]].forEach(([m, g0, dur]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.value = f0 * m;
+      g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.32 * a * g0, n + .002); g.gain.exponentialRampToValueAtTime(.0001, n + dur);
+      o.connect(g); g.connect(master); o.start(n); o.stop(n + dur + .05);
+    });
+    // a second, quieter bounce
+    setTimeout(() => { if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f0 * 1.02; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.08 * a, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .4); o.connect(g); g.connect(master); o.start(t); o.stop(t + .45); }, 90);
+  }
+  function thud(){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(140, n); o.frequency.exponentialRampToValueAtTime(55, n + .2);
+    g.gain.setValueAtTime(.7, n); g.gain.exponentialRampToValueAtTime(.0001, n + .25);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .3);
+  }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'Sound: off' : 'Sound: on'; $('mute').setAttribute('aria-pressed', mute); });
+
+  // ---------- physics loop ----------
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.033, (now - last) / 1000); last = now;
+    const [save, spend] = sums();
+    const tgt = MAXT * Math.max(-1, Math.min(1, (spend - save) / TOTAL * 1.6));
+    // damped beam
+    const thA = (tgt - theta) * 28 - thetaV * 3.2;
+    thetaV += thA * dt; theta += thetaV * dt;
+    if (reduce){ theta = tgt; thetaV = 0; }
+    $('beam').setAttribute('transform', `rotate(${(theta * 180 / Math.PI).toFixed(3)} ${PX} ${PY})`);
+    pans.forEach((p, i) => {
+      const s = i ? 1 : -1;
+      p.hx = PX + s * ARM * Math.cos(theta); p.hy = PY + s * ARM * Math.sin(theta);
+      // pendulum driven by the beam's angular acceleration
+      const drive = -thA * s * .55 * Math.sin(theta + Math.PI / 2);
+      p.w += (-p.phi * 22 - p.w * 1.6 + drive * .05) * dt; p.phi += p.w * dt;
+      if (reduce){ p.phi = 0; p.w = 0; }
+      // bowl dip on landings (a little stretch in the chains)
+      p.dipV += (-p.dip * 260 - p.dipV * 14) * dt; p.dip += p.dipV * dt;
+      p.g.setAttribute('transform', `translate(${p.hx.toFixed(2)} ${(p.hy).toFixed(2)}) rotate(${(p.phi * 180 / Math.PI).toFixed(3)})`);
+      p.pile.setAttribute('transform', `translate(0 ${(p.dip * .35).toFixed(2)})`);
+    });
+    for (const c of coins){
+      if (c.anim) c.anim(now);
+      if (c.air){
+        c.el.setAttribute('transform', `translate(${c.sx.toFixed(2)} ${c.sy.toFixed(2)}) rotate(${((c.rot + (c.spin || 0)) % 360).toFixed(1)})`);
+      } else {
+        // settle into the pile with a little drop and bounce
+        c.lx += (c.tx - c.lx) * Math.min(1, dt * 12);
+        c.vy = (c.vy || 0) + ((c.ty - c.ly) * 300 - (c.vy || 0) * 18) * dt; c.ly += c.vy * dt;
+        if (reduce){ c.lx = c.tx; c.ly = c.ty; }
+        c.el.setAttribute('transform', `translate(${c.lx.toFixed(2)} ${c.ly.toFixed(2)}) rotate(${c.rot.toFixed(1)})`);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) running = false; else { running = true; last = performance.now(); requestAnimationFrame(frame); } });
+
+  pans.forEach(buildPan);
+  coins.forEach(c => { c.el = coinEl(c); pans[c.side].pile.appendChild(c.el); });
+  layoutPile(0); layoutPile(1);
+  coins.forEach(c => { c.lx = c.tx; c.ly = c.ty; });
+  theta = MAXT * .8;
+  border(); updateUI();
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(border, 80); });
+  requestAnimationFrame(frame);
+  window.__scale = { send(n, from){ const list = coins.filter(c => c.side === from && !c.air).sort((a, b) => a.d - b.d); list.slice(0, n).forEach((c, k) => setTimeout(() => sendFrom(c), k * 120)); }, seal(){ $('seal').click(); } };
+})();
+</script>
+</body>
+</html>

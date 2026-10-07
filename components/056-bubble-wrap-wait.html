@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bubble Wrap Wait</title>
+<meta name="description" content="A long-running export shown as a roll of holographic Y2K bubble wrap that unrolls as the export progresses. Every bubble can be squashed and popped while you wait.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Bubble Wrap Wait","reimagines":"Long-running task / loading screen","category":"Feedback & Status","description":"A big photo export unrolls a sheet of iridescent, thin-film bubble wrap: the roll shrinks as progress advances and every new row is yours to squash and pop, with real pops and holographic sparkles. If a file can't be read the roll stops and asks what to do; when it's done the last of the sheet lies flat beside a chrome download button.","hint":"Press and hold a bubble to pop it, or drag across the sheet to pop a row"}
+</script>
+<style>
+:root{--bg:#07071a;--chrome:linear-gradient(180deg,#ffffff 0%,#e6ebf5 38%,#7d86a3 50%,#f4f6ff 57%,#aeb7cf 100%);
+  --holo:linear-gradient(105deg,#ffc8ee 0%,#c5f1ff 24%,#e3d2ff 46%,#fff4c4 66%,#c2ffe4 84%,#ffc8ee 100%);
+  --disp:"Unbounded","Arial Black",system-ui,sans-serif;--mono:"Space Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg)}
+body{font-family:var(--disp);color:#e9ecff;-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden;
+  background:radial-gradient(60% 50% at 18% 12%, rgba(160,110,255,.32), transparent 70%),radial-gradient(50% 45% at 88% 90%, rgba(70,200,255,.22), transparent 70%),radial-gradient(40% 35% at 70% 20%, rgba(255,120,210,.16), transparent 70%),
+    linear-gradient(rgba(140,150,255,.06) 1px, transparent 1px) 0 0/48px 48px, linear-gradient(90deg, rgba(140,150,255,.06) 1px, transparent 1px) 0 0/48px 48px, var(--bg)}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#gl{touch-action:none;cursor:pointer}
+#gl:focus-visible{outline:none}
+#fx{pointer-events:none}
+.chrome{background:var(--chrome);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 rgba(255,255,255,.35)) drop-shadow(0 6px 14px rgba(140,90,255,.45))}
+header{position:absolute;left:40px;top:28px;right:40px;display:flex;align-items:flex-start;gap:20px}
+.logo{display:flex;align-items:center;gap:10px;font:800 13px var(--disp);letter-spacing:.18em}
+.logo svg{width:34px;height:34px}
+.title{position:absolute;left:40px;top:84px}
+.title h1{margin:0;font:800 clamp(28px,3.8vw,50px)/1 var(--disp);letter-spacing:-.02em}
+.title h1.chrome{background:linear-gradient(100deg, transparent 0 44%, rgba(255,255,255,1) 48%, rgba(255,200,245,.95) 50%, rgba(190,245,255,.9) 52%, transparent 56% 100%), var(--chrome);
+  background-size:300% 100%, 100% 100%;background-repeat:no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sheen 5s cubic-bezier(.55,0,.3,1) infinite;
+  filter:drop-shadow(0 -1px 0 rgba(255,255,255,.95)) drop-shadow(0 2px 0 #6b5bb0) drop-shadow(0 2px 0 #3b2f7a) drop-shadow(0 12px 20px rgba(170,110,255,.55))}
+@keyframes sheen{0%{background-position:100% 0, 0 0}55%,100%{background-position:0% 0, 0 0}}
+.foil{display:inline-block;padding:3px 10px 2px;border-radius:7px;color:#1a1640!important;font-weight:700;background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0) 60%),var(--holo);background-size:auto,300% 100%;animation:holo 6s linear infinite;box-shadow:0 0 0 1px rgba(255,255,255,.8), 0 6px 16px -6px rgba(190,140,255,.9)}
+.title p{margin:14px 0 0;font:400 14px var(--mono);color:#c9cdf2}
+.title p b{font-weight:700}
+.popped{margin-left:auto;display:flex;align-items:center;gap:12px;padding:8px 20px 8px 10px;border-radius:999px;color:#1a1640;border:1px solid rgba(255,255,255,.85);
+  background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0) 55%),var(--holo);background-size:auto,300% 100%;animation:holo 6s linear infinite;box-shadow:0 0 0 1px rgba(30,20,80,.55), 0 10px 26px -8px rgba(190,140,255,.85), inset 0 -3px 6px rgba(90,60,170,.3)}
+.popped .orb{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 12%,transparent 30%),var(--holo);background-size:auto,300% 100%;animation:holo 6s linear infinite;box-shadow:inset 0 -4px 8px rgba(80,40,160,.35)}
+.popped b{font:700 22px var(--mono);color:#1a1640}
+.popped span{font:700 10px var(--mono);letter-spacing:.14em;color:#4a3d8f;display:block}
+.popped .orb{box-shadow:0 0 0 1px rgba(255,255,255,.9), inset 0 -4px 8px rgba(80,40,160,.35)}
+@keyframes holo{to{background-position:0 0,300% 0}}
+.mute{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.8);background:radial-gradient(circle at 35% 28%,#fff 0 10%,transparent 32%),linear-gradient(180deg,#fff 0%,#e3e8f6 42%,#7f88a8 52%,#eef1ff 64%,#b9c0d8 100%);cursor:pointer;display:grid;place-items:center;padding:0;box-shadow:0 0 0 1px rgba(30,20,80,.6), 0 8px 18px -6px rgba(150,100,255,.7)}
+.mute svg{width:18px;height:18px}
+.mute[aria-pressed="true"] .w{display:none}.mute[aria-pressed="false"] .x{display:none}
+.dock{position:absolute;left:40px;right:40px;bottom:30px;display:flex;align-items:center;gap:22px}
+.meter{flex:1;min-width:0}
+.meter .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px;font:400 13px var(--mono);color:#c6cbef}
+.meter .row b{font:800 30px var(--disp);color:#fff;letter-spacing:-.02em}
+.meter .row .stage-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:30px;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.02) 55%,rgba(255,255,255,.1));border:1px solid rgba(255,255,255,.45);
+  box-shadow:inset 0 4px 10px rgba(0,0,0,.6), inset 0 -2px 4px rgba(255,255,255,.14), 0 0 0 4px rgba(255,255,255,.05), 0 0 24px rgba(150,110,255,.25);overflow:hidden}
+.track::before{content:"";position:absolute;left:16px;right:16px;top:4px;height:6px;border-radius:9px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.6) 20%,rgba(255,255,255,.35) 80%,rgba(255,255,255,0));z-index:2;pointer-events:none}
+.fill{position:absolute;left:3px;top:3px;bottom:3px;width:0;min-width:22px;border-radius:999px;
+  background:radial-gradient(circle at 30% 70%, rgba(255,255,255,.7) 0 2px, transparent 3px) 0 0/38px 24px, radial-gradient(circle at 70% 35%, rgba(255,255,255,.55) 0 1.5px, transparent 2.6px) 0 0/52px 24px,
+    linear-gradient(90deg, rgba(255,110,210,.82), rgba(175,120,255,.8) 45%, rgba(90,225,255,.85));
+  animation:bub 3.2s linear infinite;box-shadow:inset 0 7px 6px -4px rgba(255,255,255,.8), inset 0 -7px 9px rgba(70,20,140,.45), 0 0 16px rgba(190,130,255,.75), 0 0 34px rgba(110,200,255,.35)}
+.fill::after{content:"";position:absolute;right:-1px;top:0;bottom:0;width:20px;border-radius:50%;background:radial-gradient(circle at 42% 34%, rgba(255,255,255,.95), rgba(170,235,255,.55) 38%, rgba(120,200,255,0) 72%)}
+@keyframes bub{to{background-position:76px 0, -104px 0, 0 0}}
+.track.warn .fill{background:radial-gradient(circle at 30% 70%, rgba(255,255,255,.7) 0 2px, transparent 3px) 0 0/38px 24px, linear-gradient(90deg, rgba(255,120,190,.85), rgba(255,175,150,.85));animation:none}
+.pill{position:relative;flex:none;height:52px;padding:0 26px;border-radius:999px;font:600 14px var(--disp);letter-spacing:.01em;cursor:pointer;color:#1a1640;border:1px solid rgba(255,255,255,.7);
+  background:linear-gradient(180deg,#fff 0%,#e9edf8 45%,#a9b2cc 52%,#eef1fb 80%,#c9d0e3 100%);box-shadow:0 0 0 1px rgba(30,20,80,.6), 0 10px 24px -8px rgba(150,100,255,.6), inset 0 -3px 6px rgba(60,50,120,.25);transition:transform .12s, box-shadow .2s}
+.pill:hover{transform:translateY(-1px);box-shadow:0 0 0 1px rgba(30,20,80,.6), 0 14px 30px -8px rgba(150,100,255,.8), inset 0 -3px 6px rgba(60,50,120,.25)}
+.pill:active{transform:translateY(1px)}
+.pill.holo{background:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,0) 50%),var(--holo);background-size:auto,300% 100%;animation:holo 5s linear infinite}
+.pill.ghost-dark{background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.03));color:#e9ecff;border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.pill[hidden]{display:none}
+button:focus-visible{outline:2px solid #c5f1ff;outline-offset:4px}
+.warn-box{position:absolute;display:none;width:min(440px,calc(100vw - 32px));padding:18px 20px;border-radius:22px;background:linear-gradient(180deg,rgba(40,16,60,.92),rgba(24,10,44,.92));border:1px solid rgba(255,170,220,.6);box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 20px 50px -10px rgba(255,90,180,.45), inset 0 1px 0 rgba(255,255,255,.2);z-index:5}
+.warn-box.on{display:block}
+.warn-box h3{margin:0 0 6px;font:800 16px var(--disp);color:#ffc3e6}
+.warn-box p{margin:0 0 14px;font:400 13px/1.5 var(--mono);color:#e2d6f2}
+.warn-box .b{display:flex;gap:10px;flex-wrap:wrap}
+.warn-box .pill{height:42px;font-size:13px;padding:0 18px}
+.badge{position:absolute;pointer-events:none;font:800 13px var(--disp);letter-spacing:.06em;color:#1a1640;padding:10px 16px;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,0) 50%),var(--holo);background-size:auto,300% 100%;animation:holo 4s linear infinite;box-shadow:0 0 0 1px rgba(255,255,255,.7), 0 12px 30px -8px rgba(160,120,255,.8);opacity:0;transform:scale(.6) rotate(-8deg);transition:opacity .35s, transform .5s cubic-bezier(.3,1.6,.5,1)}
+.badge.on{opacity:1;transform:scale(1) rotate(-6deg)}
+.hint{position:absolute;pointer-events:none;font:400 12px var(--mono);letter-spacing:.08em;color:#c5f1ff;display:flex;align-items:center;gap:8px;transition:opacity .6s}
+.hint svg{width:16px;height:16px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.nogl{position:absolute;inset:0;display:none;place-items:center;font:400 14px var(--mono);color:#b9bfe6}
+@media (max-width:760px){
+  header{left:16px;right:16px;top:14px;gap:10px}
+  .logo span{display:none}
+  .title{left:16px;top:64px;right:16px}
+  .title h1{font-size:25px}
+  .track{height:26px}
+  .title p{font-size:11.5px;margin-top:6px}
+  .popped{padding:5px 12px 5px 6px;gap:8px}.popped .orb{width:22px;height:22px}.popped b{font-size:16px}
+  .mute{width:36px;height:36px}
+  .dock{left:16px;right:16px;bottom:16px;flex-wrap:wrap;gap:10px}
+  .meter{flex-basis:100%}
+  .meter .row{font-size:11px;margin-bottom:6px}.meter .row b{font-size:22px}
+  .pill{height:44px;font-size:12.5px;padding:0 18px;flex:1}
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="gl" tabindex="0" aria-label="Bubble wrap. Arrow keys move between bubbles, Space or Enter pops the selected bubble."></canvas>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="nogl" id="nogl">Your browser can't draw the bubble wrap, but the export is still running below.</div>
+  <header>
+    <div class="logo"><svg viewBox="0 0 34 34" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#dfe5f5"/><stop offset=".52" stop-color="#7d86a3"/><stop offset="1" stop-color="#eef1ff"/></linearGradient></defs><path d="M17 2l3.6 10.4L31 17l-10.4 3.6L17 31l-3.6-10.4L3 17l10.4-4.6z" fill="url(#lg)" stroke="#fff" stroke-width=".8"/></svg><span class="chrome">GLIMMER PHOTOS</span></div>
+    <div class="popped" aria-live="off"><div class="orb"></div><div><span>POPPED</span><b id="pc">0</b></div></div>
+    <button class="mute" id="mute" aria-pressed="false" aria-label="Mute pops"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6.5h3l4-3.5v12l-4-3.5H2z" fill="#1a1640"/><path class="w" d="M11.5 6.5q1.6 2.5 0 5M13.5 4.5q3 4.5 0 9" fill="none" stroke="#1a1640" stroke-width="1.5" stroke-linecap="round"/><path class="x" d="M11.5 6.5l5 5M16.5 6.5l-5 5" stroke="#1a1640" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+  </header>
+  <div class="title">
+    <h1 class="chrome" id="h1">Exporting your album</h1>
+    <p id="sub"><b class="foil">Summer in Lisbon</b> · 2,481 photos · 6.4 GB → ZIP</p>
+  </div>
+  <div class="hint" id="hint"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l1.8 6.2L16 8l-6.2 1.8L8 16l-1.8-6.2L0 8l6.2-1.8z" fill="#c5f1ff"/></svg>PRESS A BUBBLE · DRAG TO POP A ROW</div>
+  <div class="badge" id="badge"></div>
+  <div class="warn-box" id="warn" role="alertdialog" aria-labelledby="wT" aria-describedby="wD">
+    <h3 id="wT">One photo couldn’t be read</h3>
+    <p id="wD">IMG_4471.HEIC is still downloading from iCloud. The export is paused at photo 1,446 of 2,481.</p>
+    <div class="b"><button class="pill" id="wRetry" type="button">Try again</button><button class="pill ghost-dark" id="wSkip" type="button">Skip this photo</button></div>
+  </div>
+  <div class="dock">
+    <div class="meter">
+      <div class="row"><b id="pct">0%</b><span class="stage-t" id="stageT">Collecting photos…</span><span id="eta">about 1 min left</span></div>
+      <div class="track" id="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Export progress"><div class="fill" id="fill"></div></div>
+    </div>
+    <button class="pill holo" id="dl" type="button" hidden>Download summer-in-lisbon.zip</button>
+    <button class="pill" id="again" type="button" hidden>Export another album</button>
+    <button class="pill" id="cancel" type="button">Cancel export</button>
+  </div>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv = $('#gl'), fxc = $('#fx'), fx = fxc.getContext('2d');
+const gl = cv.getContext('webgl', {premultipliedAlpha:true, antialias:false, alpha:true});
+const DPR = Math.min(2, devicePixelRatio || 1);
+const live = $('#live'); function say(t){ live.textContent=''; setTimeout(()=>live.textContent=t, 40); }
+
+/* ---------------- geometry ---------------- */
+let W, H, VERT, SX, SY, TOT, ACR, S, ROWH, RB, COLS, ROWS, L0, CORE, KR, STARS = [];
+const START = .38;
+function layout(){
+  W = innerWidth; H = innerHeight; VERT = W < 760;
+  if(VERT){ S = 52; ACR = W - 110; SY = 168; TOT = H - SY - 200; }
+  else { S = 66; TOT = Math.min(W - 150, 1170); SX = (W - TOT)/2; ACR = Math.min(430, H - 372); }
+  ROWH = S*.866; RB = S*.4; ROWS = Math.max(3, Math.floor((ACR - .1*S)/ROWH)); COLS = Math.ceil(TOT/S) + 1;
+  ACR = ROWS*ROWH + S*.12;
+  if(VERT) SX = (W - ACR)/2; else SY = Math.max(216, (H - ACR)/2 + 22);
+  L0 = TOT*(VERT ? .24 : .17); CORE = VERT ? 18 : 24; const Rmid = VERT ? 70 : 108; KR = (Rmid*Rmid - CORE*CORE)/((TOT - L0)*(1 - START));
+  cv.width = W*DPR; cv.height = H*DPR; fxc.width = W*DPR; fxc.height = H*DPR;
+  if(gl) gl.viewport(0, 0, cv.width, cv.height);
+  const hint = $('#hint'); if(VERT){ hint.style.left = '16px'; hint.style.top = (SY - 30) + 'px'; } else { hint.style.left = SX + 'px'; hint.style.top = (SY - 34) + 'px'; }
+  STARS = (VERT ? [[.78,.115,13],[.92,.16,8],[.62,.07,6],[.06,.2,7],[.95,.66,9],[.04,.58,6]] : [[.6,.13,16],[.71,.2,9],[.8,.11,11],[.9,.23,13],[.52,.06,7],[.03,.5,10],[.97,.6,8],[.66,.9,7]]).map(([fx, fy, sz], i) => ({ x: fx*W, y: fy*H, s: sz, ph: i*1.37 }));
+  const wb = $('#warn'); wb.style.left = VERT ? '16px' : (W/2 - 220) + 'px'; wb.style.top = VERT ? (SY + 60) + 'px' : (SY + ACR/2 - 90) + 'px';
+  allocState();
+}
+
+/* ---------------- bubble state ---------------- */
+let pop, press, ptarget, seed, tex8, popAnim;
+function allocState(keep){
+  const n = COLS*ROWS; const op = pop;
+  pop = new Float32Array(n); press = new Float32Array(n); ptarget = new Float32Array(n); popAnim = new Float32Array(n); seed = new Float32Array(n); tex8 = new Uint8Array(n*4);
+  for(let i=0;i<n;i++){ seed[i] = Math.random(); }
+  if(gl) makeTex();
+}
+function cellCenter(c, r){ const off = (r % 2) * .5*S; return [ (c + .5)*S + off, (r + .5)*ROWH ]; }
+function toAlong(x, y){ const qx = x - SX, qy = y - SY; return VERT ? [qy, qx] : [qx, qy]; }
+function fromAlong(a, b){ return VERT ? [SX + b, SY + a] : [SX + a, SY + b]; }
+function hit(x, y){
+  const [a, b] = toAlong(x, y); if(b < 0 || b > ACR || a < 0) return -1;
+  const r = Math.floor(b/ROWH); if(r < 0 || r >= ROWS) return -1; const off = (r % 2)*.5*S; const c = Math.floor((a - off)/S); if(c < 0 || c >= COLS) return -1;
+  const [cx, cy] = cellCenter(c, r); if(Math.hypot(a - cx, b - cy) > RB*1.05) return -1;
+  if(cx + RB > curL - curR*.85) return -2; // still on the roll
+  return r*COLS + c;
+}
+function available(i){ const c = i % COLS, r = (i/COLS)|0; const [cx] = cellCenter(c, r); return cx + RB <= curL - curR*.85 && cx + RB < TOT; }
+
+/* ---------------- GL ---------------- */
+let glProg, U = {}, stTex, vbuf;
+const VS = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+const FS = `precision highp float;
+uniform vec2 uRes, uMouse, uGrid; uniform vec4 uSheet; uniform float uVert, uL, uR, uS, uTime, uWarn, uFade, uDPR, uCore, uRot, uGhost; uniform sampler2D uState;
+float sq(float x){ return x*x; }
+float g2(float x){ float k = clamp(1. - x*x*.39, 0., 1.); return k*k; }
+float hash(vec2 p){ return fract(sin(dot(p, vec2(41.3,289.1)))*43758.5453); }
+float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
+vec3 film(float t){ return .5 + .5*cos(6.2831*(t + vec3(0., .33, .67))); }
+vec3 env(vec3 r){ // r in screen space: x right, y down, z to viewer
+  float h = -r.y; vec3 sky = mix(vec3(.92,.94,1.), vec3(.66,.72,1.), smoothstep(.15,.9,h)); vec3 gnd = mix(vec3(.05,.04,.16), vec3(.42,.3,.7), smoothstep(-.9,-.05,h));
+  vec3 c = mix(gnd, sky, smoothstep(-.06,.06,h)); c += smoothstep(.95,1.,dot(r, normalize(vec3(-.45,-.5,.74))))*1.6; c += vec3(1.,.55,.85)*smoothstep(.9,1.,dot(r, normalize(vec3(.75,.25,.6))))*.7; return c; }
+vec3 holoPal(float t){ t = fract(t)*5.;
+  vec3 a = vec3(1.,.66,.92), b = vec3(.80,.72,1.), c = vec3(.62,.93,1.), d = vec3(.78,1.,.92), e = vec3(1.,.93,.82);
+  vec3 col = mix(a, b, clamp(t, 0., 1.));
+  col = mix(col, c, clamp(t - 1., 0., 1.));
+  col = mix(col, d, clamp(t - 2., 0., 1.));
+  col = mix(col, e, clamp(t - 3., 0., 1.));
+  col = mix(col, a, clamp(t - 4., 0., 1.));
+  return col; }
+vec3 chromeEnv(vec3 rr){
+  float t = rr.x + .35*rr.y;
+  vec3 cc = mix(vec3(.09,.06,.22), vec3(.96,.97,1.), smoothstep(-.42,-.08,t));
+  cc = mix(cc, vec3(.30,.26,.56), smoothstep(.12,.34,t));
+  cc = mix(cc, vec3(.86,.89,1.), smoothstep(.55,.82,t)*.75);
+  float k1 = clamp(1. - sq((t-.48)/.11), 0., 1.); float k2 = clamp(1. - sq((t+.62)/.08), 0., 1.); float k3 = clamp(1. - sq((t+.2)/.055), 0., 1.);
+  cc += vec3(1.,.62,.92)*(k1*k1*.75) + vec3(.55,.95,1.)*(k2*k2*.6) + vec3(k3*k3*.9);
+  return clamp(cc, 0., 1.4);
+}
+vec3 chromeShade(vec3 n, vec3 V, float k){
+  vec3 rr = reflect(-V, n); float t = rr.x + .35*rr.y;
+  vec3 cc = mix(vec3(.09,.06,.22), vec3(.96,.97,1.), smoothstep(-.42,-.08,t));
+  cc = mix(cc, vec3(.30,.26,.56), smoothstep(.12,.34,t));
+  cc = mix(cc, vec3(.86,.89,1.), smoothstep(.55,.82,t)*.75);
+  float k1 = clamp(1. - sq((t-.48)/.11), 0., 1.); float k2 = clamp(1. - sq((t+.62)/.08), 0., 1.); float k3 = clamp(1. - sq((t+.2)/.055), 0., 1.);
+  cc += vec3(1.,.62,.92)*(k1*k1*.75) + vec3(.55,.95,1.)*(k2*k2*.6) + vec3(k3*k3*.9);
+  cc = clamp(cc, 0., 1.);
+  vec3 tint = holoPal(k + n.x*.5 + n.y*.35 + uTime*.04);
+  cc = cc*mix(vec3(1.), tint*1.06, .3);
+  vec3 L = normalize(vec3(-.45,-.6,.66)); float spc = pow(max(dot(n, normalize(L+V)), .0001), 90.);
+  cc = cc + vec3(spc*1.4);
+  return clamp(cc, 0., 1.);
+}
+vec4 ghost(vec2 a){
+  float rowH = uS*.866, rb = uS*.4; float row = floor(a.y/rowH); float off = mod(row,2.)*.5*uS; float cl = floor((a.x - off)/uS);
+  vec2 c = vec2((cl+.5)*uS + off, (row+.5)*rowH); float r = length(a - c)/rb;
+  float valid = step(c.x + rb, uSheet.z - 2.)*step(row, uGrid.y - 1.);
+  float rim = smoothstep(.78,.94,r)*(1. - smoothstep(.94,1.04,r))*valid;
+  float dome = (1. - smoothstep(0., .9, r))*valid;
+  float sw = mod(uTime*320., uSheet.z + 900.) - 450.;
+  float sweep = g2((a.x - a.y*.6 - sw)/90.);
+  vec3 col = holoPal(a.x*.0018 + a.y*.003 + uTime*.05);
+  float al = .03 + rim*(.1 + .55*sweep) + dome*(.025 + .1*sweep) + sweep*.05;
+  float near = smoothstep(uL + uR*.7, uL + uR*2.6, a.x); al *= mix(.25, 1., near);
+  float edge = (1. - smoothstep(0., 1.4, abs(a.y))) + (1. - smoothstep(0., 1.4, abs(a.y - uSheet.w))) + (1. - smoothstep(0., 1.4, abs(a.x - uSheet.z)));
+  al += edge*.25*near;
+  al *= uGhost;
+  return vec4(col*al, al);
+}
+vec4 bubble(vec2 a, vec3 V, out float isB){
+  float rowH = uS*.866, rb = uS*.4; float row = floor(a.y/rowH); float off = mod(row,2.)*.5*uS; float cl = floor((a.x - off)/uS);
+  vec2 c = vec2((cl+.5)*uS + off, (row+.5)*rowH); vec2 d = a - c;
+  vec4 st = texture2D(uState, (vec2(cl,row)+.5)/uGrid);
+  float valid = step(0., cl)*step(row, uGrid.y - 1.)*step(c.x + rb, uSheet.z - 2.);
+  float r = length(d)/rb; float inB = (1. - smoothstep(.93, 1., r))*valid; isB = inB;
+  float pop = st.r, press = st.g, sd = st.b;
+  float A = (1. - pop)*(1. - .55*press);
+  vec2 g = d/rb; vec3 n = normalize(vec3(g*1.7*A*inB*(1. + .7*r*r), 1.));
+  if(pop > .01){ vec2 wr = vec2(noise(d*.32 + sd*40.) - .5, noise(d*.7 - sd*17.) - .5); n = normalize(n + vec3(wr*1.8*pop*inB, 0.)); }
+  if(uVert > .5) n.xy = n.yx;
+  float ndv = max(dot(n, V), 0.); float fres = pow(1. - ndv, 2.);
+  float th = .3 + sd*.7 + (1. - r*r)*A*.6 + a.x*.0007 + uTime*.03;
+  vec3 ir = mix(film(th*1.6 + (1.-ndv)*1.3), vec3(1.), .22);
+  vec3 L = normalize(vec3(-.45,-.6,.66)); float sp = pow(max(dot(n, normalize(L+V)),0.), 70.)*1.5 + pow(max(dot(n, normalize(vec3(.6,.3,.75)+V)),0.), 18.)*.22;
+  vec3 e = env(reflect(-V, n));
+  vec3 col = ir*(.25 + .75*fres)*inB + e*fres*.5*inB;
+  float al = .1 + inB*(.22 + fres*.55);
+  float rim = smoothstep(.82,.95,r)*(1. - smoothstep(.95,1.04,r))*valid; col += vec3(.9,.95,1.)*rim*.35; al += rim*.22;
+  float slit = (1. - smoothstep(.0,.1, abs(g.y*(uVert>.5?0.:1.) + g.x*(uVert>.5?1.:0.) + sin((uVert>.5?g.y:g.x)*5.+sd*9.)*.08)))*step(r,.55)*pop;
+  col = mix(col, vec3(.05,.03,.12), slit*.6); al = max(al, slit*.55);
+  col *= 1. - pop*.25; al *= 1. - pop*.2;
+  col += sp*(1. - pop*.7)*inB; al = clamp(al + sp*.9*inB, 0., 1.);
+  // flat film between bubbles: faint sheen + grain
+  float grain = hash(floor(a*uDPR*.5))*.04; col += (1.-inB)*(film(a.x*.004 + a.y*.006 + uTime*.04)*.12 + grain);
+  return vec4(col, al);
+}
+void main(){
+  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y)/uDPR;
+  vec2 q = p - uSheet.xy; vec2 a = uVert > .5 ? vec2(q.y, q.x) : q;
+  float ACR = uSheet.w, TOT = uSheet.z;
+  vec3 V = normalize(vec3((uMouse - p)/uRes.y*uDPR*.9, 1.));
+  vec4 o = vec4(0.);
+  bool inY = a.y >= 0. && a.y <= ACR;
+  if(inY && a.x >= uL && a.x <= TOT + 2.) o = ghost(a);
+  if(inY && a.x > uL && a.x < uL + uR*1.9){ float sh = (1. - smoothstep(uR*.5, uR*1.9, a.x - uL))*.5*uFade; o = vec4(o.rgb*(1. - sh), sh + o.a*(1. - sh)); }
+  if(inY && a.x >= 0. && a.x < uL){
+    float isB; vec4 b = bubble(a, V, isB);
+    float edge = smoothstep(0., 3., a.y)*smoothstep(0., 3., ACR - a.y)*smoothstep(0., 3., a.x);
+    float ao = 1. - .55*(1. - smoothstep(0., uR*1.2, uL - a.x))*uFade;
+    b.rgb *= ao; b.a *= edge; o = vec4(b.rgb*b.a, b.a);
+    float seam = (1. - smoothstep(0., 1.6, abs(a.y - 1.)))+(1. - smoothstep(0., 1.6, abs(a.y - ACR + 1.))); o += vec4(vec3(.8,.85,1.)*seam*.25, seam*.25);
+  }
+  if(uFade > .01){
+    float dx = a.x - uL;
+    float ey = max(-a.y, a.y - ACR);
+    float side = a.y < ACR*.5 ? -1. : 1.;
+    // soft shadow of the spindle ends on the desk
+    if(ey > 0. && ey < 52. && abs(dx) < uR + 30.){ float sh = (1. - smoothstep(uR*.4, uR + 26., abs(dx - 10.)))*(1. - smoothstep(10., 52., ey))*.35*uFade; o = vec4(o.rgb*(1. - sh), sh + o.a*(1. - sh)); }
+    // the wrap on the roll, turning as it unrolls
+    float rx = dx/uR;
+    if(inY && abs(rx) < 1.){
+      float nz = sqrt(1. - rx*rx); float ang = asin(rx); float s = (ang + uRot)*uR;
+      float rowH = uS*.866; float row = floor(a.y/rowH); float off = mod(row,2.)*.5*uS; float cl = floor((s - off)/uS);
+      vec2 c2 = vec2((cl+.5)*uS + off, (row+.5)*rowH); vec2 d2 = (vec2(s, a.y) - c2)/(uS*.4); float r2 = length(d2); float bb = (1. - smoothstep(.85, 1., r2))*step(row, floor(ACR/rowH) - 1.);
+      vec3 n = normalize(vec3(rx + d2.x*.45*bb*nz, d2.y*.5*bb, nz));
+      if(uVert > .5) n.xy = n.yx;
+      float ndv = max(dot(n, V), 0.); float fres = pow(1. - ndv, 2.);
+      vec3 ir = holoPal(.2 + ang*.35 + a.y*.0025 + uTime*.03 + (1.-ndv)*.8);
+      vec3 e = chromeEnv(reflect(-V, n)); vec3 L = normalize(vec3(-.45,-.6,.66));
+      float sp = pow(max(dot(n, normalize(L+V)),0.), 50.)*1.3;
+      vec3 col = ir*(.42 + .45*fres + .22*bb) + e*(.18 + .4*fres) + sp;
+      col *= .22 + .78*pow(nz, .75);
+      float stripe = g2((rx + .42)/.1); col += vec3(1.,.98,1.)*stripe*.75;
+      col = mix(col, col*vec3(1.,.55,.75), uWarn*(.5 + .5*sin(uTime*6.)));
+      float al = (.9 + .1*fres)*smoothstep(1., .96, abs(rx))*uFade;
+      o = vec4(col*al, al) + o*(1. - al);
+    }
+    // chrome flanges at both edges
+    float fr = uR + 7.;
+    if(ey > -2. && ey < 8. && abs(dx) < fr){
+      float u = dx/fr; float nz = sqrt(max(0., 1. - u*u)); float by = clamp((ey - 3.)/5., -1., 1.);
+      vec3 n = normalize(vec3(u, side*by*.9, nz + .05)); if(uVert > .5) n.xy = n.yx;
+      vec3 col = chromeShade(n, V, .2)*(.5 + .5*nz);
+      float al = smoothstep(1., .97, abs(u))*uFade; o = vec4(col*al, al) + o*(1. - al);
+    }
+    // spindle rod with a knurl that turns with the roll
+    float cr = uCore*.6;
+    if(ey >= 8. && ey < 32. && abs(dx) < cr){
+      float u = dx/cr; float nz = sqrt(1. - u*u);
+      vec3 n = vec3(u, 0., nz); if(uVert > .5) n.xy = n.yx;
+      vec3 col = chromeShade(normalize(n), V, .5);
+      float kn = abs(fract((asin(u) + uRot)*cr/6.)*2. - 1.); col *= 1. - smoothstep(.75, 1., kn)*.45;
+      col *= .45 + .55*nz;
+      float al = smoothstep(1., .88, abs(u))*uFade; o = vec4(col*al, al) + o*(1. - al);
+    }
+    // chrome end knobs
+    float kr = uCore*.55 + 5.; vec2 kd = vec2(dx, ey - 32. - kr*.6); float kl = length(kd)/kr;
+    if(kl < 1.){
+      vec3 n = normalize(vec3(kd.x/kr, side*kd.y/kr, sqrt(max(0., 1. - kl*kl)))); if(uVert > .5) n.xy = n.yx;
+      vec3 col = chromeShade(n, V, .8 + uRot*.15);
+      float al = smoothstep(1., .92, kl)*uFade; o = vec4(col*al, al) + o*(1. - al);
+    }
+  }
+  o.a = clamp(o.a, 0., 1.); o.rgb = min(max(o.rgb, vec3(0.)), vec3(o.a));
+  gl_FragColor = o;
+}`;
+function initGL(){
+  if(!gl){ $('#nogl').style.display = 'grid'; return false; }
+  const mk = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  glProg = gl.createProgram(); gl.attachShader(glProg, mk(gl.VERTEX_SHADER, VS)); gl.attachShader(glProg, mk(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(glProg);
+  if(!gl.getProgramParameter(glProg, gl.LINK_STATUS)){ console.warn(gl.getProgramInfoLog(glProg)); $('#nogl').style.display = 'grid'; return false; }
+  gl.useProgram(glProg);
+  vbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(glProg, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  ['uRes','uMouse','uGrid','uSheet','uVert','uL','uR','uS','uTime','uWarn','uFade','uDPR','uState','uCore','uRot','uGhost'].forEach(n => U[n] = gl.getUniformLocation(glProg, n));
+  return true;
+}
+function makeTex(){
+  if(stTex) gl.deleteTexture(stTex);
+  stTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, stTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, COLS, ROWS, 0, gl.RGBA, gl.UNSIGNED_BYTE, tex8);
+}
+
+/* ---------------- sound ---------------- */
+let actx = null, master = null, nbuf = null, muted = false;
+function initAudio(){ try{ if(!actx){ const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return; actx = new AC(); master = actx.createGain(); master.gain.value = .18; master.connect(actx.destination);
+  nbuf = actx.createBuffer(1, actx.sampleRate*.5, actx.sampleRate); const d = nbuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1; }
+  if(actx.state==='suspended') actx.resume(); }catch(e){} }
+function popSound(v){ if(!actx||muted||actx.state!=='running') return; const t = actx.currentTime;
+  const s = actx.createBufferSource(); s.buffer = nbuf; const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1300 + v*2600; f.Q.value = .8; const g = actx.createGain();
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.9, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .05); s.connect(f).connect(g).connect(master); s.start(t, Math.random()*.3); s.stop(t + .07);
+  const o = actx.createOscillator(), og = actx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(190 + v*120, t); o.frequency.exponentialRampToValueAtTime(70, t + .06); og.gain.setValueAtTime(.0001, t); og.gain.exponentialRampToValueAtTime(.5, t + .003); og.gain.exponentialRampToValueAtTime(.0001, t + .08); o.connect(og).connect(master); o.start(t); o.stop(t + .1); }
+function chime(){ if(!actx||muted||actx.state!=='running') return; const t = actx.currentTime; [523.25, 659.25, 783.99, 987.77, 1318.5].forEach((f,i) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.0001, t+i*.08); g.gain.exponentialRampToValueAtTime(.16, t+i*.08+.01); g.gain.exponentialRampToValueAtTime(.0001, t+i*.08+1.4); o.connect(g).connect(master); o.start(t+i*.08); o.stop(t+i*.08+1.5); }); }
+addEventListener('pointerdown', initAudio, {capture:true}); addEventListener('keydown', initAudio, {capture:true});
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute pops' : 'Mute pops'); });
+
+/* ---------------- popping ---------------- */
+let popped = 0, mouse = [0, 0], hover = -1, held = -1, isDown = false, focusIdx = -1;
+const parts = [];
+function doPop(i){
+  if(i < 0 || pop[i] > 0 || popAnim[i] > 0) return;
+  popAnim[i] = .001; popped++; $('#pc').textContent = popped; hideHint();
+  const c = i % COLS, r = (i/COLS)|0; const [ca, cb] = cellCenter(c, r); const [x, y] = fromAlong(ca, cb);
+  popSound(seed[i]);
+  if(!RM) for(let k=0;k<7;k++){ const a = Math.random()*Math.PI*2, sp = 60 + Math.random()*160; parts.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, life: 1, s: 3 + Math.random()*5, h: Math.random()*360, rot: Math.random()*3 }); }
+  parts.push({ ring: true, x, y, life: 1, s: RB });
+  if(popped === 50) badge('★ POP STAR · 50 POPPED');
+  if(popped === 150) badge('✦ ZEN MASTER · 150');
+  checkAll();
+}
+function checkAll(){ if(state !== 'done') return; let left = 0; for(let i=0;i<pop.length;i++) if(available(i) && pop[i] === 0 && popAnim[i] === 0) left++; if(left === 0 && !allBadge){ allBadge = true; badge('✺ EVERY. SINGLE. BUBBLE.'); } }
+let allBadge = false, badgeT = 0;
+function badge(t){ const b = $('#badge'); b.textContent = t; const [x, y] = fromAlong(Math.min(curL, TOT)*.5, -10); b.style.left = Math.max(12, Math.min(W - 280, x - 120)) + 'px'; b.style.top = (VERT ? SY + 20 : SY - 64) + 'px'; b.classList.add('on'); clearTimeout(badgeT); badgeT = setTimeout(() => b.classList.remove('on'), 2600); say(t.replace(/[★✦✺]/g,'')); }
+let hintGone = false; function hideHint(){ if(!hintGone){ hintGone = true; $('#hint').style.opacity = 0; } }
+cv.addEventListener('pointermove', e => { mouse = [e.clientX, e.clientY]; const i = hit(e.clientX, e.clientY); hover = i;
+  if(isDown && i >= 0 && i !== held){ if(held >= 0 && pop[held] === 0){ if(press[held] > .45) doPop(held); else ptarget[held] = 0; } held = i; ptarget[i] = 1; }
+  cv.style.cursor = i >= 0 && pop[i] === 0 ? 'pointer' : 'default'; });
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); isDown = true; mouse = [e.clientX, e.clientY]; const i = hit(e.clientX, e.clientY); if(i >= 0){ held = i; ptarget[i] = 1; } });
+const up = () => { isDown = false; if(held >= 0){ if(press[held] > .35) doPop(held); else ptarget[held] = 0; } held = -1; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('pointerleave', () => { hover = -1; });
+cv.addEventListener('keydown', e => {
+  const firstAvail = () => { for(let i=0;i<pop.length;i++) if(available(i) && pop[i] === 0) return i; return 0; };
+  if(focusIdx < 0) focusIdx = firstAvail();
+  let c = focusIdx % COLS, r = (focusIdx/COLS)|0;
+  const k = e.key;
+  const along = VERT ? {next:'ArrowDown', prev:'ArrowUp', up:'ArrowLeft', down:'ArrowRight'} : {next:'ArrowRight', prev:'ArrowLeft', up:'ArrowUp', down:'ArrowDown'};
+  if(k === along.next) c++; else if(k === along.prev) c--; else if(k === along.up) r--; else if(k === along.down) r++;
+  else if(k === ' ' || k === 'Enter'){ e.preventDefault(); if(available(focusIdx)){ ptarget[focusIdx] = 1; const i = focusIdx; setTimeout(() => doPop(i), 110); } return; }
+  else return;
+  e.preventDefault(); c = Math.max(0, Math.min(COLS-1, c)); r = Math.max(0, Math.min(ROWS-1, r)); focusIdx = r*COLS + c;
+});
+cv.addEventListener('blur', () => { focusIdx = -1; });
+
+/* ---------------- export simulation ---------------- */
+const DUR = RM ? 40 : 46, PHOTOS = 2481, GB = 6.4;
+let rot = 0, state = 'run', prog = 0, failAt = .583, failed = false, warnT = 0, curL = 0, curR = 0, fade = 1, doneT = 0, runs = 0, simT = 0;
+const ALBUMS = [ ['Summer in Lisbon', 2481, 6.4, 'summer-in-lisbon.zip'], ['Maya’s 30th', 912, 2.1, 'mayas-30th.zip'], ['Kyoto, spring 2026', 1734, 4.8, 'kyoto-spring-2026.zip'] ];
+let album = ALBUMS[0];
+function stageText(){
+  if(state === 'warn') return 'Paused · waiting for IMG_4471.HEIC';
+  if(state === 'done') return 'Your ZIP is ready';
+  if(prog < .06) return 'Collecting photos…';
+  if(prog < .93){ const n = Math.floor(prog*album[1]); return `Compressing photo ${n.toLocaleString('en-GB')} of ${album[1].toLocaleString('en-GB')}`; }
+  return 'Writing the ZIP file…';
+}
+function ui(){
+  const pct = Math.floor(prog*100);
+  $('#pct').textContent = pct + '%'; $('#fill').style.width = `calc(${(prog*100).toFixed(2)}% - 4px)`; $('#track').setAttribute('aria-valuenow', pct);
+  $('#stageT').textContent = stageText();
+  const left = (1 - prog)*DUR; $('#eta').textContent = state === 'done' ? `${album[2]} GB` : state === 'warn' ? 'paused' : left > 60 ? 'about 1 min left' : left > 10 ? `about ${Math.ceil(left/5)*5} sec left` : 'a few seconds left';
+  $('#track').classList.toggle('warn', state === 'warn');
+}
+function setAlbum(a){ album = a; $('#sub').innerHTML = `<b class="foil">${a[0]}</b> · ${a[1].toLocaleString('en-GB')} photos · ${a[2]} GB → ZIP`; $('#dl').textContent = `Download ${a[3]}`; }
+function startExport(){
+  runs++; state = 'run'; prog = runs === 1 ? START : 0; curL = 0; failed = false; failAt = runs === 1 ? .583 : (Math.random() < .5 ? .3 + Math.random()*.5 : 2); fade = 1; allBadge = false;
+  if(runs > 1){ setAlbum(ALBUMS[(runs-1) % ALBUMS.length]); for(let i=0;i<pop.length;i++){ pop[i] = 0; press[i] = 0; ptarget[i] = 0; popAnim[i] = 0; seed[i] = Math.random(); } }
+  $('#h1').textContent = 'Exporting your album'; $('#dl').hidden = true; $('#again').hidden = true; $('#cancel').hidden = false; $('#warn').classList.remove('on');
+  say(`Exporting ${album[0]}`);
+}
+function showWarn(){ state = 'warn'; warnT = 0; $('#warn').classList.add('on'); $('#wD').textContent = `IMG_4471.HEIC is still downloading from iCloud. The export is paused at photo ${Math.floor(prog*album[1]).toLocaleString('en-GB')} of ${album[1].toLocaleString('en-GB')}.`; say('One photo could not be read. The export is paused.'); }
+function resume(skip){ $('#warn').classList.remove('on'); state = 'run'; failAt = 2; say(skip ? 'Skipped IMG_4471.HEIC. Export continues.' : 'IMG_4471.HEIC read. Export continues.'); cv.focus({preventScroll:true}); }
+$('#wRetry').addEventListener('click', () => resume(false));
+$('#wSkip').addEventListener('click', () => resume(true));
+$('#cancel').addEventListener('click', () => { state = 'cancel'; $('#warn').classList.remove('on'); $('#h1').textContent = 'Export cancelled'; $('#cancel').hidden = true; $('#again').hidden = false; say('Export cancelled. Nothing was saved.'); });
+$('#again').addEventListener('click', startExport);
+$('#dl').addEventListener('click', () => { say(`Saving ${album[3]} to your Downloads folder`); $('#dl').textContent = 'Saved to Downloads ✓'; });
+
+/* ---------------- loop ---------------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  simT += dt;
+  if(state === 'run'){ prog = Math.min(1, prog + dt/DUR*(.75 + .5*Math.sin(simT*.7)**2)); if(prog >= failAt){ prog = failAt; showWarn(); } if(prog >= 1){ state = 'done'; doneT = 0; $('#h1').textContent = 'Export complete'; $('#dl').hidden = false; $('#again').hidden = false; $('#cancel').hidden = true; chime(); say(`Export complete. ${album[3]} is ready to download.`); celebrate(); } }
+  if(state === 'warn'){ warnT += dt; if(warnT > 10) resume(false); }
+  if(state === 'done'){ doneT += dt; fade = Math.max(0, 1 - doneT/1.2); }
+  ui();
+  const tgtL = L0 + (TOT - L0)*prog; const prevL = curL; curL += (tgtL - curL)*Math.min(1, dt*3); if(curL < 1) curL = tgtL;
+  curR = Math.sqrt(CORE*CORE + Math.max(0, TOT - curL)*KR);
+  if(prevL > 1) rot -= (curL - prevL)/Math.max(curR, 1);
+  // bubble physics
+  for(let i=0;i<pop.length;i++){
+    if(popAnim[i] > 0){ popAnim[i] += dt*14; pop[i] = Math.min(1, popAnim[i]); press[i] = Math.max(0, press[i] - dt*6); }
+    else { const tgt = Math.max(ptarget[i], i === hover && !isDown ? .14 : 0, i === focusIdx ? .1 : 0); press[i] += (tgt - press[i])*Math.min(1, dt*(tgt > press[i] ? 9 : 14)); if(isDown && i === held && press[i] > .97) doPop(i); }
+    tex8[i*4] = pop[i]*255; tex8[i*4+1] = press[i]*255; tex8[i*4+2] = seed[i]*255; tex8[i*4+3] = 255;
+  }
+  if(gl && glProg){
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindTexture(gl.TEXTURE_2D, stTex); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, COLS, ROWS, gl.RGBA, gl.UNSIGNED_BYTE, tex8);
+    gl.uniform2f(U.uRes, cv.width, cv.height); gl.uniform1f(U.uDPR, DPR); gl.uniform2f(U.uMouse, mouse[0], mouse[1]); gl.uniform2f(U.uGrid, COLS, ROWS);
+    gl.uniform4f(U.uSheet, SX, SY, TOT, ACR); gl.uniform1f(U.uVert, VERT ? 1 : 0); gl.uniform1f(U.uL, curL); gl.uniform1f(U.uR, curR); gl.uniform1f(U.uS, S);
+    gl.uniform1f(U.uTime, RM ? 0 : simT); gl.uniform1f(U.uWarn, state === 'warn' ? 1 : 0); gl.uniform1f(U.uFade, fade); gl.uniform1i(U.uState, 0);
+    gl.uniform1f(U.uCore, CORE); gl.uniform1f(U.uRot, rot); gl.uniform1f(U.uGhost, state === 'done' ? fade : 1);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  drawFx(dt);
+  requestAnimationFrame(frame);
+}
+function y2kStar(x, y, s, a, hue){
+  const gr = fx.createRadialGradient(x, y, 0, x, y, s*2.4); gr.addColorStop(0, `rgba(255,255,255,${.55*a})`); gr.addColorStop(.35, `hsla(${(hue*80 + 280)%360},100%,82%,${.28*a})`); gr.addColorStop(1, 'rgba(160,120,255,0)');
+  fx.fillStyle = gr; fx.beginPath(); fx.arc(x, y, s*2.4, 0, Math.PI*2); fx.fill();
+  fx.beginPath(); for(let i=0;i<8;i++){ const ang = i*Math.PI/4, r = i % 2 ? s*.13 : s*(i % 4 === 0 ? 1.25 : .85); fx.lineTo(x + Math.cos(ang)*r, y + Math.sin(ang)*r); } fx.closePath();
+  fx.fillStyle = `rgba(255,255,255,${.6 + .4*a})`; fx.fill();
+}
+function star(x, y, s, rot){ fx.beginPath(); for(let i=0;i<8;i++){ const a = rot + i*Math.PI/4, r = i % 2 ? s*.28 : s; fx.lineTo(x + Math.cos(a)*r, y + Math.sin(a)*r); } fx.closePath(); }
+function drawFx(dt){
+  fx.setTransform(DPR,0,0,DPR,0,0); fx.clearRect(0,0,W,H);
+  // progress marks along the sheet still to come
+  if(state !== 'done'){
+    const a0 = curL + curR + 10;
+    fx.font = '700 10px "Space Mono", monospace';
+    [.25,.5,.75,1].forEach(f => { const a = L0 + (TOT - L0)*f; if(a < a0) return; const [tx, ty] = fromAlong(a, ACR);
+      fx.strokeStyle = 'rgba(197,241,255,.55)'; fx.lineWidth = 1; fx.beginPath(); if(VERT){ fx.moveTo(tx - 4, ty); fx.lineTo(tx + 6, ty); } else { fx.moveTo(tx, ty - 4); fx.lineTo(tx, ty + 6); } fx.stroke();
+      const lab = f === 1 ? 'ZIP READY' : Math.round(f*100) + '%'; fx.fillStyle = f === 1 ? '#ffd9f4' : 'rgba(197,241,255,.7)';
+      fx.textAlign = f === 1 && !VERT ? 'right' : 'center';
+      if(VERT){ fx.save(); fx.translate(tx + 16, ty); fx.rotate(Math.PI/2); fx.fillText(lab, 0, 0); fx.restore(); } else fx.fillText(lab, tx, ty + 20); });
+  }
+  // Y2K star sparkles
+  STARS.forEach(st => { const tw = RM ? .8 : .55 + .45*Math.sin(simT*1.6 + st.ph); y2kStar(st.x, st.y, st.s*(.75 + .35*tw), tw, simT*.15 + st.ph); });
+  for(let i=parts.length-1;i>=0;i--){ const p = parts[i];
+    if(p.ring){ p.life -= dt*5; if(p.life <= 0){ parts.splice(i,1); continue; } fx.strokeStyle = `rgba(220,240,255,${p.life*.8})`; fx.lineWidth = 1.5; fx.beginPath(); fx.arc(p.x, p.y, p.s*(1.6 - p.life*.6), 0, Math.PI*2); fx.stroke(); continue; }
+    p.life -= dt*1.6; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .93; p.vy = p.vy*.93 + 40*dt; p.rot += dt*3;
+    if(p.life <= 0){ parts.splice(i,1); continue; }
+    fx.globalAlpha = p.life; star(p.x, p.y, p.s*(.6 + p.life*.4), p.rot); fx.fillStyle = `hsl(${(p.h + simT*120)%360} 100% 85%)`; fx.fill(); fx.globalAlpha = 1; }
+  // keyboard focus ring
+  if(focusIdx >= 0 && document.activeElement === cv){ const c = focusIdx % COLS, r = (focusIdx/COLS)|0; const [a, b] = cellCenter(c, r); const [x, y] = fromAlong(a, b); fx.strokeStyle = '#c5f1ff'; fx.lineWidth = 2; fx.setLineDash([4,4]); fx.beginPath(); fx.arc(x, y, RB + 5, 0, Math.PI*2); fx.stroke(); fx.setLineDash([]); }
+
+}
+function celebrate(){ if(RM) return; for(let k=0;k<46;k++){ const [x, y] = fromAlong(TOT*Math.random(), ACR*Math.random()); const a = Math.random()*Math.PI*2, sp = 40 + Math.random()*160; parts.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 60, life: 1 + Math.random()*.6, s: 4 + Math.random()*7, h: Math.random()*360, rot: Math.random()*3 }); } }
+
+addEventListener('resize', () => { layout(); });
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+layout(); initGL(); if(gl) makeTex(); setAlbum(album); startExport(); runs = 1;
+// a few bubbles arrive already popped, like a sheet someone started on
+for(let k=0;k<3;k++){ const r = (Math.random()*ROWS)|0, c = (Math.random()*Math.floor(L0/S - 2))|0; const i = r*COLS + c; pop[i] = 1; popAnim[i] = 1; }
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

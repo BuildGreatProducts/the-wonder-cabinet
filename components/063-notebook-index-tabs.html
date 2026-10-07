@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notebook Index Tabs</title>
+<meta name="description" content="Tabs as washi-tape index tabs on a bullet journal: choosing one riffles real 3D pages, with a bending curl, to that section of a Lisbon trip journal.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Reenie+Beanie&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Notebook Index Tabs","reimagines":"Tabs","category":"Navigation & Wayfinding","description":"Each tab is a strip of washi tape stuck to the edge of a bullet journal. Pick one and the pages riffle over with a real 3D bend — the further the section, the more pages fly — and the tabs you pass travel to the other side of the book.","hint":"Tap a washi-tape tab, or use the arrow keys"}
+</script>
+<style>
+  :root{
+    --ink:#23367f; --ink2:#1a2558; --paper:#fbf8f0; --dot:rgba(60,60,90,.22); --hl:#f8e46a;
+    --pw:480px; --ph:620px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{font-family:"Caveat","Bradley Hand","Segoe Print",cursive;color:var(--ink);background:#e9e4da;-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;display:grid;place-items:center;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.65), transparent 60%),
+      radial-gradient(ellipse at 80% 90%, rgba(120,100,70,.18), transparent 55%),
+      repeating-linear-gradient(90deg, rgba(150,130,100,.05) 0 2px, transparent 2px 7px),
+      linear-gradient(#ece7dd,#ddd5c7)}
+  .leafshadow{position:absolute;left:-6%;top:-10%;width:46%;height:60%;pointer-events:none;opacity:.12;
+    background:radial-gradient(ellipse at 40% 40%, #2a3a20 0 18%, transparent 19%), radial-gradient(ellipse at 60% 62%, #2a3a20 0 14%, transparent 15%), radial-gradient(ellipse at 25% 70%, #2a3a20 0 12%, transparent 13%);filter:blur(14px)}
+  .coffee{position:absolute;right:5%;top:7%;width:120px;height:120px;border-radius:50%;border:5px solid rgba(140,90,40,.16);filter:blur(.6px);transform:rotate(20deg) scaleY(.96);pointer-events:none}
+  .pen{position:absolute;right:3.5%;bottom:9%;width:230px;height:16px;transform:rotate(-58deg);transform-origin:right center;pointer-events:none;
+    background:linear-gradient(#3956c6,#24368a 55%,#1a2766);border-radius:3px 8px 8px 3px;box-shadow:0 10px 14px rgba(40,30,20,.25)}
+  .pen::before{content:"";position:absolute;left:-26px;top:3px;border-right:26px solid #d9dde6;border-top:5px solid transparent;border-bottom:5px solid transparent}
+  .pen::after{content:"";position:absolute;right:30px;top:-4px;width:70px;height:5px;background:#c8ccd6;border-radius:3px}
+
+  .book{position:relative;width:calc(var(--pw) * 2);height:var(--ph);perspective:2200px;transform:rotate(-.6deg)}
+  .cover{position:absolute;inset:-12px -14px -12px -14px;border-radius:10px 14px 14px 10px;
+    background:radial-gradient(ellipse at 50% 0%, #3f7a64, #24503f 70%), #2a5a47;box-shadow:0 30px 50px -18px rgba(40,30,20,.55), 0 4px 10px rgba(40,30,20,.25)}
+  .cover::after{content:"";position:absolute;inset:0;border-radius:inherit;opacity:.35;mix-blend-mode:overlay;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 1px, transparent 1px 3px),repeating-linear-gradient(90deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px)}
+  .elastic{position:absolute;right:-30px;top:-14px;bottom:-14px;width:12px;background:linear-gradient(90deg,#1c1c22,#3a3a44 50%,#1c1c22);border-radius:4px;box-shadow:2px 0 6px rgba(0,0,0,.3);z-index:1}
+  .ribbon{position:absolute;left:calc(50% - 6px);top:-10px;width:12px;height:calc(100% + 34px);z-index:60;pointer-events:none;
+    background:linear-gradient(90deg,#9b2f2c,#c7473f 50%,#9b2f2c);clip-path:polygon(0 0,100% 0,100% 100%,50% calc(100% - 9px),0 100%);opacity:.95}
+  .stackL,.stackR{position:absolute;top:2px;bottom:2px;width:var(--pw);background:#f2ede1}
+  .stackL{left:0;transform:translateX(calc(var(--sl) * -1px))}
+  .stackR{right:0;transform:translateX(calc(var(--sr) * 1px))}
+  .stackL{box-shadow:-1px 0 0 #d9d1bf,-2px 1px 0 #f4efe3,-3px 1px 0 #d4cbb7}
+  .stackR{box-shadow:1px 0 0 #d9d1bf,2px 1px 0 #f4efe3,3px 1px 0 #d4cbb7}
+
+  .page,.face{position:absolute;top:0;height:var(--ph)}
+  .page{width:var(--pw)}
+  .page.left{left:0}
+  .page.right{left:var(--pw)}
+  .pg{position:absolute;inset:0;width:var(--pw);height:var(--ph);padding:34px 40px 30px 42px;overflow:hidden;
+    background-color:var(--paper);background-image:radial-gradient(circle, var(--dot) 1px, transparent 1.3px);background-size:18px 18px;background-position:9px 9px}
+  .pg.l{box-shadow:inset -26px 0 30px -18px rgba(70,55,30,.32)}
+  .pg.r{box-shadow:inset 26px 0 30px -18px rgba(70,55,30,.32)}
+  .shade{position:absolute;inset:0;pointer-events:none;opacity:0}
+
+  .leaf{position:absolute;top:0;left:var(--pw);width:var(--pw);height:var(--ph);transform-style:preserve-3d;transform-origin:0 50%;pointer-events:none}
+  .seg{position:absolute;top:0;height:100%;width:50%;transform-style:preserve-3d;transform-origin:0 50%}
+  .seg.a{left:0}
+  .seg.b{left:100%;width:100%}
+  .face{left:0;width:100%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .face.back{transform:rotateY(180deg)}
+  .face .pg{left:0}
+  .face .shade{opacity:1}
+
+  /* washi tape tabs */
+  .tabs{position:absolute;inset:0;z-index:120;pointer-events:none}
+  .tab{position:absolute;width:88px;height:38px;pointer-events:auto;border:0;padding:0;cursor:pointer;background:none;font:inherit;color:var(--ink2)}
+  .tab .tape{position:absolute;inset:0;opacity:.93;background:var(--tape);
+    clip-path:polygon(0 4%,4% 0,9% 6%,14% 1%,100% 0,100% 100%,13% 100%,8% 95%,3% 100%,0 96%,2% 50%);
+    box-shadow:inset 0 0 0 100px rgba(255,255,255,.06);filter:drop-shadow(0 1px 0 rgba(0,0,0,.08))}
+  .tab .lbl{position:absolute;right:6px;top:50%;transform:translateY(-52%) rotate(-2deg);width:52px;text-align:center;font-weight:700;font-size:19px;line-height:1;
+    text-shadow:0 0 2px rgba(255,255,255,.6)}
+  .tab.onLeft .tape{transform:scaleX(-1)}
+  .tab.onLeft .lbl{right:auto;left:6px;transform:translateY(-52%) rotate(2deg)}
+  .tab[aria-selected="true"] .lbl{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+  .tab:hover .tape{filter:brightness(1.05) drop-shadow(0 2px 2px rgba(0,0,0,.15))}
+  .tab:focus-visible{outline:none}
+  .tab:focus-visible .lbl{outline:2px dashed var(--ink);outline-offset:3px;border-radius:4px}
+  .tab.fly{transition:none}
+
+  /* page content: ballpoint bullet-journal language */
+  .pg h2{font-family:"Reenie Beanie","Caveat",cursive;font-weight:400;font-size:44px;line-height:.9;margin:0 0 4px;color:var(--ink2)}
+  .pg h2 .hl{background:linear-gradient(transparent 55%, rgba(248,228,106,.75) 55% 90%, transparent 90%);padding:0 4px}
+  .pg .sub{font-size:20px;margin:0 0 12px;opacity:.85}
+  .pg ul{list-style:none;margin:0;padding:0}
+  .pg li{font-size:20px;line-height:1.12;display:grid;grid-template-columns:20px 1fr;gap:4px;margin:0 0 3px}
+  .pg li .sig{font-weight:700;text-align:center}
+  .pg .day{font-family:"Reenie Beanie",cursive;font-size:25px;line-height:1;margin:8px 0 2px;border-bottom:1.5px solid rgba(35,54,127,.55);display:inline-block;padding-right:12px}
+  .pg .done{text-decoration:line-through;text-decoration-color:rgba(35,54,127,.7);opacity:.75}
+  .pg .key{position:absolute;left:42px;right:40px;bottom:26px;font-size:17px;opacity:.75;border-top:1.5px dashed rgba(35,54,127,.45);padding-top:6px;display:flex;gap:16px;flex-wrap:wrap}
+  .pg .big{font-family:"Reenie Beanie",cursive;font-size:76px;line-height:.78;margin:30px 0 0;color:var(--ink2)}
+  .pg .date{font-size:24px;margin:8px 0 0}
+  .pg .note{font-size:21px;line-height:1.15;margin-top:12px;max-width:16em}
+  .pg .washi{position:absolute;height:26px;opacity:.85;background:var(--tape);clip-path:polygon(2% 0,98% 4%,100% 50%,97% 100%,3% 96%,0 50%)}
+  .pg svg.doodle{position:absolute;fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;filter:url(#wobble)}
+  .pg .boxes li{cursor:pointer}
+  .chk{width:20px;height:20px;display:inline-grid;place-items:center}
+  .chk svg{width:17px;height:17px;overflow:visible;fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round}
+  .chk .x{stroke-dasharray:30;stroke-dashoffset:30;transition:stroke-dashoffset .35s ease}
+  li[aria-checked="true"] .chk .x{stroke-dashoffset:0}
+  li[aria-checked="true"] .txt{text-decoration:line-through;text-decoration-color:rgba(35,54,127,.6)}
+  .boxes li:focus-visible{outline:2px dashed var(--ink);outline-offset:2px}
+  table.money{border-collapse:collapse;width:100%;font-size:20px;line-height:1.1}
+  table.money td{padding:2px 0;border-bottom:1px solid rgba(35,54,127,.25)}
+  table.money td:last-child{text-align:right}
+  table.money tr.tot td{border-top:2px solid var(--ink);border-bottom:0;font-weight:700;padding-top:6px}
+  .bars{margin-top:12px;display:grid;gap:4px}
+  .bar{display:grid;grid-template-columns:70px 1fr;align-items:center;font-size:17px;gap:6px}
+  .bar i{display:block;height:12px;border:1.5px solid var(--ink);background:repeating-linear-gradient(-45deg, rgba(35,54,127,.55) 0 1.5px, transparent 1.5px 5px);border-radius:2px}
+  dl.phr{margin:0;display:grid;gap:7px}
+  dl.phr dt{font-weight:700;font-size:23px;line-height:1}
+  dl.phr dd{margin:0;font-size:18px;line-height:1.05;opacity:.85}
+  dl.phr dd em{font-style:normal;background:rgba(248,228,106,.6);padding:0 3px}
+  .card{border:1.5px solid var(--ink);border-radius:3px 6px 4px 5px;padding:4px 10px 5px;margin:0 0 7px;font-size:19px;line-height:1.1;transform:rotate(var(--r,0deg))}
+  .card b{font-family:"Reenie Beanie",cursive;font-weight:400;font-size:24px}
+  .filler .scrib{position:absolute;left:42px;right:40px;top:40px;opacity:.28}
+  .hint{position:absolute;z-index:70;left:50%;bottom:6px;transform:translateX(-50%);font-size:21px;color:#4a4436;white-space:nowrap;transition:opacity 1s;pointer-events:none}
+  .hint svg{width:40px;height:20px;vertical-align:middle;fill:none;stroke:#4a4436;stroke-width:1.6;stroke-linecap:round}
+  .hint.hide{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:760px){
+    .book{width:var(--pw);transform:none}
+    .page.left,.stackL,.coffee,.leafshadow{display:none}
+    .page.right{left:0}
+    .leaf{left:0}
+    .ribbon{left:-10px}
+    .elastic{right:-24px}
+    .pen{display:none}
+    .pg{padding:26px 34px 24px 26px}
+    .pg .key{left:26px;right:22px;bottom:18px;font-size:15px;gap:10px}
+    .pg li{font-size:18px}
+    .pg h2{font-size:38px}
+    .tab{width:70px;height:34px}
+    .tab .lbl{font-size:16px;width:42px;right:3px}
+    .tab.onLeft .lbl{left:3px}
+    .hint{font-size:18px;bottom:8px}
+  }
+  @media (prefers-reduced-motion:reduce){ .chk .x{transition:none} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="wobble"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+</svg>
+<div id="stage">
+  <div class="leafshadow" aria-hidden="true"></div>
+  <div class="coffee" aria-hidden="true"></div>
+  <div class="pen" aria-hidden="true"></div>
+  <div class="book" id="book">
+    <div class="cover" aria-hidden="true"></div>
+    <div class="elastic" aria-hidden="true"></div>
+    <div class="stackL" aria-hidden="true"></div>
+    <div class="stackR" aria-hidden="true"></div>
+    <div class="page left" id="pageL" aria-hidden="true"></div>
+    <div class="page right" id="pageR" role="tabpanel" tabindex="-1"></div>
+    <div id="leaves"></div>
+    <div class="ribbon" aria-hidden="true"></div>
+    <div class="tabs" id="tabs" role="tablist" aria-label="Journal sections" aria-orientation="vertical"></div>
+  </div>
+  <p class="hint" id="hint"><svg viewBox="0 0 40 20" aria-hidden="true"><path d="M2 14c8-8 18-10 30-6m0 0l-6-5m6 5l-7 3"/></svg> tap a tape tab to flip to that section</p>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const book = $('#book'), pageL = $('#pageL'), pageR = $('#pageR'), leavesEl = $('#leaves'), tabsEl = $('#tabs');
+
+const TAPES = [
+  'radial-gradient(circle, rgba(255,255,255,.85) 2px, transparent 2.5px) 0 0/10px 10px, #e8b93a',
+  'repeating-linear-gradient(45deg, rgba(255,255,255,.7) 0 4px, transparent 4px 9px), #7fc4a8',
+  'linear-gradient(90deg, rgba(255,255,255,.45) 50%, transparent 50%) 0 0/12px 12px, linear-gradient(rgba(255,255,255,.45) 50%, transparent 50%) 0 0/12px 12px, #e57f6a',
+  'radial-gradient(circle at 50% 50%, transparent 3px, rgba(255,255,255,.75) 3.5px 4.5px, transparent 5px) 0 0/12px 12px, linear-gradient(45deg, transparent 45%, rgba(255,255,255,.5) 45% 55%, transparent 55%) 0 0/12px 12px, #5b86c9',
+  'radial-gradient(circle, #2a2a2a 1px, transparent 1.4px) 0 0/8px 8px, #cfae84'
+];
+const D = {
+  tram:'<svg class="doodle" viewBox="0 0 220 150" style="left:40px;top:300px;width:250px"><path d="M10 120h200" stroke-dasharray="6 6"/><path d="M30 118V52q0-14 14-14h132q14 0 14 14v66z" fill="rgba(248,228,106,.75)"/><path d="M30 80h160M30 100h160"/><rect x="44" y="50" width="26" height="24" rx="3" fill="#fbf8f0"/><rect x="80" y="50" width="26" height="24" rx="3" fill="#fbf8f0"/><rect x="116" y="50" width="26" height="24" rx="3" fill="#fbf8f0"/><rect x="152" y="50" width="26" height="24" rx="3" fill="#fbf8f0"/><circle cx="62" cy="124" r="9" fill="#fbf8f0"/><circle cx="160" cy="124" r="9" fill="#fbf8f0"/><path d="M110 38V14m-24 0h48M110 14l-18-10"/><text x="94" y="96" font-family="Caveat" font-size="18" stroke="none" fill="#23367f">28</text></svg><svg class="doodle" viewBox="0 0 60 60" style="left:320px;top:200px;width:70px"><circle cx="30" cy="30" r="10"/><path d="M30 6v8M30 46v8M6 30h8M46 30h8M13 13l6 6M41 41l6 6M13 47l6-6M41 19l6-6"/></svg>',
+  case:'<svg class="doodle" viewBox="0 0 220 180" style="left:46px;top:240px;width:240px"><rect x="20" y="40" width="180" height="120" rx="12" fill="rgba(127,196,168,.45)"/><path d="M80 40V22q0-8 8-8h44q8 0 8 8v18M20 80h180"/><circle cx="60" cy="118" r="16" fill="#fbf8f0"/><text x="48" y="124" font-family="Caveat" font-size="14" stroke="none" fill="#23367f">LIS</text><rect x="120" y="104" width="54" height="30" rx="4" fill="#fbf8f0" transform="rotate(-8 147 119)"/><path d="M128 116h36M128 124h22" transform="rotate(-8 147 119)"/><path d="M40 160v8M180 160v8"/></svg><svg class="doodle" viewBox="0 0 100 40" style="left:300px;top:200px;width:100px"><circle cx="24" cy="22" r="14" fill="rgba(35,54,127,.25)"/><circle cx="74" cy="22" r="14" fill="rgba(35,54,127,.25)"/><path d="M38 20q12-8 22 0M10 18L2 10M88 18l8-8"/></svg>',
+  nata:'<svg class="doodle" viewBox="0 0 200 160" style="left:60px;top:250px;width:230px"><path d="M20 70q80 40 160 0l-14 60q-66 22-132 0z" fill="rgba(229,127,106,.35)"/><path d="M34 128q-4-30-6-56M52 136q-2-30-2-58M74 140V80M98 142V82M122 140l2-60M146 136l4-58M164 128l8-56"/><ellipse cx="100" cy="68" rx="80" ry="26" fill="rgba(248,228,106,.8)"/><path d="M70 62q6-8 14-2M112 70q8-10 16 0M92 78q4-6 10-2" stroke-width="3" stroke="#7a4a1c"/><path d="M150 30q10-14 4-26M166 36q14-10 10-24" stroke-dasharray="3 5"/></svg><p class="note" style="position:absolute;left:250px;top:440px;max-width:9em;transform:rotate(-4deg)">€1.30 a pastel. Worth it.</p>',
+  bubbles:'<svg class="doodle" viewBox="0 0 240 190" style="left:40px;top:240px;width:270px"><path d="M20 20h120q14 0 14 14v40q0 14-14 14H70l-24 22 4-22H20q-14 0-14-14V34q0-14 14-14z" fill="rgba(91,134,201,.25)"/><text x="40" y="64" font-family="Reenie Beanie" font-size="38" stroke="none" fill="#23367f">Olá!</text><path d="M110 100h108q14 0 14 14v34q0 14-14 14h-20l4 22-24-22h-68q-14 0-14-14v-34q0-14 14-14z" fill="rgba(248,228,106,.7)"/><text x="118" y="140" font-family="Reenie Beanie" font-size="32" stroke="none" fill="#23367f">Obrigada!</text></svg>',
+  house:'<svg class="doodle" viewBox="0 0 220 190" style="left:50px;top:236px;width:240px"><path d="M30 80L110 20l80 60M44 70v100h132V70"/><g stroke-width="1.2"><path d="M44 110h132M44 140h132M74 80v90M104 80v90M134 80v90M164 80v90" opacity=".5"/></g><g fill="rgba(91,134,201,.45)" stroke="none"><rect x="46" y="82" width="26" height="26"/><rect x="106" y="112" width="26" height="26"/><rect x="136" y="82" width="26" height="26"/><rect x="76" y="142" width="26" height="26"/></g><rect x="96" y="124" width="28" height="46" fill="#fbf8f0"/><circle cx="118" cy="148" r="2"/><path d="M190 150q10-10 20 0t-6 20q-12 0-14-20zM200 150v-30"/></svg><svg class="doodle" viewBox="0 0 80 40" style="left:300px;top:450px;width:90px"><circle cx="16" cy="20" r="10"/><path d="M26 20h46M60 20v10M68 20v8"/></svg>'
+};
+const SECTIONS = [
+  { tab:'Plan', name:'Itinerary',
+    left:`<span class="washi" style="--tape:${TAPES[0]};left:60px;top:38px;width:140px;transform:rotate(-6deg)"></span><p class="big">Lisboa &amp;<br>Alentejo</p><p class="date">Thu 14 – Mon 18 May 2026</p><p class="note">24° &amp; sunny, fingers crossed. Remember: everything is uphill.</p>${D.tram}`,
+    right:`<h2><span class="hl">Itinerary</span></h2><p class="sub">5 days · 2 of us · 1 tiny rental car</p>
+      <p class="day">Thu 14</p><ul><li><span class="sig">○</span><span>Land LIS 10:40 (TP 1351)</span></li><li class="done"><span class="sig">×</span><span>Keys · Rua dos Remédios 42</span></li><li><span class="sig">•</span><span>Tram 28 → Graça, sunset at Sra. do Monte</span></li></ul>
+      <p class="day">Fri 15</p><ul><li><span class="sig">○</span><span>Sintra · Pena Palace 09:30 entry</span></li><li><span class="sig">–</span><span>wear trainers, take water</span></li></ul>
+      <p class="day">Sat 16</p><ul><li><span class="sig">○</span><span>Drive to Évora (1 h 30)</span></li><li class="done"><span class="sig">×</span><span>Book dinner at Fialho, 20:00</span></li></ul>
+      <p class="day">Sun 17 – Mon 18</p><ul><li><span class="sig">•</span><span>Monsaraz castle + lake swim</span></li><li><span class="sig">○</span><span>Fly home 18:25 (TP 1358)</span></li></ul>
+      <div class="key"><span>• task</span><span>○ event</span><span>× done</span><span>– note</span></div>` },
+  { tab:'Pack', name:'Packing list',
+    left:`<span class="washi" style="--tape:${TAPES[1]};left:200px;top:34px;width:150px;transform:rotate(4deg)"></span><p class="big">What to<br>pack</p><p class="date">Carry-on only · 10 kg max!</p><p class="note">Leave space for tins of sardines and one azulejo tile.</p>${D.case}`,
+    right:`<h2><span class="hl">Packing list</span></h2><p class="sub" id="packCount">6 of 10 packed</p>
+      <ul class="boxes" role="group" aria-label="Packing checklist">${['Passports (both!)','€100 in cash','3 linen shirts','Swimsuit for Monsaraz','Trainers for Sintra','Sun cream SPF 50','Charger + EU plug','Camera + 2 SD cards','This journal + 2 pens','Water bottle'].map((t, i) => `<li role="checkbox" tabindex="0" aria-checked="${[0,1,2,5,6,8].includes(i)}" data-i="${i}"><span class="chk"><svg viewBox="0 0 18 18"><path d="M2 2.5l13.5-.5.5 13.5-14 .5z"/><path class="x" d="M4 9l3.5 4L15 3"/></svg></span><span class="txt">${t}</span></li>`).join('')}</ul>
+      <div class="key"><span>tap to tick</span><span>☐ → ☑</span></div>` },
+  { tab:'Money', name:'Budget',
+    left:`<span class="washi" style="--tape:${TAPES[2]};left:70px;top:40px;width:120px;transform:rotate(-3deg)"></span><p class="big">Money</p><p class="date">Budget €1,800 for two</p><p class="note">Spent so far €1,582 — €218 left for pastéis.</p>${D.nata}`,
+    right:`<h2><span class="hl">Budget</span></h2><p class="sub">booked &amp; estimated, in euros</p>
+      <table class="money"><tbody><tr><td>Flights × 2</td><td>312</td></tr><tr><td>Alfama flat, 2 nights</td><td>540</td></tr><tr><td>Évora guesthouse, 2 nights</td><td>236</td></tr><tr><td>Car hire, 3 days</td><td>164</td></tr><tr><td>Food &amp; wine (est.)</td><td>240</td></tr><tr><td>Trains, trams, fuel</td><td>50</td></tr><tr><td>Pena Palace tickets</td><td>40</td></tr><tr class="tot"><td>Total</td><td>1,582</td></tr></tbody></table>
+      <div class="bars" aria-hidden="true"><div class="bar"><span>stay</span><i style="width:86%"></i></div><div class="bar"><span>travel</span><i style="width:58%"></i></div><div class="bar"><span>food</span><i style="width:27%"></i></div><div class="bar"><span>fun</span><i style="width:9%"></i></div></div>` },
+  { tab:'Words', name:'Phrases',
+    left:`<span class="washi" style="--tape:${TAPES[3]};left:190px;top:36px;width:140px;transform:rotate(5deg)"></span><p class="big">Say it in<br>Portuguese</p><p class="date">Practise on the flight</p><p class="note">Lisboetas swallow their vowels. Smile and try anyway.</p>${D.bubbles}`,
+    right:`<h2><span class="hl">Phrases</span></h2><p class="sub">pronunciation in my own spelling</p>
+      <dl class="phr"><div><dt>Bom dia</dt><dd>bong DEE-a · good morning</dd></div><div><dt>Obrigado / obrigada</dt><dd>o-bree-GAH-doo / -dah · thank you</dd></div><div><dt>Uma bica, por favor</dt><dd>OO-ma BEE-ka · <em>an espresso, please</em></dd></div><div><dt>A conta, por favor</dt><dd>a KON-ta · the bill, please</dd></div><div><dt>Onde fica a estação?</dt><dd>ON-d FEE-ka · where's the station?</dd></div><div><dt>Saúde!</dt><dd>sa-OO-d · cheers!</dd></div></dl>` },
+  { tab:'Stays', name:'Bookings',
+    left:`<span class="washi" style="--tape:${TAPES[4]};left:80px;top:40px;width:130px;transform:rotate(-5deg)"></span><p class="big">Where<br>we sleep</p><p class="date">and everything with a ref no.</p><p class="note">Screenshot all of this in case the signal dies in the hills.</p>${D.house}`,
+    right:`<h2><span class="hl">Bookings</span></h2><p class="sub">refs, codes &amp; phone numbers</p>
+      <div class="card" style="--r:-.8deg"><b>Alfama flat</b><br>Host Inês Carvalho · +351 912 448 203<br>check-in 14:00 · key box 4471</div>
+      <div class="card" style="--r:.6deg"><b>Casa do Largo, Évora</b><br>+351 266 701 552 · ref CDL-0516</div>
+      <div class="card" style="--r:-.4deg"><b>Car hire</b><br>Guerin, LIS arrivals · ref GR-5530-LX</div>
+      <div class="card" style="--r:.9deg"><b>Pena Palace</b><br>Fri 09:30 · ref PNP-26-88412</div>` }
+];
+function filler(seed){
+  let s = '<svg class="scrib" viewBox="0 0 400 520" aria-hidden="true">';
+  let r = seed * 9301 + 49297; const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  for (let y = 20; y < 500; y += 26) { if (rnd() < 0.25) continue; let x = 0, d = `M0 ${y}`; const end = 120 + rnd() * 260; while (x < end) { x += 6 + rnd() * 8; d += ` q${3} ${-6 - rnd() * 4} ${6} 0`; } s += `<path d="${d}" fill="none" stroke="#23367f" stroke-width="1.3"/>`; }
+  return `<div class="filler">${s}</svg></div>`;
+}
+const pageHTML = (side, sec) => `<div class="pg ${side === 'left' ? 'l' : 'r'}">${sec}</div>`;
+const L = i => pageHTML('left', SECTIONS[i].left), R = i => pageHTML('right', SECTIONS[i].right);
+const FL = (side, seed) => pageHTML(side, filler(seed));
+
+/* ---------- layout ---------- */
+let pw = 480, ph = 620, mobile = false;
+function layout(){
+  const W = innerWidth, H = innerHeight; mobile = W <= 760;
+  if (mobile) { pw = Math.min(400, W - 104); ph = Math.min(Math.round(pw * 1.95), H - 140); }
+  else { ph = Math.min(640, H - 120); pw = Math.min(Math.round(ph * 0.77), Math.floor((W - 170) / 2)); }
+  book.style.setProperty('--pw', pw + 'px'); book.style.setProperty('--ph', ph + 'px');
+  placeTabs();
+}
+
+/* ---------- tabs ---------- */
+const tabs = SECTIONS.map((s, i) => {
+  const b = document.createElement('button'); b.className = 'tab'; b.type = 'button'; b.setAttribute('role', 'tab'); b.id = 'tab' + i;
+  b.setAttribute('aria-controls', 'pageR'); b.style.setProperty('--tape', TAPES[i]);
+  b.innerHTML = `<span class="tape"></span><span class="lbl">${s.tab}</span>`;
+  b.setAttribute('aria-label', s.name);
+  b.addEventListener('click', () => flipTo(i));
+  b.addEventListener('keydown', e => {
+    let j = -1; if (e.key === 'ArrowDown' || e.key === 'ArrowRight') j = (i + 1) % tabs.length; if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+    if (e.key === 'Home') j = 0; if (e.key === 'End') j = tabs.length - 1;
+    if (j >= 0) { e.preventDefault(); tabs[j].focus(); flipTo(j); }
+  });
+  tabsEl.appendChild(b); return b;
+});
+const tabFly = new Map();
+function tabY(i){ const top = mobile ? 70 : 74, gap = mobile ? 44 : 52; return top + i * gap; }
+function placeTab(i, side){ // side: +1 right edge, -1 left edge, or fractional (cos) while flying
+  const b = tabs[i], tw = mobile ? 70 : 88, out = mobile ? 46 : 60;
+  const spine = mobile ? 0 : pw;
+  const edge = (mobile && side < 0) ? 0 : spine + side * pw;
+  const sx = Math.abs(side) < 0.05 ? 0.05 : Math.abs(side);
+  b.classList.toggle('onLeft', side < 0);
+  const x = side >= 0 ? edge - (tw - out) * sx : edge - out * sx;
+  b.style.left = x + 'px'; b.style.top = tabY(i) + 'px';
+  b.style.transform = `scaleX(${sx})`; b.style.transformOrigin = side >= 0 ? `${(tw - out)}px 50%` : `${out}px 50%`;
+  b.style.zIndex = side >= 0 ? 50 - i : 50 + i;
+}
+function placeTabs(){ tabs.forEach((b, i) => { if (!tabFly.has(i)) placeTab(i, i >= cur ? 1 : -1); }); }
+function setSelected(){ tabs.forEach((b, i) => { b.setAttribute('aria-selected', i === cur); b.tabIndex = i === cur ? 0 : -1; }); pageR.setAttribute('aria-labelledby', 'tab' + cur); }
+function stacks(){ const n = SECTIONS.length; book.querySelector('.stackL').style.setProperty('--sl', 1 + cur * 1.2); book.querySelector('.stackR').style.setProperty('--sr', 1 + (n - 1 - cur) * 1.2); }
+
+/* ---------- leaves ---------- */
+function makeLeaf(front, back){
+  const el = document.createElement('div'); el.className = 'leaf';
+  el.innerHTML = `<div class="seg a"><div class="face front"><div style="position:absolute;left:0;top:0;width:${pw}px">${front}</div><i class="shade"></i></div>
+    <div class="face back"><div style="position:absolute;left:${-pw / 2}px;top:0;width:${pw}px">${back}</div><i class="shade"></i></div>
+    <div class="seg b"><div class="face front"><div style="position:absolute;left:${-pw / 2}px;top:0;width:${pw}px">${front}</div><i class="shade"></i></div>
+    <div class="face back"><div style="position:absolute;left:0;top:0;width:${pw}px">${back}</div><i class="shade"></i></div></div></div>`;
+  // segment b is half width: make it the same width as segment a
+  const sb = el.querySelector('.seg.b'); sb.style.width = '100%';
+  leavesEl.appendChild(el);
+  const shades = el.querySelectorAll('.shade');
+  return { el, sb, shades };
+}
+
+/* ---------- audio ---------- */
+let AC = null, master = null, nb = null;
+function audio(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.17; master.connect(AC.destination);
+  nb = AC.createBuffer(1, AC.sampleRate * 0.4, AC.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume(); }
+function fwip(delay, strength){
+  if (!AC) return; const t = AC.currentTime + delay;
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = nb; f.type = 'bandpass'; f.Q.value = 0.9; f.frequency.setValueAtTime(700, t); f.frequency.exponentialRampToValueAtTime(3800, t + 0.16); f.frequency.exponentialRampToValueAtTime(1200, t + 0.3);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * strength, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+  s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.35);
+}
+function pat(delay){ if (!AC) return; const t = AC.currentTime + delay; const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nb; f.type = 'lowpass'; f.frequency.value = 500; g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.1); }
+
+/* ---------- flipping ---------- */
+let cur = 0, anim = null, pending = null;
+function flipTo(b){
+  audio();
+  if (b === cur && !anim) return;
+  if (anim) { pending = b; return; }
+  $('#hint').classList.add('hide');
+  const a = cur, dir = b > a ? 1 : -1, list = [];
+  if (dir > 0) for (let s = a; s < b; s++) { list.push({ f: R(s), k: L(s + 1 <= b ? s + 1 : s), tab: s, fill: false }); }
+  else for (let s = a - 1; s >= b; s--) list.push({ f: R(s), k: L(s + 1), tab: s });
+  // add filler leaves between sections for a proper riffle
+  const leaves = [];
+  if (dir > 0) list.forEach((it, idx) => {
+    const last = idx === list.length - 1;
+    leaves.push({ front: it.f, back: FL('left', it.tab * 7 + 1), tab: it.tab });
+    leaves.push({ front: FL('right', it.tab * 7 + 2), back: last ? L(b) : FL('left', it.tab * 7 + 3), tab: null });
+  });
+  else list.forEach((it, idx) => {
+    const first = idx === 0;
+    leaves.push({ front: FL('right', it.tab * 7 + 2), back: first ? L(a) : FL('left', it.tab * 7 + 3), tab: null });
+    leaves.push({ front: R(it.tab), back: FL('left', it.tab * 7 + 1), tab: it.tab });
+  });
+  if (RM) { cur = b; render(); return; }
+  // static pages under the moving leaves
+  if (dir > 0) pageR.innerHTML = R(b); else pageL.innerHTML = L(b);
+  const n = leaves.length, dur = Math.max(420, 720 - n * 30), stag = Math.min(120, 520 / n);
+  anim = { dir, b, t0: performance.now(), dur, stag, items: leaves.map((lf, i) => Object.assign(makeLeaf(lf.front, lf.back), { i, tab: lf.tab, done: false, landed: false })) };
+  anim.items.forEach(it => { if (it.tab != null) tabFly.set(it.tab, it); fwip(it.i * stag / 1000, it.tab != null ? 1 : 0.6); });
+  cur = b; setSelected(); stacks();
+  $('#live').textContent = `${SECTIONS[b].name}`;
+  requestAnimationFrame(step);
+}
+const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function step(now){
+  if (!anim) return;
+  const { dir, dur, stag, items } = anim; let all = true;
+  for (const it of items) {
+    let t = (now - anim.t0 - it.i * stag) / dur; t = Math.max(0, Math.min(1, t));
+    if (t < 1) all = false;
+    const e = easeIO(t), ang = dir > 0 ? e * 180 : 180 - e * 180;
+    const bend = Math.sin(t * Math.PI) * 42 * dir;
+    it.el.style.transform = `rotateY(${-ang}deg)`;
+    it.sb.style.transform = `rotateY(${-bend}deg)`;
+    const onRight = ang < 90;
+    it.el.style.zIndex = dir > 0 ? (onRight ? 100 - it.i : 100 + it.i) : (onRight ? 100 + it.i : 100 - it.i);
+    const lift = Math.sin(ang * Math.PI / 180);
+    // shading: segment b darkens with the bend, everything darkens near vertical
+    it.shades[0].style.background = `linear-gradient(90deg, rgba(60,45,20,${0.05 + lift * 0.15}), rgba(255,255,255,${lift * 0.12}))`;
+    it.shades[1].style.background = `linear-gradient(270deg, rgba(60,45,20,${0.05 + lift * 0.15}), rgba(255,255,255,${lift * 0.1}))`;
+    it.shades[2].style.background = `linear-gradient(90deg, rgba(255,255,255,${lift * 0.15}), rgba(60,45,20,${0.06 + lift * 0.28}))`;
+    it.shades[3].style.background = `linear-gradient(270deg, rgba(255,255,255,${lift * 0.12}), rgba(60,45,20,${0.06 + lift * 0.28}))`;
+    if (it.tab != null) placeTab(it.tab, Math.cos(ang * Math.PI / 180));
+    if (t >= 1 && !it.landed) { it.landed = true; pat(0); }
+  }
+  if (all) {
+    for (const it of items) { it.el.remove(); if (it.tab != null) tabFly.delete(it.tab); }
+    anim = null; render();
+    if (pending != null && pending !== cur) { const p = pending; pending = null; flipTo(p); } else pending = null;
+    return;
+  }
+  requestAnimationFrame(step);
+}
+function render(){
+  pageL.innerHTML = L(cur); pageR.innerHTML = R(cur); setSelected(); placeTabs(); stacks(); bindChecks();
+}
+function bindChecks(){
+  const boxes = pageR.querySelectorAll('.boxes li');
+  const upd = () => { const c = pageR.querySelectorAll('.boxes li[aria-checked="true"]').length; const el = pageR.querySelector('#packCount'); if (el) el.textContent = `${c} of ${boxes.length} packed${c === boxes.length ? ' — ready to go!' : ''}`; };
+  boxes.forEach(li => {
+    const tog = () => { const on = li.getAttribute('aria-checked') !== 'true'; li.setAttribute('aria-checked', on); packed[+li.dataset.i] = on; SECTIONS[1].right = SECTIONS[1].right.replace(new RegExp(`aria-checked="(true|false)" data-i="${li.dataset.i}"`), `aria-checked="${on}" data-i="${li.dataset.i}"`); upd(); audio(); pat(0); };
+    li.addEventListener('click', tog); li.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); tog(); } });
+  });
+  upd();
+}
+const packed = [];
+// keep the packing count in the stored HTML so leaves show the right state
+const _r1 = SECTIONS[1].right;
+// clicking the page corners also turns pages
+book.addEventListener('click', e => {
+  if (anim || e.target.closest('.tab,.boxes li')) return;
+  const r = book.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (y > r.height - 70) { if (x > r.width - 80 && cur < SECTIONS.length - 1) flipTo(cur + 1); else if (x < 80 && cur > 0) flipTo(cur - 1); }
+});
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 60); });
+layout(); render();
+window.__nb = { flipTo };
+})();
+</script>
+</body>
+</html>

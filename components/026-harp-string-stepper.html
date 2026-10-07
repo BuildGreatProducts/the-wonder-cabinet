@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harp String Stepper</title>
+<meta name="description" content="A party-size stepper drawn as an Art Nouveau poster: strum a gilded harp, each string plucked with Karplus-Strong synthesis, and the last note you play sets your table size.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Federant&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Harp String Stepper","reimagines":"Stepped slider","category":"Sliders, Knobs & Dials","description":"Book a table by strumming a gilded Art Nouveau harp. Strings catch under your finger, slip and ring with real plucked-string synthesis; the last string you pluck sets the party size and the table below lays itself for that many guests.","hint":"Strum across the strings; the last one you pluck sets the party size"}
+</script>
+<style>
+  :root{
+    --parch:#efe2c4; --parch2:#e6d4ae; --olive:#3a3322; --sage:#a3a983; --sage2:#7f8a68; --rose:#d7a08d; --rose2:#b97a68; --ochre:#c9973f; --teal:#6f8b84;
+    --gold: linear-gradient(135deg, #8a6420 0%, #e8c66c 22%, #b48a2f 40%, #f3dd8f 58%, #a37a26 78%, #d9b45a 100%);
+    --disp:'Federant', 'Cochin', 'Didot', Georgia, serif;
+    --body:'Cormorant Garamond', 'Garamond', Georgia, serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--parch); color:var(--olive); font-family:var(--body); overflow:hidden}
+  .poster{position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(120% 90% at 30% 40%, #f3e8cf 0%, var(--parch) 50%, var(--parch2) 100%);}
+  .poster::before{content:""; position:absolute; inset:0; pointer-events:none; opacity:.45; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .2 0 0 0 .25 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .frame{position:absolute; inset:16px; border:2px solid var(--olive); pointer-events:none}
+  .frame::before{content:""; position:absolute; inset:6px; border:5px solid transparent; border-image:linear-gradient(135deg,#8a6420,#e8c66c,#b48a2f,#f3dd8f,#a37a26) 1; }
+  .frame::after{content:""; position:absolute; inset:15px; border:1px solid var(--olive)}
+  .orn{position:absolute; width:120px; height:120px; pointer-events:none}
+  .orn.tl{left:6px; top:6px} .orn.tr{right:6px; top:6px; transform:scaleX(-1)} .orn.bl{left:6px; bottom:6px; transform:scaleY(-1)} .orn.br{right:6px; bottom:6px; transform:scale(-1,-1)}
+  .layout{position:absolute; inset:40px 54px; display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(0, 1fr); gap:30px; align-items:center}
+  .harpbox{position:relative; height:100%; min-height:0; display:flex; align-items:center; justify-content:center}
+  #harp{height:100%; max-height:700px; width:100%; overflow:visible; touch-action:none; cursor:pointer; outline:none}
+  #harp:focus-visible .halo-ring{stroke:#fff; stroke-width:4}
+  .text{display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px}
+  .kicker{font-family:var(--disp); font-size:15px; letter-spacing:.32em; text-transform:uppercase; color:var(--rose2)}
+  h1{font-family:var(--disp); font-weight:400; font-size:58px; line-height:.95; margin:4px 0 0; letter-spacing:.02em}
+  h1 span{display:block; font-size:.5em; letter-spacing:.24em; color:var(--sage2)}
+  .when{font-style:italic; font-size:21px; margin:4px 0 2px}
+  .vine{width:260px; height:26px; margin:2px 0}
+  .party{font-family:var(--disp); font-size:22px; letter-spacing:.14em; text-transform:uppercase; margin-top:4px}
+  .count{font-family:var(--disp); font-size:76px; line-height:.95; background:var(--gold); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(1px 1px 0 rgba(58,51,34,.55)); min-height:1em}
+  .en{font-style:italic; font-size:19px; margin-top:-2px}
+  #table{width:240px; height:150px; margin:4px 0 2px; overflow:visible}
+  .chair{transition:transform .5s cubic-bezier(.3,1.7,.5,1), opacity .3s; transform-box:fill-box; transform-origin:center}
+  .chair.off{transform:scale(0); opacity:0}
+  .reserve{font-family:var(--disp); font-size:21px; letter-spacing:.08em; color:var(--olive); background:var(--gold); border:2px solid var(--olive); border-radius:999px; padding:10px 44px 9px; cursor:pointer; position:relative;
+    box-shadow:inset 0 0 0 3px rgba(255,248,220,.45), 0 3px 0 rgba(58,51,34,.35)}
+  .reserve::before,.reserve::after{content:""; position:absolute; top:50%; width:30px; height:20px; margin-top:-10px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'%3E%3Cpath d='M2 10c6 0 8-7 14-7s8 7 3 9-6-3-3-4' fill='none' stroke='%233a3322' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center/contain}
+  .reserve::before{left:8px} .reserve::after{right:8px; transform:scaleX(-1)}
+  .reserve:hover{filter:brightness(1.06)}
+  .reserve:active{transform:translateY(2px); box-shadow:inset 0 0 0 3px rgba(255,248,220,.45), 0 1px 0 rgba(58,51,34,.35)}
+  .reserve:focus-visible, .mute:focus-visible{outline:2px dashed var(--olive); outline-offset:5px}
+  .head,.foot{display:flex; flex-direction:column; align-items:center; gap:6px}
+  .note{font-style:italic; font-size:17px; min-height:1.3em; margin:4px 0 0; max-width:380px}
+  .hint{font-style:italic; font-size:16px; color:var(--sage2); transition:opacity 1s}
+  .mute{position:absolute; right:52px; bottom:44px; font-family:var(--disp); font-size:12px; letter-spacing:.14em; background:none; border:1px solid var(--olive); padding:4px 10px; cursor:pointer; color:var(--olive); z-index:3}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    .frame{inset:8px} .orn{width:64px; height:64px} .orn.tl{left:2px; top:2px} .orn.tr{right:2px; top:2px} .orn.bl{left:2px; bottom:2px} .orn.br{right:2px; bottom:2px}
+    .layout{inset:26px 22px 24px; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto; gap:4px}
+    .text{display:contents}
+    .head{order:0; text-align:center}
+    .harpbox{order:1; min-height:0}
+    .foot{order:2; display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px}
+    .kicker{font-size:10px}
+    h1{font-size:32px; margin:2px 0 0}
+    .when{font-size:15px}
+    .vine{display:none}
+    .party{font-size:14px}
+    .count{font-size:44px}
+    .en{font-size:15px}
+    #table{width:150px; height:84px; margin:0}
+    .reserve{font-size:16px; padding:8px 36px 7px}
+    .note{font-size:14px; margin:2px 0 0}
+    .hint{font-size:12px; margin-bottom:6px}
+    .mute{right:22px; bottom:auto; top:24px; font-size:10px; padding:3px 7px}
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#8a6420"/><stop offset=".22" stop-color="#e8c66c"/><stop offset=".4" stop-color="#b48a2f"/><stop offset=".58" stop-color="#f3dd8f"/><stop offset=".78" stop-color="#a37a26"/><stop offset="1" stop-color="#d9b45a"/>
+      </linearGradient>
+      <pattern id="leaf" width="36" height="36" patternUnits="userSpaceOnUse">
+        <rect width="36" height="36" fill="url(#gold)"/>
+        <rect x="0" y="0" width="18" height="18" fill="#fff3c4" opacity=".16"/><rect x="18" y="18" width="18" height="18" fill="#6b4a12" opacity=".12"/>
+        <path d="M18 0v36M0 18h36" stroke="#7a5a1c" stroke-width=".5" opacity=".45"/>
+      </pattern>
+      <pattern id="mosaic" width="16" height="16" patternUnits="userSpaceOnUse">
+        <rect width="16" height="16" fill="#c9cdb0"/>
+        <circle cx="4" cy="4" r="3" fill="#d7a08d" stroke="#3a3322" stroke-width=".7"/><circle cx="12" cy="12" r="3" fill="#e8d6a8" stroke="#3a3322" stroke-width=".7"/>
+        <circle cx="12" cy="4" r="1.4" fill="#6f8b84"/><circle cx="4" cy="12" r="1.4" fill="#6f8b84"/>
+      </pattern>
+      <filter id="glow" x="-50%" y="-10%" width="200%" height="120%"><feGaussianBlur stdDeviation="3"/></filter>
+      <g id="lily">
+        <path d="M0 0c-6-10-18-14-26-10 8 2 14 8 20 16z" fill="#f4ecd8" stroke="#3a3322" stroke-width="1.6"/>
+        <path d="M0 0c6-10 18-14 26-10-8 2-14 8-20 16z" fill="#f4ecd8" stroke="#3a3322" stroke-width="1.6"/>
+        <path d="M0 6c-4-12-2-26 0-32 2 6 4 20 0 32z" fill="#fbf4e2" stroke="#3a3322" stroke-width="1.6"/>
+        <path d="M-2 -4l-4 -10M2 -4l4 -10M0 -4v-12" stroke="#c9973f" stroke-width="1.4"/>
+      </g>
+    </defs>
+  </svg>
+  <div class="frame"></div>
+  <svg class="orn tl" viewBox="0 0 120 120" aria-hidden="true"><path d="M8 112C8 50 30 14 100 8c-40 10-58 30-58 56 0 18 14 28 28 22 12-5 10-22-2-22-9 0-10 10-4 12" fill="none" stroke="#3a3322" stroke-width="2.4" stroke-linecap="round"/><path d="M8 112C8 50 30 14 100 8" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linecap="round" opacity=".9"/><use href="#lily" transform="translate(30 34) rotate(-45) scale(.7)"/><circle cx="100" cy="8" r="4" fill="url(#gold)" stroke="#3a3322" stroke-width="1.2"/></svg>
+  <svg class="orn tr" viewBox="0 0 120 120" aria-hidden="true"><path d="M8 112C8 50 30 14 100 8c-40 10-58 30-58 56 0 18 14 28 28 22 12-5 10-22-2-22-9 0-10 10-4 12" fill="none" stroke="#3a3322" stroke-width="2.4" stroke-linecap="round"/><path d="M8 112C8 50 30 14 100 8" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linecap="round" opacity=".9"/><use href="#lily" transform="translate(30 34) rotate(-45) scale(.7)"/><circle cx="100" cy="8" r="4" fill="url(#gold)" stroke="#3a3322" stroke-width="1.2"/></svg>
+  <svg class="orn bl" viewBox="0 0 120 120" aria-hidden="true"><path d="M8 112C8 50 30 14 100 8c-40 10-58 30-58 56 0 18 14 28 28 22 12-5 10-22-2-22-9 0-10 10-4 12" fill="none" stroke="#3a3322" stroke-width="2.4" stroke-linecap="round"/><path d="M8 112C8 50 30 14 100 8" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linecap="round" opacity=".9"/><circle cx="100" cy="8" r="4" fill="url(#gold)" stroke="#3a3322" stroke-width="1.2"/></svg>
+  <svg class="orn br" viewBox="0 0 120 120" aria-hidden="true"><path d="M8 112C8 50 30 14 100 8c-40 10-58 30-58 56 0 18 14 28 28 22 12-5 10-22-2-22-9 0-10 10-4 12" fill="none" stroke="#3a3322" stroke-width="2.4" stroke-linecap="round"/><path d="M8 112C8 50 30 14 100 8" fill="none" stroke="url(#gold)" stroke-width="5" stroke-linecap="round" opacity=".9"/><circle cx="100" cy="8" r="4" fill="url(#gold)" stroke="#3a3322" stroke-width="1.2"/></svg>
+
+  <div class="layout">
+    <div class="harpbox">
+      <svg id="harp" viewBox="0 0 600 660" role="slider" tabindex="0" aria-label="Party size — strum the harp" aria-valuemin="1" aria-valuemax="8" aria-valuenow="4" aria-valuetext="Table for four">
+        <g id="haloG">
+          <circle cx="318" cy="330" r="290" fill="url(#leaf)" stroke="#3a3322" stroke-width="2.5"/>
+          <circle cx="318" cy="330" r="272" fill="url(#mosaic)" stroke="#3a3322" stroke-width="2"/>
+          <circle class="halo-ring" cx="318" cy="330" r="236" fill="#dfe0c6" stroke="#3a3322" stroke-width="2"/>
+          <g id="rays" stroke="#b8bb98" stroke-width="1.2"></g>
+          <circle cx="318" cy="330" r="168" fill="none" stroke="#3a3322" stroke-width="1" stroke-dasharray="2 5"/>
+        </g>
+        <!-- base / pedestal -->
+        <path d="M42 640c10-26 40-36 92-36h70c40 0 60 14 66 36z" fill="url(#leaf)" stroke="#3a3322" stroke-width="2.5"/>
+        <path d="M60 640c-6 6-16 8-24 6M252 640c6 6 16 8 24 6" stroke="#3a3322" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <!-- soundbox -->
+        <path id="soundbox" d="" fill="#d7a08d" stroke="#3a3322" stroke-width="2.5"/>
+        <path id="soundboxEdge" d="" fill="none" stroke="url(#gold)" stroke-width="7"/>
+        <path id="soundboxEdge2" d="" fill="none" stroke="#3a3322" stroke-width="1.4"/>
+        <g id="rondels"></g>
+        <!-- column: a lily stem wrapping a gilded pillar -->
+        <rect x="70" y="120" width="34" height="488" rx="10" fill="url(#leaf)" stroke="#3a3322" stroke-width="2.5"/>
+        <path d="M87 600c-24-40 24-70 0-110s24-70 0-110 24-70 0-110 24-60 0-120" fill="none" stroke="#7f8a68" stroke-width="7" stroke-linecap="round"/>
+        <path d="M87 600c-24-40 24-70 0-110s24-70 0-110 24-70 0-110 24-60 0-120" fill="none" stroke="#3a3322" stroke-width="1.4" stroke-linecap="round" transform="translate(-3 0)"/>
+        <path d="M80 510c-26-6-40-24-40-44 18 4 34 20 40 44zM96 400c26-6 40-24 40-44-18 4-34 20-40 44zM80 290c-26-6-40-24-40-44 18 4 34 20 40 44z" fill="#a3a983" stroke="#3a3322" stroke-width="1.8"/>
+        <!-- strings live here -->
+        <g id="strings"></g>
+        <!-- neck (whiplash) -->
+        <path id="neck" d="" fill="url(#leaf)" stroke="#3a3322" stroke-width="2.5" stroke-linejoin="round"/>
+        <path id="neckLine" d="" fill="none" stroke="#3a3322" stroke-width="1.2" stroke-dasharray="1 4"/>
+        <g id="pegs"></g>
+        <use href="#lily" transform="translate(87 104) scale(1.2)"/>
+        <path id="scroll" d="" fill="none" stroke="#3a3322" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <section class="text" aria-labelledby="ttl">
+      <div class="head">
+        <div class="kicker">Brasserie · Paris VIIᵉ</div>
+        <h1 id="ttl">Le Lys d'Or<span>Réservation</span></h1>
+        <div class="when">Vendredi 16 octobre 2026 · 19 h 30</div>
+        <svg class="vine" viewBox="0 0 260 26" aria-hidden="true"><path d="M4 13c40 0 50-10 80-10s36 20 46 20 16-20 46-20 40 10 80 10" fill="none" stroke="#3a3322" stroke-width="1.6"/><circle cx="130" cy="13" r="5" fill="url(#gold)" stroke="#3a3322"/><path d="M110 13c6-8 14-8 20 0-6 8-14 8-20 0zM150 13c-6-8-14-8-20 0 6 8 14 8 20 0z" fill="#a3a983" stroke="#3a3322" stroke-width="1"/></svg>
+      </div>
+      <div class="foot">
+        <div class="party">Table pour</div>
+        <div class="count" id="count" aria-live="polite">quatre</div>
+        <div class="en" id="en">a table for four guests</div>
+        <svg id="table" viewBox="0 0 240 150" aria-hidden="true"></svg>
+        <button class="reserve" id="reserve">Réserver · Reserve for four</button>
+        <p class="note" id="note" aria-live="polite"></p>
+        <div class="hint" id="hint">Strum across the strings — the last one you pluck sets the party size.</div>
+      </div>
+    </section>
+  </div>
+  <button class="mute" id="mute" aria-pressed="false">Son · on</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+  const FR = ['une','deux','trois','quatre','cinq','six','sept','huit'];
+  const EN = ['one','two','three','four','five','six','seven','eight'];
+  const NOTES = [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66, 329.63]; // C D E G A C D E — pentatonic, always consonant
+
+  // ---------- geometry ----------
+  const NP = [[86,124],[200,156],[330,112],[450,132],[548,214]];
+  function cr(p0, p1, p2, p3, t){ const t2 = t*t, t3 = t2*t; return 0.5 * ((2*p1) + (-p0 + p2)*t + (2*p0 - 5*p1 + 4*p2 - p3)*t2 + (-p0 + 3*p1 - 3*p2 + p3)*t3); }
+  const neckPts = [];
+  for (let i = 0; i < NP.length - 1; i++){
+    const p0 = NP[Math.max(0, i-1)], p1 = NP[i], p2 = NP[i+1], p3 = NP[Math.min(NP.length-1, i+2)];
+    for (let k = 0; k < 24; k++){ const t = k / 24; neckPts.push([cr(p0[0],p1[0],p2[0],p3[0],t), cr(p0[1],p1[1],p2[1],p3[1],t)]); }
+  }
+  neckPts.push(NP[NP.length-1]);
+  const thickAt = x => 34 - (x - 86) / 462 * 14;
+  function neckY(x){ for (let i = 0; i < neckPts.length - 1; i++){ const a = neckPts[i], b = neckPts[i+1]; if (x >= a[0] && x <= b[0]) return a[1] + (b[1]-a[1]) * (x - a[0]) / (b[0] - a[0]); } return NP[NP.length-1][1]; }
+  // soundbox: top edge from (140,604) to (548,226)
+  const SB0 = [140, 604], SB1 = [548, 226];
+  const sbY = x => SB0[1] + (x - SB0[0]) * (SB1[1] - SB0[1]) / (SB1[0] - SB0[0]);
+
+  function buildFrame(){
+    // neck polygon (offset by thickness), whiplash scroll
+    let top = '', bot = '';
+    neckPts.forEach(([x, y], i) => { const t = thickAt(x) / 2; top += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + (y - t).toFixed(1); });
+    for (let i = neckPts.length - 1; i >= 0; i--){ const [x, y] = neckPts[i], t = thickAt(x) / 2; bot += 'L' + x.toFixed(1) + ' ' + (y + t).toFixed(1); }
+    $('neck').setAttribute('d', top + ' C578 200 590 248 566 264' + bot + 'Z');
+    let mid = ''; neckPts.forEach(([x, y], i) => mid += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1)); $('neckLine').setAttribute('d', mid);
+    $('scroll').setAttribute('d', 'M566 264c-10 14-30 12-30-4 0-12 16-14 18-4');
+    // soundbox: tapered band
+    const n = [-(SB1[1]-SB0[1]), SB1[0]-SB0[0]], L = Math.hypot(...n); n[0] /= L; n[1] /= L;
+    const w0 = 56, w1 = 24;
+    const p = [SB0, SB1, [SB1[0] + n[0]*w1, SB1[1] + n[1]*w1], [SB0[0] + n[0]*w0, SB0[1] + n[1]*w0]];
+    $('soundbox').setAttribute('d', `M${p[0]}L${p[1]}L${p[2]}L${p[3]}Z`);
+    $('soundboxEdge').setAttribute('d', `M${SB0}L${SB1}`);
+    $('soundboxEdge2').setAttribute('d', `M${SB0[0] + n[0]*w0*.55} ${SB0[1] + n[1]*w0*.55}L${SB1[0] + n[0]*w1*.55} ${SB1[1] + n[1]*w1*.55}`);
+    // little rondels down the soundbox
+    const rg = $('rondels');
+    for (let i = 0; i < 9; i++){ const k = (i + .5) / 9, x = SB0[0] + (SB1[0]-SB0[0]) * k + n[0] * (w0 + (w1 - w0) * k) * .55, y = SB0[1] + (SB1[1]-SB0[1]) * k + n[1] * (w0 + (w1 - w0) * k) * .55; mk('circle', { cx:x, cy:y, r:4.5 - k * 1.5, fill:'#efe2c4', stroke:'#3a3322', 'stroke-width':1.2 }, rg); }
+    // halo rays
+    const rays = $('rays');
+    for (let i = 0; i < 72; i++){ const a = i / 72 * Math.PI * 2; mk('line', { x1:318 + Math.cos(a)*172, y1:330 + Math.sin(a)*172, x2:318 + Math.cos(a)*232, y2:330 + Math.sin(a)*232 }, rays); }
+  }
+
+  // ---------- strings ----------
+  const strings = [];
+  function buildStrings(){
+    const g = $('strings'), pg = $('pegs');
+    for (let i = 0; i < 8; i++){
+      const x = 164 + i * 48, y0 = neckY(x) + thickAt(x) / 2 - 2, y1 = sbY(x) + 2;
+      const isC = i === 0 || i === 5;
+      const col = isC ? '#a8402e' : '#6a5a3a';
+      const glow = mk('path', { d:`M${x} ${y0}L${x} ${y1}`, stroke:'#ffe9a0', 'stroke-width':9, fill:'none', opacity:0, filter:'url(#glow)' }, g);
+      const ghostA = mk('path', { d:'', stroke:col, 'stroke-width':1.6, fill:'none', opacity:0 }, g);
+      const ghostB = mk('path', { d:'', stroke:col, 'stroke-width':1.6, fill:'none', opacity:0 }, g);
+      const main = mk('path', { d:`M${x} ${y0}L${x} ${y1}`, stroke:col, 'stroke-width':2.3 - i * .12, fill:'none', 'stroke-linecap':'round' }, g);
+      // bridge pin at the soundbox
+      mk('circle', { cx:x, cy:y1, r:3.2, fill:'#efe2c4', stroke:'#3a3322', 'stroke-width':1.2 }, g);
+      // numbered rondel peg on the neck
+      const ny = neckY(x);
+      const peg = mk('g', {}, pg);
+      const c = mk('circle', { cx:x, cy:ny, r:12.5, fill:'#efe2c4', stroke:'#3a3322', 'stroke-width':1.8 }, peg);
+      const t = mk('text', { x, y:ny + 6, 'text-anchor':'middle', 'font-family':'Federant, Georgia, serif', 'font-size':16, fill:'#3a3322' }, peg); t.textContent = i + 1;
+      strings.push({ i, x, y0, y1, col, main, ghostA, ghostB, glow, ring:c, label:t, amp:0, ph:0, w:(4.6 + i * .7) * 2 * Math.PI, caught:false, side:0, pull:0, pullY:0, energy:0 });
+    }
+  }
+
+  // ---------- value / UI ----------
+  let value = 4, interacted = false;
+  function setValue(v, silent){
+    value = v;
+    strings.forEach(s => { const on = s.i === v - 1; s.ring.setAttribute('fill', on ? 'url(#gold)' : '#efe2c4'); s.ring.setAttribute('r', on ? 14.5 : 12.5); s.main.setAttribute('stroke', on ? '#b4892c' : s.col); });
+    const cEl = $('count'); cEl.textContent = FR[v - 1];
+    if (!silent && !reduce) cEl.animate([{ transform:'translateY(6px) scale(.92)', opacity:.3 }, { transform:'none', opacity:1 }], { duration: 420, easing:'cubic-bezier(.3,1.5,.5,1)' });
+    $('en').textContent = v === 1 ? 'a table for one — the best seat at the bar' : `a table for ${EN[v - 1]} guests`;
+    $('reserve').textContent = `Réserver · Reserve for ${EN[v - 1]}`;
+    $('harp').setAttribute('aria-valuenow', v); $('harp').setAttribute('aria-valuetext', `Table for ${EN[v - 1]}`);
+    $('note').textContent = v === 8 ? 'Eight is our largest table. For more, ring the maître d’ on 01 42 60 18 18.' : '';
+    drawTable(v);
+  }
+
+  // table laid for N (top view, Art Nouveau bentwood chairs)
+  function drawTable(n){
+    const s = $('table');
+    if (!s.dataset.built){
+      s.dataset.built = 1;
+      for (let k = 0; k < 8; k++){
+        const a = -Math.PI / 2 + k / 8 * Math.PI * 2, cx = 120 + Math.cos(a) * 86, cy = 75 + Math.sin(a) * 52;
+        const g = mk('g', { class:'chair off', id:'ch' + k }, s);
+        mk('ellipse', { cx, cy, rx:14, ry:11, fill:'#a3a983', stroke:'#3a3322', 'stroke-width':1.6 }, g);
+        const bx = 120 + Math.cos(a) * 100, by = 75 + Math.sin(a) * 62;
+        mk('path', { d:`M${bx - Math.sin(a)*14} ${by + Math.cos(a)*10} Q${bx + Math.cos(a)*8} ${by + Math.sin(a)*8} ${bx + Math.sin(a)*14} ${by - Math.cos(a)*10}`, fill:'none', stroke:'#3a3322', 'stroke-width':3, 'stroke-linecap':'round' }, g);
+      }
+      mk('ellipse', { cx:120, cy:75, rx:70, ry:42, fill:'#f4ecd8', stroke:'#3a3322', 'stroke-width':2 }, s);
+      mk('ellipse', { cx:120, cy:75, rx:62, ry:35, fill:'none', stroke:'#d7a08d', 'stroke-width':4, 'stroke-dasharray':'6 4' }, s);
+      mk('use', { href:'#lily', transform:'translate(120 80) scale(.62)' }, s);
+      for (let k = 0; k < 8; k++){
+        const a = -Math.PI / 2 + k / 8 * Math.PI * 2;
+        mk('circle', { id:'pl' + k, cx:120 + Math.cos(a) * 50, cy:75 + Math.sin(a) * 28, r:7, fill:'#fff', stroke:'#3a3322', 'stroke-width':1.2, opacity:0, style:'transition:opacity .4s' }, s);
+      }
+    }
+    // spread chairs evenly for the party
+    for (let k = 0; k < 8; k++){
+      const on = k < n, ch = $('ch' + k), pl = $('pl' + k);
+      const a = -Math.PI / 2 + (k / Math.max(1, n)) * Math.PI * 2;
+      if (on){
+        const dx = Math.cos(a) * 86, dy = Math.sin(a) * 52;
+        const base = -Math.PI / 2 + k / 8 * Math.PI * 2, bx = Math.cos(base) * 86, by = Math.sin(base) * 52;
+        ch.setAttribute('transform', `translate(${(dx - bx).toFixed(1)} ${(dy - by).toFixed(1)})`);
+        pl.setAttribute('cx', 120 + Math.cos(a) * 50); pl.setAttribute('cy', 75 + Math.sin(a) * 28);
+      }
+      ch.classList.toggle('off', !on);
+      pl.setAttribute('opacity', on ? 1 : 0);
+    }
+  }
+
+  // ---------- plucking ----------
+  const SLIP = 15;
+  function pluck(s, amt){
+    amt = Math.max(.15, Math.min(1, amt));
+    s.amp = reduce ? 0 : Math.max(s.amp, amt * 15); s.ph = 0; s.energy = 1;
+    s.caught = false; s.pull = 0;
+    play(s.i, amt);
+    if (value !== s.i + 1){ setValue(s.i + 1); }
+    if (!interacted){ interacted = true; setTimeout(() => $('hint').style.opacity = .45, 1200); }
+  }
+
+  const harp = $('harp');
+  let down = false, lp = null;
+  function svgPt(e){ const m = harp.getScreenCTM(); if (!m) return { x:0, y:0 }; const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()); return { x:p.x, y:p.y }; }
+  harp.addEventListener('pointerdown', e => {
+    audio(); down = true; harp.setPointerCapture(e.pointerId);
+    const p = svgPt(e); lp = p;
+    // a direct tap right on a string plucks it
+    for (const s of strings){ if (Math.abs(p.x - s.x) < 9 && p.y > s.y0 && p.y < s.y1){ pluck(s, .55); break; } }
+  });
+  harp.addEventListener('pointermove', e => {
+    if (!down) return;
+    const p = svgPt(e);
+    for (const s of strings){
+      const inY = y => y > s.y0 + 6 && y < s.y1 - 6;
+      const d0 = lp.x - s.x, d = p.x - s.x;
+      if (!s.caught){
+        if (inY(p.y) && ((d0 < 0 && d >= 0) || (d0 > 0 && d <= 0))){
+          s.caught = true; s.side = d0 < 0 ? -1 : 1;
+        }
+      }
+      if (s.caught){
+        // string is dragged in the direction of travel until it slips off the fingertip
+        const push = -s.side * d; // positive when pushed through
+        if (push > SLIP || !inY(p.y)){ const sp = Math.min(1, Math.abs(p.x - lp.x) / 30); pluck(s, .45 + sp * .55); }
+        else if (push < -2){ s.caught = false; s.pull = 0; }
+        else { s.pull = d; s.pullY = p.y; }
+      }
+    }
+    lp = p;
+  });
+  const up = () => { down = false; strings.forEach(s => { if (s.caught) pluck(s, Math.abs(s.pull) / SLIP * .6); }); };
+  harp.addEventListener('pointerup', up); harp.addEventListener('pointercancel', up);
+  harp.addEventListener('keydown', e => {
+    let v = value;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') v++; else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') v--;
+    else if (e.key === 'Home') v = 1; else if (e.key === 'End') v = 8;
+    else if (/^[1-8]$/.test(e.key)) v = +e.key;
+    else return;
+    e.preventDefault(); audio();
+    v = Math.max(1, Math.min(8, v));
+    // glissando through the strings in between
+    const from = value, dir = v > from ? 1 : -1;
+    if (v === from){ pluck(strings[v - 1], .5); return; }
+    for (let k = from + dir, n = 0; dir > 0 ? k <= v : k >= v; k += dir, n++) setTimeout(((kk) => () => pluck(strings[kk - 1], .45))(k), n * 60);
+  });
+
+  $('reserve').addEventListener('click', () => {
+    audio();
+    $('note').textContent = `Réservé — table ${10 + value} by the window for ${EN[value - 1]}, Friday at 19 h 30. A confirmation is on its way.`;
+    // a rolled chord: arpeggio up the harp
+    strings.forEach((s, k) => setTimeout(() => { s.amp = reduce ? 0 : 6; s.ph = 0; play(k, .4); }, k * 70));
+  });
+
+  // ---------- audio: Karplus–Strong ----------
+  let ac = null, master, wet, bufs = [], mute = false;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = .2; master.connect(ac.destination);
+      // small hall
+      const rl = ac.sampleRate * 1.8, ir = ac.createBuffer(2, rl, ac.sampleRate);
+      for (let c = 0; c < 2; c++){ const d = ir.getChannelData(c); for (let i = 0; i < rl; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 3.2); }
+      const conv = ac.createConvolver(); conv.buffer = ir; wet = ac.createGain(); wet.gain.value = .32; conv.connect(wet); wet.connect(master);
+      master.dry = conv;
+      const sr = ac.sampleRate;
+      bufs = NOTES.map(f => {
+        const len = Math.floor(sr * 2.6), b = ac.createBuffer(1, len, sr), d = b.getChannelData(0);
+        const N = Math.round(sr / f);
+        // pluck excitation: noise, softened (finger, not pick)
+        let prev = 0;
+        for (let i = 0; i < N; i++){ const r = Math.random() * 2 - 1; prev = prev * .45 + r * .55; d[i] = prev; }
+        const decay = .9965 - (f / 4000);
+        for (let i = N; i < len; i++) d[i] = decay * .5 * (d[i - N] + d[i - N - 1 < 0 ? 0 : i - N - 1]);
+        return b;
+      });
+    } catch(_) { ac = null; }
+  }
+  function play(i, a){
+    if (!ac || mute || !bufs[i]) return;
+    const s = ac.createBufferSource(), g = ac.createGain(), lp = ac.createBiquadFilter();
+    s.buffer = bufs[i]; lp.type = 'lowpass'; lp.frequency.value = 1800 + a * 3000;
+    g.gain.value = .25 + a * .55;
+    s.connect(lp); lp.connect(g); g.connect(master); g.connect(master.dry);
+    s.start();
+  }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'Son · off' : 'Son · on'; $('mute').setAttribute('aria-pressed', mute); });
+
+  // ---------- render loop ----------
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    for (const s of strings){
+      const L = s.y1 - s.y0, xm = s.x;
+      if (s.caught){
+        const py = Math.max(s.y0 + 8, Math.min(s.y1 - 8, s.pullY));
+        s.main.setAttribute('d', `M${xm} ${s.y0}L${(xm + s.pull).toFixed(1)} ${py.toFixed(1)}L${xm} ${s.y1}`);
+        s.ghostA.setAttribute('opacity', 0); s.ghostB.setAttribute('opacity', 0);
+        continue;
+      }
+      if (s.amp > .04){
+        s.ph += dt * s.w; s.amp *= Math.exp(-dt * 1.25);
+        const off = s.amp * Math.cos(s.ph), off2 = s.amp * .3 * Math.sin(s.ph * 2.1);
+        const cy = (s.y0 + s.y1) / 2;
+        s.main.setAttribute('d', `M${xm} ${s.y0}Q${(xm + off * 2).toFixed(2)} ${cy.toFixed(1)} ${xm} ${s.y1}`);
+        // motion-blur envelope: the string blurs between its extremes
+        s.ghostA.setAttribute('d', `M${xm} ${s.y0}Q${(xm + s.amp * 2).toFixed(2)} ${cy} ${xm} ${s.y1}`);
+        s.ghostB.setAttribute('d', `M${xm} ${s.y0}Q${(xm - s.amp * 2).toFixed(2)} ${cy} ${xm} ${s.y1}`);
+        const go = Math.min(.5, s.amp / 14); s.ghostA.setAttribute('opacity', go); s.ghostB.setAttribute('opacity', go);
+        s.glow.setAttribute('opacity', Math.min(.85, s.amp / 10));
+        void off2;
+      } else if (s.amp !== 0){
+        s.amp = 0; s.main.setAttribute('d', `M${xm} ${s.y0}L${xm} ${s.y1}`); s.ghostA.setAttribute('opacity', 0); s.ghostB.setAttribute('opacity', 0); s.glow.setAttribute('opacity', 0);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden){ running = false; if (ac) ac.suspend(); } else { running = true; last = performance.now(); if (ac) ac.resume(); requestAnimationFrame(frame); } });
+
+  buildFrame(); buildStrings(); setValue(4, true);
+  requestAnimationFrame(frame);
+  window.__harp = { pluck(i, a){ pluck(strings[i], a || .8); }, strum(){ strings.forEach((s, k) => setTimeout(() => pluck(s, .7), k * 50)); } };
+})();
+</script>
+</body>
+</html>

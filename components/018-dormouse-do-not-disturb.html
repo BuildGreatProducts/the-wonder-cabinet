@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dormouse Do Not Disturb</title>
+<meta name="description" content="A notifications on/off toggle as a watercolour storybook dormouse who curls up to sleep while notices wait in a basket.">
+<script type="application/json" id="component-meta">
+{"name":"Dormouse Do Not Disturb","reimagines":"Notifications on/off toggle","category":"Toggles & Switches","description":"Do Not Disturb as a storybook page in ink and watercolour. Switch it on and Hazel the dormouse curls up and dreams; new notices bounce softly off her dream bubble and wait in a basket. Switch it off and she wakes, stretches, tips the basket, and the queued notices tumble into your list.","hint":"Flip the acorn switch, or poke the dormouse"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f4ecd9;--ink:#3a2718;--sepia:#6b4e33;--fur:#d8913f;--moss:#8d9a5b;--rose:#c9705b}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:"IM Fell English",Georgia,serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.paper{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.9;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .62 0 0 0 0 .55 0 0 0 0 .42 0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23p)'/%3E%3C/svg%3E"),
+  radial-gradient(120% 100% at 50% 40%, rgba(255,255,255,0) 55%, rgba(150,110,60,.18) 100%)}
+.book{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,380px);gap:28px;padding:28px 56px 22px;max-width:1240px;margin:0 auto;align-items:center}
+.plate{position:relative;display:flex;flex-direction:column;align-items:center;min-width:0;height:100%;justify-content:center}
+#scene{width:100%;max-height:calc(100dvh - 120px);display:block;overflow:visible;touch-action:manipulation}
+.caption{font-style:italic;font-size:19px;text-align:center;margin-top:4px;max-width:520px;line-height:1.35;min-height:2.7em;transition:opacity .5s}
+.folio{font-family:"IM Fell English SC",serif;font-size:13px;letter-spacing:.2em;color:var(--sepia);margin-top:6px}
+.side{position:relative;align-self:center}
+.side h1{font-family:"IM Fell English SC",serif;font-weight:400;font-size:26px;letter-spacing:.08em;margin:0 0 2px;text-align:center}
+.side .orn{display:block;margin:2px auto 14px;width:150px;height:14px}
+.dnd{display:flex;align-items:center;gap:16px;padding:12px 6px 14px;border-bottom:1px solid rgba(58,39,24,.3);margin-bottom:8px}
+.dnd .txt{flex:1}
+.dnd .t{font-size:21px}
+.dnd .s{font-style:italic;font-size:14.5px;color:var(--sepia);margin-top:2px}
+.switch{position:relative;width:86px;height:40px;border:0;background:none;padding:0;cursor:pointer;flex:none;outline:none;-webkit-tap-highlight-color:transparent}
+.switch svg{display:block;width:100%;height:100%;overflow:visible}
+.switch:focus-visible .ring{opacity:1}
+.ring{opacity:0}
+.notices{list-style:none;margin:0;padding:0;min-height:300px;position:relative}
+.notices li{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:start;padding:9px 4px 9px 2px;border-bottom:1px dashed rgba(58,39,24,.28);transition:transform .45s cubic-bezier(.3,1.3,.5,1),opacity .45s}
+.notices li .ic{width:28px;height:22px;margin-top:2px}
+.notices li .who{font-family:"IM Fell English SC",serif;font-size:14px;letter-spacing:.06em}
+.notices li .msg{font-size:15.5px;line-height:1.3}
+.notices li .tm{font-style:italic;font-size:13px;color:var(--sepia);white-space:nowrap}
+.notices li.new{animation:inkin .9s ease-out}
+@keyframes inkin{0%{opacity:0;filter:blur(2px)}100%{opacity:1;filter:blur(0)}}
+.empty{font-style:italic;color:var(--sepia);text-align:center;padding:18px 0;font-size:15px}
+.letter{position:fixed;left:0;top:0;width:150px;padding:7px 10px 8px;background:#fbf5e4;border:1.2px solid rgba(58,39,24,.75);border-radius:2px 5px 3px 4px;font-size:12.5px;line-height:1.2;pointer-events:none;z-index:20;transform-origin:50% 50%;
+  box-shadow:1px 2px 0 rgba(107,78,51,.25);will-change:transform}
+.letter b{display:block;font-family:"IM Fell English SC",serif;font-weight:400;font-size:12px;letter-spacing:.05em;color:var(--rose)}
+.letter::before{content:"";position:absolute;right:6px;top:6px;width:13px;height:15px;border:1px solid rgba(201,112,91,.8);background:rgba(201,112,91,.18)}
+.hint{position:absolute;left:0;right:0;bottom:-30px;text-align:center;font-style:italic;font-size:14px;color:var(--sepia);transition:opacity .8s}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#mouse{cursor:pointer}
+@media (max-width:820px){
+  .book{grid-template-columns:1fr;grid-template-rows:auto 1fr;padding:10px 16px 10px;gap:0;align-items:start;overflow:hidden}
+  .plate{height:auto}
+  .side{align-self:start;margin-top:8px}
+  #scene{max-height:44dvh}
+  .caption{font-size:15px;min-height:2.6em;margin-top:0}
+  .folio{display:none}
+  .side h1{display:none}
+  .side .orn{display:none}
+  .dnd{padding:6px 2px 10px}
+  .dnd .t{font-size:18px}
+  .dnd .s{font-size:13px}
+  .notices{min-height:0}
+  .notices li{padding:6px 2px;grid-template-columns:24px 1fr auto}
+  .notices li .msg{font-size:14px}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){.notices li{transition:none}.notices li.new{animation:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="wc" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="3" result="w"/>
+      <feDisplacementMap in="SourceGraphic" in2="w" scale="7" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="8" result="g"/>
+      <feColorMatrix in="g" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.25" result="ga"/>
+      <feComposite in="d" in2="ga" operator="in"/>
+    </filter>
+    <filter id="ink" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="11" result="w"/>
+      <feDisplacementMap in="SourceGraphic" in2="w" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="bleed" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+</svg>
+<div class="book">
+  <section class="plate">
+    <svg id="scene" viewBox="0 0 600 500" role="img" aria-label="Hazel the dormouse in her nest under a hazel branch"></svg>
+    <p class="caption" id="caption">Hazel is wide awake, and every notice comes straight to you.</p>
+    <div class="folio">— 18 —</div>
+  </section>
+  <aside class="side">
+    <h1>Notices</h1>
+    <svg class="orn" viewBox="0 0 150 14" aria-hidden="true"><path d="M2 7 Q38 1 70 7 M80 7 Q112 13 148 7" stroke="#3a2718" fill="none" stroke-width="1" filter="url(#ink)"/><path d="M75 2 l4 5 l-4 5 l-4 -5 Z" fill="#c9705b"/></svg>
+    <div class="dnd">
+      <div class="txt"><div class="t" id="dndLabel">Do not disturb</div><div class="s" id="dndSub">Off — notices arrive as they come</div></div>
+      <button class="switch" id="sw" role="switch" aria-checked="false" aria-labelledby="dndLabel" aria-describedby="dndSub">
+        <svg viewBox="0 0 86 40" aria-hidden="true">
+          <g filter="url(#ink)">
+            <path d="M8 22 Q24 15 43 20 T80 18" stroke="#6b4e33" stroke-width="7" fill="none" stroke-linecap="round" opacity=".35"/>
+            <path d="M8 22 Q24 15 43 20 T80 18" stroke="#3a2718" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+            <path d="M8 25.5 Q24 19 43 23.5 T80 21.5" stroke="#3a2718" stroke-width=".8" fill="none" opacity=".6"/>
+            <path d="M30 18 q2 -7 7 -9 M56 19 q3 -5 9 -6" stroke="#3a2718" stroke-width=".9" fill="none"/>
+            <path d="M65 13 q4 -6 10 -3 q-4 5 -10 3 Z" fill="#8d9a5b" opacity=".7"/>
+          </g>
+          <g id="acorn" transform="translate(14 20)">
+            <ellipse cx="0" cy="3" rx="10" ry="12" fill="#c98a3e" opacity=".85" filter="url(#wc)"/>
+            <ellipse cx="0" cy="3" rx="10" ry="12" fill="none" stroke="#3a2718" stroke-width="1.2" filter="url(#ink)"/>
+            <path d="M-11 -3 Q0 -14 11 -3 Q0 1 -11 -3 Z" fill="#7a5a33" filter="url(#ink)"/>
+            <path d="M-8 -5 l3 2 M-3 -7 l3 2 M3 -7 l3 2" stroke="#3a2718" stroke-width=".8"/>
+            <path d="M0 -10 q1 -4 4 -5" stroke="#3a2718" stroke-width="1.3" fill="none"/>
+            <path d="M-5 6 q2 4 6 4" stroke="#fff6dd" stroke-width="1.4" fill="none" opacity=".6"/>
+          </g>
+          <ellipse class="ring" cx="43" cy="20" rx="42" ry="19" fill="none" stroke="#c9705b" stroke-width="1.5" stroke-dasharray="4 3"/>
+        </svg>
+      </button>
+    </div>
+    <ul class="notices" id="list" aria-label="Notices"></ul>
+    <div class="hint" id="hint">Flip the acorn switch, or poke Hazel</div>
+  </aside>
+</div>
+<div class="paper"></div>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const scene = $('scene'), list = $('list'), sw = $('sw'), acorn = $('acorn'), live = $('live'), caption = $('caption'), hint = $('hint');
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function el(tag, a, p){ const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); (p || scene).appendChild(e); return e; }
+
+/* ---------- audio ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .14; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function tone(f, dur, gain, type = 'sine', when = 0, slide = 1){
+  if (!ac) return; const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * slide, t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+}
+function rustle(dur, gain){
+  if (!ac) return; const n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n) * (Math.random() < .2 ? 1 : .3);
+  const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2800; f.Q.value = .7;
+  const g = ac.createGain(); g.gain.value = gain; s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+const sBoop = () => tone(520, .35, .35, 'sine', 0, .7);
+const sChime = () => { tone(784, .5, .18); tone(988, .6, .14, 'sine', .12); };
+const sYawn = () => { tone(330, .7, .08, 'triangle', 0, .7); };
+const sWake = () => { tone(523, .3, .14); tone(659, .3, .14, 'sine', .1); tone(784, .5, .14, 'sine', .2); };
+
+/* ---------- the painted page ---------- */
+const bg = el('g', {});
+// vignette wash, Potter-style: the picture fades into the paper
+el('ellipse', {cx: 300, cy: 300, rx: 290, ry: 205, fill: '#c9cf9a', opacity: .32, filter: 'url(#wc)'}, bg);
+el('path', {d: 'M140 250 Q170 120 330 118 Q500 120 520 250 Q530 360 330 380 Q150 370 140 250 Z', fill: '#e7d7a8', opacity: .22, filter: 'url(#wc)'}, bg);
+// mossy bank
+const bank = el('g', {filter: 'url(#wc)'}, bg);
+el('path', {d: 'M30 470 Q120 400 230 420 Q330 395 430 418 Q520 404 580 470 Q300 500 30 470 Z', fill: '#8d9a5b', opacity: .6}, bank);
+el('path', {d: 'M60 470 Q160 432 280 446 Q400 430 540 470 Z', fill: '#6f7f42', opacity: .45}, bank);
+el('path', {d: 'M200 440 Q260 428 320 438', stroke: '#b39a5a', 'stroke-width': 10, fill: 'none', opacity: .35}, bank);
+// grass ink flicks
+const grass = el('g', {filter: 'url(#ink)', stroke: '#4d5228', 'stroke-width': 1, fill: 'none', opacity: .8}, bg);
+for (let i = 0; i < 46; i++) { const x = 40 + Math.random() * 520, y = 448 + Math.random() * 18, h = 8 + Math.random() * 18, lean = (Math.random() - .5) * 10; el('path', {d: `M${x} ${y} q${lean * .4} ${-h * .6} ${lean} ${-h}`}, grass); }
+// woven grass nest
+const nest = el('g', {}, bg);
+el('ellipse', {cx: 312, cy: 398, rx: 128, ry: 70, fill: '#c7a15e', opacity: .55, filter: 'url(#wc)'}, nest);
+el('ellipse', {cx: 312, cy: 408, rx: 96, ry: 46, fill: '#5d4426', opacity: .35, filter: 'url(#wc)'}, nest);
+const weave = el('g', {filter: 'url(#ink)', fill: 'none', 'stroke-linecap': 'round'}, nest);
+for (let i = 0; i < 70; i++) {
+  const a = Math.PI + Math.random() * Math.PI, r1 = 100 + Math.random() * 30, a2 = a + (Math.random() - .5) * .9, r2 = 90 + Math.random() * 40;
+  const x1 = 312 + Math.cos(a) * r1, y1 = 400 + Math.sin(a) * r1 * .55, x2 = 312 + Math.cos(a2) * r2, y2 = 400 + Math.sin(a2) * r2 * .55;
+  el('path', {d: `M${x1.toFixed(1)} ${y1.toFixed(1)} Q${((x1 + x2) / 2 + (Math.random() - .5) * 30).toFixed(1)} ${((y1 + y2) / 2 - 10).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`, stroke: Math.random() < .5 ? '#6b4e33' : '#9c7a3f', 'stroke-width': .7 + Math.random() * .8, opacity: .75}, weave);
+}
+// hazel branch with leaves and nuts
+const br = el('g', {}, bg);
+el('path', {d: 'M-10 70 Q120 40 260 86 Q380 120 610 60', stroke: '#6b4e33', 'stroke-width': 7, fill: 'none', opacity: .6, filter: 'url(#wc)'}, br);
+el('path', {d: 'M-10 70 Q120 40 260 86 Q380 120 610 60', stroke: '#3a2718', 'stroke-width': 1.3, fill: 'none', filter: 'url(#ink)'}, br);
+function leaf(x, y, ang, s, col){
+  const g = el('g', {transform: `translate(${x} ${y}) rotate(${ang}) scale(${s})`}, br);
+  el('path', {d: 'M0 0 Q18 -20 46 -4 Q60 4 70 0 Q58 12 44 14 Q16 18 0 0 Z', fill: col, opacity: .62, filter: 'url(#wc)'}, g);
+  el('path', {d: 'M0 0 Q18 -20 46 -4 Q60 4 70 0 Q58 12 44 14 Q16 18 0 0 Z M0 0 Q34 2 68 0 M20 1 l8 -9 M34 1 l9 -9 M24 2 l7 8 M40 2 l8 7', stroke: '#3a2718', 'stroke-width': .9, fill: 'none', filter: 'url(#ink)'}, g);
+}
+leaf(70, 58, 20, 1.1, '#7f9150'); leaf(150, 54, -30, .9, '#93a35f'); leaf(205, 72, 50, 1.05, '#6f8545');
+leaf(340, 104, 20, 1, '#7f9150'); leaf(420, 92, -40, 1.1, '#9aa964'); leaf(500, 74, 35, .95, '#6f8545'); leaf(560, 64, -25, .9, '#8a9a56');
+function nut(x, y){
+  const g = el('g', {transform: `translate(${x} ${y})`}, br);
+  el('path', {d: 'M-12 -6 Q-16 -18 -4 -20 Q0 -26 6 -20 Q16 -18 12 -6 Q0 -2 -12 -6 Z', fill: '#9fae63', opacity: .7, filter: 'url(#wc)'}, g);
+  el('ellipse', {cx: 0, cy: 6, rx: 10, ry: 12, fill: '#b9813f', opacity: .8, filter: 'url(#wc)'}, g);
+  el('ellipse', {cx: 0, cy: 6, rx: 10, ry: 12, fill: 'none', stroke: '#3a2718', 'stroke-width': 1, filter: 'url(#ink)'}, g);
+  el('path', {d: 'M-12 -6 Q-16 -18 -4 -20 Q0 -26 6 -20 Q16 -18 12 -6', stroke: '#3a2718', 'stroke-width': .9, fill: 'none', filter: 'url(#ink)'}, g);
+  el('path', {d: 'M-4 2 q2 -4 6 -3', stroke: '#fff6dd', 'stroke-width': 1.5, fill: 'none', opacity: .7}, g);
+}
+nut(292, 106); nut(312, 112); nut(462, 92);
+// a bramble at the right
+const bram = el('g', {}, bg);
+el('path', {d: 'M560 470 Q540 380 470 330', stroke: '#7a3f3a', 'stroke-width': 3, fill: 'none', opacity: .6, filter: 'url(#ink)'}, bram);
+[[520, 380, -30], [495, 350, 40], [548, 430, 10]].forEach(([x, y, a]) => { const g = el('g', {transform: `translate(${x} ${y}) rotate(${a})`}, bram); el('path', {d: 'M0 0 Q14 -16 32 -6 Q22 10 0 0 Z', fill: '#6f8545', opacity: .6, filter: 'url(#wc)'}, g); el('path', {d: 'M0 0 Q14 -16 32 -6 Q22 10 0 0 Z M2 0 L28 -5', stroke: '#3a2718', 'stroke-width': .8, fill: 'none', filter: 'url(#ink)'}, g); });
+[[478, 336], [488, 344], [482, 326]].forEach(([x, y]) => el('circle', {cx: x, cy: y, r: 5, fill: '#5a2a3c', opacity: .75, filter: 'url(#wc)'}, bram));
+// the basket for waiting notices
+const basket = el('g', {transform: 'translate(120 440)'}, scene);
+const basketInner = el('g', {}, basket);
+el('path', {d: 'M-46 -36 Q-44 6 -30 10 L30 10 Q44 6 46 -36 Z', fill: '#c49a55', opacity: .72, filter: 'url(#wc)'}, basketInner);
+const bw = el('g', {filter: 'url(#ink)', stroke: '#3a2718', fill: 'none', 'stroke-width': .9}, basketInner);
+el('path', {d: 'M-46 -36 Q-44 6 -30 10 L30 10 Q44 6 46 -36'}, bw);
+for (let i = -3; i <= 3; i++) el('path', {d: `M${i * 12} -36 Q${i * 11} -10 ${i * 9} 10`, opacity: .7}, bw);
+for (let j = 0; j < 4; j++) el('path', {d: `M${-45 + j * 2} ${-26 + j * 10} Q0 ${-20 + j * 10} ${45 - j * 2} ${-26 + j * 10}`, opacity: .6}, bw);
+el('ellipse', {cx: 0, cy: -36, rx: 47, ry: 8, fill: '#9c7a3f', opacity: .7, filter: 'url(#wc)'}, basketInner);
+el('ellipse', {cx: 0, cy: -36, rx: 47, ry: 8, fill: 'none', stroke: '#3a2718', 'stroke-width': 1.1, filter: 'url(#ink)'}, basketInner);
+el('path', {d: 'M-40 -38 Q0 -96 40 -38', stroke: '#3a2718', 'stroke-width': 1.2, fill: 'none', filter: 'url(#ink)'}, basketInner);
+el('path', {d: 'M-40 -38 Q0 -96 40 -38', stroke: '#9c7a3f', 'stroke-width': 4, fill: 'none', opacity: .5, filter: 'url(#wc)'}, basketInner);
+const countT = el('text', {x: 0, y: 34, 'text-anchor': 'middle', 'font-family': 'IM Fell English, serif', 'font-style': 'italic', 'font-size': 16, fill: '#6b4e33'}, basket);
+
+/* ---------- Hazel the dormouse (parametric so she can curl and stretch) ---------- */
+const M = el('g', {id: 'mouse', transform: 'translate(318 432)', role: 'button', tabindex: '-1', 'aria-label': 'Hazel the dormouse'}, scene);
+const shadow = el('ellipse', {cx: 0, cy: 2, rx: 60, ry: 9, fill: '#3a2718', opacity: .25, filter: 'url(#bleed)'}, M);
+const tailWash = el('path', {fill: 'none', stroke: '#c47f33', 'stroke-linecap': 'round', opacity: .8, filter: 'url(#wc)'}, M);
+const tailInk = el('path', {fill: 'none', stroke: '#3a2718', 'stroke-linecap': 'round', 'stroke-width': 1.1, opacity: .85, filter: 'url(#ink)'}, M);
+const tailFluff = el('path', {fill: 'none', stroke: '#eab36a', 'stroke-linecap': 'round', opacity: .7, filter: 'url(#wc)'}, M);
+const bodyW = el('ellipse', {fill: '#d8913f', opacity: .82, filter: 'url(#wc)'}, M);
+const bodyShade = el('ellipse', {fill: '#9a5a22', opacity: .28, filter: 'url(#wc)'}, M);
+const belly = el('ellipse', {fill: '#f5e6c4', opacity: .9, filter: 'url(#wc)'}, M);
+const bodyI = el('ellipse', {fill: 'none', stroke: '#3a2718', 'stroke-width': 1.3, filter: 'url(#ink)'}, M);
+const pawL = el('ellipse', {fill: '#e9b48a', stroke: '#3a2718', 'stroke-width': .9}, M);
+const pawR = el('ellipse', {fill: '#e9b48a', stroke: '#3a2718', 'stroke-width': .9}, M);
+const earL = el('circle', {fill: '#d8913f', stroke: '#3a2718', 'stroke-width': 1.1, filter: 'url(#ink)'}, M);
+const earLi = el('circle', {fill: '#e9a99a', opacity: .8}, M);
+const headW = el('circle', {fill: '#d8913f', opacity: .9, filter: 'url(#wc)'}, M);
+const headI = el('circle', {fill: 'none', stroke: '#3a2718', 'stroke-width': 1.3, filter: 'url(#ink)'}, M);
+const earR = el('circle', {fill: '#d8913f', stroke: '#3a2718', 'stroke-width': 1.1, filter: 'url(#ink)'}, M);
+const earRi = el('circle', {fill: '#e9a99a', opacity: .8}, M);
+const muzzle = el('ellipse', {fill: '#efd2a6', opacity: .9, filter: 'url(#wc)'}, M);
+const eye = el('circle', {fill: '#1e1612'}, M);
+const eyeHi = el('circle', {fill: '#fffaf0'}, M);
+const lid = el('path', {fill: 'none', stroke: '#1e1612', 'stroke-width': 1.6, 'stroke-linecap': 'round'}, M);
+const mouth = el('ellipse', {fill: '#7a3a2a', opacity: 0}, M);
+const nose = el('circle', {fill: '#5a2f24'}, M);
+const whisk = el('path', {fill: 'none', stroke: '#3a2718', 'stroke-width': .6, opacity: .7}, M);
+const cheek = el('ellipse', {rx: 8, ry: 5, fill: '#e08a6e', filter: 'url(#wc)'}, M);
+const tailFront = el('path', {fill: 'none', stroke: '#c47f33', 'stroke-linecap': 'round', opacity: 0, filter: 'url(#wc)'}, M);
+const tailFrontI = el('path', {fill: 'none', stroke: '#3a2718', 'stroke-linecap': 'round', 'stroke-width': 1.1, opacity: 0, filter: 'url(#ink)'}, M);
+// dream bubble
+const dream = el('g', {opacity: 0}, M);
+const db1 = el('circle', {cx: 52, cy: -82, r: 6, fill: '#cfe0e6', stroke: '#3a2718', 'stroke-width': .9, opacity: .9}, dream);
+const db2 = el('circle', {cx: 72, cy: -108, r: 10, fill: '#cfe0e6', stroke: '#3a2718', 'stroke-width': .9, opacity: .9}, dream);
+const bubble = el('g', {transform: 'translate(118 -176)'}, dream);
+el('circle', {r: 62, fill: '#cfe0e6', opacity: .55, filter: 'url(#wc)'}, bubble);
+el('circle', {r: 62, fill: 'none', stroke: '#3a2718', 'stroke-width': 1.1, filter: 'url(#ink)'}, bubble);
+// a dream of hazelnuts and a full moon
+el('circle', {cx: 22, cy: -24, r: 14, fill: '#f1e3a8', opacity: .9, filter: 'url(#wc)'}, bubble);
+[[-18, 12], [2, 22], [-2, 2]].forEach(([x, y]) => { el('ellipse', {cx: x, cy: y, rx: 11, ry: 13, fill: '#b9813f', opacity: .85, filter: 'url(#wc)'}, bubble); el('ellipse', {cx: x, cy: y, rx: 11, ry: 13, fill: 'none', stroke: '#3a2718', 'stroke-width': .8}, bubble); el('path', {d: `M${x - 10} ${y - 8} Q${x} ${y - 18} ${x + 10} ${y - 8}`, fill: '#9fae63', opacity: .8}, bubble); });
+el('path', {d: 'M-40 -30 q3 -5 6 0 M-30 -44 q2 -4 5 0', stroke: '#3a2718', 'stroke-width': .8, fill: 'none'}, bubble);
+const zz = el('g', {}, M);
+const zs = [0, 1, 2].map(i => { const t = el('text', {'font-family': 'IM Fell English, serif', 'font-style': 'italic', 'font-size': 18 + i * 4, fill: '#3a2718', opacity: 0}, zz); t.textContent = 'z'; return t; });
+
+// poses
+const AW = {bx: -2, by: -54, brx: 40, bry: 52, belx: 10, bely: -46, belrx: 20, belry: 32, hx: 6, hy: -114, hr: 30, eLx: -14, eLy: -140, eLr: 14, eRx: 20, eRy: -144, eRr: 14,
+  mx: 31, my: -105, mrx: 17, mry: 12, ex: 17, ey: -119, er: 8.5, nx: 47, ny: -107, pLx: 26, pLy: -70, pRx: 16, pRy: -66, pr: 7,
+  tail: [[-34, -30], [-96, -24], [-104, -128], [-54, -142]], tw: 20};
+const SL = {bx: 0, by: -42, brx: 58, bry: 42, belx: 20, bely: -30, belrx: 0, belry: 0, hx: 30, hy: -42, hr: 25, eLx: 18, eLy: -62, eLr: 8, eRx: 38, eRy: -60, eRr: 7,
+  mx: 36, my: -27, mrx: 10, mry: 8, ex: 33, ey: -44, er: 0, nx: 41, ny: -22, pLx: 30, pLy: -18, pRx: 22, pRy: -16, pr: 0,
+  tail: [[-52, -34], [-70, 12], [40, 18], [58, -22]], tw: 18};
+let s = 0, sTarget = 0, stretch = 0, perk = 0, blink = 0, breath = 0;
+function pose(t){
+  const k = ease(clamp(t, 0, 1)), P = {};
+  for (const key in AW) if (key !== 'tail') P[key] = lerp(AW[key], SL[key], k);
+  P.tail = AW.tail.map((p, i) => [lerp(p[0], SL.tail[i][0], k), lerp(p[1], SL.tail[i][1], k)]);
+  P.k = k; return P;
+}
+function drawMouse(dt, time){
+  const P = pose(s), k = P.k;
+  const br = reduced ? 0 : Math.sin(time * 1.7) * (k > .5 ? .03 : .008);
+  const st = stretch, pk = perk;
+  const bry = P.bry * (1 + br) + st * 12, brx = P.brx * (1 - br * .5) - st * 4;
+  const by = P.by - st * 6;
+  bodyW.setAttribute('cx', P.bx); bodyW.setAttribute('cy', by); bodyW.setAttribute('rx', brx); bodyW.setAttribute('ry', bry);
+  bodyShade.setAttribute('cx', P.bx - brx * .3); bodyShade.setAttribute('cy', by + bry * .2); bodyShade.setAttribute('rx', brx * .7); bodyShade.setAttribute('ry', bry * .8);
+  bodyI.setAttribute('cx', P.bx); bodyI.setAttribute('cy', by); bodyI.setAttribute('rx', brx); bodyI.setAttribute('ry', bry);
+  belly.setAttribute('cx', P.belx); belly.setAttribute('cy', P.bely - st * 8); belly.setAttribute('rx', Math.max(0, P.belrx)); belly.setAttribute('ry', Math.max(0, P.belry + st * 8));
+  const hy = P.hy - st * 18 - pk * 6, hx = P.hx - st * 4;
+  [headW, headI].forEach(e => { e.setAttribute('cx', hx); e.setAttribute('cy', hy); e.setAttribute('r', P.hr); });
+  const er = 1 + pk * .18;
+  earL.setAttribute('cx', P.eLx - st * 4); earL.setAttribute('cy', P.eLy - st * 18 - pk * 9); earL.setAttribute('r', P.eLr * er);
+  earLi.setAttribute('cx', P.eLx - st * 4 + 1); earLi.setAttribute('cy', P.eLy - st * 18 - pk * 9 + 1); earLi.setAttribute('r', P.eLr * er * .55);
+  earR.setAttribute('cx', P.eRx - st * 4); earR.setAttribute('cy', P.eRy - st * 18 - pk * 9); earR.setAttribute('r', P.eRr * er);
+  earRi.setAttribute('cx', P.eRx - st * 4 + 1); earRi.setAttribute('cy', P.eRy - st * 18 - pk * 9 + 1); earRi.setAttribute('r', P.eRr * er * .55);
+  muzzle.setAttribute('cx', P.mx - st * 4); muzzle.setAttribute('cy', P.my - st * 18 - pk * 6); muzzle.setAttribute('rx', P.mrx); muzzle.setAttribute('ry', P.mry);
+  // eyes: open, blinking, squeezed shut while stretching, closed asleep
+  const open = clamp((1 - k * 1.6) * (1 - st * 1.2) * (1 - blink), 0, 1);
+  const ex = P.ex - st * 4, ey = P.ey - st * 18 - pk * 6;
+  eye.setAttribute('cx', ex); eye.setAttribute('cy', ey); eye.setAttribute('r', Math.max(0, 8.2 * open));
+  eyeHi.setAttribute('cx', ex - 2.6); eyeHi.setAttribute('cy', ey - 2.8); eyeHi.setAttribute('r', Math.max(0, 2.4 * open));
+  cheek.setAttribute('cx', hx + 10); cheek.setAttribute('cy', hy + 10); cheek.setAttribute('opacity', (.45 * (1 - k)).toFixed(2));
+  lid.setAttribute('d', open < .6 ? `M${ex - 6} ${ey} Q${ex} ${ey + 4} ${ex + 6} ${ey}` : '');
+  // yawn during the stretch
+  mouth.setAttribute('cx', P.nx - 8 - st * 4); mouth.setAttribute('cy', P.ny + 8 - st * 18); mouth.setAttribute('rx', 4 * st); mouth.setAttribute('ry', 6 * st); mouth.setAttribute('opacity', st > .05 ? .8 : 0);
+  const nx = P.nx - st * 4, ny = P.ny - st * 18 - pk * 6;
+  nose.setAttribute('cx', nx); nose.setAttribute('cy', ny); nose.setAttribute('r', 2.8);
+  whisk.setAttribute('d', `M${nx - 4} ${ny + 1} l18 -6 M${nx - 4} ${ny + 2} l20 1 M${nx - 4} ${ny + 3} l17 7`);
+  whisk.setAttribute('opacity', (.7 * (1 - k * .6)).toFixed(2));
+  // paws: held up while awake, flung high in the stretch
+  const pr = P.pr;
+  pawL.setAttribute('cx', P.pLx - st * 6); pawL.setAttribute('cy', P.pLy - st * 70); pawL.setAttribute('rx', pr); pawL.setAttribute('ry', pr * .75);
+  pawR.setAttribute('cx', P.pRx - st * 18); pawR.setAttribute('cy', P.pRy - st * 66); pawR.setAttribute('rx', pr); pawR.setAttribute('ry', pr * .75);
+  // tail: behind and up while awake, wrapped over the nose asleep
+  const T = P.tail, sw2 = (reduced ? 0 : Math.sin(time * 1.1) * 3 * (1 - k));
+  const td = `M${T[0][0]} ${T[0][1]} C${T[1][0] + sw2} ${T[1][1]} ${T[2][0] + sw2} ${T[2][1]} ${T[3][0] + sw2 * 1.5} ${T[3][1] - st * 10}`;
+  const frontA = clamp((k - .45) * 3, 0, 1);
+  [tailWash, tailInk, tailFluff].forEach(e => e.setAttribute('d', td));
+  tailFluff.setAttribute('stroke-width', P.tw * .45); tailFluff.setAttribute('opacity', (.7 * (1 - frontA)).toFixed(2));
+  tailWash.setAttribute('stroke-width', P.tw); tailInk.setAttribute('stroke-width', 1.1);
+  tailWash.setAttribute('opacity', (.8 * (1 - frontA)).toFixed(2)); tailInk.setAttribute('opacity', (.85 * (1 - frontA)).toFixed(2));
+  [tailFront, tailFrontI].forEach(e => e.setAttribute('d', td));
+  tailFront.setAttribute('stroke-width', P.tw); tailFront.setAttribute('opacity', (.85 * frontA).toFixed(2)); tailFrontI.setAttribute('opacity', (.85 * frontA).toFixed(2));
+  shadow.setAttribute('rx', 46 + k * 18);
+  // dream + zzz
+  const dA = clamp((k - .7) / .3, 0, 1);
+  dream.setAttribute('opacity', dA.toFixed(2));
+  const bs = (.4 + .6 * dA) * (1 + bubbleWob);
+  bubble.setAttribute('transform', `translate(118 -176) scale(${bs.toFixed(3)})`);
+  zs.forEach((z, i) => {
+    const ph = ((time * .35 + i / 3) % 1);
+    z.setAttribute('x', (48 + i * 8 + Math.sin(ph * 6 + i) * 4).toFixed(1)); z.setAttribute('y', (-60 - ph * 40).toFixed(1));
+    z.setAttribute('opacity', (k > .9 && !reduced ? Math.sin(ph * Math.PI) * .85 : 0).toFixed(2));
+  });
+}
+let bubbleWob = 0, bubbleWv = 0;
+
+/* ---------- notices ---------- */
+const POOL = [
+  {who: 'Calendar', msg: 'Harvest supper starts at 19:00 at the village hall', ic: 'bell'},
+  {who: 'Robin Ashdown', msg: 'Sent you a photo of the new beehive', ic: 'note'},
+  {who: 'Bramble & Co.', msg: 'Your two jars of heather honey have shipped', ic: 'parcel'},
+  {who: 'Weather', msg: 'First frost tonight, down to −1 °C', ic: 'bell'},
+  {who: 'Mole Lane Library', msg: '“The Wind in the Willows” is due back Friday', ic: 'note'},
+  {who: 'Hazel Brook', msg: 'Are we still on for the bake sale on Saturday?', ic: 'note'},
+  {who: 'Thistledown Bank', msg: '£24.60 paid to Thistledown Bakery', ic: 'parcel'},
+  {who: 'Garden club', msg: 'Bulb swap moved to the greenhouse, 10:30', ic: 'bell'},
+];
+let pi = 0;
+const ICONS = {
+  bell: '<path d="M8 16 Q8 6 14 5 Q20 6 20 16 Z M6 16 L22 16 M13 19 q1 2 2 0" stroke="#3a2718" fill="#e7c88a" fill-opacity=".6" stroke-width="1"/>',
+  note: '<rect x="4" y="5" width="20" height="13" fill="#fbf5e4" stroke="#3a2718" stroke-width="1"/><path d="M4 5 L14 13 L24 5" stroke="#3a2718" fill="none" stroke-width="1"/><rect x="18" y="7" width="4" height="4" fill="#c9705b" opacity=".7"/>',
+  parcel: '<rect x="5" y="7" width="18" height="12" fill="#d4ae6c" fill-opacity=".7" stroke="#3a2718" stroke-width="1"/><path d="M14 7 V19 M5 12 H23" stroke="#3a2718" stroke-width=".9"/>',
+};
+function timeNow(offsetMin = 0){ const d = new Date(Date.now() - offsetMin * 60000); return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}); }
+function addToList(n, animate = true){
+  const li = document.createElement('li');
+  li.innerHTML = `<svg class="ic" viewBox="0 0 28 22" aria-hidden="true">${ICONS[n.ic]}</svg><div><div class="who"></div><div class="msg"></div></div><div class="tm"></div>`;
+  li.querySelector('.who').textContent = n.who; li.querySelector('.msg').textContent = n.msg; li.querySelector('.tm').textContent = n.time || timeNow();
+  // FLIP: push the others down gently
+  const before = [...list.children].map(c => c.getBoundingClientRect().top);
+  list.insertBefore(li, list.firstChild);
+  if (animate && !reduced) {
+    li.classList.add('new');
+    [...list.children].slice(1).forEach((c, i) => { const dy = before[i] - c.getBoundingClientRect().top; c.style.transition = 'none'; c.style.transform = `translateY(${dy}px)`; requestAnimationFrame(() => { c.style.transition = ''; c.style.transform = ''; }); });
+  }
+  const max = innerWidth <= 820 ? 4 : 6;
+  while (list.children.length > max) list.lastChild.remove();
+}
+// seed the list with older notices
+[{who: 'Hazel Brook', msg: 'Left a basket of plums on your step', ic: 'note', time: timeNow(95)}, {who: 'Calendar', msg: 'Chimney sweep, Thursday 09:00', ic: 'bell', time: timeNow(160)}].forEach(n => addToList(n, false));
+
+const queue = [];          // letters waiting in the basket
+function svgToPage(x, y){ const m = scene.getScreenCTM(); const p = scene.createSVGPoint(); p.x = x; p.y = y; const r = p.matrixTransform(m); return {x: r.x, y: r.y, s: m.a}; }
+function bubblePage(){ return svgToPage(318 + 118, 432 - 176); }
+function basketSlot(i){ const p = svgToPage(120 - 22 + (i % 3) * 22, 440 - 46 - Math.floor(i / 3) * 6); return p; }
+function makeLetter(n){
+  const d = document.createElement('div'); d.className = 'letter'; d.setAttribute('aria-hidden', 'true');
+  d.innerHTML = `<b></b><span></span>`; d.querySelector('b').textContent = n.who; d.querySelector('span').textContent = n.msg.length > 44 ? n.msg.slice(0, 42) + '…' : n.msg;
+  document.body.appendChild(d); return d;
+}
+const flights = new Set();
+function fly(el, from, to, dur, opts = {}){
+  return new Promise(res => {
+    const f = {el, from, to, dur: reduced ? .01 : dur, t: 0, opts, res}; flights.add(f);
+  });
+}
+function stepFlights(dt){
+  for (const f of flights) {
+    f.t += dt; const u = clamp(f.t / f.dur, 0, 1), o = f.opts;
+    const e = o.ease ? o.ease(u) : u;
+    let x, y;
+    if (o.ctrl) { const c = o.ctrl; x = (1 - e) * (1 - e) * f.from.x + 2 * (1 - e) * e * c.x + e * e * f.to.x; y = (1 - e) * (1 - e) * f.from.y + 2 * (1 - e) * e * c.y + e * e * f.to.y; }
+    else { x = lerp(f.from.x, f.to.x, e); y = lerp(f.from.y, f.to.y, e); }
+    if (o.flutter) x += Math.sin(u * 9) * 18 * (1 - u);
+    const rot = lerp(o.r0 || 0, o.r1 || 0, e) + (o.flutter ? Math.sin(u * 7) * 14 * (1 - u) : 0);
+    const sc = lerp(o.s0 == null ? 1 : o.s0, o.s1 == null ? 1 : o.s1, e);
+    f.el.style.transform = `translate(${x - 75}px, ${y - 22}px) rotate(${rot}deg) scale(${sc})`;
+    f.el.style.opacity = o.fade ? (1 - Math.max(0, (u - .75) * 4)) : 1;
+    if (u >= 1) { flights.delete(f); f.res(); }
+  }
+}
+function updateCount(){
+  countT.textContent = queue.length ? `${queue.length} waiting` : '';
+  queue.forEach((q, i) => { const p = basketSlot(i); q.el.style.transform = `translate(${p.x - 75}px, ${p.y - 22}px) rotate(${q.rot}deg) scale(${.36 * p.s / 1})`; });
+}
+async function incoming(){
+  const n = Object.assign({}, POOL[pi++ % POOL.length], {time: timeNow()});
+  const el2 = makeLetter(n);
+  rustle(.25, .35);
+  if (dnd && s > .6) {
+    const b = bubblePage(), R = 62 * b.s;
+    const start = {x: Math.min(innerWidth - 40, b.x + 200), y: -40};
+    const dir = (() => { const dx = start.x - b.x, dy = start.y - b.y, L = Math.hypot(dx, dy); return {x: dx / L, y: dy / L}; })();
+    const contact = {x: b.x + dir.x * (R + 18), y: b.y + dir.y * (R + 18)};
+    await fly(el2, start, contact, .75, {ease: u => u * u, r0: 20, r1: -10, s0: .8, s1: .7});
+    sBoop(); bubbleWv += 2.4;
+    const slot = basketSlot(queue.length);
+    await fly(el2, contact, slot, .95, {ctrl: {x: contact.x + dir.x * 60 + 30, y: contact.y - 110}, ease: u => 1 - (1 - u) * (1 - u) * .2 - .8 * (1 - u) * (1 - u) * 0, r0: -10, r1: 340 + Math.random() * 30, s0: .7, s1: .36 * slot.s});
+    const rot = (Math.random() - .5) * 30; queue.push({n, el: el2, rot}); updateCount(); basketBounce = 1;
+    live.textContent = `${n.who}: notice held until you switch off Do not disturb. ${queue.length} waiting.`;
+  } else {
+    const r = list.getBoundingClientRect();
+    const target = {x: r.left + r.width / 2, y: r.top + 24};
+    perkT = 1;
+    await fly(el2, {x: r.right - 40, y: -50}, target, .9, {flutter: true, ease: u => 1 - Math.pow(1 - u, 2), r0: -25, r1: 0, s0: .9, s1: 1, fade: true});
+    el2.remove(); addToList(n); sChime();
+    live.textContent = `New notice from ${n.who}: ${n.msg}`;
+  }
+}
+
+/* ---------- toggle ---------- */
+let dnd = false, busy = false, perkT = 0, basketBounce = 0, basketTip = 0, firstUse = false;
+function setDnd(v){
+  if (v === dnd) return;
+  audio(); dnd = v; sw.setAttribute('aria-checked', String(dnd));
+  $('dndSub').textContent = dnd ? 'On — notices wait in the basket' : 'Off — notices arrive as they come';
+  if (!firstUse) { firstUse = true; hint.style.opacity = 0; }
+  if (dnd) {
+    sTarget = 1; sYawn();
+    caption.textContent = 'Hazel has curled up for a nap. Notices will keep in the basket until she wakes.';
+    live.textContent = 'Do not disturb on. Notices will wait.';
+  } else {
+    sTarget = 0; wake();
+  }
+}
+async function wake(){
+  caption.textContent = queue.length ? `Hazel wakes, stretches, and tips out ${queue.length === 1 ? 'the notice' : 'all ' + queue.length + ' notices'} that came while she slept.` : 'Hazel is wide awake, and every notice comes straight to you.';
+  stretchT = reduced ? 0 : 1.5; sWake();
+  live.textContent = queue.length ? `Do not disturb off. ${queue.length} held ${queue.length === 1 ? 'notice' : 'notices'} delivered.` : 'Do not disturb off.';
+  await wait(reduced ? 0 : 1050);
+  if (dnd) return;
+  if (queue.length) {
+    basketTip = 1; rustle(.4, .5);
+    const items = queue.splice(0); updateCount();
+    for (let i = 0; i < items.length; i++) {
+      const q = items[i], from = basketSlot(i), r = list.getBoundingClientRect();
+      const to = {x: r.left + r.width / 2, y: r.top + 24};
+      fly(q.el, from, to, .8, {ctrl: {x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - 160}, ease: u => u, r0: q.rot, r1: 0, s0: .36 * from.s, s1: 1, fade: true}).then(() => { q.el.remove(); addToList(q.n); tone(700 + i * 90, .25, .1); });
+      await wait(reduced ? 0 : 230);
+    }
+    setTimeout(() => { basketTip = 0; }, 600);
+  }
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+let stretchT = 0;
+sw.addEventListener('click', () => setDnd(!dnd));
+M.addEventListener('click', () => setDnd(!dnd));
+M.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDnd(!dnd); } });
+
+/* ---------- loop ---------- */
+let last = performance.now(), raf = 0, nextNotice = 2.6, acornX = 14, blinkT = 3, time = 0;
+function frame(now){
+  const dt = Math.min(.05, (now - last) / 1000); last = now; time += dt;
+  s += (sTarget - s) * Math.min(1, dt * (reduced ? 60 : (sTarget > s ? 1.4 : 2.2)));
+  if (stretchT > 0) { stretchT -= dt; const u = 1 - stretchT / 1.5; stretch = Math.sin(clamp(u, 0, 1) * Math.PI) * clamp(1.4 - u, 0, 1) * 1.1; } else stretch = 0;
+  perkT = Math.max(0, perkT - dt * 1.6); perk = Math.sin(perkT * Math.PI) * .9;
+  blinkT -= dt; if (blinkT < 0) { blinkT = 2.5 + Math.random() * 3; } blink = blinkT < .12 ? 1 : 0;
+  bubbleWv += (-bubbleWob * 160 - bubbleWv * 7) * dt; bubbleWob += bubbleWv * dt * .05;
+  drawMouse(dt, time);
+  // acorn slides along the twig
+  const ax = dnd ? 72 : 14; acornX += (ax - acornX) * Math.min(1, dt * (reduced ? 60 : 9));
+  acorn.setAttribute('transform', `translate(${acornX.toFixed(2)} ${(20 - Math.sin((acornX - 14) / 58 * Math.PI) * 3).toFixed(2)}) rotate(${((acornX - 14) * 3).toFixed(1)})`);
+  // basket: bounce on catch, tip on wake
+  basketBounce = Math.max(0, basketBounce - dt * 3);
+  const tip = basketTip ? -28 : 0; basket._tip = (basket._tip || 0) + (tip - (basket._tip || 0)) * Math.min(1, dt * 6);
+  basketInner.setAttribute('transform', `rotate(${(basket._tip + Math.sin(basketBounce * 12) * 4 * basketBounce).toFixed(2)} 40 10) scale(1 ${(1 - basketBounce * .06).toFixed(3)})`);
+  stepFlights(dt);
+  nextNotice -= dt; if (nextNotice <= 0) { nextNotice = 5.5 + Math.random() * 2; incoming(); }
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frame); } });
+window.addEventListener('resize', updateCount);
+// begin asleep with two notices already waiting
+dnd = true; sTarget = 1; s = 1; sw.setAttribute('aria-checked', 'true'); acornX = 72;
+$('dndSub').textContent = 'On — notices wait in the basket';
+caption.textContent = 'Hazel has curled up for a nap. Notices will keep in the basket until she wakes.';
+const seedQ = [{who: 'Robin Ashdown', msg: 'Can you water the tomatoes tomorrow?', ic: 'note'}, {who: 'Calendar', msg: 'Parish meeting moved to 18:30', ic: 'bell'}];
+requestAnimationFrame(() => { seedQ.forEach(n => { const e = makeLetter(n); queue.push({n: Object.assign(n, {time: timeNow(12)}), el: e, rot: (Math.random() - .5) * 30}); }); updateCount(); });
+raf = requestAnimationFrame(frame);
+window.__dormouse = {toggle: () => setDnd(!dnd), notice: incoming};
+})();
+</script>
+</body>
+</html>

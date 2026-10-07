@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mailbox Inbox Badge</title>
+<meta name="description" content="A notification badge as a stitched-felt rural mailbox: the red flag rises when mail arrives with the unread count embroidered on it, letters pile up behind the door, and opening the door slides them out as the message list.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sniglet:wght@400;800&family=Patrick+Hand&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Mailbox Inbox Badge","reimagines":"Notification badge","category":"Feedback & Status","description":"A felt-and-thread rural mailbox stands in for the unread badge: its flag swings up with the count stitched on it when new mail arrives, and the envelopes visibly pile up inside. Pull the door open and the letters slide out as the message list; read them all and the flag drops.","hint":"Pull the mailbox door open to read your mail"}
+</script>
+<style>
+:root{--ink:#3a2a22;--thread:#fff6e6;--red:#c9473b;--red-d:#9f3229;--teal:#2f7d7a;--sky:#a9d3d0;--grass:#7fae5a;--wool:#efe2c8;--mustard:#e6b34a;
+  --round:"Sniglet","Arial Rounded MT Bold",system-ui,sans-serif;--hand:"Patrick Hand","Comic Sans MS",cursive}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#a9d3d0}
+body{font-family:var(--hand);color:var(--ink);-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.felt-filter{position:absolute;width:0;height:0}
+.top{position:absolute;left:28px;top:22px;display:flex;align-items:center;gap:14px;z-index:5}
+.patch{position:relative;padding:10px 18px 8px;background:var(--wool);border-radius:16px;box-shadow:0 3px 0 rgba(58,42,34,.25), 0 6px 14px rgba(58,42,34,.18);filter:url(#felt)}
+.patch::after{content:"";position:absolute;inset:5px;border:2px dashed rgba(58,42,34,.45);border-radius:12px;pointer-events:none}
+.top .patch b{display:block;font:800 22px/1 var(--round);color:var(--teal)}
+.top .patch span{display:block;font:400 16px var(--hand);margin-top:2px}
+.tag{position:absolute;z-index:5;font:400 17px/1.25 var(--hand);text-align:center;transition:opacity .6s;pointer-events:none}
+.tag.patch{background:#fff4dc}
+#doorHit{position:absolute;z-index:6;touch-action:none;cursor:grab;border-radius:24px}
+#doorHit:active{cursor:grabbing}
+#doorHit:focus-visible{outline:3px dashed var(--ink);outline-offset:6px}
+.list{position:absolute;z-index:4;display:flex;flex-direction:column;gap:12px;pointer-events:none}
+.letter{position:relative;pointer-events:auto;display:block;width:100%;text-align:left;border:0;cursor:pointer;padding:12px 16px 12px 62px;border-radius:12px;font:inherit;color:inherit;background:#fffaf0;
+  box-shadow:0 3px 0 rgba(58,42,34,.2), 0 8px 18px rgba(58,42,34,.18);transform-origin:0 50%;filter:url(#felt)}
+.letter::after{content:"";position:absolute;inset:5px;border:2px dashed rgba(58,42,34,.32);border-radius:9px;pointer-events:none}
+.letter .stamp{position:absolute;left:14px;top:12px;width:36px;height:42px;border-radius:4px;background:var(--c, var(--red));box-shadow:inset 0 0 0 3px #fffaf0, inset 0 0 0 5px var(--c, var(--red))}
+.letter .stamp::after{content:"";position:absolute;inset:9px;border-radius:50%;background:rgba(255,250,240,.65)}
+.letter .from{display:flex;align-items:baseline;gap:10px;font:800 15px var(--round)}
+.letter .from time{margin-left:auto}
+.letter .subj,.letter .prev{display:block}
+.letter .from time{font:400 14px var(--hand);opacity:.7;white-space:nowrap}
+.letter .subj{font:400 17px/1.25 var(--hand)}
+.letter .prev{font:400 15px/1.25 var(--hand);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.letter.unread .from::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:7px;vertical-align:1px;box-shadow:0 0 0 2px #fffaf0, 0 0 0 3.5px var(--red)}
+.letter.read{background:#f3ead6}
+.letter:focus-visible{outline:3px dashed var(--teal);outline-offset:3px}
+.reader{position:absolute;z-index:7;inset:auto;display:none;padding:22px 24px 18px;background:#fffaf0;border-radius:18px;box-shadow:0 6px 0 rgba(58,42,34,.2), 0 18px 40px rgba(58,42,34,.3);filter:url(#felt)}
+.reader::after{content:"";position:absolute;inset:7px;border:2px dashed rgba(58,42,34,.4);border-radius:13px;pointer-events:none}
+.reader.on{display:block}
+.reader h3{margin:0 0 2px;font:800 21px var(--round);color:var(--teal)}
+.reader .meta{font:400 15px var(--hand);opacity:.75;margin-bottom:10px}
+.reader p{margin:0 0 14px;font:400 19px/1.35 var(--hand)}
+.btn{position:relative;border:0;cursor:pointer;font:800 15px var(--round);color:#fffaf0;background:var(--teal);padding:10px 18px 9px;border-radius:999px;box-shadow:0 3px 0 rgba(58,42,34,.35);filter:url(#felt)}
+.btn::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(255,250,240,.7);border-radius:999px;pointer-events:none}
+.btn.alt{background:var(--red)}
+.btn.ghost{background:#efe2c8;color:var(--ink)}.btn.ghost::after{border-color:rgba(58,42,34,.45)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(58,42,34,.35)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+button:focus-visible{outline:3px dashed var(--ink);outline-offset:3px}
+.dock{position:absolute;right:26px;bottom:22px;z-index:6;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.mute{position:absolute;right:26px;top:24px;z-index:6;width:46px;height:46px;border-radius:50%;border:0;background:var(--wool);cursor:pointer;padding:0;display:grid;place-items:center;box-shadow:0 3px 0 rgba(58,42,34,.25);filter:url(#felt)}
+.mute::after{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(58,42,34,.45);border-radius:50%}
+.mute svg{width:22px;height:22px}
+.mute[aria-pressed="true"] .w{display:none}.mute[aria-pressed="false"] .x{display:none}
+.empty{position:absolute;z-index:4;font:400 19px/1.3 var(--hand);text-align:center;display:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  .top{left:14px;top:14px}
+  .top .patch b{font-size:18px}.top .patch span{font-size:14px}
+  .mute{right:14px;top:16px;width:40px;height:40px}
+  .dock{left:14px;right:14px;bottom:14px;justify-content:center}
+  .btn{font-size:13.5px;padding:9px 14px 8px}
+  .letter{padding:9px 12px 9px 52px}
+  .letter .stamp{left:11px;top:10px;width:30px;height:35px}
+  .letter .subj{font-size:15.5px}.letter .prev{font-size:13.5px}
+  .reader p{font-size:17px}
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <svg class="felt-filter" aria-hidden="true">
+    <filter id="felt" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="2" seed="8" result="fib"/>
+      <feColorMatrix in="fib" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -.9 .62" result="fa"/>
+      <feComposite in="fa" in2="d" operator="in" result="fm"/>
+      <feBlend in="fm" in2="d" mode="multiply"/>
+    </filter>
+  </svg>
+  <svg id="scene" role="img" aria-label="Felt mailbox at the end of a lane"></svg>
+  <div class="top"><div class="patch"><b>Wrenfield Farm</b><span>Post for the Okonkwo family</span></div></div>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sounds"><svg viewBox="0 0 22 22" aria-hidden="true"><path d="M3 8.5h4L12 4.5v13l-5-4H3z" fill="#3a2a22"/><path class="w" d="M15 8.5q1.8 2.5 0 5M17.2 6.3q3.4 4.7 0 9.4" fill="none" stroke="#3a2a22" stroke-width="1.7" stroke-linecap="round"/><path class="x" d="M15 8.5l5 5M20 8.5l-5 5" stroke="#3a2a22" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+  <div id="doorHit" role="button" tabindex="0" aria-expanded="false" aria-label="Mailbox door"></div>
+  <div class="tag patch" id="hint">Pull the door open<br>to read your mail</div>
+  <div class="list" id="list" role="list" aria-label="Messages"></div>
+  <div class="empty" id="empty">All read. The flag’s down.<br>Close the door, the postie will be back.</div>
+  <div class="reader" id="reader" role="dialog" aria-modal="false" aria-labelledby="rT">
+    <h3 id="rT"></h3><div class="meta" id="rM"></div><p id="rB"></p>
+    <div class="row"><button class="btn" id="rBack" type="button">Back to the pile</button><button class="btn ghost" id="rUnread" type="button">Mark as unread</button></div>
+  </div>
+  <div class="dock">
+    <button class="btn alt" id="post" type="button">Send a test letter</button>
+    <button class="btn ghost" id="readAll" type="button">Mark all as read</button>
+  </div>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const scene = $('#scene');
+const live = $('#live'); function say(t){ live.textContent = ''; setTimeout(() => live.textContent = t, 40); }
+function el(tag, a, p){ const e = document.createElementNS(NS, tag); for(const k in a) e.setAttribute(k, a[k]); if(p) p.appendChild(e); return e; }
+const INK = '#3a2a22', THREAD = '#fff6e6';
+
+/* ---------- mail data ---------- */
+const MAIL = [
+  { from:'Grandma Ada', subj:'Jam season!', prev:'Twelve jars of damson are cooling on the sill…', body:'Twelve jars of damson are cooling on the sill and three have your name on them. Come Sunday and bring the little ones. I’ll make scones.', time:'08:12', c:'#c9473b' },
+  { from:'Wrenfield Vet Practice', subj:'Clover’s check-up is booked', prev:'Thursday 16 April at 10:30 in Barn 2.', body:'Clover’s annual check-up is booked for Thursday 16 April at 10:30 in Barn 2. Please keep her in the paddock the night before.', time:'Yesterday', c:'#2f7d7a' },
+  { from:'Ashby Seed Co.', subj:'Your order has shipped', prev:'2 kg runner beans, 500 g sweet peas…', body:'Order #5521 is on its way: 2 kg runner beans, 500 g sweet peas and a trowel. It should reach the end of your lane by Friday.', time:'Mon', c:'#e6b34a' }
+];
+const INCOMING = [
+  { from:'Tomás at the dairy', subj:'Milk round moved to 6 am', prev:'From next week we’re starting earlier…', body:'From next week we’re starting the round earlier, so leave the empties out the night before. Cheers, Tomás.', c:'#6c8f3d' },
+  { from:'Wrenfield Parish', subj:'Village fête: 9 May', prev:'Bring a cake, win a rosette…', body:'The village fête is on Saturday 9 May on the green. Bring a cake, enter the marrow contest, win a rosette. Bunting volunteers welcome.', c:'#8a5aa8' },
+  { from:'Dr Imani Okafor', subj:'Postcard from Lagos', prev:'The weather is glorious and the jollof…', body:'The weather is glorious and the jollof is even better than I remembered. Back on the 30th with presents for everyone.', c:'#d9762f' },
+  { from:'North Wolds Water', subj:'Your April bill: £38.20', prev:'Direct debit on 28 April 2026.', body:'Your April bill is £38.20 and will be collected by direct debit on 28 April 2026. Nothing for you to do.', c:'#3d6fa3' }
+];
+let inbox = MAIL.map((m, i) => ({ ...m, id: i, read: false })), incomingIdx = 0, nextId = 10;
+const unread = () => inbox.filter(m => !m.read).length;
+
+/* ---------- geometry ---------- */
+let W, H, MOB, BX, BY, BW, BH, k;
+function layout(){
+  W = innerWidth; H = innerHeight; MOB = W < 760;
+  k = MOB ? Math.min(1, (W - 60)/360) * .82 : Math.min(1.45, H/600, (W - 520)/420);
+  BW = 340*k; BH = 190*k;
+  BX = MOB ? W/2 - BW/2 + 10 : Math.max(70, W*.36 - BW/2 - 60); BY = MOB ? H*.36 : H*.46;
+  if(!MOB && BX < 60) BX = 60;
+  draw();
+  const hit = $('#doorHit'); hit.style.left = (BX + BW - 40*k) + 'px'; hit.style.top = (BY - 6*k) + 'px'; hit.style.width = (86*k) + 'px'; hit.style.height = (BH + 10*k) + 'px';
+  const hint = $('#hint'); hint.style.left = (BX + BW + 50*k) + 'px'; hint.style.top = (BY - 70*k) + 'px'; if(MOB){ hint.style.left = (W/2 - 90) + 'px'; hint.style.top = (BY - 120*k) + 'px'; }
+  placeList();
+}
+
+/* ---------- drawing ---------- */
+let gDoor, gFlag, gPile, gFlagNum, gFlagNumBg, gDoorInside, gLetters, gPost;
+function stitchPath(d, parent, w, col){ return el('path', { d, fill:'none', stroke: col || THREAD, 'stroke-width': w || 2.2, 'stroke-dasharray':'6 5', 'stroke-linecap':'round', 'stroke-linejoin':'round' }, parent); }
+function feltShape(d, fill, parent, stitch, inset){
+  const g = el('g', { filter:'url(#felt)' }, parent);
+  el('path', { d, fill: 'rgba(58,42,34,.25)', transform:'translate(0 4)' }, g);
+  el('path', { d, fill }, g);
+  if(stitch !== false){ const s = el('path', { d, fill:'none', stroke: stitch || 'rgba(255,246,230,.85)', 'stroke-width':2.1, 'stroke-dasharray':'6 5', 'stroke-linecap':'round' }, g); if(inset) s.setAttribute('transform', inset); }
+  return g;
+}
+function scaledInset(cx, cy, s){ return `translate(${cx} ${cy}) scale(${s}) translate(${-cx} ${-cy})`; }
+function draw(){
+  scene.innerHTML = '';
+  scene.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  // sky: felt bands
+  const sky = el('g', {}, scene);
+  feltShape(`M0 0H${W}V${H}H0Z`, '#a9d3d0', sky, false);
+  feltShape(`M0 ${H*.12} Q ${W*.3} ${H*.08} ${W*.6} ${H*.13} T ${W} ${H*.11} V0 H0Z`, '#bfe0dc', sky, false);
+  // sun
+  const sun = feltShape(`M${W*.82 - 46} ${H*.2} a46 46 0 1 0 92 0 a46 46 0 1 0 -92 0`, '#f2c25c', sky, 'rgba(255,246,230,.9)', scaledInset(W*.82, H*.2, .82));
+  // clouds
+  [[W*.18, H*.18, 1],[W*.55, H*.12, .8],[W*.9, H*.36, .7]].forEach(([x, y, s]) => { const d = `M${x - 60*s} ${y} q0 -26 30 -26 q8 -24 36 -18 q22 -14 40 6 q30 -2 30 26 q0 12 -14 12 h-108 q-14 0 -14 0z`; feltShape(d, '#fff6e6', sky, 'rgba(169,211,208,.9)', scaledInset(x, y - 10*s, .86)); });
+  // hills
+  const hz = MOB ? H*.56 : H*.62;
+  feltShape(`M0 ${hz} Q ${W*.25} ${hz - 90} ${W*.5} ${hz - 30} T ${W} ${hz - 60} V${H} H0Z`, '#9cc46c', scene, 'rgba(255,246,230,.7)', `translate(0 10)`);
+  feltShape(`M0 ${hz + 40} Q ${W*.35} ${hz - 10} ${W*.7} ${hz + 40} T ${W*1.2} ${hz + 20} V${H} H0Z`, '#7fae5a', scene, 'rgba(255,246,230,.7)', 'translate(0 10)');
+  // lane
+  feltShape(`M${W*.62} ${H} Q ${W*.66} ${hz + 120} ${W*.8} ${hz + 40} L ${W*.84} ${hz + 40} Q ${W*.78} ${hz + 140} ${W*.8} ${H}Z`, '#d9b98a', scene, 'rgba(58,42,34,.35)', scaledInset(W*.75, H, .94));
+  // fence + flowers
+  for(let i=0;i<9;i++){ const x = W*.05 + i*W*.11, y = hz + 56 + Math.sin(i)*6; if(Math.abs(x - (BX + BW/2)) < BW*.7) continue; feltShape(`M${x - 7} ${y} v-46 l7 -9 l7 9 v46z`, '#efe2c8', scene, 'rgba(58,42,34,.4)', scaledInset(x, y - 20, .8)); }
+  for(let i=0;i<14;i++){ const x = (i*137 % W), y = hz + 90 + (i*53 % Math.max(40, H - hz - 120)); const c = ['#e6b34a','#c9473b','#fff6e6','#8a5aa8'][i%4]; const fl = el('g', { filter:'url(#felt)' }, scene); for(let p=0;p<5;p++){ const a = p/5*Math.PI*2; el('circle', { cx: x + Math.cos(a)*7, cy: y + Math.sin(a)*7, r:5.5, fill:c }, fl); } el('circle', { cx:x, cy:y, r:4, fill:'#f2c25c' }, fl); el('circle', { cx:x, cy:y, r:4, fill:'none', stroke:INK, 'stroke-width':1, 'stroke-dasharray':'2 2' }, fl); }
+  // post
+  gPost = el('g', {}, scene);
+  const px = BX + BW*.42, pTop = BY + BH - 20*k, pBot = Math.max(MOB ? H*.62 : hz + 70, BY + BH + 70*k);
+  feltShape(`M${px - 16*k} ${pTop} H${px + 16*k} V${pBot} H${px - 16*k}Z`, '#8a5a3c', gPost, 'rgba(255,246,230,.6)', scaledInset(px, (pTop + pBot)/2, .82));
+  feltShape(`M${px - 30*k} ${pBot - 4} q30 -14 60 0 q4 10 -4 12 h-52 q-8 -2 -4 -12z`, '#6f9a4a', gPost, false);
+  // mailbox body (side view): back wall, barrel
+  const bx = BX, by = BY, bw = BW, bh = BH; const r = bh*.5;
+  const body = `M${bx} ${by + bh} V${by + r} A${r} ${r} 0 0 1 ${bx + r} ${by} H${bx + bw - r*.35} A${r*.35} ${r} 0 0 1 ${bx + bw} ${by + r} V${by + bh} Z`;
+  const bodyG = feltShape(body, '#2f7d7a', scene, 'rgba(255,246,230,.85)', scaledInset(bx + bw/2, by + bh/2, .94));
+  // ribs
+  [.28,.55].forEach(f => stitchPath(`M${bx + bw*f} ${by + 8*k} V${by + bh - 8*k}`, scene, 2));
+  // name patch
+  const np = feltShape(`M${bx + bw*.08} ${by + bh*.58} h${bw*.4} q8 0 8 8 v${bh*.2} q0 8 -8 8 h-${bw*.4} q-8 0 -8 -8 v-${bh*.2} q0 -8 8 -8z`, '#efe2c8', scene, 'rgba(58,42,34,.5)', scaledInset(bx + bw*.28, by + bh*.72, .9));
+  const nt = el('text', { x: bx + bw*.28 + 4, y: by + bh*.79, 'text-anchor':'middle', 'font-family':'Sniglet, sans-serif', 'font-weight':800, 'font-size': 22*k, fill:'#c9473b' }, scene); nt.textContent = 'OKONKWO';
+  // opening (dark mouth) + inside pile, revealed when door opens
+  const mouthR = bh*.42; const mx = bx + bw - 6*k, my = by + bh*.52;
+  gDoorInside = el('g', {}, scene);
+  feltShape(`M${mx - 14*k} ${my - mouthR} a${18*k} ${mouthR} 0 1 0 0.1 0z`, '#20302f', gDoorInside, false);
+  gPile = el('g', {}, scene);
+  // flag on the side
+  gFlag = el('g', {}, scene);
+  const fx0 = bx + bw*.7, fy0 = by + bh*.55;
+  gFlag.dataset.px = fx0; gFlag.dataset.py = fy0;
+  feltShape(`M${fx0 - 5*k} ${fy0} V${fy0 - 110*k} H${fx0 + 5*k} V${fy0}Z`, '#c9473b', gFlag, 'rgba(255,246,230,.8)', scaledInset(fx0, fy0 - 55*k, .8));
+  feltShape(`M${fx0 - 5*k} ${fy0 - 110*k} H${fx0 + 62*k} V${fy0 - 70*k} H${fx0 - 5*k}Z`, '#c9473b', gFlag, 'rgba(255,246,230,.9)', scaledInset(fx0 + 28*k, fy0 - 90*k, .86));
+  el('circle', { cx: fx0, cy: fy0, r: 8*k, fill:'#efe2c8', stroke:INK, 'stroke-width':1.5, 'stroke-dasharray':'3 2' }, gFlag);
+  gFlagNumBg = el('circle', { cx: fx0 + 30*k, cy: fy0 - 90*k, r: 15*k, fill:'#fff6e6' }, gFlag);
+  gFlagNum = el('text', { x: fx0 + 30*k, y: fy0 - 83*k, 'text-anchor':'middle', 'font-family':'Sniglet, sans-serif', 'font-weight':800, 'font-size': 20*k, fill:'#c9473b' }, gFlag);
+  // door (front, hinged at bottom) – drawn as a group we squash in x to fake rotation
+  gDoor = el('g', {}, scene);
+  const dw = 34*k, dh = bh + 6*k;
+  gDoor.dataset.hx = bx + bw; gDoor.dataset.hy = by + bh + 3*k;
+  const dd = `M${bx + bw - 6*k} ${by + bh + 3*k} V${by + r} A${r*.42} ${r + 3*k} 0 0 1 ${bx + bw - 6*k + dw} ${by + r} V${by + bh + 3*k} Z`;
+  feltShape(dd, '#3d9592', gDoor, 'rgba(255,246,230,.9)', scaledInset(bx + bw + dw/2 - 6*k, by + bh/2, .86));
+  feltShape(`M${bx + bw + dw - 6*k} ${by + bh*.42} h${14*k} v${18*k} h-${14*k}z`, '#e6b34a', gDoor, false);
+  renderPile();
+}
+function renderPile(){
+  if(!gPile) return; gPile.innerHTML = '';
+  const n = Math.min(8, unread() + (inbox.length - unread() > 0 ? 1 : 0));
+  const bx = BX, by = BY, bw = BW, bh = BH;
+  for(let i=0;i<n;i++){ const x = bx + bw - 30*k - i*14*k, y = by + bh - 16*k - (i%3)*6*k; const c = (inbox[i] && inbox[i].c) || '#efe2c8';
+    const g = el('g', { transform:`rotate(${(i%2 ? -6 : 5)} ${x} ${y})`, opacity: 0, class:'pileLetter' }, gPile);
+    feltShape(`M${x - 34*k} ${y - 12*k} h${44*k} v${22*k} h-${44*k}z`, '#fffaf0', g, false);
+    el('path', { d:`M${x - 34*k} ${y - 12*k} l${22*k} ${12*k} l${22*k} -${12*k}`, fill:'none', stroke:'rgba(58,42,34,.5)', 'stroke-width':1.4, 'stroke-dasharray':'3 2' }, g);
+    el('rect', { x: x + 2*k, y: y - 10*k, width: 7*k, height: 8*k, fill:c }, g);
+  }
+}
+
+/* ---------- physics: flag (damped hinge) + door ---------- */
+let flagA = 0, flagV = 0, flagT = 0, doorA = 0, doorV = 0, doorT = 0, doorDrag = null;
+function flagTarget(){ return unread() > 0 ? 1 : 0; }
+
+/* ---------- list ---------- */
+const listEl = $('#list');
+function placeList(){
+  const w = MOB ? W - 28 : Math.min(420, W - (BX + BW + 90*k) - 30);
+  if(MOB){ listEl.style.left = '14px'; listEl.style.top = (BY + BH + 30*k) + 'px'; listEl.style.width = w + 'px'; }
+  else { listEl.style.left = (BX + BW + 90*k) + 'px'; listEl.style.top = Math.max(110, BY - 190*k) + 'px'; listEl.style.width = w + 'px'; }
+  const rd = $('#reader'); rd.style.left = listEl.style.left; rd.style.top = listEl.style.top; rd.style.width = w + 'px';
+  const em = $('#empty'); em.style.left = listEl.style.left; em.style.top = (parseFloat(listEl.style.top) + 40) + 'px'; em.style.width = w + 'px';
+}
+function renderList(){
+  listEl.innerHTML = '';
+  const max = MOB ? 3 : 5;
+  inbox.slice(0, max).forEach((m, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'letter ' + (m.read ? 'read' : 'unread'); b.setAttribute('role', 'listitem'); b.style.setProperty('--c', m.c);
+    b.innerHTML = `<span class="stamp" aria-hidden="true"></span><span class="from"><span></span><time></time></span><span class="subj"></span><span class="prev"></span>`;
+    b.querySelector('.from span').textContent = m.from; b.querySelector('time').textContent = m.time; b.querySelector('.subj').textContent = m.subj; b.querySelector('.prev').textContent = m.prev;
+    b.setAttribute('aria-label', `${m.read ? '' : 'Unread. '}From ${m.from}: ${m.subj}. ${m.time}`);
+    b.addEventListener('click', () => openLetter(m));
+    b.dataset.i = i;
+    listEl.appendChild(b);
+  });
+  $('#empty').style.display = 'none';
+  if(doorOpen && unread() === 0 && !readerOn){ const n = document.createElement('div'); n.className = 'letter read'; n.style.cssText = 'padding-left:16px;text-align:center;font-size:17px;pointer-events:none'; n.textContent = 'All read, the flag’s down. Close the door and the postie will be back.'; listEl.appendChild(n); }
+}
+let doorOpen = false, readerOn = null;
+function slideOut(){
+  renderList(); const items = [...listEl.children]; const [hx, hy] = [BX + BW, BY + BH*.5];
+  items.forEach((it, i) => { const r = it.getBoundingClientRect(); const dx = hx - r.left - 20, dy = hy - r.top - r.height/2;
+    it.animate([{ transform:`translate(${dx}px, ${dy}px) scale(.2) rotate(-12deg)`, opacity:0 }, { transform:`translate(${dx*.3}px, ${dy*.3}px) scale(.8) rotate(4deg)`, opacity:1, offset:.6 }, { transform:'none', opacity:1 }], { duration: RM ? 1 : 560, delay: RM ? 0 : i*90, easing:'cubic-bezier(.2,.8,.3,1.1)', fill:'backwards' }); });
+  if(items.length) sfx.swish();
+}
+function slideIn(){ [...listEl.children].reverse().forEach((it, i) => { const r = it.getBoundingClientRect(); const dx = BX + BW - r.left - 20, dy = BY + BH*.5 - r.top - r.height/2; const a = it.animate([{ transform:'none', opacity:1 }, { transform:`translate(${dx}px, ${dy}px) scale(.2) rotate(-12deg)`, opacity:0 }], { duration: RM ? 1 : 320, delay: RM ? 0 : i*50, easing:'cubic-bezier(.5,0,.8,.4)', fill:'forwards' }); }); setTimeout(() => { if(!doorOpen){ listEl.innerHTML = ''; } }, RM ? 10 : 600); }
+function setDoor(open){
+  if(open === doorOpen) return; doorOpen = open; doorT = open ? 1 : 0; $('#doorHit').setAttribute('aria-expanded', open);
+  if(open){ slideOut(); hideHint(); say(unread() ? `Mailbox open. ${unread()} unread ${unread() === 1 ? 'letter' : 'letters'}.` : 'Mailbox open. No unread mail.'); }
+  else { closeReader(); slideIn(); $('#empty').style.display = 'none'; sfx.clunk(); }
+}
+function openLetter(m){
+  readerOn = m; const wasUnread = !m.read; m.read = true;
+  $('#rT').textContent = m.subj; $('#rM').textContent = `From ${m.from} · ${m.time}`; $('#rB').textContent = m.body;
+  $('#reader').classList.add('on'); listEl.style.visibility = 'hidden'; $('#rBack').focus();
+  if(wasUnread){ renderPile(); updateFlag(); }
+  say(`${m.subj}, from ${m.from}. ${m.body}`);
+}
+function closeReader(){ if(!readerOn) return; readerOn = null; $('#reader').classList.remove('on'); listEl.style.visibility = ''; if(doorOpen) renderList(); }
+$('#rBack').addEventListener('click', () => { const id = readerOn && readerOn.id; closeReader(); const b = [...listEl.children].find((x, i) => inbox[i] && inbox[i].id === id); if(b) b.focus(); });
+$('#rUnread').addEventListener('click', () => { if(readerOn){ readerOn.read = false; closeReader(); renderPile(); updateFlag(); } });
+addEventListener('keydown', e => { if(e.key === 'Escape'){ if(readerOn) closeReader(); else if(doorOpen) setDoor(false); } });
+
+function updateFlag(){
+  const n = unread(); gFlagNum.textContent = n > 9 ? '9+' : String(n);
+  $('#doorHit').setAttribute('aria-label', `Mailbox door, ${n} unread ${n === 1 ? 'letter' : 'letters'}. ${doorOpen ? 'Open' : 'Closed'}. Press to ${doorOpen ? 'close' : 'open'}.`);
+  document.title = n ? `(${n}) Mailbox Inbox Badge` : 'Mailbox Inbox Badge';
+  if(n === 0 && doorOpen) { say('All read. The flag is down.'); }
+}
+
+/* ---------- arrivals ---------- */
+let postie = null;
+function deliver(){
+  const m = INCOMING[incomingIdx++ % INCOMING.length];
+  const now = new Date(2026, 3, 14, 9, 5 + incomingIdx*7);
+  const item = { ...m, id: nextId++, read: false, time: now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) };
+  postie = { t: 0, item };
+  sfx.whistle();
+}
+function landLetter(item){
+  inbox.unshift(item); renderPile(); updateFlag(); flagV += 6; sfx.clunk(); sfx.ding();
+  say(`New letter from ${item.from}: ${item.subj}. ${unread()} unread.`);
+  if(doorOpen && !readerOn){ renderList(); const first = listEl.firstElementChild; if(first) first.animate([{ transform:`translate(${BX + BW - first.getBoundingClientRect().left}px, 0) scale(.3)`, opacity:0 }, { transform:'none', opacity:1 }], { duration: RM ? 1 : 500, easing:'cubic-bezier(.2,.8,.3,1.1)' }); }
+}
+$('#post').addEventListener('click', () => { if(!postie) deliver(); });
+$('#readAll').addEventListener('click', () => { inbox.forEach(m => m.read = true); renderPile(); updateFlag(); if(doorOpen && !readerOn) renderList(); say('All letters marked as read. Flag lowered.'); });
+
+/* ---------- door input ---------- */
+const hit = $('#doorHit');
+hit.addEventListener('pointerdown', e => { hit.setPointerCapture(e.pointerId); doorDrag = { x: e.clientX, a: doorA, moved: false }; });
+hit.addEventListener('pointermove', e => { if(!doorDrag) return; const dx = e.clientX - doorDrag.x; if(Math.abs(dx) > 4) doorDrag.moved = true; doorA = Math.max(0, Math.min(1, doorDrag.a + dx/(90*k))); doorV = 0; });
+const endDoor = () => { if(!doorDrag) return; const d = doorDrag; doorDrag = null; if(!d.moved){ setDoor(!doorOpen); return; } if(doorA > .45) { if(!doorOpen) setDoor(true); else doorT = 1; } else { if(doorOpen) setDoor(false); else doorT = 0; } };
+hit.addEventListener('pointerup', endDoor); hit.addEventListener('pointercancel', endDoor);
+hit.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setDoor(!doorOpen); } });
+let hintGone = false; function hideHint(){ if(!hintGone){ hintGone = true; $('#hint').style.opacity = 0; } }
+
+/* ---------- sound ---------- */
+let actx = null, master = null, muted = false;
+function initAudio(){ try{ if(!actx){ const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return; actx = new AC(); master = actx.createGain(); master.gain.value = .14; master.connect(actx.destination); } if(actx.state === 'suspended') actx.resume(); }catch(e){} }
+const ok = () => actx && !muted && actx.state === 'running';
+const sfx = {
+  clunk(){ if(!ok()) return; const t = actx.currentTime; const o = actx.createOscillator(), g = actx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(70, t + .12); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.6, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.connect(g).connect(master); o.start(t); o.stop(t + .22); },
+  ding(){ if(!ok()) return; const t = actx.currentTime + .05; [[988,.22],[1976,.06]].forEach(([f,a]) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + 1.1); o.connect(g).connect(master); o.start(t); o.stop(t + 1.2); }); },
+  swish(){ if(!ok()) return; const t = actx.currentTime; const b = actx.createBuffer(1, actx.sampleRate*.4, actx.sampleRate), d = b.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.sin(Math.PI*i/d.length); const s = actx.createBufferSource(); s.buffer = b; const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(800, t); f.frequency.exponentialRampToValueAtTime(2400, t + .35); const g = actx.createGain(); g.gain.value = .5; s.connect(f).connect(g).connect(master); s.start(t); },
+  whistle(){ if(!ok()) return; const t = actx.currentTime; [[0,1568,1760],[.18,1568,2093]].forEach(([o, f0, f1]) => { const os = actx.createOscillator(), g = actx.createGain(); os.type = 'sine'; os.frequency.setValueAtTime(f0, t + o); os.frequency.linearRampToValueAtTime(f1, t + o + .12); g.gain.setValueAtTime(.0001, t + o); g.gain.exponentialRampToValueAtTime(.16, t + o + .02); g.gain.exponentialRampToValueAtTime(.0001, t + o + .16); os.connect(g).connect(master); os.start(t + o); os.stop(t + o + .2); }); }
+};
+addEventListener('pointerdown', initAudio, {capture:true}); addEventListener('keydown', initAudio, {capture:true});
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute sounds' : 'Mute sounds'); });
+
+/* ---------- loop ---------- */
+let last = performance.now(), simT = 0, autoT = 0, autoN = 0, jitT = 0;
+const env = el('g', {}, scene);
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  simT += dt; jitT += dt;
+  // flag: damped spring toward up(-90deg) or down(0)
+  const ft = flagTarget(); flagV += ((ft - flagA)*60 - flagV*7)*dt; flagA += flagV*dt;
+  // door
+  if(!doorDrag){ doorV += ((doorT - doorA)*90 - doorV*12)*dt; doorA += doorV*dt; doorA = Math.max(-.05, Math.min(1.08, doorA)); }
+  // stop-motion: update transforms at 12 fps with tiny jitter
+  if(jitT > 1/12 || RM){ jitT = 0;
+    const j = () => RM ? 0 : (Math.random() - .5)*.8;
+    const px = +gFlag.dataset.px, py = +gFlag.dataset.py; const ang = -90*Math.max(-.1, Math.min(1.15, flagA)) + 90;
+    gFlag.setAttribute('transform', `rotate(${ang - 90 + 90*0 + j()} ${px} ${py}) rotate(0)`);
+    gFlag.setAttribute('transform', `rotate(${-(1 - flagA)*90 + j()} ${px} ${py})`);
+    gFlagNum.setAttribute('transform', `rotate(${(1 - flagA)*90} ${+gFlagNum.getAttribute('x')} ${+gFlagNum.getAttribute('y') - 7*k})`);
+    gFlagNumBg.setAttribute('opacity', unread() ? 1 : 0); gFlagNum.setAttribute('opacity', unread() ? 1 : 0);
+    const hx = +gDoor.dataset.hx, hy = +gDoor.dataset.hy;
+    const a = Math.max(0, Math.min(1, doorA));
+    gDoor.setAttribute('transform', `translate(${hx} ${hy}) rotate(${a*96 + j()*.5}) translate(${-hx} ${-hy})`);
+    [...gPile.children].forEach(c => c.setAttribute('opacity', Math.min(1, a*2.5).toFixed(2)));
+    gDoorInside.setAttribute('opacity', Math.min(1, a*3).toFixed(2));
+    // postie envelope flying in
+    env.innerHTML = '';
+    if(postie){ postie.t += RM ? 1 : 1/12/1.3; const t = Math.min(1, postie.t); const sx = W + 60, sy = BY - 160*k, ex = BX + BW - 10*k, ey = BY + BH*.45;
+      const x = sx + (ex - sx)*t, y = sy + (ey - sy)*t - Math.sin(Math.PI*t)*80*k; const g = el('g', { transform:`translate(${x} ${y}) rotate(${-20 + t*20 + j()*4})`, filter:'url(#felt)' }, env);
+      el('rect', { x: -26*k, y: -16*k, width: 52*k, height: 32*k, rx: 3, fill:'#fffaf0' }, g); el('path', { d:`M${-26*k} ${-16*k} L0 ${2*k} L${26*k} ${-16*k}`, fill:'none', stroke:'rgba(58,42,34,.55)', 'stroke-width':1.6, 'stroke-dasharray':'3 2' }, g); el('rect', { x: 12*k, y: -12*k, width: 9*k, height: 10*k, fill: postie.item.c }, g);
+      // wings
+      const flap = Math.sin(simT*20)*.6; el('path', { d:`M${-6*k} ${-14*k} q${-14*k} ${(-22 - flap*10)*k} ${-30*k} ${-14*k} q${12*k} ${2*k} ${24*k} ${10*k}z`, fill:'#fff6e6', stroke:INK, 'stroke-width':1, 'stroke-dasharray':'2 2' }, g);
+      if(postie.t >= 1){ const it = postie.item; postie = null; landLetter(it); } }
+  }
+  // gentle autoplay: a letter arrives every so often while the user isn't busy
+  autoT += dt; if(autoT > (autoN === 0 ? 3.2 : 16) && !postie && !readerOn && autoN < 5){ autoT = 0; autoN++; deliver(); }
+  requestAnimationFrame(frame);
+}
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); scene.appendChild(env); updateFlag(); if(doorOpen) renderList(); }, 120); });
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+layout(); scene.appendChild(env); updateFlag(); flagA = 1;
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

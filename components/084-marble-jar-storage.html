@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marble Jar Storage</title>
+<meta name="description" content="Disk usage as a glass jar of refractive marbles, one marble per 2 GB, layered by file type against an etched scale. Choose a type and the marbles you could free float up through the pile and into a dish.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Marble Jar Storage","reimagines":"Storage usage meter","category":"Data & Visualization","description":"Your disk as a glass jar of marbles, one per 2 GB, poured in by file type so the layers read like a stacked bar against an etched scale. Pick a type and the marbles you could free float up through the pile and roll into a dish, so you see the jar's new level before you commit.","hint":"Choose a file type to see what you could free"}
+</script>
+<style>
+  :root{ --ink:#eef3f2; --dim:#9aa6a8; --line:rgba(220,240,236,.18); }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d0f12}
+  body{font-family:Manrope, "Helvetica Neue", sans-serif;color:var(--ink)}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  /* thick glass slab */
+  .panel{position:absolute;right:48px;top:50%;transform:translateY(-50%);width:430px;padding:26px 26px 20px;border-radius:22px;
+    background:
+      linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.02) 40%, rgba(180,230,215,.05) 100%),
+      rgba(22,30,32,.52);
+    backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(150,220,200,.15),
+      inset 1px 0 0 rgba(255,255,255,.12), inset -1px 0 0 rgba(150,220,200,.10),
+      inset 0 0 0 7px rgba(150,220,200,.035),
+      0 30px 60px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.04);
+  }
+  .panel::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(105deg, transparent 18%, rgba(255,255,255,.07) 22%, transparent 30%, transparent 70%, rgba(255,255,255,.04) 74%, transparent 80%)}
+  .eyebrow{font:700 11px/1 Manrope;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+  h1{font:400 44px/1 "Instrument Serif", Georgia, serif;margin:0;letter-spacing:-.01em;
+     color:rgba(240,250,248,.92);text-shadow:0 1px 0 rgba(255,255,255,.25), 0 -1px 0 rgba(0,0,0,.4)}
+  .used{font:400 17px/1.3 Manrope;color:var(--dim);margin:8px 0 14px}
+  .used b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .bar{position:relative;height:12px;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.06);box-shadow:inset 0 1px 2px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.08);display:flex;margin-bottom:16px}
+  .bar span{height:100%;transition:flex-basis .8s cubic-bezier(.3,.9,.3,1)}
+  .bar span.ghost{background:repeating-linear-gradient(-45deg, rgba(255,255,255,.35) 0 3px, rgba(255,255,255,.1) 3px 6px)!important}
+  .list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+  .list li{border-bottom:1px solid var(--line)}
+  .row{all:unset;box-sizing:border-box;display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:center;width:100%;padding:9px 6px 9px 4px;cursor:pointer;border-radius:10px;transition:background .2s}
+  .row:hover{background:rgba(255,255,255,.05)}
+  .row:focus-visible{outline:2px solid rgba(190,240,225,.8);outline-offset:-2px}
+  .row[aria-expanded="true"]{background:rgba(255,255,255,.07)}
+  .row .m{width:20px;height:20px;border-radius:50%;box-shadow:inset -3px -4px 6px rgba(0,0,0,.45), inset 2px 2px 3px rgba(255,255,255,.35), 0 2px 4px rgba(0,0,0,.5)}
+  .row .nm{font:500 16px/1.2 Manrope}
+  .row .nm small{display:block;font-size:12.5px;color:var(--dim);font-weight:400;margin-top:2px}
+  .row .gb{font:700 15px/1 Manrope;font-variant-numeric:tabular-nums;text-align:right}
+  .row .gb small{display:block;font-weight:400;color:var(--dim);font-size:11.5px;margin-top:3px}
+  .detail{padding:2px 6px 14px 40px;font:400 14px/1.45 Manrope;color:#c9d4d3}
+  .detail p{margin:0 0 10px}
+  .btns{display:flex;gap:10px;flex-wrap:wrap}
+  .glass{all:unset;cursor:pointer;font:700 14px/1 Manrope;padding:11px 16px;border-radius:999px;color:#06100e;
+    background:linear-gradient(180deg, #e9fbf5, #a9dccd 60%, #8cc9b9);
+    box-shadow:inset 0 1px 0 #fff, inset 0 -2px 4px rgba(20,80,70,.35), 0 6px 14px rgba(0,0,0,.4), 0 0 0 1px rgba(0,0,0,.35);}
+  .glass.ghosty{color:var(--ink);background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.04));box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 0 0 1px rgba(255,255,255,.14)}
+  .glass:hover{filter:brightness(1.07)}
+  .glass:active{transform:translateY(1px)}
+  .glass:focus-visible{outline:2px solid #bff0e1;outline-offset:3px}
+  .glass[disabled]{opacity:.45;cursor:default}
+  .note{font:400 12.5px/1.4 Manrope;color:var(--dim);margin:12px 0 0;display:flex;gap:8px;align-items:center}
+  .note i{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #fff, #b8c6c8 40%, #56636a);flex:none}
+  .hint{position:absolute;left:0;right:0;text-align:center;font:italic 400 19px/1.2 "Instrument Serif",serif;color:rgba(220,235,232,.55);margin:0;pointer-events:none;transition:opacity .6s}
+  .hint.gone{opacity:0}
+  .tip{position:absolute;pointer-events:none;padding:7px 11px;border-radius:10px;font:600 13px/1.3 Manrope;color:#eef3f2;white-space:nowrap;
+    background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.05)), rgba(18,26,28,.82);box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 8px 18px rgba(0,0,0,.5)}
+  .tip small{display:block;font-weight:400;color:#a8b5b6;font-size:11.5px}
+  .reset{all:unset;cursor:pointer;font:500 12.5px Manrope;color:var(--dim);text-decoration:underline;text-underline-offset:3px}
+  .reset:focus-visible{outline:2px solid #bff0e1;outline-offset:2px}
+  @media (max-width:760px){
+    .panel{left:10px;right:10px;width:auto;top:auto;bottom:10px;transform:none;padding:14px 14px 10px;border-radius:18px}
+    .eyebrow{display:none}
+    h1{font-size:28px}
+    .used{font-size:13.5px;margin:4px 0 8px}
+    .bar{height:8px;margin-bottom:6px}
+    .row{padding:4px 4px 4px 2px;grid-template-columns:16px 1fr auto;gap:8px}
+    .row .m{width:14px;height:14px}
+    .row .nm{font-size:13.5px}
+    .row .nm small{display:none}
+    .row .gb{font-size:13px}
+    .row .gb small{display:none}
+    .detail{padding:0 4px 8px 26px;font-size:12.5px}
+    .detail p{margin-bottom:6px}
+    .glass{font-size:12.5px;padding:8px 12px}
+    .note{display:none}
+    .hint{font-size:16px}
+  }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="cv" aria-hidden="true"></canvas>
+  <p class="hint" id="hint">Each marble is 2 GB. Choose a file type to see what you could free.</p>
+  <section class="panel" aria-labelledby="ttl">
+    <p class="eyebrow">Studio MacBook Pro · Macintosh HD</p>
+    <h1 id="ttl">Storage</h1>
+    <p class="used" id="used"></p>
+    <div class="bar" id="bar" aria-hidden="true"></div>
+    <ul class="list" id="list"></ul>
+    <p class="note"><i></i>One marble holds 2 GB. Sizes are measured to 0.1 GB.</p>
+  </section>
+  <div class="tip" id="tip" hidden></div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+const CAP = 512, PER = 2;
+
+/* ---------------- data ---------------- */
+const CATS0 = [
+  {id:'system', name:'System', glass:'smoke glass', gb:48.0, free:0, tint:'#6f7884', swirl:'#dfe6ee',
+   why:'macOS needs these files to start up and run. They can’t be removed.'},
+  {id:'apps', name:'Apps', glass:'emerald', gb:57.6, free:23.4, tint:'#119a63', swirl:'#cbffe0',
+   why:'Remove 6 apps you haven’t opened since March, including Final Cut Pro trial and two old games.', act:'Remove 6 apps'},
+  {id:'docs', name:'Documents', glass:'opal', gb:34.1, free:12.7, tint:'#dfe7ec', swirl:'#ffffff',
+   why:'11 files over 1 GB in Downloads, mostly old installers and a 4.2 GB screen recording.', act:'Review large files'},
+  {id:'music', name:'Music', glass:'ruby', gb:21.4, free:21.4, tint:'#cf1f3d', swirl:'#ffc6cf',
+   why:'Downloaded albums. They stay in your library and stream when you play them.', act:'Remove downloads'},
+  {id:'video', name:'Video', glass:'cobalt', gb:95.8, free:61.2, tint:'#1f4fd8', swirl:'#a7d4ff',
+   why:'14 films and episodes you’ve finished watching, downloaded in the TV app.', act:'Remove watched'},
+  {id:'photos', name:'Photos', glass:'amber', gb:142.3, free:118.6, tint:'#d98d18', swirl:'#fff0c2',
+   why:'Keep full-size originals in iCloud and smaller optimised copies on this Mac.', act:'Optimise storage'},
+  {id:'cache', name:'Caches & other', glass:'amethyst', gb:32.2, free:26.9, tint:'#8b4fd6', swirl:'#ead9ff',
+   why:'Browser caches, old logs and leftover update files. Apps rebuild caches as needed.', act:'Clear caches'},
+];
+let CATS = CATS0.map(c => ({...c}));
+const used = () => CATS.reduce((a,c)=>a+c.gb,0);
+const fmt = n => n.toFixed(1).replace(/\.0$/,'.0') + ' GB';
+
+/* ---------------- layout ---------------- */
+let W=0,H=0,DPR=1, mob=false, J={}, D={}, r=11;
+function layout(){
+  const rc = cv.getBoundingClientRect(); W = rc.width; H = rc.height; mob = W < 760;
+  DPR = Math.min(2, devicePixelRatio||1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  const old = {...J};
+  if (!mob){
+    r = 11;
+    const jw = 300, jh = 430;
+    const cx = Math.max(250, (W - 480)/2 - 70);
+    const floorY = Math.min(H - 110, H*0.5 + jh/2 + 20);
+    J = {l: cx - jw/2, r: cx + jw/2, b: floorY - 22, t: floorY - 22 - jh, cx, floor: floorY, wall: 12, rc: 34};
+    D = {cx: J.r + 175, w: 300, b: floorY - 12, h: 96};
+  } else {
+    r = 6.6;
+    const jw = 176, jh = 268;
+    const cx = 18 + jw/2 + 12;
+    const floorY = 30 + jh + 34;
+    J = {l: cx - jw/2, r: cx + jw/2, b: floorY - 14, t: floorY - 14 - jh, cx, floor: floorY, wall: 8, rc: 22};
+    D = {cx: Math.min(W - 82, J.r + 90), w: 150, b: floorY - 8, h: 56};
+  }
+  D.l = D.cx - D.w/2; D.r = D.cx + D.w/2; D.t = D.b - D.h;
+  D.R = ((D.w/2)*(D.w/2) + D.h*D.h)/(2*D.h); D.cy = D.b - D.R;
+  $('hint').style.top = (J.floor + (mob ? 6 : 36)) + 'px';
+  if (mob){ $('hint').style.left = '0'; $('hint').style.right = '0'; $('hint').style.width = 'auto'; $('hint').style.top = (J.floor + 38) + 'px'; }
+  else { $('hint').style.left = (J.l - 60) + 'px'; $('hint').style.right = 'auto'; $('hint').style.width = (D.r - J.l + 120) + 'px'; }
+  buildSprites();
+  // carry marbles across resizes by rescaling relative positions
+  if (old.l !== undefined && marbles.length){
+    const sx = (J.r-J.l)/(old.r-old.l), sy = (J.b-J.t)/(old.b-old.t);
+    for (const m of marbles){
+      if (m.state==='dish'){ m.x = D.cx + (m.x - (old.dcx||D.cx)); m.y = D.b - 20; }
+      else { m.x = J.l + (m.x-old.l)*sx; m.y = J.b - (old.b-m.y)*sy; }
+      m.r = r; m.vx = m.vy = 0;
+    }
+  }
+  J.dcx = D.cx;
+}
+
+/* ---------------- sprites: glass marbles ---------------- */
+const sprites = {}; let hiSprite = null;
+function hex2rgb(h){ const n=parseInt(h.slice(1),16); return [n>>16, n>>8&255, n&255]; }
+function mix(h, k, a=1){ const [R,G,B]=hex2rgb(h); const f = v => Math.round(k>=0 ? v + (255-v)*k : v*(1+k)); return `rgba(${f(R)},${f(G)},${f(B)},${a})`; }
+function buildSprites(){
+  const S = Math.ceil((r*2+6)*DPR);
+  for (const c of CATS0){
+    sprites[c.id] = [];
+    for (let v=0; v<4; v++){
+      const cvs = document.createElement('canvas'); cvs.width = cvs.height = S;
+      const g = cvs.getContext('2d'); g.scale(DPR,DPR); g.translate(r+3, r+3);
+      const opal = c.id==='docs';
+      // body: dark Fresnel rim, transmitted light pooling low-right
+      const body = g.createRadialGradient(r*0.3, r*0.38, r*0.05, 0, 0, r);
+      body.addColorStop(0, mix(c.tint, opal?0.4:0.62, 0.97));
+      body.addColorStop(0.42, mix(c.tint, opal?0.05:0.05, 0.92));
+      body.addColorStop(0.82, mix(c.tint, opal?-0.25:-0.5, 0.96));
+      body.addColorStop(1, mix(c.tint, opal?-0.45:-0.72, 1));
+      g.fillStyle = body; g.beginPath(); g.arc(0,0,r,0,TAU); g.fill();
+      g.save(); g.beginPath(); g.arc(0,0,r*0.96,0,TAU); g.clip();
+      // inverted refraction of the bright room: darker cap at the top
+      const cap = g.createLinearGradient(0,-r,0,r*0.2);
+      cap.addColorStop(0, 'rgba(0,0,0,.35)'); cap.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle = cap; g.fillRect(-r,-r,2*r,1.2*r);
+      // cat's-eye vanes
+      g.rotate(v*1.57 + 0.4);
+      for (let k=0;k<3;k++){
+        g.rotate(TAU/3);
+        g.beginPath(); g.moveTo(0,0);
+        g.bezierCurveTo(r*0.25,-r*0.36, r*0.7,-r*0.32, r*0.86,-r*0.06);
+        g.bezierCurveTo(r*0.62, r*0.02, r*0.32, r*0.12, 0, 0);
+        const vg = g.createLinearGradient(0,0,r*0.86,0);
+        vg.addColorStop(0, mix(c.swirl, 0, opal?0.5:0.85)); vg.addColorStop(1, mix(c.swirl, 0, 0.15));
+        g.fillStyle = vg; g.fill();
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 0.6; g.stroke();
+      }
+      g.restore();
+      // caustic: light focused through the sphere onto its far inner wall
+      g.save(); g.beginPath(); g.arc(0,0,r,0,TAU); g.clip();
+      const cs = g.createRadialGradient(r*0.42, r*0.52, 0, r*0.42, r*0.52, r*0.55);
+      cs.addColorStop(0, mix(c.tint, 0.85, 0.85)); cs.addColorStop(1, mix(c.tint, 0.3, 0));
+      g.fillStyle = cs; g.fillRect(-r,-r,2*r,2*r);
+      g.restore();
+      sprites[c.id].push(cvs);
+    }
+  }
+  // highlights (fixed to the key light, shared)
+  const cvs = document.createElement('canvas'); cvs.width = cvs.height = S;
+  const g = cvs.getContext('2d'); g.scale(DPR,DPR); g.translate(r+3, r+3);
+  g.save(); g.beginPath(); g.arc(0,0,r,0,TAU); g.clip();
+  // softbox window reflection
+  g.save(); g.translate(-r*0.34, -r*0.42); g.rotate(-0.55);
+  const wg = g.createLinearGradient(0,-r*0.3,0,r*0.3); wg.addColorStop(0,'rgba(255,255,255,.55)'); wg.addColorStop(1,'rgba(255,255,255,.08)');
+  g.fillStyle = wg; g.beginPath(); g.ellipse(0,0,r*0.36,r*0.2,0,0,TAU); g.fill();
+  g.restore();
+  // sharp specular
+  g.fillStyle = 'rgba(255,255,255,.98)'; g.beginPath(); g.ellipse(-r*0.4, -r*0.46, r*0.13, r*0.08, -0.6, 0, TAU); g.fill();
+  // rim light from the back-right
+  g.strokeStyle = 'rgba(220,240,255,.45)'; g.lineWidth = Math.max(0.8, r*0.1);
+  g.beginPath(); g.arc(0,0,r*0.93, -0.2, 1.1); g.stroke();
+  g.restore();
+  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 0.7; g.beginPath(); g.arc(0,0,r-0.2,0,TAU); g.stroke();
+  hiSprite = cvs;
+}
+
+/* ---------------- marbles & physics ---------------- */
+let marbles = [];
+const pourQueue = [];
+function buildMarbles(instant){
+  marbles = []; pourQueue.length = 0;
+  const rnd = mulberry32(84);
+  for (const c of CATS){
+    const n = Math.round(c.gb/PER);
+    for (let i=0;i<n;i++) pourQueue.push({cat:c.id, v:(rnd()*4)|0, rot:rnd()*TAU});
+  }
+  if (instant){
+    // stack them directly in rows (bottom-up), then let physics settle
+    const cols = Math.floor((J.r-J.l)/(2*r));
+    pourQueue.forEach((q,i) => {
+      const row = Math.floor(i/cols), col = i%cols;
+      marbles.push(mk(q, J.l + r + col*2*r + (row%2? r*0.5:0) + (rnd()-0.5), J.b - r - row*1.75*r));
+    });
+    pourQueue.length = 0;
+    for (let i=0;i<240;i++) step(1/120);
+    calibrate();
+  } else setTimeout(calibrate, 4400);
+}
+function mk(q, x, y){ return {x, y, vx:0, vy:0, r, cat:q.cat, v:q.v, rot:q.rot, spin:0, state:'jar', a:1, t:0}; }
+
+const G = 1500;
+function step(dt){
+  // integrate
+  for (const m of marbles){
+    if (m.state==='gone') continue;
+    m.px = m.x; m.py = m.y;
+    if (m.state==='fly'){
+      m.t += dt; m.vy += G*dt; m.x += m.vx*dt; m.y += m.vy*dt;
+      if (m.t >= m.T){ m.state = m.next; m.vy *= 0.4; m.vx *= 0.4; }
+      continue;
+    }
+    if (m.state==='fade'){ m.a -= dt*1.6; if (m.a <= 0) m.state='gone'; continue; }
+    let g = G;
+    if (m.state==='rise'){ g = -G*0.85; m.vx += (Math.random()-0.5)*600*dt; }
+    if (m.state==='stuck'){ m.t += dt; g = m.t < 0.35 ? G*0.15 : G; if (m.t < 0.1) m.vy -= 900*dt; m.vx += Math.sin(m.t*60 + m.rot)*900*dt; if (m.t > 0.6) m.state='jar'; }
+    m.vy += g*dt;
+    m.vx *= 0.995; m.vy *= 0.995;
+    m.x += m.vx*dt; m.y += m.vy*dt;
+  }
+  // collisions via grid
+  const cell = r*2, grid = new Map();
+  const key = (i,j) => i*73856093 ^ j*19349663;
+  for (let k=0;k<marbles.length;k++){ const m = marbles[k]; if (m.state==='fly'||m.state==='gone'||m.state==='fade') continue;
+    const kk = key(Math.floor(m.x/cell), Math.floor(m.y/cell)); let a = grid.get(kk); if (!a){ a=[]; grid.set(kk,a);} a.push(k); }
+  for (let it=0; it<3; it++){
+    for (let k=0;k<marbles.length;k++){
+      const m = marbles[k]; if (m.state==='fly'||m.state==='gone'||m.state==='fade') continue;
+      const ci = Math.floor(m.x/cell), cj = Math.floor(m.y/cell);
+      for (let di=-1;di<=1;di++) for (let dj=-1;dj<=1;dj++){
+        const a = grid.get(key(ci+di,cj+dj)); if (!a) continue;
+        for (const o of a){ if (o<=k) continue; const n = marbles[o]; if (n.state==='fly'||n.state==='gone'||n.state==='fade') continue;
+          const dx = n.x-m.x, dy = n.y-m.y, d2 = dx*dx+dy*dy, md = m.r+n.r;
+          if (d2 < md*md && d2 > 1e-6){
+            const d = Math.sqrt(d2), ov = (md-d), nx = dx/d, ny = dy/d;
+            // rising marbles shoulder through: they move less
+            const wm = m.state==='rise' ? 0.25 : n.state==='rise' ? 0.75 : 0.5;
+            m.x -= nx*ov*wm; m.y -= ny*ov*wm; n.x += nx*ov*(1-wm); n.y += ny*ov*(1-wm);
+            const rel = (n.vx-m.vx)*nx + (n.vy-m.vy)*ny;
+            if (rel < -60) clinkMaybe(-rel, (m.x+n.x)/2);
+          }
+        }
+      }
+      constrain(m);
+    }
+  }
+  // velocity from corrected positions + rolling spin
+  for (const m of marbles){
+    if (m.state==='fly'||m.state==='gone'||m.state==='fade') continue;
+    m.vx = (m.x - m.px)/dt; m.vy = (m.y - m.py)/dt;
+    m.rot += m.vx*dt/m.r;
+    if (m.state==='rise' && m.y < J.t - m.r*1.5) launch(m);
+  }
+}
+function constrain(m){
+  if (m.state==='dish'){
+    // glass bowl: spherical floor below the rim, open above it
+    if (m.y > D.t - m.r){
+      const dx = m.x - D.cx, dy = m.y - D.cy, d = Math.hypot(dx,dy);
+      if (d > D.R - m.r){ const k = (D.R - m.r)/d; m.x = D.cx + dx*k; m.y = D.cy + dy*k; }
+    }
+    if (m.y > D.b - m.r) m.y = D.b - m.r;
+    return;
+  }
+  // jar interior (open mouth)
+  if (m.y > J.t - 4){
+    if (m.x < J.l + m.r) m.x = J.l + m.r;
+    if (m.x > J.r - m.r) m.x = J.r - m.r;
+  }
+  if (m.y > J.b - m.r) m.y = J.b - m.r;
+  // rounded bottom corners
+  const rc = J.rc;
+  for (const [cx,cy] of [[J.l+rc, J.b-rc],[J.r-rc, J.b-rc]]){
+    if ((cx < J.cx ? m.x < cx : m.x > cx) && m.y > cy){
+      const dx = m.x-cx, dy = m.y-cy, d = Math.hypot(dx,dy), lim = rc - m.r;
+      if (d > lim){ m.x = cx + dx/d*lim; m.y = cy + dy/d*lim; }
+    }
+  }
+  if (m.state==='jar' && m.y < J.t - 40) m.y = J.t - 40;
+}
+let dishSlot = 0;
+function launch(m){
+  // arc out of the mouth into the dish
+  const spread = Math.floor(D.w/(m.r*2.2)), slot = dishSlot++;
+  const tx = D.cx + ((slot % spread) - (spread-1)/2)*m.r*1.9*0.8 + (Math.random()-0.5)*4, ty = D.t - m.r*2 - Math.random()*m.r*2;
+  const T = 0.75 + Math.random()*0.2;
+  m.vx = (tx - m.x)/T; m.vy = (ty - m.y - 0.5*G*T*T)/T; m.t = 0; m.T = T; m.state='fly'; m.next='dish';
+}
+function sendBack(m, delay){
+  const tx = J.cx + (Math.random()-0.5)*(J.r-J.l)*0.5, ty = J.t - 10;
+  const T = 0.65 + Math.random()*0.15;
+  m.t = -delay; m.T = T;
+  m.vx = 0; m.vy = 0; m.state = 'wait'; m.wait = delay; m.tx = tx; m.ty = ty;
+}
+
+/* ---------------- sound: glass clicks ---------------- */
+let AC=null, master=null, lastClink=0, clinks=0;
+function audio(){ if (AC){ if (AC.state==='suspended') AC.resume(); return; } try{ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.16; master.connect(AC.destination);}catch(e){AC=null;} }
+function clinkMaybe(v, x){
+  if (!AC || AC.state!=='running') return;
+  const now = performance.now();
+  if (now - lastClink < 28) return; lastClink = now;
+  const t0 = AC.currentTime, f = 2600 + Math.random()*2400, vol = Math.min(0.22, v/2400);
+  const o = AC.createOscillator(), g = AC.createGain(), p = AC.createStereoPanner ? AC.createStereoPanner() : null;
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0+0.002); g.gain.exponentialRampToValueAtTime(0.0001, t0+0.09+Math.random()*0.08);
+  o.connect(g); if (p){ p.pan.value = Math.max(-1, Math.min(1, (x/W)*2-1)); g.connect(p); p.connect(master); } else g.connect(master);
+  o.start(t0); o.stop(t0+0.2);
+  const o2 = AC.createOscillator(), g2 = AC.createGain(); o2.frequency.value = f*2.76;
+  g2.gain.setValueAtTime(0.0001,t0); g2.gain.exponentialRampToValueAtTime(vol*0.4,t0+0.002); g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.05);
+  o2.connect(g2); g2.connect(master); o2.start(t0); o2.stop(t0+0.08);
+}
+function chime(){ if (!AC) return; const t0 = AC.currentTime; [1318.5, 1975.5, 2637].forEach((f,i)=>{ const o=AC.createOscillator(), g=AC.createGain(); o.frequency.value=f; g.gain.setValueAtTime(0.0001,t0+i*0.07); g.gain.exponentialRampToValueAtTime(0.09,t0+i*0.07+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t0+i*0.07+1.2); o.connect(g); g.connect(master); o.start(t0+i*0.07); o.stop(t0+i*0.07+1.3); }); }
+
+/* ---------------- rendering ---------------- */
+let packing = 0.87;
+function calibrate(){
+  const inJar = marbles.filter(m => m.state==='jar');
+  if (inJar.length < 40) return;
+  const tops = inJar.map(m => m.y - m.r).sort((a,b)=>a-b).slice(0, 14);
+  const top = tops.reduce((a,b)=>a+b,0)/tops.length + r*0.35;
+  const p = inJar.length*Math.PI*r*r / ((J.b - top)*(J.r - J.l) - (4-Math.PI)*J.rc*J.rc/2);
+  if (p > 0.6 && p < 0.95) packing = p;
+}
+function levelY(gb){ // etched scale: height a given amount fills to
+  const area = (gb/PER) * Math.PI*r*r / packing + (4-Math.PI)*J.rc*J.rc/2;
+  return J.b - area/(J.r - J.l);
+}
+function drawRoom(){
+  const g = ctx;
+  const bg = g.createRadialGradient(W*0.25, H*0.15, 0, W*0.4, H*0.4, Math.max(W,H)*0.95);
+  bg.addColorStop(0,'#3a4148'); bg.addColorStop(0.45,'#1b1f24'); bg.addColorStop(1,'#0a0b0d');
+  g.fillStyle = bg; g.fillRect(0,0,W,H);
+  // table surface
+  const fy = J.floor;
+  const tg = g.createLinearGradient(0, fy-6, 0, H);
+  tg.addColorStop(0,'#26292c'); tg.addColorStop(0.08,'#151719'); tg.addColorStop(1,'#08090a');
+  g.fillStyle = tg; g.fillRect(0, fy-6, W, H-fy+6);
+  g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, fy-6, W, 1);
+}
+function caustics(){
+  // coloured light thrown through the jar onto the table
+  const g = ctx; const fy = J.floor;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const counts = {}; for (const m of marbles) if (m.state==='jar'||m.state==='rise'||m.state==='stuck') counts[m.cat] = (counts[m.cat]||0)+1;
+  let i = 0; const tot = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
+  for (const c of CATS0){
+    const n = counts[c.id]||0; if (!n) continue;
+    const x = J.r + (J.r-J.l)*0.12 + i*(J.r-J.l)*0.08, w = (J.r-J.l)*(0.35 + n/tot);
+    const cg = g.createRadialGradient(x, fy+12, 0, x, fy+12, w);
+    cg.addColorStop(0, mix(c.tint, 0.3, 0.22*n/tot + 0.03)); cg.addColorStop(1, mix(c.tint, 0, 0));
+    g.fillStyle = cg; g.save(); g.translate(x, fy+12); g.scale(1, 0.18); g.beginPath(); g.arc(0,0,w,0,TAU); g.restore(); g.fill();
+    i++;
+  }
+  g.restore();
+  // contact shadow
+  const sg = g.createRadialGradient(J.cx, fy, 0, J.cx, fy, (J.r-J.l)*0.7);
+  sg.addColorStop(0,'rgba(0,0,0,.65)'); sg.addColorStop(1,'rgba(0,0,0,0)');
+  g.save(); g.translate(J.cx, fy); g.scale(1,0.12); g.translate(-J.cx,-fy); g.fillStyle = sg; g.beginPath(); g.arc(J.cx,fy,(J.r-J.l)*0.7,0,TAU); g.fill(); g.restore();
+}
+function drawJarBack(){
+  const g = ctx, w = J.wall;
+  g.save();
+  // back wall glass + interior shading
+  const ig = g.createLinearGradient(J.l, 0, J.r, 0);
+  ig.addColorStop(0,'rgba(160,210,200,.10)'); ig.addColorStop(0.5,'rgba(255,255,255,.02)'); ig.addColorStop(1,'rgba(160,210,200,.08)');
+  g.fillStyle = ig; jarPath(g, 0); g.fill();
+  // far rim of the mouth
+  g.strokeStyle = 'rgba(200,235,228,.22)'; g.lineWidth = 2;
+  g.beginPath(); g.ellipse(J.cx, J.t - 2, (J.r-J.l)/2 + w*0.6, w*1.1, 0, Math.PI, TAU); g.stroke();
+  g.restore();
+}
+function jarPath(g, grow){
+  const l = J.l - grow, rr = J.r + grow, b = J.b + grow, t = J.t, rc = J.rc + grow;
+  g.beginPath(); g.moveTo(l, t); g.lineTo(l, b - rc); g.quadraticCurveTo(l, b, l + rc, b); g.lineTo(rr - rc, b); g.quadraticCurveTo(rr, b, rr, b - rc); g.lineTo(rr, t); g.closePath();
+}
+function drawMarble(m){
+  const s = sprites[m.cat][m.v], S = s.width/DPR;
+  ctx.save(); ctx.globalAlpha = m.a; ctx.translate(m.x, m.y);
+  if (m.glow){ const gg = ctx.createRadialGradient(0,0,0,0,0,m.r*2.4); gg.addColorStop(0, mix(CATS0.find(c=>c.id===m.cat).tint, 0.5, 0.45)); gg.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(0,0,m.r*2.4,0,TAU); ctx.fill(); }
+  ctx.save(); ctx.rotate(m.rot); ctx.drawImage(s, -S/2, -S/2, S, S); ctx.restore();
+  ctx.drawImage(hiSprite, -S/2, -S/2, S, S);
+  ctx.restore();
+}
+function drawJarFront(){
+  const g = ctx, w = J.wall;
+  // refraction: the thick curved wall compresses what's behind it toward the edges
+  const band = Math.round((J.r-J.l)*0.13);
+  try{
+    const sx = Math.round(J.l*DPR), sy = Math.round((J.t)*DPR), sh = Math.round((J.b-J.t)*DPR), bw = Math.round(band*DPR);
+    g.save(); g.setTransform(1,0,0,1,0,0);
+    g.globalAlpha = 0.9;
+    g.drawImage(cv, sx, sy, Math.round(bw*1.2), sh, sx, sy, bw, sh);
+    const rx = Math.round(J.r*DPR);
+    g.drawImage(cv, rx - Math.round(bw*1.2), sy, Math.round(bw*1.2), sh, rx - bw, sy, bw, sh);
+    g.globalAlpha = 1;
+    const lg2 = g.createLinearGradient(sx, 0, sx + bw, 0); lg2.addColorStop(0,'rgba(8,20,18,.45)'); lg2.addColorStop(1,'rgba(8,20,18,0)');
+    g.fillStyle = lg2; g.fillRect(sx, sy, bw, sh);
+    const rg2 = g.createLinearGradient(rx - bw, 0, rx, 0); rg2.addColorStop(0,'rgba(8,20,18,0)'); rg2.addColorStop(1,'rgba(8,20,18,.45)');
+    g.fillStyle = rg2; g.fillRect(rx - bw, sy, bw, sh);
+    g.restore();
+  }catch(e){}
+  g.save();
+  // glass thickness at the silhouette
+  jarPath(g, w); jarPath(g, 0);
+  g.beginPath();
+  const l = J.l - w, rr = J.r + w, b = J.b + w*1.8, t = J.t, rc = J.rc + w;
+  g.moveTo(l, t); g.lineTo(l, b - rc); g.quadraticCurveTo(l, b, l + rc, b); g.lineTo(rr - rc, b); g.quadraticCurveTo(rr, b, rr, b - rc); g.lineTo(rr, t);
+  g.lineTo(J.r, t); g.lineTo(J.r, J.b - J.rc); g.quadraticCurveTo(J.r, J.b, J.r - J.rc, J.b); g.lineTo(J.l + J.rc, J.b); g.quadraticCurveTo(J.l, J.b, J.l, J.b - J.rc); g.lineTo(J.l, t); g.closePath();
+  const eg = g.createLinearGradient(l, 0, rr, 0);
+  eg.addColorStop(0,'rgba(120,190,175,.55)'); eg.addColorStop(0.04,'rgba(200,240,230,.28)'); eg.addColorStop(0.5,'rgba(170,220,210,.18)'); eg.addColorStop(0.96,'rgba(200,240,230,.25)'); eg.addColorStop(1,'rgba(120,190,175,.6)');
+  g.fillStyle = eg; g.fill();
+  // thick base glass
+  const bg = g.createLinearGradient(0, J.b, 0, J.b + w*1.8);
+  bg.addColorStop(0,'rgba(210,245,235,.35)'); bg.addColorStop(1,'rgba(120,190,175,.15)');
+  g.fillStyle = bg; g.fillRect(J.l + J.rc*0.6, J.b, (J.r-J.l) - J.rc*1.2, w*1.8);
+  // vertical highlights (softbox to the upper left)
+  const hl = (x, wdt, a) => { const hg = g.createLinearGradient(x - wdt/2, 0, x + wdt/2, 0); hg.addColorStop(0,'rgba(255,255,255,0)'); hg.addColorStop(0.5,`rgba(255,255,255,${a})`); hg.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle = hg; g.fillRect(x - wdt/2, J.t + 8, wdt, J.b - J.t - 14); };
+  hl(J.l + (J.r-J.l)*0.1, (J.r-J.l)*0.09, 0.32);
+  hl(J.l + (J.r-J.l)*0.19, (J.r-J.l)*0.025, 0.5);
+  hl(J.r - (J.r-J.l)*0.06, (J.r-J.l)*0.03, 0.28);
+  // crisp edge lines
+  g.strokeStyle = 'rgba(220,250,242,.55)'; g.lineWidth = 1.2; jarPath(g, w); g.stroke();
+  g.strokeStyle = 'rgba(220,250,242,.18)'; g.lineWidth = 1; jarPath(g, 0); g.stroke();
+  // lip
+  const lg = g.createLinearGradient(0, J.t - w*1.2, 0, J.t + w*1.6);
+  lg.addColorStop(0,'rgba(230,255,248,.65)'); lg.addColorStop(0.5,'rgba(160,215,200,.3)'); lg.addColorStop(1,'rgba(120,190,175,.18)');
+  g.fillStyle = lg;
+  g.beginPath(); g.ellipse(J.cx, J.t, (J.r-J.l)/2 + w*1.25, w*1.2, 0, 0, Math.PI); g.lineTo(J.l - w*1.25, J.t + w*1.4); g.ellipse(J.cx, J.t + w*1.4, (J.r-J.l)/2 + w*1.25, w*1.2, 0, Math.PI, 0, true); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(235,255,250,.7)'; g.lineWidth = 1.2; g.beginPath(); g.ellipse(J.cx, J.t, (J.r-J.l)/2 + w*1.25, w*1.2, 0, 0.1, Math.PI-0.1); g.stroke();
+  // sandblasted scale strip: frosted glass with clear-cut numerals
+  const sw = mob ? 30 : 46, sx0 = J.r - sw - (mob?6:10), y512 = Math.max(J.t + 6, levelY(512) - 10);
+  const fr = g.createLinearGradient(sx0, 0, sx0 + sw, 0);
+  fr.addColorStop(0,'rgba(226,240,236,.62)'); fr.addColorStop(0.5,'rgba(236,248,244,.72)'); fr.addColorStop(1,'rgba(214,232,226,.6)');
+  g.fillStyle = fr; g.beginPath(); g.roundRect ? g.roundRect(sx0, y512, sw, J.b - y512 - 6, 4) : g.rect(sx0, y512, sw, J.b - y512 - 6); g.fill();
+  g.font = `700 ${mob?8.5:11}px Manrope, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (let gb=0; gb<=512; gb+=32){
+    const y = levelY(gb); if (y < J.t + 4 || y > J.b - 4) continue;
+    const major = gb%128===0, mid = gb%64===0;
+    g.strokeStyle = 'rgba(20,40,36,.75)'; g.lineWidth = major ? 1.6 : 1;
+    g.beginPath(); g.moveTo(sx0, y); g.lineTo(sx0 + (major ? sw*0.35 : mid ? sw*0.22 : sw*0.12), y); g.stroke();
+    if (major && gb>0){ g.fillStyle = 'rgba(16,34,30,.9)'; g.fillText(gb, sx0 + sw - 4, y); }
+  }
+  g.font = `700 ${mob?7.5:9}px Manrope, sans-serif`; g.fillStyle='rgba(16,34,30,.75)'; g.textAlign='center';
+  g.fillText('GB', sx0 + sw/2, J.b - (mob?13:15));
+  // current level marker
+  const lvY = levelY(used());
+  g.setLineDash([3,4]); g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1; g.beginPath(); g.moveTo(J.l + (mob?30:44), lvY); g.lineTo(J.r - (mob?38:58), lvY); g.stroke(); g.setLineDash([]);
+  g.font = `600 ${mob?9:11}px Manrope, sans-serif`; g.textAlign='left'; g.textBaseline='middle'; g.fillStyle='rgba(235,250,246,.7)';
+  g.fillText(sel ? 'now' : fmt(used()), J.l + 8, lvY);
+  g.restore();
+}
+function drawDish(front){
+  const g = ctx;
+  const cx = D.cx, top = D.t, b = D.b, hw = D.w/2;
+  g.save();
+  if (!front){
+    const sg = g.createRadialGradient(cx, J.floor, 0, cx, J.floor, hw*1.1); sg.addColorStop(0,'rgba(0,0,0,.6)'); sg.addColorStop(1,'rgba(0,0,0,0)');
+    g.save(); g.translate(cx, J.floor); g.scale(1,0.14); g.translate(-cx,-J.floor); g.fillStyle = sg; g.beginPath(); g.arc(cx,J.floor,hw*1.1,0,TAU); g.fill(); g.restore();
+    g.fillStyle = 'rgba(170,220,210,.08)';
+    g.beginPath(); g.ellipse(cx, top, hw, D.h*0.22, 0, Math.PI, TAU); g.fill();
+  } else {
+    g.beginPath(); g.moveTo(cx - hw, top); g.quadraticCurveTo(cx - hw*0.96, b + 2, cx, b + 4); g.quadraticCurveTo(cx + hw*0.96, b + 2, cx + hw, top);
+    g.ellipse(cx, top, hw, D.h*0.22, 0, 0, Math.PI);
+    const dg = g.createLinearGradient(cx-hw, 0, cx+hw, 0);
+    dg.addColorStop(0,'rgba(140,200,188,.4)'); dg.addColorStop(0.2,'rgba(220,250,242,.16)'); dg.addColorStop(0.8,'rgba(170,220,210,.1)'); dg.addColorStop(1,'rgba(140,200,188,.42)');
+    g.fillStyle = dg; g.fill();
+    g.strokeStyle = 'rgba(230,255,248,.6)'; g.lineWidth = 1.2;
+    g.beginPath(); g.ellipse(cx, top, hw, D.h*0.22, 0, 0, TAU); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(cx - hw*0.82, top + D.h*0.3); g.quadraticCurveTo(cx - hw*0.7, b - 4, cx - hw*0.3, b); g.stroke();
+    // engraved caption on the dish
+    const inDish = marbles.filter(m => m.state==='dish' || (m.state==='fly' && m.next==='dish'));
+    if (sel && inDish.length){
+      const c = CATS.find(c=>c.id===sel);
+      g.fillStyle = 'rgba(240,252,248,.85)'; g.font = `700 ${mob?11:13}px Manrope`; g.textAlign='center';
+      g.fillText(`${fmt(c.free)} to free`, cx, b + (mob?20:26));
+    }
+  }
+  g.restore();
+}
+function reflection(){
+  // the jar mirrored in the glossy table
+  const g = ctx, fy = J.floor, hgt = Math.min(H - fy, (J.b - J.t)*0.5);
+  if (hgt < 10) return;
+  try{
+    g.save(); g.setTransform(1,0,0,1,0,0);
+    g.globalAlpha = 0.16;
+    g.translate(0, (fy*2)*DPR); g.scale(1,-1);
+    const sx = Math.round((J.l - J.wall - 4)*DPR), sw = Math.round((D.r - J.l + J.wall + 10)*DPR), sy = Math.round((fy - hgt)*DPR), sh = Math.round(hgt*DPR);
+    g.drawImage(cv, sx, sy, sw, sh, sx, sy, sw, sh);
+    g.restore();
+    const fg = g.createLinearGradient(0, fy, 0, fy + hgt);
+    fg.addColorStop(0,'rgba(10,11,13,0)'); fg.addColorStop(1,'rgba(10,11,13,1)');
+    g.fillStyle = fg; g.fillRect(J.l - 40, fy, D.r - J.l + 80, hgt + 2);
+  }catch(e){}
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), acc = 0, pourT = 0;
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  let dt = Math.min(0.05, (now-last)/1000); last = now;
+  // pour new marbles in from above the mouth
+  if (pourQueue.length){
+    pourT += dt;
+    while (pourT > 0.016 && pourQueue.length){ pourT -= 0.016; const q = pourQueue.shift(); marbles.push(mk(q, J.cx + (Math.random()-0.5)*(J.r-J.l)*0.35, J.t - 30 - Math.random()*20)); marbles[marbles.length-1].vy = 200; }
+  }
+  // waiting returns
+  for (const m of marbles){ if (m.state==='wait'){ m.wait -= dt; if (m.wait <= 0){ const T = 0.6 + Math.random()*0.15; m.vx = (m.tx - m.x)/T; m.vy = (m.ty - m.y - 0.5*G*T*T)/T; m.t = 0; m.T = T; m.state='fly'; m.next='jar'; m.glow=false; } } }
+  acc += dt;
+  const h = 1/120;
+  while (acc >= h){ step(h); acc -= h; }
+  marbles = marbles.filter(m => m.state!=='gone');
+  // draw
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawRoom(); caustics(); drawDish(false); drawJarBack();
+  const sorted = marbles;
+  for (const m of sorted) if (m.state!=='fly' && m.state!=='wait') drawMarble(m);
+  drawJarFront();
+  drawDish(true);
+  for (const m of sorted) if (m.state==='fly' || m.state==='wait') drawMarble(m);
+  sparks(dt);
+  reflection();
+  requestAnimationFrame(frame);
+}
+const sparkList = [];
+function sparks(dt){
+  const g = ctx; g.save(); g.globalCompositeOperation='lighter';
+  for (let i=sparkList.length-1;i>=0;i--){ const s = sparkList[i]; s.t += dt; s.y -= 40*dt; if (s.t > 0.8){ sparkList.splice(i,1); continue; }
+    const a = 1 - s.t/0.8; g.fillStyle = `rgba(255,255,255,${a*0.9})`; g.beginPath(); g.arc(s.x, s.y, 1.2 + a*1.5, 0, TAU); g.fill();
+    g.strokeStyle = `rgba(255,255,255,${a*0.5})`; g.lineWidth = 1; g.beginPath(); g.moveTo(s.x-5*a, s.y); g.lineTo(s.x+5*a, s.y); g.moveTo(s.x, s.y-5*a); g.lineTo(s.x, s.y+5*a); g.stroke(); }
+  g.restore();
+}
+
+/* ---------------- panel ---------------- */
+let sel = null;
+function renderPanel(){
+  const u = used(), free = CAP - u;
+  const c = sel ? CATS.find(x=>x.id===sel) : null;
+  const after = c ? u - c.free : u;
+  $('used').innerHTML = c && c.free > 0
+    ? `<b>${fmt(after)}</b> used after freeing ${c.name.toLowerCase()} · <b>${fmt(CAP-after)}</b> free <span style="opacity:.7">(now ${fmt(free)})</span>`
+    : `<b>${fmt(u)}</b> of 512 GB used · <b>${fmt(free)}</b> free`;
+  const bar = $('bar'); bar.innerHTML = '';
+  for (const k of CATS){
+    const keep = c && k.id===c.id ? k.gb - k.free : k.gb;
+    const s = document.createElement('span'); s.style.flex = `0 0 ${keep/CAP*100}%`; s.style.background = `linear-gradient(${mix(k.tint,0.35)}, ${mix(k.tint,-0.2)})`; bar.appendChild(s);
+    if (c && k.id===c.id && k.free>0){ const gh = document.createElement('span'); gh.className='ghost'; gh.style.flex = `0 0 ${k.free/CAP*100}%`; bar.appendChild(gh); }
+  }
+  const list = $('list');
+  list.innerHTML = '';
+  const order = [...CATS].sort((a,b) => b.gb - a.gb);
+  for (const k of order){
+    const li = document.createElement('li');
+    const open = sel===k.id;
+    li.innerHTML = `<button class="row" type="button" aria-expanded="${open}" data-id="${k.id}">
+      <span class="m" style="background:radial-gradient(circle at 62% 66%, ${mix(k.tint,0.55)}, ${mix(k.tint,0)} 45%, ${mix(k.tint,-0.65)} 100%)"></span>
+      <span class="nm">${k.name}<small>${k.glass} · ${Math.round(k.gb/PER)} marbles</small></span>
+      <span class="gb">${fmt(k.gb)}<small>${k.free>0 ? 'can free '+fmt(k.free) : 'required'}</small></span></button>
+      ${open ? `<div class="detail"><p>${k.why}</p><div class="btns">${k.free>0 ? `<button class="glass" type="button" id="doFree">${k.act} · free ${fmt(k.free)}</button>` : ''}<button class="glass ghosty" type="button" id="putBack">${k.free>0?'Put them back':'Close'}</button></div></div>` : ''}`;
+    list.appendChild(li);
+  }
+  list.querySelectorAll('.row').forEach(b => b.addEventListener('click', () => { audio(); choose(b.dataset.id === sel ? null : b.dataset.id); }));
+  const df = $('doFree'); if (df) df.addEventListener('click', commit);
+  const pb = $('putBack'); if (pb) pb.addEventListener('click', () => choose(null, true));
+  if (freedTotal > 0){
+    const li = document.createElement('li'); li.style.borderBottom='0';
+    li.innerHTML = `<p class="note" style="display:flex;justify-content:space-between"><span>You freed ${fmt(freedTotal)} today.</span><button class="reset" type="button" id="reset">Refill the sample jar</button></p>`;
+    list.appendChild(li);
+    $('reset').addEventListener('click', () => { CATS = CATS0.map(c=>({...c})); freedTotal = 0; sel = null; buildMarbles(reduce); renderPanel(); announce('Sample jar refilled.'); });
+  }
+}
+function focusRow(id){ const b = document.querySelector(`.row[data-id="${id}"]`); if (b) b.focus({preventScroll:true}); }
+function choose(id, refocus){
+  const prev = sel;
+  // return anything in the dish
+  let i = 0;
+  for (const m of marbles){
+    m.glow = false;
+    if (m.state==='dish' || m.state==='rise' || (m.state==='fly' && m.next==='dish')){
+      if (reduce){ m.state='jar'; m.x = J.cx + (Math.random()-0.5)*(J.r-J.l)*0.6; m.y = J.t + 10; }
+      else { if (m.state==='fly' || m.state==='rise'){ m.x = Math.max(D.l+8, Math.min(D.r-8, m.x)); } sendBack(m, i++*0.03); }
+    }
+  }
+  sel = id;
+  dishSlot = 0;
+  if (id){
+    const c = CATS.find(x=>x.id===id);
+    const pool = marbles.filter(m => m.cat===id && m.state==='jar').sort((a,b)=>a.y-b.y);
+    if (c.free <= 0){
+      for (const m of pool){ m.state='stuck'; m.t = 0; m.glow = true; setTimeout(()=>{ m.glow=false; }, 900); }
+      announce(`${c.name}: ${fmt(c.gb)}. ${c.why}`);
+    } else {
+      const n = Math.round(c.free/PER);
+      const take = pool.slice(0, n);
+      // the marbles that can be freed float up through the pile
+      take.forEach((m,k) => { m.glow = true; if (reduce){ m.state='dish'; m.x = D.cx + ((k%9)-4)*r*1.8; m.y = D.b - r - Math.floor(k/9)*r*1.7; } else { m.state='rise'; m.vy = -60 - Math.random()*40; } });
+      announce(`${c.name}: ${fmt(c.gb)}. You could free ${fmt(c.free)}, leaving ${fmt(used()-c.free)} used and ${fmt(CAP-used()+c.free)} free. ${c.why}`);
+    }
+    $('hint').classList.add('gone');
+  } else if (prev){ announce('Put back.'); }
+  renderPanel();
+  if (id) focusRow(id); else if (refocus && prev) focusRow(prev);
+}
+let freedTotal = 0;
+function commit(){
+  const c = CATS.find(x=>x.id===sel); if (!c) return;
+  audio();
+  const n = Math.round(c.free/PER);
+  let k = 0;
+  for (const m of marbles){ if (m.cat===c.id && (m.state==='dish' || m.state==='fly' || m.state==='rise') && k < n){ m.state='fade'; m.a = 1; k++; for (let s=0;s<2;s++) sparkList.push({x:m.x+(Math.random()-0.5)*m.r*2, y:m.y+(Math.random()-0.5)*m.r*2, t:Math.random()*0.2}); } }
+  freedTotal += c.free;
+  c.gb = +(c.gb - c.free).toFixed(1); c.free = 0; c.why = `Done: ${c.name.toLowerCase()} trimmed. Nothing more to free here right now.`;
+  chime();
+  announce(`Freed space. ${fmt(used())} used, ${fmt(CAP-used())} free.`);
+  const id = sel; sel = null; renderPanel(); focusRow(id);
+}
+function announce(s){ $('live').textContent = s; }
+addEventListener('keydown', e => { if (e.key==='Escape' && sel) choose(null, true); });
+addEventListener('pointerdown', audio, {once:true});
+function marbleAt(x,y){ let best=null, bd=1e9; for (const m of marbles){ if (m.state==='gone'||m.state==='fade') continue; const d = Math.hypot(m.x-x, m.y-y); if (d < m.r*1.3 && d < bd){ bd=d; best=m; } } return best; }
+cv.addEventListener('pointermove', e => {
+  const m = marbleAt(e.clientX, e.clientY), tip = $('tip');
+  cv.style.cursor = m ? 'pointer' : 'default';
+  if (!m){ tip.hidden = true; return; }
+  const c = CATS.find(k=>k.id===m.cat);
+  tip.innerHTML = `${c.name} · ${fmt(c.gb)}<small>${Math.round(c.gb/PER)} marbles${c.free>0 ? ' · can free '+fmt(c.free) : ' · required'}</small>`;
+  tip.hidden = false;
+  const tw = tip.offsetWidth; tip.style.left = Math.min(W - tw - 8, e.clientX + 14) + 'px'; tip.style.top = Math.max(6, e.clientY - 46) + 'px';
+});
+cv.addEventListener('pointerleave', () => { $('tip').hidden = true; });
+cv.addEventListener('click', e => { const m = marbleAt(e.clientX, e.clientY); if (m){ audio(); choose(m.cat === sel ? null : m.cat); } });
+addEventListener('resize', () => { layout(); });
+
+layout();
+buildMarbles(reduce);
+renderPanel();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

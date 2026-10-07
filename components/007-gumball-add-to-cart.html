@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gumball Add to Cart</title>
+<meta name="description" content="A quantity stepper and add-to-cart button as a 1950s diner-ad gumball machine: turn the crank once per gumball, flick them back to remove, then bag them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Josefin+Sans:wght@400;600;700&family=Yellowtail&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Gumball Add to Cart","reimagines":"Quantity stepper + add to cart","category":"Buttons & Actions","description":"The quantity stepper is the crank of a cherry-red, chrome-trimmed gumball machine painted like a 1950s diner ad. Each full clockwise turn ratchets one gumball down the chute into the tray (your quantity); the globe shows real stock; flick a gumball back up to put it back; then bag the lot into your cart.","hint":"Turn the crank clockwise — one gumball per turn. Flick one back up to remove it"}
+</script>
+<style>
+:root{ --cream:#f6ead0; --cream2:#efdcb4; --red:#d8262e; --red2:#9e1420; --teal:#2fa59c; --teal2:#1f7b74; --pink:#f29a9a; --ink:#3b1d1a; --mustard:#e8b23a; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--cream)}
+body{font-family:"Josefin Sans",Futura,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+.stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+#bg{position:absolute;inset:0;width:100%;height:100%}
+.paint{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55;z-index:30;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='4' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .42 0 0 0 0 .3 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23f)'/%3E%3C/svg%3E")}
+.copy{position:absolute;z-index:5}
+.script{font-family:Yellowtail,cursive;font-size:clamp(46px,6.6vw,92px);line-height:.9;color:var(--red);margin:0;transform:rotate(-6deg);transform-origin:left bottom;
+  text-shadow:3px 3px 0 var(--cream),6px 6px 0 var(--red2)}
+.slab{font-family:"Alfa Slab One",serif;font-size:clamp(40px,5.6vw,78px);line-height:.95;margin:4px 0 0;color:var(--teal);letter-spacing:.02em;
+  text-shadow:1px 1px 0 var(--teal2),2px 2px 0 var(--teal2),3px 3px 0 var(--teal2),4px 4px 0 var(--teal2),5px 5px 0 var(--teal2),8px 9px 0 rgba(59,29,26,.25)}
+.tag{display:inline-block;margin:18px 0 0;font-weight:700;font-size:13px;letter-spacing:.2em;white-space:nowrap;text-transform:uppercase;background:var(--ink);color:var(--cream);padding:6px 12px 4px}
+.blurb{font-size:17px;line-height:1.45;max-width:330px;margin:16px 0 0}
+.price{position:absolute;z-index:6;width:132px;height:132px;display:grid;place-items:center;text-align:center;color:var(--cream);font-family:"Alfa Slab One",serif}
+.price svg{position:absolute;inset:0;width:100%;height:100%}
+.price b{position:relative;font-size:40px;line-height:.9;font-weight:400}
+.price b small{display:block;font-family:"Josefin Sans",sans-serif;font-weight:700;font-size:12px;letter-spacing:.18em;margin-top:6px}
+.machine{position:absolute;z-index:4}
+.machine svg,.machine canvas{position:absolute;inset:0;width:100%;height:100%}
+.machine canvas{touch-action:none;cursor:grab}
+.machine canvas.grab{cursor:grabbing}
+.front{pointer-events:none}
+.order{position:absolute;z-index:6;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.qty{font-family:"Alfa Slab One",serif;font-size:22px;color:var(--ink)}
+.qty span{color:var(--red)}
+.qty small{display:block;font-family:"Josefin Sans",sans-serif;font-size:13px;letter-spacing:.06em;margin-top:2px;opacity:.85}
+.add{position:relative;font-family:"Alfa Slab One",serif;font-size:21px;letter-spacing:.03em;color:var(--cream);padding:16px 30px 14px;border:0;border-radius:40px;cursor:pointer;
+  background:linear-gradient(180deg,#ef4049,var(--red) 50%,var(--red2));box-shadow:inset 0 2px 0 rgba(255,255,255,.45),inset 0 -3px 0 rgba(0,0,0,.25),0 0 0 4px #e9eef2,0 0 0 6px #7d8b96,0 8px 0 6px #4c5660,0 14px 18px 6px rgba(59,29,26,.35);
+  text-shadow:0 2px 0 var(--red2);transition:transform .08s}
+.add:active{transform:translateY(4px)}
+.add[disabled]{filter:grayscale(.5) brightness(1.08) opacity(.7);cursor:not-allowed}
+.add:focus-visible{outline:3px dashed var(--teal2);outline-offset:12px}
+.cart{position:absolute;right:22px;top:18px;z-index:8;width:62px;height:66px}
+.cart svg{width:100%;height:100%}
+.cart .n{position:absolute;right:-6px;top:-4px;min-width:28px;height:28px;border-radius:14px;background:var(--teal);color:var(--cream);font-family:"Alfa Slab One",serif;font-size:15px;display:grid;place-items:center;padding:0 6px;box-shadow:0 0 0 3px var(--cream)}
+.cart.bump{animation:bump .5s cubic-bezier(.3,1.8,.5,1)}
+@keyframes bump{30%{transform:scale(1.18) rotate(-6deg)}}
+.toast{position:absolute;right:20px;top:94px;z-index:8;background:var(--ink);color:var(--cream);padding:10px 14px;font-weight:600;font-size:14px;letter-spacing:.04em;border-radius:4px;opacity:0;transform:translateY(-6px);transition:.25s;max-width:260px}
+.toast.on{opacity:1;transform:none}
+.hint{position:absolute;z-index:7;font-family:Yellowtail,cursive;font-size:26px;color:var(--red2);pointer-events:none;transition:opacity .6s;line-height:1;display:flex;align-items:center;gap:6px}
+.hint svg{width:60px;height:46px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mute{position:absolute;left:16px;bottom:14px;z-index:8;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:var(--cream);cursor:pointer;padding:7px;color:var(--ink)}
+.mute svg{width:100%;height:100%;display:block}
+#crankFocus:focus-visible + .ring{opacity:1}
+.ring{position:absolute;border:3px dashed var(--teal2);border-radius:50%;opacity:0;pointer-events:none;z-index:7}
+@media (max-width:760px){
+  .blurb{display:none}
+  .tag{margin-top:10px;font-size:9.5px;letter-spacing:.12em}
+  .price{width:92px;height:92px}
+  .price b{font-size:28px}.price b small{font-size:9.5px}
+  .hint{font-size:20px}
+  .add{font-size:17px;padding:13px 22px 11px}
+  .qty{font-size:18px}
+  .cart{width:50px;height:54px;right:14px;top:12px}
+  .toast{top:74px;right:12px;font-size:12.5px}
+}
+@media (prefers-reduced-motion:reduce){ .cart.bump{animation:none} }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <svg id="bg" aria-hidden="true"></svg>
+  <section class="copy" id="copy">
+    <p class="script">Sour Cherry</p>
+    <h1 class="slab">GUMBALLS</h1>
+    <span class="tag">Hand-panned in Bristol since 1952</span>
+    <p class="blurb">Tart cherry shell, sweet vanilla heart. One turn of the crank, one gumball — just like the corner drugstore.</p>
+  </section>
+  <div class="price" id="price" aria-hidden="true"><svg viewBox="-50 -50 100 100"><path id="burst" fill="#d8262e" stroke="#9e1420" stroke-width="2"/></svg><b>25¢<small>EACH</small></b></div>
+
+  <div class="machine" id="machine">
+    <svg id="back" viewBox="0 0 400 720" aria-hidden="true"></svg>
+    <canvas id="cv" aria-hidden="true"></canvas>
+    <svg class="front" id="front" viewBox="0 0 400 720" aria-hidden="true"></svg>
+  </div>
+  <button class="sr" id="crankFocus" type="button" role="spinbutton" aria-label="Gumball quantity. Arrow up turns the crank for one more, arrow down puts one back." aria-valuemin="0" aria-valuemax="12" aria-valuenow="0" aria-valuetext="0 gumballs"></button>
+  <div class="ring" id="ring"></div>
+
+  <div class="order" id="order">
+    <div class="qty" id="qty"><span id="qn">0</span> in the tray<small id="stock">54 left in the globe</small></div>
+    <button class="add" id="add" type="button" disabled>Bag them · $0.00</button>
+  </div>
+  <div class="hint" id="hint">turn me! <svg viewBox="0 0 60 46" fill="none" stroke="#9e1420" stroke-width="3" stroke-linecap="round"><path d="M4 8c22-4 42 6 50 30"/><path d="M44 30l10 9 4-13"/></svg></div>
+
+  <div class="cart" id="cart" aria-label="Cart"><svg viewBox="0 0 62 66" aria-hidden="true"><path d="M8 20h46l-5 42H13z" fill="#e8c78f" stroke="#3b1d1a" stroke-width="2.5" stroke-linejoin="round"/><path d="M8 20l4-6h38l4 6" fill="#d9b679" stroke="#3b1d1a" stroke-width="2.5" stroke-linejoin="round"/><path d="M22 26c0 8 18 8 18 0" fill="none" stroke="#3b1d1a" stroke-width="2.5"/><circle cx="31" cy="44" r="7" fill="#d8262e"/><path d="M28 41a3 3 0 0 1 4-1" stroke="#fff" stroke-width="2" fill="none"/></svg><span class="n" id="cartN">0</span></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <button class="mute" id="mute" type="button" aria-label="Mute sound" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor"/><path id="mw" d="M13 7c1.5 1.5 1.5 4.5 0 6M15.5 5c3 3 3 7 0 10"/></svg></button>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const NS = 'http://www.w3.org/2000/svg';
+const PRICE = .25, MAXQ = 12, R = 13.5;
+const G = { cx:200, cy:205, r:146 };          // globe interior
+const CR = { x:200, y:452, arm:40 };           // crank
+const DOOR = { x:200, y:552 };
+const TRAY = { x0:100, x1:300, floor:650 };
+const COLORS = [['#e3262f','#8f0f18'],['#f4c430','#b07d0c'],['#ffffff','#b9b3a8'],['#2fa59c','#145e58'],['#f08aa0','#b0425c'],['#ff8a2a','#b0510c'],['#7ccf6a','#3b8a2e']];
+
+/* ---------- painted ad background ---------- */
+function drawBg(){
+  const W = innerWidth, H = innerHeight, bg = $('#bg'); bg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const m = W < 760;
+  let s = `<defs><radialGradient id="glow" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#fff6e2"/><stop offset="1" stop-color="#f1dfb8"/></radialGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#glow)"/>`;
+  // teal panel slanting behind the machine, pink boomerangs, atomic starbursts
+  s += m ? `<path d="M0 ${H*.32} L${W} ${H*.2} L${W} ${H*.86} L0 ${H*.94}Z" fill="#2fa59c" opacity=".9"/>`
+         : `<path d="M${W*.42} 0 L${W*.86} 0 L${W*.78} ${H} L${W*.34} ${H}Z" fill="#2fa59c" opacity=".92"/>`;
+  s += m ? '' : `<path d="M${W*.43} 0 L${W*.47} 0 L${W*.39} ${H} L${W*.35} ${H}Z" fill="#1f7b74" opacity=".5"/>`;
+  const boom = (x, y, k, rot, c) => `<path transform="translate(${x} ${y}) rotate(${rot}) scale(${k})" d="M-40 10 C-30 -30 10 -30 40 -12 C20 -10 0 0 -10 30 C-20 28 -38 22 -40 10Z" fill="${c}"/>`;
+  s += boom(W*.07, H*.86, m?.7:1.1, -20, '#f29a9a') + boom(W*.92, H*.8, m?.6:1, 140, '#e8b23a') + boom(W*.3, H*.08, m?.5:.8, 30, '#f29a9a');
+  const star = (x, y, r, c) => { let d = ''; for (let i=0;i<8;i++){ const a = i*Math.PI/4; d += `M${x} ${y} L${x+Math.cos(a)*r} ${y+Math.sin(a)*r} `; } return `<path d="${d}" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/><circle cx="${x}" cy="${y}" r="${r*.18}" fill="${c}"/>`; };
+  s += star(W*.36, H*.2, 16, '#3b1d1a') + star(W*.95, H*.45, 12, '#3b1d1a') + star(W*.08, H*.58, 10, '#d8262e') + (m ? '' : star(W*.88, H*.12, 22, '#f6ead0'));
+  // dotted diner floor stripe
+  s += `<g opacity=".18" fill="#3b1d1a">`; for (let x=6; x<W; x+=14) s += `<circle cx="${x}" cy="${H-8}" r="2.4"/>`; s += `</g>`;
+  bg.innerHTML = s;
+  let d = ''; for (let i=0;i<24;i++){ const a = i*Math.PI/12, r = i%2 ? 38 : 48; d += (i?'L':'M') + (Math.cos(a)*r).toFixed(1) + ' ' + (Math.sin(a)*r).toFixed(1); } $('#burst').setAttribute('d', d + 'Z');
+}
+
+/* ---------- machine artwork (painted, 1950s ad style) ---------- */
+function drawMachine(){
+  const chrome = (id, dir='v') => `<linearGradient id="${id}" x1="0" y1="0" x2="${dir==='v'?0:1}" y2="${dir==='v'?1:0}"><stop offset="0" stop-color="#f7fbff"/><stop offset=".28" stop-color="#b8c6d2"/><stop offset=".5" stop-color="#5d6b78"/><stop offset=".52" stop-color="#e9f1f7"/><stop offset=".8" stop-color="#8996a3"/><stop offset="1" stop-color="#d7e1ea"/></linearGradient>`;
+  let b = `<defs>${chrome('ch')}${chrome('chh','h')}
+    <radialGradient id="redB" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#ff5a5f"/><stop offset=".45" stop-color="#d8262e"/><stop offset="1" stop-color="#7d0c16"/></radialGradient>
+    <radialGradient id="glassBg" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="#fffaf0" stop-opacity=".9"/><stop offset=".8" stop-color="#cfe8e5" stop-opacity=".75"/><stop offset="1" stop-color="#8fbdb8" stop-opacity=".9"/></radialGradient>
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#3b1d1a" stop-opacity=".45"/><stop offset="1" stop-color="#3b1d1a" stop-opacity="0"/></radialGradient></defs>`;
+  b += `<ellipse cx="200" cy="706" rx="170" ry="16" fill="url(#shadow)"/>`;
+  // pedestal foot
+  b += `<path d="M130 650 L270 650 L300 700 Q200 716 100 700 Z" fill="url(#redB)" stroke="#5c0a12" stroke-width="3"/>`;
+  b += `<path d="M112 696 Q200 710 288 696" fill="none" stroke="url(#chh)" stroke-width="7" stroke-linecap="round"/>`;
+  // body
+  b += `<path d="M98 372 L302 372 Q312 470 330 600 Q200 620 70 600 Q88 470 98 372Z" fill="url(#redB)" stroke="#5c0a12" stroke-width="3"/>`;
+  b += `<path d="M112 390 Q106 470 96 585" fill="none" stroke="#ff9a9e" stroke-width="9" stroke-linecap="round" opacity=".55"/>`;
+  // coin plate
+  b += `<rect x="138" y="396" width="124" height="116" rx="16" fill="url(#ch)" stroke="#3d4650" stroke-width="2.5"/>`;
+  b += `<rect x="148" y="404" width="104" height="18" rx="5" fill="#2c343c"/><text x="200" y="417" text-anchor="middle" font-family="Alfa Slab One" font-size="11" fill="#f6ead0" letter-spacing="1">1 PER TURN</text>`;
+  b += `<rect x="186" y="490" width="28" height="6" rx="3" fill="#2c343c"/>`;
+  // door + chute
+  b += `<rect x="168" y="530" width="64" height="44" rx="10" fill="url(#ch)" stroke="#3d4650" stroke-width="2.5"/><rect x="178" y="538" width="44" height="28" rx="8" fill="#2a1210"/>`;
+  // tray back lip
+  b += `<path d="M88 604 Q200 590 312 604 L308 652 Q200 664 92 652Z" fill="#5d6b78" stroke="#3d4650" stroke-width="2.5"/><path d="M96 612 Q200 600 304 612 L302 650 Q200 660 98 650Z" fill="#3a434c"/>`;
+  // collar
+  b += `<rect x="112" y="340" width="176" height="36" rx="12" fill="url(#ch)" stroke="#3d4650" stroke-width="2.5"/>`;
+  // globe back (glass tint)
+  b += `<circle cx="200" cy="205" r="154" fill="url(#glassBg)" stroke="#5b7f7b" stroke-width="3"/>`;
+  // lid
+  b += `<path d="M118 92 Q200 14 282 92 Q200 76 118 92Z" fill="url(#redB)" stroke="#5c0a12" stroke-width="3"/>`;
+  b += `<rect x="186" y="24" width="28" height="22" rx="8" fill="url(#ch)" stroke="#3d4650" stroke-width="2"/><circle cx="200" cy="20" r="13" fill="url(#redB)" stroke="#5c0a12" stroke-width="2.5"/><circle cx="195" cy="15" r="4" fill="#fff" opacity=".7"/>`;
+  $('#back').innerHTML = b;
+  let f = `<defs>${chrome('ch2')}${chrome('chh2','h')}<linearGradient id="sheen" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>`;
+  // glass reflections
+  f += `<path d="M90 140 Q110 80 170 62" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity=".55"/>`;
+  f += `<path d="M84 190 Q84 170 90 156" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".45"/>`;
+  f += `<ellipse cx="282" cy="268" rx="14" ry="34" transform="rotate(30 282 268)" fill="#fff" opacity=".22"/>`;
+  f += `<circle cx="200" cy="205" r="154" fill="none" stroke="#2c4c49" stroke-width="2" opacity=".5"/>`;
+  // lid rim over the globe top
+  f += `<path d="M116 92 Q200 74 284 92" fill="none" stroke="url(#chh2)" stroke-width="8" stroke-linecap="round"/>`;
+  // tray front lip (balls sit behind it)
+  f += `<path d="M86 600 Q200 590 314 600 L306 648 Q200 664 94 648 Z" fill="url(#ch2)" stroke="#3d4650" stroke-width="2.5" opacity=".0"/>`;
+  f += `<path d="M90 642 Q200 654 310 642 L303 668 Q200 684 97 668 Z" fill="url(#ch2)" stroke="#3d4650" stroke-width="2.5"/>`;
+  f += `<path d="M110 654 Q200 664 290 654" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/>`;
+  f += `<text x="200" y="677" text-anchor="middle" font-family="Josefin Sans" font-weight="700" font-size="10" letter-spacing="3" fill="#2c343c">YOUR TRAY</text>`;
+  $('#front').innerHTML = f;
+}
+
+/* ---------- physics ---------- */
+const balls = [];
+let held = null;
+function addGlobeBall(x, y){ const c = COLORS[(Math.random()*COLORS.length)|0]; balls.push({x, y, px:x, py:y, r:R*(.94 + Math.random()*.1), c, zone:'globe'}); }
+function fill(n){ for (let i=0;i<n;i++){ const a = Math.random()*Math.PI*2, d = Math.random()*(G.r - 20); addGlobeBall(G.cx + Math.cos(a)*d, G.cy + 40 + Math.sin(a)*d*.6); } }
+fill(54);
+const sprites = new Map();
+function sprite(c, r, k){
+  const key = c[0] + r.toFixed(1) + k; if (sprites.has(key)) return sprites.get(key);
+  const s = Math.ceil(r*2*k + 4), cv = document.createElement('canvas'); cv.width = cv.height = s; const g = cv.getContext('2d'), m = s/2, rr = r*k;
+  let gr = g.createRadialGradient(m - rr*.35, m - rr*.4, rr*.1, m, m, rr); gr.addColorStop(0, '#fff8ee'); gr.addColorStop(.22, c[0]); gr.addColorStop(.85, c[1]); gr.addColorStop(1, c[1]);
+  g.fillStyle = gr; g.beginPath(); g.arc(m, m, rr, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(59,29,26,.55)'; g.lineWidth = Math.max(1, k*.9); g.stroke();
+  // painted highlight streak
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.ellipse(m - rr*.38, m - rr*.42, rr*.26, rr*.13, -.7, 0, 7); g.fill();
+  sprites.set(key, cv); return cv;
+}
+function physics(dt){
+  const g = 1500*dt*dt;
+  for (const b of balls){
+    if (b === held || b.zone === 'fly' || b.zone === 'chute') continue;
+    const vx = (b.x - b.px)*.992, vy = (b.y - b.py)*.992;
+    b.px = b.x; b.py = b.y; b.x += vx; b.y += vy + g;
+  }
+  for (let it=0; it<4; it++){
+    for (let i=0;i<balls.length;i++){
+      const a = balls[i]; if (a.zone === 'fly' || a.zone === 'chute') continue;
+      for (let j=i+1;j<balls.length;j++){
+        const b = balls[j]; if (b.zone !== a.zone) continue;
+        const dx = b.x - a.x, dy = b.y - a.y, md = a.r + b.r, d2 = dx*dx + dy*dy;
+        if (d2 < md*md && d2 > 1e-6){ const d = Math.sqrt(d2), o = (md - d)/2, nx = dx/d, ny = dy/d;
+          const wa = a === held ? 0 : 1, wb = b === held ? 0 : 1, ws = wa + wb || 1;
+          a.x -= nx*o*2*wa/ws; a.y -= ny*o*2*wa/ws; b.x += nx*o*2*wb/ws; b.y += ny*o*2*wb/ws; }
+      }
+      if (a === held) continue;
+      if (a.zone === 'globe'){ const dx = a.x - G.cx, dy = a.y - G.cy, d = Math.hypot(dx, dy), lim = G.r - a.r;
+        if (d > lim){ a.x = G.cx + dx/d*lim; a.y = G.cy + dy/d*lim; } }
+      else if (a.zone === 'tray'){
+        if (a.y > TRAY.floor - a.r){ a.y = TRAY.floor - a.r; a.px = a.x - (a.x - a.px)*.6; }
+        if (a.x < TRAY.x0 + a.r){ a.x = TRAY.x0 + a.r; } if (a.x > TRAY.x1 - a.r){ a.x = TRAY.x1 - a.r; }
+      }
+    }
+  }
+}
+
+/* ---------- audio ---------- */
+let ac = null, master = null, muted = false;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch(e){} } if (ac && ac.state==='suspended') ac.resume(); return ac && !muted; }
+function tone(f, d, v, type='triangle', f2){ if (!audio()) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t+d);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t+d); o.connect(g).connect(master); o.start(t); o.stop(t+d+.02); }
+const tick = () => tone(2400 + Math.random()*300, .03, .18, 'square', 1200);
+const clack = () => { tone(180, .1, .5, 'triangle', 90); tone(1200, .04, .2, 'square'); };
+const tock = (v=1) => tone(620 + Math.random()*180, .09, .35*v, 'sine', 300);
+const rattle = () => { for (let i=0;i<5;i++) setTimeout(() => tone(900 + Math.random()*700, .03, .12, 'triangle'), i*55); };
+const ding = () => { tone(1568, .5, .25, 'sine'); setTimeout(() => tone(2093, .7, .2, 'sine'), 110); };
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').setAttribute('aria-pressed', muted); $('#mw').style.display = muted ? 'none' : ''; });
+
+/* ---------- state + UI ---------- */
+const cv = $('#cv'), ctx = cv.getContext('2d'), machine = $('#machine');
+let k = 1, DPR = 1, crank = 0, crankAcc = 0, cartN = 0, wobble = 0;
+const qty = () => balls.filter(b => b.zone === 'tray' || b.zone === 'chute' || (b === held && b.from === 'tray')).length;
+const stock = () => balls.filter(b => b.zone === 'globe').length;
+function updateUI(){
+  const q = qty(), s = stock();
+  $('#qn').textContent = q; $('#stock').textContent = s ? `${s} left in the globe` : 'Globe empty — sold out';
+  const add = $('#add'); add.disabled = q === 0; add.textContent = q ? `Bag ${q === 1 ? 'it' : 'them'} · $${(q*PRICE).toFixed(2)}` : 'Bag them · $0.00';
+  const cf = $('#crankFocus'); cf.setAttribute('aria-valuenow', q); cf.setAttribute('aria-valuetext', `${q} gumball${q===1?'':'s'}, $${(q*PRICE).toFixed(2)}`);
+}
+function say(t){ const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(say.t); say.t = setTimeout(() => el.classList.remove('on'), 2400); }
+function dispense(){
+  if (qty() >= MAXQ){ say(`That's ${MAXQ} — our limit per bag.`); clack(); wobble = 1; return false; }
+  const inGlobe = balls.filter(b => b.zone === 'globe'); if (!inGlobe.length){ say('Sold out! Restocking tomorrow.'); clack(); return false; }
+  let pick = inGlobe[0]; for (const b of inGlobe) if (b.y > pick.y) pick = b;
+  pick.zone = 'chute'; pick.t = 0; pick.sx = pick.x; pick.sy = pick.y;
+  clack(); rattle();
+  updateUI(); return true;
+}
+function returnBall(b, vx=0, vy=-900){
+  b.zone = 'fly'; b.t = 0; b.sx = b.x; b.sy = b.y; b.vx = vx; b.vy = vy; updateUI();
+}
+
+/* ---------- layout ---------- */
+function layout(){
+  const W = innerWidth, H = innerHeight, m = W < 760;
+  drawBg();
+  let mh, mw, mx, my;
+  if (!m){ mh = Math.min(H - 40, 760); mw = mh*400/720; mx = Math.max(W*.5 - mw*.38, 390); my = (H - mh)/2 + 6; }
+  else { mh = Math.min(H*.66, (W - 30)*720/400); mw = mh*400/720; mx = (W - mw)/2; my = H - mh - 118; }
+  Object.assign(machine.style, {left: mx+'px', top: my+'px', width: mw+'px', height: mh+'px'});
+  k = mw/400; DPR = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(mw*DPR); cv.height = Math.round(mh*DPR);
+  sprites.clear();
+  const copy = $('#copy'), price = $('#price'), order = $('#order'), hint = $('#hint');
+  if (!m){
+    Object.assign(copy.style, {left: Math.max(40, W*.06)+'px', top: (H*.17)+'px', width: Math.max(300, mx - W*.06 - 40)+'px'});
+    Object.assign(price.style, {left: (mx + mw - 30)+'px', top: (my + mh*.06)+'px'});
+    Object.assign(order.style, {left: (mx + mw + 30)+'px', top: (my + mh*.72)+'px'});
+    if (mx + mw + 30 + 230 > W){ Object.assign(order.style, {left: Math.max(40, W*.06)+'px', top: (H*.72)+'px'}); }
+    Object.assign(hint.style, {left: (mx + (CR.x + 128)*k)+'px', top: (my + (CR.y - 70)*k)+'px'});
+  } else {
+    Object.assign(copy.style, {left: '16px', top: '14px', width: (W - 100)+'px'});
+    Object.assign(price.style, {left: (W - 104)+'px', top: (my - 18)+'px'});
+    Object.assign(order.style, {left: '16px', top: (H - 104)+'px', right: '16px', flexDirection:'row', alignItems:'center', justifyContent:'space-between'});
+    order.style.width = (W - 32) + 'px';
+    Object.assign(hint.style, {left: (mx + (CR.x + 60)*k)+'px', top: (my + (CR.y - 80)*k)+'px'});
+  }
+  const ring = $('#ring'); const rr = 62*k; Object.assign(ring.style, {left: (mx + CR.x*k - rr)+'px', top: (my + CR.y*k - rr)+'px', width: rr*2+'px', height: rr*2+'px'});
+}
+
+/* ---------- pointer ---------- */
+let drag = null, hintGone = false;
+function toM(e){ const r = cv.getBoundingClientRect(); return {x:(e.clientX - r.left)/k, y:(e.clientY - r.top)/k}; }
+cv.addEventListener('pointerdown', e => {
+  audio(); const p = toM(e);
+  // grab a ball from the tray?
+  const tb = balls.filter(b => b.zone === 'tray').sort((a,b) => Math.hypot(a.x-p.x,a.y-p.y) - Math.hypot(b.x-p.x,b.y-p.y))[0];
+  if (tb && Math.hypot(tb.x - p.x, tb.y - p.y) < tb.r + 10){
+    held = tb; held.from = 'tray'; drag = {type:'ball', hist:[{x:p.x, y:p.y, t:performance.now()}]}; cv.classList.add('grab');
+    try { cv.setPointerCapture(e.pointerId); } catch(_){} return;
+  }
+  if (Math.hypot(p.x - CR.x, p.y - CR.y) < 78){
+    drag = {type:'crank', a: Math.atan2(p.y - CR.y, p.x - CR.x)}; cv.classList.add('grab');
+    try { cv.setPointerCapture(e.pointerId); } catch(_){}
+  }
+});
+cv.addEventListener('pointermove', e => {
+  const p = toM(e);
+  if (!drag){ const overBall = balls.some(b => b.zone === 'tray' && Math.hypot(b.x-p.x,b.y-p.y) < b.r + 8); cv.style.cursor = (overBall || Math.hypot(p.x - CR.x, p.y - CR.y) < 78) ? 'grab' : 'default'; return; }
+  if (drag.type === 'crank'){
+    const a = Math.atan2(p.y - CR.y, p.x - CR.x); let d = a - drag.a; if (d > Math.PI) d -= 2*Math.PI; if (d < -Math.PI) d += 2*Math.PI; drag.a = a;
+    turn(d);
+  } else if (drag.type === 'ball'){
+    held.x = p.x; held.y = p.y; held.px = p.x; held.py = p.y;
+    drag.hist.push({x:p.x, y:p.y, t:performance.now()}); if (drag.hist.length > 6) drag.hist.shift();
+  }
+});
+function endDrag(){
+  if (!drag) return;
+  if (drag.type === 'ball' && held){
+    const h = drag.hist, a = h[0], b = h[h.length-1], dt = Math.max(16, b.t - a.t)/1000;
+    const vx = (b.x - a.x)/dt, vy = (b.y - a.y)/dt;
+    const nearDoor = Math.hypot(held.x - DOOR.x, held.y - DOOR.y) < 40 || held.y < 380;
+    const b0 = held; held = null;
+    if (vy < -420 || nearDoor){ returnBall(b0, vx*.4, Math.min(vy, -700)); say('Back in the globe it goes.'); }
+    else { b0.zone = 'tray'; b0.px = b0.x - vx*.016; b0.py = b0.y - vy*.016; if (b0.y < 560) b0.y = 560; }
+  }
+  drag = null; cv.classList.remove('grab'); updateUI();
+}
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+function agitate(){ if (reduce) return; const gb = balls.filter(b => b.zone === 'globe' && b.y > G.cy + 40); for (let i=0;i<5 && gb.length;i++){ const b = gb[(Math.random()*gb.length)|0]; b.py += 1.6 + Math.random()*1.4; b.px += (Math.random()-.5)*1.4; } }
+function turn(d){
+  if (d < 0){ // ratchet: clockwise only
+    if (d < -.05){ wobble = Math.min(1, wobble + .5); if (!turn.cl || performance.now() - turn.cl > 160){ clack(); turn.cl = performance.now(); } }
+    return;
+  }
+  const before = Math.floor(crank/(Math.PI/6));
+  crank += d; crankAcc += d;
+  if (Math.floor(crank/(Math.PI/6)) !== before){ tick(); agitate(); }
+  if (crankAcc >= Math.PI*2){ crankAcc -= Math.PI*2; if (!dispense()){ crankAcc = 0; } if (!hintGone){ hintGone = true; $('#hint').style.opacity = 0; } }
+}
+
+/* keyboard */
+const cf = $('#crankFocus');
+let autoTurn = 0;
+cf.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowRight' || e.key === '+'){ e.preventDefault(); audio(); autoTurn += Math.PI*2 - (autoTurn > 0 ? 0 : crankAcc); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === '-'){ e.preventDefault(); audio(); const t = balls.filter(b => b.zone === 'tray').pop(); if (t){ returnBall(t, 0, -900); say('Put one back.'); } }
+  else if (e.key === 'Enter'){ e.preventDefault(); $('#add').click(); }
+});
+
+/* bag them */
+$('#add').addEventListener('click', () => {
+  const tb = balls.filter(b => b.zone === 'tray'); if (!tb.length) return;
+  audio(); const cart = $('#cart').getBoundingClientRect(), r = cv.getBoundingClientRect();
+  const tx = (cart.left + cart.width/2 - r.left)/k, ty = (cart.top + cart.height/2 - r.top)/k;
+  tb.forEach((b, i) => { b.zone = 'bag'; b.t = -i*.08; b.sx = b.x; b.sy = b.y; b.tx = tx; b.ty = ty; });
+  const n = tb.length; cartN += n;
+  setTimeout(() => { $('#cartN').textContent = cartN; const c = $('#cart'); c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); ding();
+    say(`${n} sour cherry gumball${n===1?'':'s'} bagged · $${(n*PRICE).toFixed(2)}`); }, reduce ? 0 : 520 + n*80);
+  updateUI();
+  if (stock() === 0) setTimeout(() => { fill(54); say('Fresh delivery! The globe is full again.'); updateUI(); }, 3000);
+});
+
+/* ---------- loop ---------- */
+let last = performance.now(), acc = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden){ last = now; return; }
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if (autoTurn > 0){ const st = Math.min(autoTurn, dt*9); autoTurn -= st; turn(st); }
+  wobble = Math.max(0, wobble - dt*3);
+  acc += dt; let steps = 0; while (acc >= 1/120 && steps < 6){ physics(1/120); acc -= 1/120; steps++; }
+  // chute / fly / bag animations
+  for (const b of balls){
+    if (b.zone === 'chute'){ b.t += dt/(reduce ? .2 : .55);
+      if (b.t >= 1){ b.zone = 'tray'; b.x = DOOR.x + (Math.random()-.5)*6; b.y = DOOR.y + 4; b.px = b.x - (Math.random()-.5)*4; b.py = b.y - 4; tock(); updateUI(); } }
+    else if (b.zone === 'fly'){ b.t += dt; b.vy += 1500*dt; b.x += b.vx*dt; b.y += b.vy*dt;
+      const tx = 200, ty = 26; b.x += (tx - b.x)*Math.min(1, dt*4); if (b.y < ty || b.t > .9){ b.zone = 'globe'; b.x = G.cx + (Math.random()-.5)*60; b.y = G.cy - G.r + 30; b.px = b.x; b.py = b.y - 2; tock(.6); updateUI(); } }
+    else if (b.zone === 'bag'){ b.t += dt/(reduce ? .2 : .6); }
+  }
+  for (let i = balls.length - 1; i >= 0; i--) if (balls[i].zone === 'bag' && balls[i].t >= 1) balls.splice(i, 1);
+  draw();
+}
+function draw(){
+  ctx.setTransform(DPR*k, 0, 0, DPR*k, 0, 0); ctx.clearRect(0, 0, 400, 720);
+  // globe balls (clipped)
+  ctx.save(); ctx.beginPath(); ctx.arc(G.cx, G.cy, G.r + 2, 0, 7); ctx.clip();
+  for (const b of balls) if (b.zone === 'globe') blit(b);
+  ctx.restore();
+  // chute: a ball briefly glimpsed dropping through the collar window
+  for (const b of balls) if (b.zone === 'chute'){ const u = b.t; if (u < .35){ const v = u/.35; ctx.save(); ctx.globalAlpha = 1 - v; blit({...b, x: b.sx + (200 - b.sx)*v, y: b.sy + (356 - b.sy)*v}); ctx.restore(); } }
+  // crank
+  const wob = Math.sin(performance.now()/30)*wobble*.12;
+  ctx.save(); ctx.translate(CR.x, CR.y); ctx.rotate(crank + wob);
+  ctx.fillStyle = '#3d4650'; ctx.beginPath(); ctx.arc(2, 3, 34, 0, 7); ctx.fill();
+  let gr = ctx.createLinearGradient(-34, -34, 34, 34); gr.addColorStop(0, '#f7fbff'); gr.addColorStop(.45, '#a9b7c4'); gr.addColorStop(.5, '#52606d'); gr.addColorStop(.55, '#e4edf4'); gr.addColorStop(1, '#7c8a97');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, 32, 0, 7); ctx.fill(); ctx.strokeStyle = '#3d4650'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#c9d4de'; for (let i=0;i<12;i++){ ctx.save(); ctx.rotate(i*Math.PI/6); ctx.fillRect(27, -1.5, 5, 3); ctx.restore(); }
+  // T-handle arm
+  gr = ctx.createLinearGradient(0, -9, 0, 9); gr.addColorStop(0, '#f7fbff'); gr.addColorStop(.5, '#6b7987'); gr.addColorStop(1, '#d7e1ea');
+  ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(-8, -8, CR.arm + 12, 16, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d8262e'; ctx.beginPath(); ctx.arc(CR.arm, 0, 12, 0, 7); ctx.fill(); ctx.strokeStyle = '#5c0a12'; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.arc(CR.arm - 4, -4, 3.5, 0, 7); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#e9eef2'; ctx.beginPath(); ctx.arc(CR.x, CR.y, 7, 0, 7); ctx.fill(); ctx.strokeStyle = '#3d4650'; ctx.stroke();
+  // progress pips around the crank: how far through this turn
+  ctx.fillStyle = 'rgba(246,234,208,.9)'; const pips = Math.floor(crankAcc/(Math.PI/6));
+  for (let i=0;i<12;i++){ const a = -Math.PI/2 + i*Math.PI/6; ctx.globalAlpha = i < pips ? 1 : .25; ctx.beginPath(); ctx.arc(CR.x + Math.cos(a)*50, CR.y + Math.sin(a)*50, 2.6, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // tray + flying + bagged balls
+  for (const b of balls) if (b.zone === 'tray' || b === held) blit(b);
+  for (const b of balls) if (b.zone === 'fly') blit(b);
+  for (const b of balls) if (b.zone === 'bag' && b.t > 0){ const u = Math.min(1, b.t), e = u*u*(3-2*u); const x = b.sx + (b.tx - b.sx)*e, y = b.sy + (b.ty - b.sy)*e - Math.sin(u*Math.PI)*160; ctx.save(); ctx.globalAlpha = 1 - Math.max(0, u - .8)*5; blit({...b, x, y, r: b.r*(1 - u*.4)}); ctx.restore(); }
+  for (const b of balls) if (b.zone === 'bag' && b.t <= 0) blit(b);
+}
+function blit(b){ const s = sprite(b.c, b.r, k*DPR); const sz = s.width/(k*DPR); ctx.drawImage(s, b.x - sz/2, b.y - sz/2, sz, sz); }
+
+drawMachine(); layout(); updateUI();
+addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 100); });
+requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>

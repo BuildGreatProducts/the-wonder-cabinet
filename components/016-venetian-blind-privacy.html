@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Venetian Blind Privacy</title>
+<meta name="description" content="A hide-balances privacy toggle as a film-noir detective's desk lit through venetian blinds: twist the wand and the bands of light narrow until darkness swallows the numbers.">
+<script type="application/json" id="component-meta">
+{"name":"Venetian Blind Privacy","reimagines":"Privacy / hide-sensitive-data toggle","category":"Toggles & Switches","description":"A bank statement lies on a detective's desk, lit only by a streetlamp through venetian blinds. Twist the wand and the hard diagonal bands of light narrow, ripple down the ladder and let the darkness swallow the digits. Privacy is literally the absence of light; fully drawn leaves only slivers.","hint":"Drag across the blind wand to twist it, or press Draw the blinds"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,800;1,6..96,500&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#e4e4e0;--ink:#121212}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#060606}
+body{font-family:"Special Elite","Courier New",monospace;color:var(--ink);-webkit-font-smoothing:antialiased}
+.room{position:fixed;inset:0;background:#070707}
+/* the window (seen from inside the office) */
+.window{position:absolute;background:#000;box-shadow:0 0 0 10px #101010,0 0 0 12px #262626,0 30px 60px rgba(0,0,0,.9)}
+.window canvas{position:absolute;inset:0;display:block}
+/* the desk */
+.desk{position:absolute;overflow:hidden;background:
+  repeating-linear-gradient(-24deg,#3b3b3b 0 3px,#333 3px 9px,#383838 9px 11px,#2f2f2f 11px 19px),#333;box-shadow:0 0 0 1px #000}
+.desk::before{content:"";position:absolute;inset:0;mix-blend-mode:multiply;opacity:.7;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='120'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .09' numOctaves='3' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .7 0'/%3E%3C/filter%3E%3Crect width='300' height='120' filter='url(%23w)'/%3E%3C/svg%3E")}
+.paper{position:absolute;background:var(--paper);padding:30px 34px;transform:rotate(-2.6deg);box-shadow:3px 6px 0 rgba(0,0,0,.55),0 20px 40px rgba(0,0,0,.6)}
+.paper::before{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .4 0 0 0 0 .4 0 0 0 0 .4 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)'/%3E%3C/svg%3E")}
+.paper::after{content:"";position:absolute;right:46px;bottom:70px;width:110px;height:110px;border-radius:50%;border:6px solid rgba(60,50,40,.16);border-left-color:rgba(60,50,40,.06);pointer-events:none}
+.bank{font-family:"Bodoni Moda",serif;font-weight:800;font-size:12px;letter-spacing:.38em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px double var(--ink);padding-bottom:7px}
+.bank span:last-child{font-family:"Special Elite",monospace;font-weight:400;letter-spacing:.04em;text-transform:none;font-size:12px}
+.title{font-family:"Bodoni Moda",serif;font-style:italic;font-weight:500;font-size:34px;margin:12px 0 0;letter-spacing:-.01em}
+.sub{font-size:13px;color:#333;margin-bottom:16px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.card{border:1.5px solid var(--ink);padding:10px 12px 8px;position:relative}
+.card .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.card .v{font-size:26px;margin-top:12px;letter-spacing:-.02em;white-space:nowrap}
+.card .d{font-size:11px;color:#333;margin-top:3px}
+.lower{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:400;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;border-bottom:1.5px solid var(--ink);padding:0 0 4px}
+td{padding:5px 0;border-bottom:1px dotted rgba(20,20,20,.45)}
+td.amt{text-align:right;white-space:nowrap}
+.stamp{border:3px solid var(--ink);padding:10px 12px;transform:rotate(-4deg);align-self:start;margin-top:8px;text-align:center;position:relative}
+.stamp::before{content:"";position:absolute;inset:4px;border:1px solid var(--ink)}
+.stamp .k{font-family:"Bodoni Moda",serif;font-weight:800;letter-spacing:.28em;font-size:11px}
+.stamp .v{font-size:28px;margin-top:6px}
+.stamp .d{font-size:11px;margin-top:4px}
+.prop{position:absolute;pointer-events:none}
+#light{position:absolute;inset:0;pointer-events:none;display:block}
+#grain{position:fixed;inset:0;width:100%;height:100%;z-index:50;pointer-events:none;mix-blend-mode:overlay;opacity:.16}
+.vig{position:fixed;inset:0;pointer-events:none;z-index:49;background:radial-gradient(85% 75% at 55% 48%,rgba(0,0,0,0) 55%,rgba(0,0,0,.65) 100%)}
+.wand{position:absolute;width:44px;cursor:ew-resize;touch-action:none;z-index:6;outline:none;display:flex;justify-content:center}
+.wand .rod{width:12px;height:100%;border-radius:7px;position:relative;overflow:hidden;
+  background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.5) 30%,rgba(255,255,255,.12) 55%,rgba(255,255,255,.38) 80%,rgba(255,255,255,.05));
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),3px 4px 8px rgba(0,0,0,.8)}
+.wand .facets{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 3px,rgba(255,255,255,.55) 3px 4px,rgba(255,255,255,0) 4px 9px)}
+.wand .hook{position:absolute;top:-12px;width:14px;height:14px;border:2px solid #9a9893;border-bottom:0;border-radius:8px 8px 0 0}
+.wand:focus-visible .rod{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),0 0 0 3px #e7e4dc}
+.card2{position:absolute;z-index:8;background:#d9d8d3;color:#111;padding:16px 18px 14px;transform:rotate(1.2deg);box-shadow:4px 6px 0 rgba(0,0,0,.6)}
+.card2::before{content:"";position:absolute;left:0;right:0;top:34px;border-top:1px solid rgba(160,40,40,.45)}
+.card2 .q{font-family:"Bodoni Moda",serif;font-style:italic;font-size:21px;line-height:1.2}
+.card2 .n{font-size:12.5px;letter-spacing:.06em;margin-top:10px;color:#333;transition:opacity .8s}
+.draw{white-space:nowrap;font:inherit;font-size:14px;letter-spacing:.08em;background:#111;color:#e7e4dc;border:0;padding:10px 14px 9px;margin-top:14px;cursor:pointer;display:inline-flex;gap:10px;align-items:center;box-shadow:3px 3px 0 #000}
+.draw:focus-visible{outline:2px solid #111;outline-offset:3px}
+.draw i{width:30px;height:16px;border:1.5px solid #e7e4dc;border-radius:9px;position:relative;display:inline-block}
+.draw i::after{content:"";position:absolute;top:2px;left:2px;width:9px;height:9px;border-radius:50%;background:#e7e4dc;transition:left .25s}
+.draw[aria-checked="true"] i::after{left:16px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  .paper{padding:16px 16px;transform:rotate(-1.6deg)}
+  .paper::after{display:none}
+  .bank{font-size:9.5px;letter-spacing:.22em}
+  .bank span:last-child{display:none}
+  .title{font-size:24px;margin-top:8px}
+  .sub{font-size:11.5px;margin-bottom:10px}
+  .cards{grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+  .card{padding:7px 10px 6px}
+  .card .v{font-size:23px;margin-top:6px}
+  .card .d{display:none}
+  .lower{grid-template-columns:1fr}
+  .stamp{display:none}
+  table{font-size:12px}
+  tr.more{display:none}
+  .card2{padding:10px 12px;display:flex;align-items:center;gap:10px;transform:none}
+  .card2::before{display:none}
+  .card2 .q{font-size:15px;flex:1}
+  .card2 .n{display:none}
+  .draw{margin-top:0;font-size:12.5px;padding:9px 10px 8px}
+}
+@media (prefers-reduced-motion:reduce){.card2 .n{transition:none}}
+</style>
+</head>
+<body>
+<div class="room"></div>
+<div class="window" id="win"><canvas id="wc" aria-hidden="true"></canvas></div>
+<div class="desk" id="desk">
+  <svg class="prop" id="ashtray" width="150" height="120" viewBox="0 0 150 120" aria-hidden="true">
+    <ellipse cx="62" cy="64" rx="54" ry="40" fill="#1c1c1c"/><ellipse cx="62" cy="60" rx="54" ry="40" fill="#5a5a5a"/>
+    <ellipse cx="62" cy="58" rx="40" ry="28" fill="#2a2a2a"/><ellipse cx="60" cy="62" rx="30" ry="18" fill="#3c3c3c"/>
+    <rect x="70" y="40" width="70" height="7" rx="2" fill="#e8e8e4" transform="rotate(-16 70 44)"/>
+    <rect x="70" y="40" width="16" height="7" rx="1" fill="#b9b2a2" transform="rotate(-16 70 44)"/>
+    <circle cx="136" cy="25" r="3.6" fill="#fff" opacity=".95"/><circle cx="136" cy="25" r="7" fill="#fff" opacity=".18"/>
+    <path d="M30 70 q8 -6 14 -2 M50 74 q6 -4 12 0" stroke="#777" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+  <svg class="prop" id="pen" width="190" height="30" viewBox="0 0 190 30" aria-hidden="true"><rect x="8" y="9" width="150" height="12" rx="6" fill="#111"/><rect x="40" y="9" width="5" height="12" fill="#bdbdb8"/><path d="M158 11 L184 15 L158 19 Z" fill="#9a9a96"/><rect x="14" y="5" width="56" height="3" rx="1.5" fill="#bdbdb8"/></svg>
+  <div class="paper" id="paper">
+    <div class="bank"><span>First Harbor Savings &amp; Trust</span><span>Branch 14 · Pier Street</span></div>
+    <div class="title">Statement of accounts</div>
+    <div class="sub">Ellery Vance · as of 7 October 2026, 11:42 pm</div>
+    <div class="cards">
+      <div class="card"><div class="k">Checking ···· 4471</div><div class="v secret">$12,480.16</div><div class="d">Available today</div></div>
+      <div class="card"><div class="k">Savings ···· 0932</div><div class="v secret">$48,902.55</div><div class="d">2.1% APY</div></div>
+      <div class="card"><div class="k">Brokerage</div><div class="v secret">$131,227.90</div><div class="d">+$1,904.12 this week</div></div>
+    </div>
+    <div class="lower">
+      <table aria-label="Recent transactions">
+        <thead><tr><th>Date</th><th>Payee</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Oct 6</td><td>Blue Lantern Diner</td><td class="amt secret">−$18.40</td></tr>
+          <tr><td>Oct 5</td><td>Rent · 1414 Harbor St</td><td class="amt secret">−$2,150.00</td></tr>
+          <tr><td>Oct 3</td><td>Payroll · Marlowe Insurance</td><td class="amt secret">+$6,212.33</td></tr>
+          <tr class="more"><td>Oct 2</td><td>Rexall Pharmacy</td><td class="amt secret">−$42.10</td></tr>
+        </tbody>
+      </table>
+      <div class="stamp"><div class="k">NET WORTH</div><div class="v secret">$192,610.61</div><div class="d">all accounts, before tax</div></div>
+    </div>
+  </div>
+  <canvas id="light" aria-hidden="true"></canvas>
+</div>
+<div class="wand" id="wand" role="slider" tabindex="0" aria-label="Blind tilt — privacy" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Blinds open"><div class="hook"></div><div class="rod"><div class="facets" id="facets"></div></div></div>
+<div class="card2" id="caption">
+  <div class="q">Some numbers are nobody's business.</div>
+  <div class="n" id="capn">Twist the wand on the blinds to close them.</div>
+  <button class="draw" id="drawBtn" role="switch" aria-checked="false"><i aria-hidden="true"></i><span id="drawTxt">Draw the blinds</span></button>
+</div>
+<div class="vig"></div>
+<canvas id="grain" aria-hidden="true"></canvas>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const win = $('win'), wc = $('wc'), wg = wc.getContext('2d');
+const desk = $('desk'), paperEl = $('paper'), lightC = $('light'), g = lightC.getContext('2d');
+const wand = $('wand'), facets = $('facets'), caption = $('caption'), drawBtn = $('drawBtn'), drawTxt = $('drawTxt'), live = $('live');
+const grainC = $('grain'), gg = grainC.getContext('2d');
+const secrets = [...document.querySelectorAll('.secret')];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+let W = 0, H = 0, DPR = 1, mobile = false;
+let WIN = {x: 0, y: 0, w: 0, h: 0}, DESK = {x: 0, y: 0, w: 0, h: 0};
+let rot = 0, rv = 0;                  // wand rotation (rad) and spin velocity
+const TURN = Math.PI * 2 * 1.15;      // rotation from open to fully closed
+let slats = [];                       // per-slat tilt, lagging down the ladder
+let dragging = null, lastDetent = 0;
+let PITCH = 46, BANDS = 30;
+const ANG = -24 * Math.PI / 180;      // the noir diagonal
+
+/* ---------- audio ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function click(f = 1800, gain = .25, dur = .02){
+  if (!ac) return; const t = ac.currentTime, n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+  const s = ac.createBufferSource(); s.buffer = b; const fl = ac.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = 3;
+  const gn = ac.createGain(); gn.gain.value = gain; s.connect(fl); fl.connect(gn); gn.connect(master); s.start(t);
+}
+let rattleT = 0;
+function rattle(){ // aluminium slats knocking as they roll shut
+  if (!ac) return; const now = performance.now(); if (now - rattleT < 70) return; rattleT = now;
+  for (let i = 0; i < 3; i++) setTimeout(() => click(3800 + Math.random() * 2400, .12, .012), i * 18);
+}
+
+/* ---------- layout ---------- */
+function layout(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; mobile = W < 760;
+  if (mobile) {
+    WIN = {x: 16, y: 16, w: W - 32, h: 132};
+    DESK = {x: 0, y: 160, w: W, h: H - 160 - 76};
+    Object.assign(caption.style, {left: '12px', right: '12px', bottom: '12px', top: 'auto', width: 'auto'});
+  } else {
+    const ww = Math.max(250, Math.min(320, W * .24));
+    WIN = {x: 40, y: 40, w: ww, h: Math.min(H - 290, 470)};
+    DESK = {x: ww + 92, y: 0, w: W - ww - 92, h: H};
+    Object.assign(caption.style, {left: '34px', top: (WIN.y + WIN.h + 44) + 'px', width: (ww + 16) + 'px', right: 'auto', bottom: 'auto'});
+  }
+  Object.assign(win.style, {left: WIN.x + 'px', top: WIN.y + 'px', width: WIN.w + 'px', height: WIN.h + 'px'});
+  wc.width = WIN.w * DPR; wc.height = WIN.h * DPR; wc.style.width = WIN.w + 'px'; wc.style.height = WIN.h + 'px';
+  Object.assign(desk.style, {left: DESK.x + 'px', top: DESK.y + 'px', width: DESK.w + 'px', height: DESK.h + 'px'});
+  lightC.width = DESK.w * DPR; lightC.height = DESK.h * DPR; lightC.style.width = DESK.w + 'px'; lightC.style.height = DESK.h + 'px';
+  // the statement on the desk
+  if (mobile) Object.assign(paperEl.style, {left: '14px', top: '14px', width: (DESK.w - 28) + 'px'});
+  else { const pw = Math.min(660, DESK.w - 230); Object.assign(paperEl.style, {left: Math.max(30, (DESK.w - pw) * .32) + 'px', top: Math.max(40, (DESK.h - 600) / 2) + 'px', width: pw + 'px'}); }
+  const ash = $('ashtray'), pen = $('pen');
+  if (mobile) { ash.style.display = 'none'; pen.style.display = 'none'; }
+  else {
+    ash.style.display = ''; pen.style.display = '';
+    Object.assign(ash.style, {left: (DESK.w - 170) + 'px', top: '70px'});
+    Object.assign(pen.style, {left: (DESK.w - 220) + 'px', top: (DESK.h - 150) + 'px', transform: 'rotate(-58deg)'});
+  }
+  // wand hangs from the right end of the window's headrail
+  const wh = mobile ? WIN.h - 18 : Math.min(WIN.h * .66, 320);
+  Object.assign(wand.style, {left: (WIN.x + WIN.w - 46) + 'px', top: (WIN.y + 18) + 'px', height: wh + 'px'});
+  PITCH = mobile ? 46 : 64;
+  BANDS = Math.ceil(Math.hypot(DESK.w, DESK.h) / PITCH) + 4;
+  const n = Math.max(BANDS, Math.ceil(WIN.h / 16) + 2);
+  while (slats.length < n) slats.push({a: slats.length ? slats[slats.length - 1].a : closure(), v: 0});
+  slats.length = n;
+  grainC.width = Math.ceil(W / 2); grainC.height = Math.ceil(H / 2);
+  const sr = $('ashtray').getBoundingClientRect(), dr = desk.getBoundingClientRect();
+  smokeSrc = mobile ? {x: DESK.w * .97, y: DESK.h * .99} : {x: sr.left - dr.left + 136, y: sr.top - dr.top + 25};
+}
+
+/* ---------- state ---------- */
+const closure = () => clamp(rot / TURN, -1, 1);
+let announced = 'open';
+function syncA11y(){
+  const c = Math.abs(closure()), pct = Math.round(c * 100);
+  wand.setAttribute('aria-valuenow', pct);
+  wand.setAttribute('aria-valuetext', pct > 92 ? 'Blinds drawn, balances hidden' : pct < 8 ? 'Blinds open' : `Blinds ${pct}% closed`);
+  const closed = pct > 92;
+  drawBtn.setAttribute('aria-checked', String(closed));
+  drawTxt.textContent = closed ? 'Open the blinds' : 'Draw the blinds';
+  secrets.forEach(s => s.setAttribute('aria-hidden', closed ? 'true' : 'false'));
+  const st = closed ? 'closed' : pct < 8 ? 'open' : 'partial';
+  if (dragging || auto !== null) $('capn').style.opacity = 0;
+  if (st !== announced) { announced = st; live.textContent = st === 'closed' ? 'Blinds drawn. Balances hidden.' : st === 'open' ? 'Blinds open. Balances visible.' : ''; }
+}
+let auto = null;
+function animateTo(target){ auto = target; audio(); rv = 0; }
+drawBtn.addEventListener('click', () => { const c = Math.abs(closure()); animateTo(c > .92 ? 0 : (rot < 0 ? -TURN : TURN)); });
+
+/* ---------- wand input ---------- */
+wand.addEventListener('pointerdown', e => {
+  audio(); auto = null;
+  dragging = {id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), v: 0};
+  try { wand.setPointerCapture(e.pointerId); } catch (_) {}
+});
+wand.addEventListener('pointermove', e => {
+  if (!dragging || e.pointerId !== dragging.id) return;
+  const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y, now = performance.now();
+  const d = Math.abs(dx) >= Math.abs(dy) ? dx : -dy;
+  const drot = d * .045;
+  rot = clamp(rot + drot, -TURN * 1.04, TURN * 1.04);
+  const dt = Math.max(8, now - dragging.t);
+  dragging.v = dragging.v * .5 + (drot / dt * 1000) * .5;
+  dragging.x = e.clientX; dragging.y = e.clientY; dragging.t = now;
+});
+const endW = e => { if (!dragging || e.pointerId !== dragging.id) return; rv = reduced ? 0 : clamp(dragging.v, -40, 40); dragging = null; };
+wand.addEventListener('pointerup', endW); wand.addEventListener('pointercancel', endW);
+wand.addEventListener('keydown', e => {
+  const step = TURN / 10; let used = true;
+  const sgn = rot < 0 ? -1 : 1;
+  if (e.key === 'ArrowUp' || e.key === 'ArrowRight') animateTo(clamp(rot + step * (sgn || 1), -TURN, TURN));
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') animateTo(Math.abs(rot) <= step ? 0 : rot - step * sgn);
+  else if (e.key === 'Home') animateTo(0);
+  else if (e.key === 'End') animateTo(TURN * (sgn || 1));
+  else if (e.key === ' ' || e.key === 'Enter') drawBtn.click();
+  else used = false;
+  if (used) e.preventDefault();
+});
+
+/* ---------- light model ---------- */
+// fraction of each slat gap that lets light through (open ≈ .84, drawn ≈ a sliver)
+const opening = a => { const c = Math.min(1, Math.abs(a)); return Math.max(0, .6 * Math.pow(Math.cos(c * Math.PI / 2), 1.1)); };
+const maskC = document.createElement('canvas'), mg = maskC.getContext('2d');
+const smokeC = document.createElement('canvas'), sg = smokeC.getContext('2d');
+let smokeSrc = {x: 0, y: 0};
+const puffs = [];
+function patchPoly(w, h){ // the skewed window-shaped patch of light that lands on the desk
+  return mobile ? [[-w * .1, -h * .04], [w * 1.08, -h * .1], [w * 1.12, h * 1.02], [-w * .06, h * 1.08]]
+                : [[w * .01, h * .03], [w * .9, -h * .04], [w * 1.02, h * .86], [w * .1, h * .97]];
+}
+function renderLight(t){
+  const w = DESK.w, h = DESK.h;
+  if (maskC.width !== lightC.width || maskC.height !== lightC.height) { maskC.width = smokeC.width = lightC.width; maskC.height = smokeC.height = lightC.height; }
+  // 1. light mask: hard diagonal bands inside the window patch
+  mg.setTransform(DPR, 0, 0, DPR, 0, 0); mg.clearRect(0, 0, w, h);
+  mg.save();
+  const poly = patchPoly(w, h);
+  mg.beginPath(); poly.forEach((p, i) => i ? mg.lineTo(p[0], p[1]) : mg.moveTo(p[0], p[1])); mg.closePath(); mg.clip();
+  const flick = reduced ? 1 : .97 + Math.sin(t * .011) * .012 + Math.sin(t * .0027) * .018;
+  mg.translate(w * .5, h * .5); mg.rotate(ANG);
+  const span = Math.hypot(w, h);
+  const c0 = Math.abs(slats[0] ? slats[0].a : 0);
+  const shift = c0 * PITCH * .28;    // slits slide a little as the slats tilt
+  for (let k = 0; k < BANDS; k++) {
+    const a = slats[Math.min(slats.length - 1, k)].a, op = opening(a);
+    const y0 = -span / 2 + k * PITCH + shift;
+    const wBand = Math.max(1.6, PITCH * op);
+    const lum = (op < .06 ? .38 + op * 4 : 1) * flick;
+    mg.fillStyle = `rgba(255,255,255,${lum.toFixed(3)})`;
+    mg.fillRect(-span, y0 + (PITCH - wBand) / 2, span * 2, wBand);
+  }
+  mg.restore();
+  // falloff: brightest near the window, fading across the desk
+  mg.save(); mg.globalCompositeOperation = 'destination-in';
+  const fall = mg.createLinearGradient(mobile ? 0 : 0, 0, mobile ? 0 : w, mobile ? h : h * .3);
+  fall.addColorStop(0, 'rgba(0,0,0,1)'); fall.addColorStop(.7, 'rgba(0,0,0,.9)'); fall.addColorStop(1, 'rgba(0,0,0,.6)');
+  mg.fillStyle = fall; mg.fillRect(0, 0, w, h); mg.restore();
+  // the window's reversed lettering throws its shadow inside the light
+  mg.save(); mg.globalCompositeOperation = 'destination-out';
+  mg.translate(mobile ? w * .5 : w * .8, mobile ? h * .93 : h * .86); mg.rotate(ANG); mg.transform(1, 0, -.35, 1, 0, 0); mg.scale(-1, 1);
+  mg.font = `800 ${mobile ? 22 : 38}px "Bodoni Moda", serif`; mg.textAlign = 'center';
+  mg.fillStyle = 'rgba(0,0,0,.62)'; mg.fillText('VANCE & CO.', 0, 0);
+  mg.font = `500 ${mobile ? 11 : 17}px "Bodoni Moda", serif`; mg.fillText('PRIVATE INQUIRIES', 0, mobile ? 18 : 28);
+  mg.restore();
+
+  // 2. darkness everywhere the light does not reach
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, w, h);
+  const cl = Math.min(1, Math.abs(closure()));
+  g.fillStyle = `rgba(4,4,5,${(.9 + .1 * Math.pow(cl, .6)).toFixed(3)})`; g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = 'destination-out'; g.drawImage(maskC, 0, 0, w, h);
+  // a breath of brightness in the bands so the paper glows
+  g.globalCompositeOperation = 'screen'; g.globalAlpha = .1; g.drawImage(maskC, 0, 0, w, h); g.globalAlpha = 1;
+
+  // 3. cigarette smoke curling up through the shafts
+  if (!reduced) {
+    const dt = 1 / 60;
+    if (Math.random() < .6 && puffs.length < 160) puffs.push({x: smokeSrc.x + (Math.random() - .5) * 3, y: smokeSrc.y, r: 3 + Math.random() * 3, vx: -22 - Math.random() * 8, vy: 6 + Math.random() * 6, life: 1, ph: Math.random() * 6});
+    sg.setTransform(DPR, 0, 0, DPR, 0, 0); sg.globalCompositeOperation = 'source-over'; sg.clearRect(0, 0, w, h);
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i]; p.life -= dt * .16;
+      if (p.life <= 0) { puffs.splice(i, 1); continue; }
+      p.vy += Math.sin(t * .0016 + p.ph + p.x * .015) * 26 * dt; p.vx += Math.cos(t * .0009 + p.y * .02) * 10 * dt;
+      p.x += p.vx * dt * 2.2; p.y += p.vy * dt * 2.2; p.r += dt * 7; p.life -= dt * .04;
+      const a = Math.min(1, (1 - p.life) * 6) * p.life * .16;
+      const rg = sg.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      rg.addColorStop(0, `rgba(255,255,255,${a})`); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      sg.fillStyle = rg; sg.beginPath(); sg.arc(p.x, p.y, p.r, 0, 7); sg.fill();
+    }
+    // faint everywhere, vivid where the light catches it
+    g.globalCompositeOperation = 'screen'; g.globalAlpha = .25; g.drawImage(smokeC, 0, 0, w, h); g.globalAlpha = 1;
+    sg.globalCompositeOperation = 'destination-in'; sg.drawImage(maskC, 0, 0, w, h);
+    g.drawImage(smokeC, 0, 0, w, h); g.drawImage(smokeC, 0, 0, w, h);
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+
+/* ---------- the window: night street, reversed lettering, blinds ---------- */
+const rain = Array.from({length: 60}, () => ({x: Math.random(), y: Math.random(), s: .5 + Math.random()}));
+function renderWindow(t){
+  const w = WIN.w, h = WIN.h, x = wg;
+  x.setTransform(DPR, 0, 0, DPR, 0, 0); x.clearRect(0, 0, w, h);
+  // outside: wet night, a streetlamp blazing
+  const sky = x.createLinearGradient(0, 0, 0, h); sky.addColorStop(0, '#0a0a0b'); sky.addColorStop(1, '#202022');
+  x.fillStyle = sky; x.fillRect(0, 0, w, h);
+  const lx = w * .72, ly = h * .22;
+  const lamp = x.createRadialGradient(lx, ly, 0, lx, ly, Math.max(w, h) * .7);
+  lamp.addColorStop(0, 'rgba(255,255,255,1)'); lamp.addColorStop(.06, 'rgba(255,255,255,.9)'); lamp.addColorStop(.3, 'rgba(200,200,200,.35)'); lamp.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = lamp; x.fillRect(0, 0, w, h);
+  // building silhouette across the street
+  x.fillStyle = '#050505'; x.fillRect(0, h * .55, w * .4, h * .45); x.fillRect(w * .36, h * .68, w * .3, h * .32);
+  for (let i = 0; i < 6; i++) { x.fillStyle = i % 3 ? '#1a1a1a' : '#8a8a8a'; x.fillRect(w * .04 + (i % 3) * w * .11, h * .6 + Math.floor(i / 3) * h * .1, w * .05, h * .05); }
+  // rain streaks
+  if (!reduced) { x.strokeStyle = 'rgba(220,220,220,.25)'; x.lineWidth = 1; x.beginPath(); rain.forEach(r => { r.y += .012 * r.s; if (r.y > 1) { r.y = 0; r.x = Math.random(); } const px = r.x * w, py = r.y * h; x.moveTo(px, py); x.lineTo(px - 3, py + 12 * r.s); }); x.stroke(); }
+  // gilt lettering on the glass, read backwards from inside the office
+  x.save(); x.translate(w / 2, h * (mobile ? .52 : .4)); x.scale(-1, 1);
+  x.textAlign = 'center';
+  const big = mobile ? 26 : Math.min(34, w * .13);
+  x.font = `800 ${big}px "Bodoni Moda", serif`; x.lineWidth = 3; x.strokeStyle = '#000'; x.strokeText('VANCE & CO.', 0, 0); x.fillStyle = '#d6d3ca'; x.fillText('VANCE & CO.', 0, 0);
+  x.font = `500 ${big * .42}px "Bodoni Moda", serif`; x.lineWidth = 2; x.strokeText('PRIVATE INQUIRIES', 0, big * .7); x.fillText('PRIVATE INQUIRIES', 0, big * .7);
+  x.restore();
+  // blinds: slats roll from edge-on to shut, with a wave running down the ladder
+  const pitch = 16, n = Math.ceil(h / pitch);
+  for (let i = 0; i < n; i++) {
+    const a = slats[Math.min(slats.length - 1, i)].a, s = Math.sin(Math.min(1, Math.abs(a)) * Math.PI / 2);
+    const vis = Math.max(1.4, s * pitch * 1.06), y0 = 14 + i * pitch + pitch / 2 - vis / 2;
+    const sl = x.createLinearGradient(0, y0, 0, y0 + vis); sl.addColorStop(0, '#2b2b2b'); sl.addColorStop(1, '#0d0d0d');
+    x.fillStyle = sl; x.fillRect(0, y0, w, vis);
+    x.fillStyle = `rgba(255,255,255,${(.15 + .5 * (1 - s)).toFixed(2)})`; x.fillRect(0, y0, w, .8);   // light catching the slat edge
+  }
+  [.2, .7].forEach(f => { x.fillStyle = 'rgba(200,200,200,.3)'; x.fillRect(w * f, 14, 1, h); x.fillRect(w * f + 5, 14, 1, h); });
+  // headrail and frame mullions
+  const hr = x.createLinearGradient(0, 0, 0, 14); hr.addColorStop(0, '#d8d6cf'); hr.addColorStop(1, '#5a5955');
+  x.fillStyle = hr; x.fillRect(0, 0, w, 14);
+  x.fillStyle = '#0b0b0b'; x.fillRect(mobile ? w * .5 - 4 : 0, mobile ? 0 : h * .5 - 4, mobile ? 8 : w, mobile ? h : 8);
+}
+
+/* ---------- film grain ---------- */
+let gf = 0;
+function grain(){
+  const w = grainC.width, h = grainC.height, id = gg.createImageData(w, h), d = id.data;
+  for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  gg.putImageData(id, 0, 0);
+  if (Math.random() < .05) { gg.fillStyle = 'rgba(255,255,255,.9)'; gg.fillRect(Math.random() * w, 0, 1, h); }
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), raf = 0;
+function frameLoop(now){
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  if (auto !== null) { const d = auto - rot; rot += d * Math.min(1, dt * (reduced ? 60 : 7)); if (Math.abs(d) < .002) { rot = auto; auto = null; } }
+  else if (!dragging) {
+    rot += rv * dt; rv *= Math.pow(.06, dt);
+    if (rot > TURN) { rot += (TURN - rot) * .3; rv = Math.min(rv, 0) * .3; }
+    if (rot < -TURN) { rot += (-TURN - rot) * .3; rv = Math.max(rv, 0) * .3; }
+  } else { if (rot > TURN) rot += (TURN - rot) * .2; if (rot < -TURN) rot += (-TURN - rot) * .2; }
+  const det = Math.floor(rot / (Math.PI / 3));
+  if (det !== lastDetent) { lastDetent = det; click(1500, .12, .015); }
+  // slats follow down the ladder with lag and a little wobble
+  const target = closure();
+  for (let i = 0; i < slats.length; i++) {
+    const s = slats[i], src = i === 0 ? target : slats[i - 1].a;
+    if (reduced) { s.a = target; continue; }
+    s.v += ((src - s.a) * (i === 0 ? 900 : 2600) - s.v * 46) * dt; s.a += s.v * dt;
+    if (i > 2 && i < 20 && Math.abs(s.v) > 3.2 && Math.random() < .02) rattle();
+  }
+  facets.style.transform = `translateX(${((rot * 6) % 9 + 9) % 9 - 9}px)`;
+  syncA11y();
+  renderWindow(now);
+  renderLight(now);
+  if ((gf++ & 1) === 0 && !reduced) grain();
+  raf = requestAnimationFrame(frameLoop);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frameLoop); } });
+let rt = 0; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 100); });
+layout(); if (reduced) grain();
+document.fonts && document.fonts.ready.then(layout);
+raf = requestAnimationFrame(frameLoop);
+window.__blinds = {set: f => animateTo(TURN * f), draw: () => drawBtn.click(), jump(f){ rot = TURN * f; auto = null; slats.forEach(s => { s.a = closure(); s.v = 0; }); }};
+})();
+</script>
+</body>
+</html>

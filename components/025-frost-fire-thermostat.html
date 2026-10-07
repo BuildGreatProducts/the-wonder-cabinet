@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frost Fire Thermostat</title>
+<meta name="description" content="A thermostat dial seen through a thermal camera: turn it cold and frost dendrites grow across the glass, turn it warm and the stove's embers flare and heat plumes climb the wall.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Frost Fire Thermostat","reimagines":"Circular knob","category":"Sliders, Knobs & Dials","description":"Set the living-room temperature on a big detented dial, viewed entirely through an infrared camera. Cold settings grow real frost dendrites on the window and dial glass; warm settings wake the stove's embers and send heat plumes up the wall. A spot meter reads the temperature of anything you point at (try the cat).","hint":"Turn the dial ring; point anywhere to read its temperature"}
+</script>
+<style>
+  :root{ --hud:#f2fbff; --hud2:rgba(242,251,255,.62); --mono:'Share Tech Mono', 'SF Mono', Menlo, monospace; --disp:'Chakra Petch', 'Share Tech Mono', monospace; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#000}
+  body{overflow:hidden; color:var(--hud); font-family:var(--mono); -webkit-font-smoothing:antialiased}
+  #view{position:fixed; inset:0; width:100%; height:100%; display:block; image-rendering:auto; touch-action:none; cursor:none}
+  .hud{position:fixed; inset:0; pointer-events:none; text-shadow:0 0 2px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.5)}
+  .corner{position:absolute; width:34px; height:34px; border:2px solid var(--hud)}
+  .c1{left:16px; top:16px; border-right:0; border-bottom:0} .c2{right:16px; top:16px; border-left:0; border-bottom:0}
+  .c3{left:16px; bottom:16px; border-right:0; border-top:0} .c4{right:16px; bottom:16px; border-left:0; border-top:0}
+  .tl{position:absolute; left:30px; top:26px; font-size:14px; letter-spacing:.06em; line-height:1.5}
+  .rec{display:inline-block; width:10px; height:10px; border-radius:50%; background:#ff3b30; margin-right:6px; vertical-align:-1px; animation:blink 1.2s steps(2) infinite}
+  @keyframes blink{50%{opacity:.15}}
+  .tr{position:absolute; right:30px; top:26px; text-align:right; font-size:14px; letter-spacing:.06em; line-height:1.5}
+  .panel{position:absolute; left:30px; top:92px; font-family:var(--disp); pointer-events:auto}
+  .room{font-size:13px; letter-spacing:.18em; color:var(--hud2)}
+  .set{font-size:64px; font-weight:700; line-height:1; letter-spacing:-.01em}
+  .set small{font-size:22px; margin-left:4px; font-weight:500}
+  .now{font-family:var(--mono); font-size:15px; margin-top:4px}
+  .mode{font-family:var(--mono); font-size:14px; margin-top:6px; padding:3px 8px; border:1.5px solid var(--hud); display:inline-block; letter-spacing:.08em}
+  .mode.heat{border-color:#ffd25a; color:#ffe8a3} .mode.cool{border-color:#8ad9ff; color:#cdeeff}
+  .scale{position:absolute; right:34px; top:50%; transform:translateY(-50%); height:46%; width:14px; border:1.5px solid var(--hud)}
+  .scale b{position:absolute; right:22px; font-weight:normal; font-size:13px; transform:translateY(-50%); white-space:nowrap}
+  .scale i{position:absolute; right:-7px; width:26px; height:2px; background:var(--hud); transform:translateY(-50%)}
+  .spot{position:absolute; left:0; top:0; width:44px; height:44px; margin:-22px 0 0 -22px; opacity:0; transition:opacity .25s}
+  .spot::before,.spot::after{content:""; position:absolute; background:var(--hud); box-shadow:0 0 2px #000}
+  .spot::before{left:21px; top:0; width:2px; height:44px; clip-path:polygon(0 0,100% 0,100% 38%,0 38%,0 62%,100% 62%,100% 100%,0 100%)}
+  .spot::after{top:21px; left:0; height:2px; width:44px; clip-path:polygon(0 0,38% 0,38% 100%,0 100%,0 0,62% 0,100% 0,100% 100%,62% 100%)}
+  .spot span{position:absolute; left:30px; top:-20px; font-size:15px; white-space:nowrap}
+  .ticks{position:absolute; left:0; top:0; width:100%; height:100%; overflow:visible}
+  .hint{position:absolute; left:50%; bottom:30px; transform:translateX(-50%); font-size:13px; letter-spacing:.1em; color:var(--hud2); white-space:nowrap; transition:opacity 1s}
+  .mute{position:absolute; right:30px; bottom:28px; pointer-events:auto; background:rgba(0,0,0,.35); color:var(--hud); border:1.5px solid var(--hud); font-family:var(--mono); font-size:12px; letter-spacing:.08em; padding:4px 8px; cursor:pointer}
+  .mute:focus-visible{outline:2px dashed #fff; outline-offset:3px}
+  #dial{position:fixed; border-radius:50%; outline:none; touch-action:none; cursor:grab}
+  #dial:focus-visible{box-shadow:0 0 0 2px #fff, 0 0 0 6px rgba(255,255,255,.25)}
+  #dial.drag{cursor:grabbing}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    .corner{width:22px; height:22px}
+    .c1{left:8px; top:8px} .c2{right:8px; top:8px} .c3{left:8px; bottom:8px} .c4{right:8px; bottom:8px}
+    .tl{left:18px; top:16px; font-size:11px}
+    .tr{right:18px; top:16px; font-size:11px}
+    .tr .ver{display:none}
+    .panel{left:18px; top:auto; bottom:40px}
+    .set{font-size:42px}
+    .set small{font-size:16px}
+    .now{font-size:12.5px}
+    .mode{font-size:11.5px}
+    .scale{right:18px; height:8px; width:42%; top:58px; transform:none; background-size:100% 100%}
+    .scale i, .scale b{display:none}
+    .scale::before{content:"-6"; position:absolute; left:-20px; top:-4px; font-size:10px}
+    .scale::after{content:"+46"; position:absolute; right:0; top:11px; font-size:10px}
+    .hint{font-size:10px; bottom:14px; letter-spacing:.04em; white-space:normal; width:90%; text-align:center}
+    .mute{right:18px; bottom:42px; font-size:10.5px}
+  }
+</style>
+</head>
+<body>
+<canvas id="view" aria-hidden="true"></canvas>
+<div id="dial" role="slider" tabindex="0" aria-label="Living room temperature" aria-valuemin="10" aria-valuemax="30" aria-valuenow="21" aria-valuetext="21 degrees Celsius"></div>
+<div class="hud" aria-hidden="false">
+  <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
+  <div class="tl" aria-hidden="true"><span class="rec"></span>REC &nbsp;IR-320 &nbsp;IRONBOW<br>ε 0.95 &nbsp;DIST 3.2 M</div>
+  <div class="tr" aria-hidden="true"><span id="clock">07 OCT 2026 21:14:06</span><br><span class="ver">LIVING ROOM · CAM 2</span></div>
+  <section class="panel" aria-live="polite">
+    <div class="room">LIVING ROOM · SETPOINT</div>
+    <div class="set"><span id="set">21.0</span><small>°C</small></div>
+    <div class="now">NOW <span id="now">19.4</span> °C · OUTSIDE 3 °C</div>
+    <div class="mode" id="mode">HEATING · ~18 MIN</div>
+  </section>
+  <div class="scale" id="scale" aria-hidden="true"></div>
+  <svg class="ticks" id="ticks" aria-hidden="true"></svg>
+  <div class="spot" id="spot" aria-hidden="true"><span id="spotT">—</span></div>
+  <div class="hint" id="hint">TURN THE DIAL RING · ARROW KEYS ±0.5° · POINT ANYWHERE TO MEASURE</div>
+  <button class="mute" id="mute" aria-pressed="false">SOUND ON</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const TMIN = -6, TMAX = 46, SMIN = 10, SMAX = 30, ARC = 270 * Math.PI / 180, A0 = (90 + 45) * Math.PI / 180;
+  // ---------- ironbow LUT ----------
+  const STOPS = [[0,'#000004'],[.14,'#16094f'],[.28,'#4a0b86'],[.42,'#931482'],[.55,'#d0313d'],[.67,'#f05f1a'],[.79,'#fb9e14'],[.9,'#fed64a'],[.97,'#fff6b8'],[1,'#ffffff']];
+  const LUT = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++){
+    const k = i / 255; let j = 0; while (j < STOPS.length - 2 && k > STOPS[j+1][0]) j++;
+    const [k0, c0] = STOPS[j], [k1, c1] = STOPS[j+1], f = (k - k0) / (k1 - k0);
+    for (let c = 0; c < 3; c++){ const a = parseInt(c0.slice(1 + c*2, 3 + c*2), 16), b = parseInt(c1.slice(1 + c*2, 3 + c*2), 16); LUT[i*3 + c] = Math.round(a + (b - a) * f); }
+  }
+  const g255 = T => Math.max(0, Math.min(255, Math.round((T - TMIN) / (TMAX - TMIN) * 255)));
+  const tc = T => { const g = g255(T); return `rgb(${g},${g},${g})`; };
+  const dT = d => { const g = Math.max(0, Math.round(d / (TMAX - TMIN) * 255)); return `rgb(${g},${g},${g})`; };
+
+  // ---------- state ----------
+  let setpoint = 21, shown = 21, knobAng = 0, room = 19.4, visRoom = 19.4, heaterOn = 0;
+  let interacted = false;
+
+  // ---------- canvases ----------
+  const view = $('view'), vctx = view.getContext('2d');
+  const hc = document.createElement('canvas'), h = hc.getContext('2d');        // temperature buffer (grey = °C)
+  const bc = document.createElement('canvas'), b = bc.getContext('2d', { willReadFrequently: true }); // blurred
+  const fc = document.createElement('canvas'), f = fc.getContext('2d');        // frost layer
+  let W = 0, H = 0, S = .5, LW = 0, LH = 0, img = null;
+  let G = {}; // geometry in CSS px
+
+  function layout(){
+    W = innerWidth; H = innerHeight;
+    const mob = W < 760;
+    S = mob ? .55 : .5;
+    LW = Math.max(40, Math.round(W * S)); LH = Math.max(40, Math.round(H * S));
+    for (const c of [hc, bc, fc]){ c.width = LW; c.height = LH; }
+    view.width = LW; view.height = LH;
+    img = vctx.createImageData(LW, LH);
+    if (mob){
+      G = { cx: W * .5, cy: H * .37, R: Math.min(W * .38, H * .2),
+        win: { x: W * .08, y: H * .62, w: W * .3, h: H * .14 },
+        stove: { x: W * .62, y: H * .66, w: W * .3, h: H * .22 },
+        sofa: { x: W * .05, y: H * .79, w: W * .5, h: H * .1 }, floor: H * .9 };
+    } else {
+      G = { cx: W * .5, cy: H * .48, R: Math.min(W * .19, H * .3),
+        win: { x: W * .05, y: H * .36, w: W * .19, h: H * .34 },
+        stove: { x: W * .75, y: H * .55, w: W * .15, h: H * .32 },
+        sofa: { x: W * .05, y: H * .76, w: W * .27, h: H * .13 }, floor: H * .88 };
+    }
+    const d = $('dial'); d.style.left = (G.cx - G.R) + 'px'; d.style.top = (G.cy - G.R) + 'px'; d.style.width = d.style.height = (G.R * 2) + 'px';
+    f.clearRect(0, 0, LW, LH); tips.length = 0;
+    buildTicks(); buildScale();
+  }
+
+  // crisp HUD graduations around the dial
+  function buildTicks(){
+    const s = $('ticks'); s.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    let out = '';
+    const mob = W < 760;
+    for (let t = SMIN; t <= SMAX; t += .5){
+      const a = A0 + (t - SMIN) / (SMAX - SMIN) * ARC, maj = t % 5 === 0, mid = t % 1 === 0;
+      const r0 = G.R * 1.04, r1 = G.R * (maj ? 1.13 : mid ? 1.09 : 1.065);
+      out += `<line x1="${G.cx + Math.cos(a)*r0}" y1="${G.cy + Math.sin(a)*r0}" x2="${G.cx + Math.cos(a)*r1}" y2="${G.cy + Math.sin(a)*r1}" stroke="#f2fbff" stroke-width="${maj ? 2.2 : 1.1}" opacity="${maj ? 1 : .7}"/>`;
+      if (maj){ const rl = G.R * 1.24; out += `<text x="${G.cx + Math.cos(a)*rl}" y="${G.cy + Math.sin(a)*rl + 5}" text-anchor="middle" font-family="Share Tech Mono, monospace" font-size="${mob ? 12 : 15}" fill="#f2fbff">${t}°</text>`; }
+    }
+    out += `<g id="needle"><path d="M0 0" stroke="#fff" stroke-width="2.5" fill="none"/></g>`;
+    s.innerHTML = out;
+  }
+  function buildScale(){
+    const s = $('scale');
+    s.style.background = `linear-gradient(${W < 760 ? 'to right' : 'to top'}, ${STOPS.map(([k, c]) => c + ' ' + (k*100) + '%').join(',')})`;
+    s.innerHTML = [46, 30, 20, 10, 0, -6].map(t => { const y = (1 - (t - TMIN) / (TMAX - TMIN)) * 100; return `<i style="top:${y}%"></i><b style="top:${y}%">${t > 0 ? '+' : ''}${t}</b>`; }).join('');
+  }
+
+  // ---------- frost growth (dendrites) ----------
+  const tips = [];
+  function seedFrost(){
+    // seeds on window edges and around the dial glass rim
+    const r = Math.random();
+    if (r < .42){
+      const w = G.win, e = Math.floor(Math.random() * 4);
+      let x, y, a;
+      if (e === 0){ x = w.x + Math.random() * w.w; y = w.y; a = Math.PI/2; }
+      else if (e === 1){ x = w.x + Math.random() * w.w; y = w.y + w.h; a = -Math.PI/2; }
+      else if (e === 2){ x = w.x; y = w.y + Math.random() * w.h; a = 0; }
+      else { x = w.x + w.w; y = w.y + Math.random() * w.h; a = Math.PI; }
+      tips.push({ x, y, a: a + (Math.random() - .5) * 1.0, life: 50 + Math.random() * 110, gen: 0, reg: 'win', side: 1, next: 4 });
+    } else {
+      const a = Math.random() * Math.PI * 2, rr = G.R * .78;
+      tips.push({ x: G.cx + Math.cos(a) * rr, y: G.cy + Math.sin(a) * rr, a: a + Math.PI + (Math.random() - .5) * .7, life: 25 + Math.random() * 45, gen: 0, reg: 'dial', side: 1, next: 4 });
+    }
+  }
+  function inRegion(t){
+    if (t.reg === 'win'){ const w = G.win; return t.x > w.x && t.x < w.x + w.w && t.y > w.y && t.y < w.y + w.h; }
+    const d = Math.hypot(t.x - G.cx, t.y - G.cy); return d < G.R * .8 && d > G.R * .36;
+  }
+  function growFrost(cold, dt){
+    if (cold <= 0) return;
+    const want = (8 + cold * 26) * (W < 760 ? .6 : 1);
+    let mains = 0; for (const t of tips) if (t.gen === 0) mains++;
+    if (mains < want && Math.random() < cold * .5) seedFrost();
+    f.lineCap = 'round';
+    const K = Math.min(1, G.R / 240);
+    const step = (0.8 + cold * 1.6) * 60 * dt * K;
+    for (let i = tips.length - 1; i >= 0; i--){
+      const t = tips[i];
+      const nx = t.x + Math.cos(t.a) * step, ny = t.y + Math.sin(t.a) * step;
+      f.strokeStyle = t.gen === 0 ? tc(-6) : tc(-4.5 + t.gen);
+      f.lineWidth = Math.max(.4, (t.gen === 0 ? 1.5 : t.gen === 1 ? 1 : .7) * S * 1.6 * K);
+      f.beginPath(); f.moveTo(t.x * S, t.y * S); f.lineTo(nx * S, ny * S); f.stroke();
+      t.x = nx; t.y = ny; t.life -= step; t.a += (Math.random() - .5) * .025;
+      t.next -= step;
+      // feathery: alternating side branches at ±60°, shorter the further out
+      if (t.next <= 0 && t.gen < 2){
+        t.side = -t.side;
+        tips.push({ x: t.x, y: t.y, a: t.a + t.side * Math.PI / 3, life: Math.min(t.life * .5, ((t.gen ? 9 : 28) + Math.random() * (t.gen ? 8 : 22)) * K), gen: t.gen + 1, reg: t.reg, side: 1, next: (5 + Math.random() * 3) * K });
+        t.next = ((t.gen ? 4 : 6) + Math.random() * 4) * K;
+      }
+      if (t.life <= 0 || !inRegion(t)) tips.splice(i, 1);
+    }
+    if (tips.length > 1400) tips.splice(0, tips.length - 1400);
+  }
+  function meltFrost(warm, dt){
+    if (warm <= 0) return;
+    f.save(); f.globalCompositeOperation = 'destination-out'; f.fillStyle = `rgba(0,0,0,${Math.min(1, warm * dt * 1.6)})`; f.fillRect(0, 0, LW, LH); f.restore();
+    if (warm > .3) tips.length = 0;
+  }
+
+  // ---------- heat particles ----------
+  const puffs = [], embers = [];
+  function spawnPuff(power){
+    const s = G.stove;
+    puffs.push({ x: s.x + s.w * (.3 + Math.random() * .4), y: s.y - s.h * .2, r: 14 + Math.random() * 18, vy: -(26 + Math.random() * 36), vx: (Math.random() - .5) * 18, heat: .7 + power * 1.5, life: 0, max: 3.5 + Math.random() * 3 });
+  }
+
+  // ---------- scene → temperature buffer ----------
+  let time = 0;
+  function paint(dt){
+    const mob = W < 760;
+    const warm = Math.max(0, Math.min(1, (shown - 20.5) / 8));   // 0..1 above ~20.5
+    const cold = Math.max(0, Math.min(1, (17.5 - shown) / 7));   // 0..1 below ~17.5
+    const wall = visRoom;
+    h.setTransform(S, 0, 0, S, 0, 0);
+    // wall: warm air pools near the ceiling
+    const gr = h.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, tc(wall + 1.2 + warm * 3)); gr.addColorStop(.7, tc(wall)); gr.addColorStop(1, tc(wall - 1.4));
+    h.fillStyle = gr; h.fillRect(0, 0, W, H);
+    // skirting + floor
+    h.fillStyle = tc(wall - 2.2); h.fillRect(0, G.floor, W, H - G.floor);
+    h.fillStyle = tc(wall - .6); h.fillRect(0, G.floor - 6, W, 6);
+    // ceiling light (warm)
+    const lx = mob ? W * .82 : W * .5;
+    { const g0 = g255(wall + 9); const lg = h.createRadialGradient(lx, 0, 0, lx, 0, mob ? 50 : 90); lg.addColorStop(0, `rgba(${g0},${g0},${g0},1)`); lg.addColorStop(1, `rgba(${g0},${g0},${g0},0)`);
+      h.fillStyle = lg; h.fillRect(lx - 100, 0, 200, 100); }
+
+    // window — cold glass + mullions, outside air bleeding through
+    const w = G.win;
+    h.fillStyle = tc(wall - 1); h.fillRect(w.x - 8, w.y - 8, w.w + 16, w.h + 16);
+    const wg = h.createLinearGradient(0, w.y, 0, w.y + w.h); wg.addColorStop(0, tc(7 - cold * 1.5)); wg.addColorStop(1, tc(10 - cold * 2));
+    h.fillStyle = wg; h.fillRect(w.x, w.y, w.w, w.h);
+    h.fillStyle = tc(wall - 3.5); h.fillRect(w.x + w.w/2 - 3, w.y, 6, w.h); h.fillRect(w.x, w.y + w.h/2 - 3, w.w, 6);
+    // draught under the window (cold sinks)
+    const dg = h.createLinearGradient(0, w.y + w.h, 0, w.y + w.h + 120); dg.addColorStop(0, tc(wall - 3)); dg.addColorStop(1, 'rgba(0,0,0,0)');
+    h.globalAlpha = .5 + cold * .4; h.fillStyle = dg; h.fillRect(w.x, w.y + w.h, w.w, 120); h.globalAlpha = 1;
+
+    // stove: body, glass door with embers
+    const s = G.stove;
+    h.fillStyle = tc(wall + 3 + heaterOn * (5 + warm * 9)); h.fillRect(s.x, s.y, s.w, s.h);
+    h.fillStyle = tc(wall + 1); h.fillRect(s.x + s.w*.42, s.y - s.h * .9, s.w * .16, s.h * .9); // flue
+    const fl = h.createLinearGradient(0, s.y - s.h*.9, 0, s.y); fl.addColorStop(0, tc(wall + 2)); fl.addColorStop(1, tc(wall + 5 + heaterOn * (8 + warm * 10)));
+    h.fillStyle = fl; h.fillRect(s.x + s.w*.42, s.y - s.h * .9, s.w * .16, s.h * .9);
+    const dx = s.x + s.w * .14, dy = s.y + s.h * .22, dw = s.w * .72, dh = s.h * .5;
+    h.fillStyle = tc(wall + 6 + heaterOn * 10); h.fillRect(dx, dy, dw, dh);
+    // embers
+    const eCount = Math.round((mob ? 10 : 18) * (.15 + heaterOn * (.4 + warm * .9)));
+    while (embers.length < eCount) embers.push({ x: Math.random(), y: .55 + Math.random() * .4, ph: Math.random() * 9, r: .06 + Math.random() * .08 });
+    if (embers.length > eCount) embers.length = eCount;
+    h.save(); h.beginPath(); h.rect(dx, dy, dw, dh); h.clip();
+    for (const e of embers){
+      const fl2 = .6 + .4 * Math.sin(time * (3 + e.ph) + e.ph) * Math.sin(time * 7.3 + e.ph * 2);
+      const T = 22 + heaterOn * (14 + warm * 20) * fl2 + 4;
+      const ex = dx + e.x * dw, ey = dy + e.y * dh, rr = e.r * dw * (1 + warm);
+      const eg = h.createRadialGradient(ex, ey, 0, ex, ey, rr); eg.addColorStop(0, tc(T)); eg.addColorStop(1, tc(wall + 6 + heaterOn * 10));
+      h.fillStyle = eg; h.beginPath(); h.arc(ex, ey, rr, 0, 7); h.fill();
+    }
+    // flame tongues when hot
+    if (heaterOn * warm > .05){
+      for (let i = 0; i < 4; i++){
+        const fx = dx + dw * (.18 + i * .21), fh = dh * (.3 + .45 * warm) * (.7 + .3 * Math.sin(time * 9 + i * 2.1));
+        const tg = h.createLinearGradient(0, dy + dh, 0, dy + dh - fh); tg.addColorStop(0, tc(44)); tg.addColorStop(1, tc(wall + 10));
+        h.fillStyle = tg; h.beginPath(); h.moveTo(fx - dw*.08, dy + dh); h.quadraticCurveTo(fx + Math.sin(time*6+i)*6, dy + dh - fh*1.3, fx + dw*.08, dy + dh); h.fill();
+      }
+    }
+    h.restore();
+
+    // sofa + cat (the cat curls up when it's cold, stretches when warm)
+    const so = G.sofa;
+    h.fillStyle = tc(wall + .8); h.fillRect(so.x, so.y, so.w, so.h);
+    h.fillStyle = tc(wall + 1.4); h.fillRect(so.x - 10, so.y - so.h * .55, 22, so.h * 1.55); h.fillRect(so.x + so.w - 12, so.y - so.h * .55, 22, so.h * 1.55);
+    h.fillStyle = tc(wall + .4); h.fillRect(so.x + 8, so.y - so.h * 1.1, so.w - 16, so.h * .9);
+    const catK = Math.max(0, Math.min(1, (shown - 15) / 12)); // 0 curled → 1 stretched
+    const cx = so.x + so.w * .55, cy = so.y - (mob ? 9 : 14), cs = mob ? .7 : 1;
+    const bodyW = (34 + catK * 34) * cs, bodyH = (24 - catK * 9) * cs;
+    const breathe = reduce ? 1 : 1 + .04 * Math.sin(time * 2.2);
+    const cg = h.createRadialGradient(cx, cy, 0, cx, cy, bodyW); cg.addColorStop(0, tc(35)); cg.addColorStop(.7, tc(32)); cg.addColorStop(1, tc(26));
+    h.fillStyle = cg; h.beginPath(); h.ellipse(cx, cy, bodyW * breathe, bodyH * breathe, 0, 0, 7); h.fill();
+    const hx = cx - bodyW * (.75 - catK * .2), hy = cy - bodyH * (.35 + catK * .3);
+    h.fillStyle = tc(35.5); h.beginPath(); h.arc(hx, hy, 12 * cs, 0, 7); h.fill();
+    h.beginPath(); h.moveTo(hx - 10*cs, hy - 5*cs); h.lineTo(hx - 8*cs, hy - 20*cs); h.lineTo(hx - 1*cs, hy - 10*cs); h.fill();
+    h.beginPath(); h.moveTo(hx + 10*cs, hy - 5*cs); h.lineTo(hx + 8*cs, hy - 20*cs); h.lineTo(hx + 1*cs, hy - 10*cs); h.fill();
+    h.strokeStyle = tc(31); h.lineWidth = 7 * cs; h.lineCap = 'round'; h.beginPath();
+    h.moveTo(cx + bodyW * .9, cy + 2); h.quadraticCurveTo(cx + bodyW * (1.3 + catK * .4), cy - 6 + (1 - catK) * 14, cx + bodyW * (catK > .5 ? 1.6 : .4), cy + bodyH * (catK > .5 ? -.2 : .9)); h.stroke();
+    // warm spot where the cat has been lying
+    h.fillStyle = 'rgba(0,0,0,0)';
+
+    // rising heat plumes (additive)
+    if (!reduce && heaterOn > .05 && Math.random() < heaterOn * (.25 + warm * .6)) spawnPuff(warm);
+    h.globalCompositeOperation = 'lighter';
+    for (let i = puffs.length - 1; i >= 0; i--){
+      const p = puffs[i]; p.life += dt;
+      p.vy -= 6 * dt; p.vx += (Math.sin(time * 1.3 + p.y * .02) * 14 - p.vx) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += 22 * dt;
+      const a = Math.max(0, 1 - p.life / p.max) * Math.min(1, p.life * 3);
+      const pg = h.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r); pg.addColorStop(0, dT(p.heat * a)); pg.addColorStop(1, 'rgb(0,0,0)');
+      h.fillStyle = pg; h.beginPath(); h.arc(p.x, p.y, p.r, 0, 7); h.fill();
+      if (p.life > p.max || p.y < -50) puffs.splice(i, 1);
+    }
+    h.globalCompositeOperation = 'source-over';
+
+    // the thermostat: warm electronics, bezel, knob ring + pointer, hot numerals
+    const R = G.R;
+    h.fillStyle = tc(wall + 2.2); h.beginPath(); h.arc(G.cx, G.cy, R * 1.02, 0, 7); h.fill();
+    const bg = h.createRadialGradient(G.cx, G.cy - R * .3, R * .1, G.cx, G.cy, R); bg.addColorStop(0, tc(wall + 9)); bg.addColorStop(1, tc(wall + 4));
+    h.fillStyle = bg; h.beginPath(); h.arc(G.cx, G.cy, R * .84, 0, 7); h.fill();
+    // knob ring (grip notches)
+    h.lineWidth = R * .13; h.strokeStyle = tc(wall + 3.5); h.beginPath(); h.arc(G.cx, G.cy, R * .92, 0, 7); h.stroke();
+    h.lineWidth = Math.max(1.5, R * .02); h.strokeStyle = tc(wall + 6.5);
+    for (let k = 0; k < 48; k++){ const a = knobAng + k / 48 * Math.PI * 2; h.beginPath(); h.moveTo(G.cx + Math.cos(a) * R * .86, G.cy + Math.sin(a) * R * .86); h.lineTo(G.cx + Math.cos(a) * R * .98, G.cy + Math.sin(a) * R * .98); h.stroke(); }
+    // pointer (hot)
+    const pa = A0 + (shown - SMIN) / (SMAX - SMIN) * ARC;
+    h.lineWidth = R * .05; h.strokeStyle = tc(43); h.lineCap = 'round';
+    h.beginPath(); h.moveTo(G.cx + Math.cos(pa) * R * .8, G.cy + Math.sin(pa) * R * .8); h.lineTo(G.cx + Math.cos(pa) * R * .99, G.cy + Math.sin(pa) * R * .99); h.stroke();
+    // progress arc of heat (setpoint) inside face
+    h.lineWidth = R * .03; h.strokeStyle = tc(wall + 12 + warm * 10); h.beginPath(); h.arc(G.cx, G.cy, R * .7, A0, pa); h.stroke();
+    h.strokeStyle = tc(wall + 1); h.beginPath(); h.arc(G.cx, G.cy, R * .7, pa, A0 + ARC); h.stroke();
+    // numerals glowing as heat (like a warm LCD)
+    h.fillStyle = tc(41); h.textAlign = 'center'; h.textBaseline = 'middle';
+    h.font = `700 ${Math.round(R * .42)}px 'Chakra Petch', 'Share Tech Mono', monospace`;
+    h.fillText(shown.toFixed(1), G.cx, G.cy - R * .02);
+    h.font = `500 ${Math.round(R * .11)}px 'Share Tech Mono', monospace`;
+    h.fillStyle = tc(wall + 16);
+    h.fillText(heaterOn > .5 ? 'HEATING' : room > setpoint + .3 ? 'COOLING' : 'HOLDING', G.cx, G.cy + R * .32);
+
+    // frost layer on top (cold glass)
+    h.setTransform(1, 0, 0, 1, 0, 0);
+    h.drawImage(fc, 0, 0);
+
+    // diffuse + colourise
+    b.filter = `blur(${(W < 760 ? .9 : 1.1).toFixed(2)}px)`;
+    b.drawImage(hc, 0, 0); b.filter = 'none';
+    const src = b.getImageData(0, 0, LW, LH).data, out = img.data;
+    const vcx = LW / 2, vcy = LH / 2, vr = Math.hypot(vcx, vcy);
+    for (let y = 0, i = 0; y < LH; y++){
+      for (let x = 0; x < LW; x++, i += 4){
+        let g = src[i] + ((Math.random() * 5) | 0) - 2;
+        const dv = Math.hypot(x - vcx, y - vcy) / vr; g -= dv * dv * 10;
+        g = g < 0 ? 0 : g > 255 ? 255 : g | 0;
+        out[i] = LUT[g*3]; out[i+1] = LUT[g*3+1]; out[i+2] = LUT[g*3+2]; out[i+3] = 255;
+      }
+    }
+    vctx.putImageData(img, 0, 0);
+    return src;
+  }
+
+  // ---------- spot meter ----------
+  let px = -1, py = -1, lastSrc = null;
+  function spotRead(){
+    if (px < 0 || !lastSrc) return;
+    const x = Math.min(LW - 1, Math.max(0, Math.round(px * S))), y = Math.min(LH - 1, Math.max(0, Math.round(py * S)));
+    const g = lastSrc[(y * LW + x) * 4];
+    const T = TMIN + g / 255 * (TMAX - TMIN);
+    $('spotT').textContent = (T >= 0 ? '+' : '') + T.toFixed(1) + '°';
+  }
+  addEventListener('pointermove', e => { px = e.clientX; py = e.clientY; const s = $('spot'); s.style.transform = `translate(${px}px, ${py}px)`; s.style.opacity = 1; });
+  document.addEventListener('pointerleave', () => { $('spot').style.opacity = 0; });
+
+  // ---------- dial input ----------
+  const dial = $('dial');
+  let dragging = false, lastA = 0, raw = setpoint;
+  function angleAt(e){ return Math.atan2(e.clientY - G.cy, e.clientX - G.cx); }
+  function setValue(v, fromDrag){
+    const q = Math.round(Math.max(SMIN, Math.min(SMAX, v)) * 2) / 2;
+    if (q !== setpoint){
+      const up = q > setpoint;
+      setpoint = q; detent(up);
+      dial.setAttribute('aria-valuenow', q);
+      dial.setAttribute('aria-valuetext', `${q.toFixed(1)} degrees Celsius`);
+      $('set').textContent = q.toFixed(1);
+      if (!interacted){ interacted = true; setTimeout(() => $('hint').style.opacity = .35, 1500); }
+    }
+  }
+  dial.addEventListener('pointerdown', e => {
+    audio(); dragging = true; dial.classList.add('drag'); dial.setPointerCapture(e.pointerId);
+    lastA = angleAt(e); raw = setpoint;
+  });
+  dial.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const a = angleAt(e); let d = a - lastA;
+    if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
+    lastA = a;
+    raw = Math.max(SMIN - .6, Math.min(SMAX + .6, raw + d / ARC * (SMAX - SMIN)));
+    knobTarget += d;
+    setValue(raw, true);
+  });
+  const end = () => { dragging = false; dial.classList.remove('drag'); raw = setpoint; };
+  dial.addEventListener('pointerup', end); dial.addEventListener('pointercancel', end);
+  dial.addEventListener('keydown', e => {
+    let d = 0;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') d = .5; else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') d = -.5;
+    else if (e.key === 'PageUp') d = 2; else if (e.key === 'PageDown') d = -2;
+    else if (e.key === 'Home') d = SMIN - setpoint; else if (e.key === 'End') d = SMAX - setpoint;
+    else return;
+    e.preventDefault(); audio();
+    knobTarget += d / (SMAX - SMIN) * ARC;
+    setValue(setpoint + d);
+  });
+  dial.addEventListener('wheel', e => { e.preventDefault(); audio(); const d = e.deltaY < 0 ? .5 : -.5; knobTarget += d / (SMAX - SMIN) * ARC; setValue(setpoint + d); }, { passive: false });
+  let knobTarget = 0;
+
+  // ---------- audio ----------
+  let ac = null, master, mute = false, crackleG = null;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination);
+      // fire crackle bed (sparse impulses)
+      const len = ac.sampleRate * 3, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++){ d[i] = Math.random() < .0009 ? (Math.random() * 2 - 1) : (Math.random() * 2 - 1) * .03; }
+      const s = ac.createBufferSource(); s.buffer = buf; s.loop = true; const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = .6;
+      crackleG = ac.createGain(); crackleG.gain.value = 0; s.connect(bp); bp.connect(crackleG); crackleG.connect(master); s.start();
+    } catch(_) { ac = null; }
+  }
+  function detent(up){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square'; o.frequency.value = up ? 2300 : 1900;
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200;
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.18, n + .002); g.gain.exponentialRampToValueAtTime(.0001, n + .03);
+    o.connect(hp); hp.connect(g); g.connect(master); o.start(n); o.stop(n + .04);
+  }
+  function tinkle(){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.value = 2600 + Math.random() * 2200;
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.05, n + .004); g.gain.exponentialRampToValueAtTime(.0001, n + .4);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .45);
+  }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'SOUND OFF' : 'SOUND ON'; $('mute').setAttribute('aria-pressed', mute); if (crackleG && ac) crackleG.gain.setTargetAtTime(0, ac.currentTime, .05); });
+
+  // ---------- loop ----------
+  let last = performance.now(), running = true, tinkleT = 0;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now; time += dt;
+    // displayed value eases between detents (notchy, slightly springy)
+    shown += (setpoint - shown) * Math.min(1, dt * 14);
+    if (Math.abs(setpoint - shown) < .005) shown = setpoint;
+    knobAng += (knobTarget - knobAng) * Math.min(1, dt * 16);
+    // room simulation: heater cycles toward the setpoint (sped up for the camera)
+    heaterOn += (((room < setpoint - .2) ? 1 : 0) - heaterOn) * Math.min(1, dt * 2);
+    room += ((heaterOn > .5 ? setpoint + .8 : 15.5) - room) * dt * (heaterOn > .5 ? .05 : .025);
+    visRoom += (room - visRoom) * Math.min(1, dt * 2);
+    const cold = Math.max(0, Math.min(1, (17.5 - shown) / 7)), warm = Math.max(0, Math.min(1, (shown - 19) / 6));
+    if (reduce && cold > 0){ for (let k = 0; k < 6; k++) growFrost(cold, .05); } else growFrost(cold, dt);
+    meltFrost(warm, dt);
+    if (cold > .2 && (tinkleT += dt) > 1.2 - cold * .7){ tinkleT = 0; tinkle(); }
+    if (ac && crackleG && !mute) crackleG.gain.setTargetAtTime(heaterOn * (.4 + Math.max(0, (shown - 20) / 10) * 1.6), ac.currentTime, .3);
+    lastSrc = paint(dt);
+    spotRead();
+    // HUD text
+    $('now').textContent = room.toFixed(1);
+    const md = $('mode');
+    if (heaterOn > .5){ const mins = Math.max(1, Math.round((setpoint - room) * 9)); md.textContent = `HEATING · ~${mins} MIN`; md.className = 'mode heat'; }
+    else if (room > setpoint + .3){ md.textContent = 'COOLING · HEAT OFF'; md.className = 'mode cool'; }
+    else { md.textContent = 'HOLDING'; md.className = 'mode'; }
+    requestAnimationFrame(frame);
+  }
+  // live clock
+  let base = new Date(2026, 9, 7, 21, 14, 6).getTime(), start = Date.now();
+  setInterval(() => { const d = new Date(base + Date.now() - start), p = n => String(n).padStart(2, '0'); $('clock').textContent = `07 OCT 2026 ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }, 1000);
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden){ running = false; if (ac) ac.suspend(); } else { running = true; last = performance.now(); if (ac) ac.resume(); requestAnimationFrame(frame); } });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 80); });
+  layout();
+  requestAnimationFrame(frame);
+  window.__thermo = { set(v){ knobTarget += (v - setpoint) / (SMAX - SMIN) * ARC; setValue(v); }, spot(x, y){ px = x; py = y; $('spot').style.transform = `translate(${x}px, ${y}px)`; $('spot').style.opacity = 1; } };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peephole Link Preview</title>
+<meta name="description" content="Link previews seen through a brass door peephole: a fisheye lomography snapshot of each destination, with light leaks, grain and an iris that springs open.">
+<script type="application/json" id="component-meta">
+{"name":"Peephole Link Preview","reimagines":"Link hover preview","category":"Overlays & Reveals","description":"Hover or focus a link and a brass door viewer swings its cover aside to show a fisheye, cross-processed lomo snapshot of where the link goes. Slide along the link to look around the room; click to step through the door. Every photo is generated live, with grain, vignette and light leaks.","hint":"Hover a link to peek through the door; slide along it to look around"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#f3efe6; --ink:#1d1b22; --hi:#d8f25a; --mag:#e2357a; --cyan:#22a3b8; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;background:#120d10;color:var(--ink);font-family:'Courier Prime','Courier New',monospace}
+  :focus-visible{outline:2px solid var(--hi);outline-offset:3px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* full-bleed lomo photograph behind everything */
+  .bg{position:absolute;inset:0;overflow:hidden}
+  #bgPhoto{position:absolute;inset:-2%;width:104%;height:104%;filter:blur(2px) saturate(1.1)}
+  .bg::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 95% at 50% 50%,transparent 35%,rgba(10,4,12,.75) 80%,#06020a 100%)}
+  .grain{position:absolute;inset:-50%;pointer-events:none;opacity:.22;mix-blend-mode:overlay;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    animation:grain 1s steps(6) infinite}
+  @keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-4%)}60%{transform:translate(-4%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+  .leak{position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;
+    background:radial-gradient(40% 70% at -6% 30%,rgba(255,90,30,.75),rgba(255,40,60,.25) 50%,transparent 75%),radial-gradient(25% 40% at 104% 92%,rgba(255,200,60,.45),transparent 70%);
+    animation:leak 9s ease-in-out infinite alternate}
+  @keyframes leak{to{opacity:.65;transform:translateY(3%)}}
+
+  /* the photo-club print with the article */
+  .print{
+    position:absolute;left:50%;top:50%;width:min(720px,calc(100% - 40px));max-height:calc(100% - 40px);overflow:auto;
+    transform:translate(-50%,-50%) rotate(-1.2deg);
+    background:linear-gradient(170deg,#fbf8f1,#efe9dc);
+    padding:26px 40px 26px;border-radius:3px;
+    box-shadow:0 1px 0 #fff inset,0 30px 60px -20px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.08);
+    scrollbar-width:thin;
+  }
+  .print::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.35),transparent 40%,transparent 70%,rgba(0,0,0,.05))}
+  .strip{display:flex;gap:6px;padding:10px 10px;background:#1a1416;border-radius:2px;margin:0 -14px 18px;position:relative;
+    box-shadow:0 6px 12px -6px rgba(0,0,0,.5);transform:rotate(.6deg)}
+  .strip::before,.strip::after{content:"";position:absolute;left:4px;right:4px;height:5px;background:repeating-linear-gradient(90deg,#f3efe6 0 7px,transparent 7px 15px);opacity:.75}
+  .strip::before{top:2px}.strip::after{bottom:2px}
+  .strip canvas{flex:1;min-width:0;aspect-ratio:3/2;width:100%;border-radius:1px}
+  .edge{position:absolute;right:16px;bottom:-15px;font-size:10px;letter-spacing:.2em;color:#e9873a;font-weight:700}
+  h1{font-family:'Permanent Marker',cursive;font-weight:400;font-size:46px;line-height:1;letter-spacing:.01em;color:#1d1b22;transform:rotate(-1deg)}
+  h1 em{font-style:normal;color:var(--mag)}
+  .by{font-size:14px;color:#6b6470;margin:8px 0 14px}
+  .print p.body{font-size:17.5px;line-height:1.62;margin-top:10px}
+  .print a{color:inherit;text-decoration:none;font-weight:700;padding:0 2px;cursor:zoom-in;
+    background:linear-gradient(transparent 55%,rgba(216,242,90,.85) 55%,rgba(216,242,90,.85) 92%,transparent 92%);
+    border-bottom:2px dotted rgba(29,27,34,.4);transition:background .25s}
+  .print a:hover,.print a.on{background:linear-gradient(transparent 8%,rgba(226,53,122,.28) 8%,rgba(226,53,122,.28) 96%,transparent 96%)}
+  .print a svg{width:13px;height:13px;vertical-align:-1px;margin-left:3px}
+  .foot{margin-top:16px;display:flex;justify-content:space-between;gap:16px;align-items:flex-end;font-size:14px;color:#6b6470}
+  .hint{font-family:'Permanent Marker',cursive;font-size:17px;color:var(--mag);transform:rotate(-2deg);transition:opacity .6s}
+  .hint.gone{opacity:.25}
+
+  /* the door viewer */
+  .peep{--d:300px;position:fixed;left:0;top:0;width:var(--d);pointer-events:none;z-index:5;opacity:0;transform:translate(var(--x,0),var(--y,0)) scale(.6);transform-origin:50% 50%;will-change:transform,opacity}
+  .peep.show{opacity:1}
+  .ring{position:relative;width:var(--d);height:var(--d);border-radius:50%;
+    background:
+      radial-gradient(circle at 50% 50%,transparent 61%,#2a1d0d 61.5%,#6f5222 63%,#e8c77b 66%,#fff0c2 67.5%,#b88b3c 70%,#5b3f16 74%,#c9a050 79%,#f6dc94 83%,#a37a2c 88%,#3a2808 92%,transparent 92.5%),
+      transparent;
+    filter:drop-shadow(0 18px 24px rgba(0,0,0,.7)) drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+  #lens{position:absolute;left:19%;top:19%;width:62%;height:62%;border-radius:50%;background:#050305}
+  .glare{position:absolute;left:19%;top:19%;width:62%;height:62%;border-radius:50%;pointer-events:none;
+    background:radial-gradient(60% 40% at 32% 22%,rgba(255,255,255,.4),rgba(255,255,255,0) 60%),radial-gradient(circle at 50% 50%,transparent 62%,rgba(0,0,0,.55) 100%);
+    box-shadow:inset 0 0 18px rgba(0,0,0,.9)}
+  .screw{position:absolute;width:7%;height:7%;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff2c4,#b88b3c 50%,#4f3610);box-shadow:0 1px 1px rgba(0,0,0,.6)}
+  .screw::after{content:"";position:absolute;left:15%;right:15%;top:45%;height:10%;background:#3a2808;transform:rotate(var(--r,30deg))}
+    .cap{margin:-4px auto 0;width:max-content;max-width:calc(var(--d) * 1.25);background:#fbf8f1;padding:7px 12px 8px;transform:rotate(1.5deg);
+    box-shadow:0 10px 18px -8px rgba(0,0,0,.7);text-align:center}
+  .cap b{display:block;font-family:'Permanent Marker',cursive;font-weight:400;font-size:18px;line-height:1.1}
+  .cap span{display:block;font-size:12.5px;color:#6b6470;margin-top:2px}
+  .cap i{display:none;font-size:12px;color:var(--mag);font-style:normal;margin-top:2px}
+  .touch .cap i{display:block}
+
+  /* stepping through the door */
+  .through{position:fixed;inset:0;z-index:8;display:grid;place-items:center;background:#0d080b;opacity:0;visibility:hidden;transition:opacity .45s,visibility 0s .45s}
+  .through.open{opacity:1;visibility:visible;transition:opacity .45s}
+  .through .photo{position:relative;background:#fbf8f1;padding:14px 14px 70px;transform:rotate(-1.5deg) scale(.92);transition:transform .7s cubic-bezier(.2,.9,.25,1);box-shadow:0 40px 80px -30px rgba(0,0,0,.9);max-width:calc(100% - 36px)}
+  .through.open .photo{transform:rotate(-1.5deg) scale(1)}
+  .through canvas{display:block;width:min(560px,calc(100vw - 64px),calc(100dvh - 230px));aspect-ratio:1;height:auto}
+  .through h2{position:absolute;left:18px;bottom:30px;font-family:'Permanent Marker',cursive;font-weight:400;font-size:26px}
+  .through p{position:absolute;left:18px;bottom:12px;font-size:13px;color:#6b6470}
+  .back{position:absolute;right:16px;bottom:16px;font:700 14px 'Courier Prime',monospace;color:#fbf8f1;background:#1d1b22;border:0;padding:10px 14px;cursor:pointer;transform:rotate(1deg)}
+  .back:hover{background:var(--mag)}
+
+  @media (max-width:640px){
+    .print{padding:18px 18px 20px;width:calc(100% - 20px);transform:translate(-50%,-50%) rotate(-.6deg)}
+    .strip{margin:0 -6px 14px;padding:8px 6px;gap:4px}
+    h1{font-size:34px}
+    .print p.body{font-size:15.5px;line-height:1.55}
+    .foot{flex-direction:column;align-items:flex-start;gap:6px}
+    .through h2{font-size:21px;bottom:34px}
+    .peep{--d:230px}
+  }
+  @media (prefers-reduced-motion:reduce){ .grain,.leak{animation:none} }
+</style>
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><canvas id="bgPhoto"></canvas><div class="grain"></div><div class="leak"></div></div>
+
+  <article class="print" id="print">
+    <div class="strip" aria-hidden="true" id="strip"><span class="edge">400 · 14 ▸ 14A</span></div>
+    <h1>Saturday <em>lomo</em> walk</h1>
+    <p class="by">Marlowe Court Photo Club · issue 14 · Saturday 10 October 2026, 8am</p>
+    <p class="body">
+      Meet outside <a href="#bread" data-k="bakery">Bread &amp; Butter<svg viewBox="0 0 13 13" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="6.5" r="1.8" fill="currentColor"/></svg></a> — Ines saves the burnt-edge croissants for the club. Walk down to the <a href="#flea" data-k="market">Hollis Street flea market<svg viewBox="0 0 13 13" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="6.5" r="1.8" fill="currentColor"/></svg></a> while the stalls are still unpacking; the bunting looks best before nine.
+      Follow the towpath to <a href="#lock" data-k="canal">the lock at Fenner’s Bridge<svg viewBox="0 0 13 13" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="6.5" r="1.8" fill="currentColor"/></svg></a> for reflections, then climb up to <a href="#roof" data-k="roof">the Block C rooftop garden<svg viewBox="0 0 13 13" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="6.5" r="1.8" fill="currentColor"/></svg></a> for the skyline. We finish at <a href="#kino" data-k="kino">Kino Lumière<svg viewBox="0 0 13 13" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.5" cy="6.5" r="1.8" fill="currentColor"/></svg></a>, when the marquee bulbs come on at dusk.
+    </p>
+    <p class="body">Bring one roll of 400, a spare battery and a flask. Shoot from the hip.</p>
+    <div class="foot"><span>Darkroom night: Tuesday 13 October, basement of Block A.</span><span class="hint" id="hint">hover a link to peek through the door →</span></div>
+  </article>
+
+  <div class="peep" id="peep" aria-hidden="true">
+    <div class="ring" id="ring">
+      <canvas id="lens"></canvas>
+      <div class="glare"></div>
+      <span class="screw" style="left:10%;top:46.5%;--r:20deg"></span><span class="screw" style="right:10%;top:46.5%;--r:-40deg"></span>
+    </div>
+    <div class="cap"><b id="capT">Bread &amp; Butter</b><span id="capS">breadandbutter.example · bakery</span><i>Tap again to step inside</i></div>
+  </div>
+
+  <div class="through" id="through" role="dialog" aria-modal="true" aria-labelledby="thT" aria-describedby="thS">
+    <div class="photo"><canvas id="thCv" width="900" height="900" aria-hidden="true"></canvas><h2 id="thT">Bread &amp; Butter</h2><p id="thS">breadandbutter.example</p><button class="back" id="back">Back to the walk</button></div>
+  </div>
+  <p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  function rng(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+  const DEST = {
+    bakery: { t: 'Bread & Butter', s: 'breadandbutter.example · open from 7am', d: 'Neighbourhood bakery on Marlowe Street, opening at 7am.' },
+    market: { t: 'Hollis Street flea market', s: 'hollismarket.example · Saturdays', d: 'Weekly flea market with about forty stalls, Saturdays from 8am.' },
+    canal: { t: 'Fenner’s Bridge lock', s: 'canalwalks.example · towpath guide', d: 'Towpath guide to the lock at Fenner’s Bridge.' },
+    roof: { t: 'Block C rooftop garden', s: 'marlowecourt.example · residents only', d: 'Residents’ rooftop garden on Block C, open until 9pm.' },
+    kino: { t: 'Kino Lumière', s: 'kinolumiere.example · tonight 20:30', d: 'Single-screen cinema; tonight’s showing starts at 20:30.' },
+  };
+
+  /* ————————————————— generative scenes ————————————————— */
+  function sky(c, w, h, stops) { const g = c.createLinearGradient(0, 0, 0, h); stops.forEach(([o, col]) => g.addColorStop(o, col)); c.fillStyle = g; c.fillRect(0, 0, w, h); }
+  function glow(c, x, y, r, col, a = 1) { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.save(); c.globalAlpha = a; c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); c.restore(); }
+  function windows(c, x, y, w, h, cols, rows, R, lit = .4, warm = '#ffd27a') {
+    const gw = w / cols, gh = h / rows;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+      const wx = x + i * gw + gw * .22, wy = y + j * gh + gh * .2, ww = gw * .56, wh = gh * .6;
+      c.fillStyle = R() < lit ? warm : `rgba(40,50,70,${.55 + R() * .3})`; c.fillRect(wx, wy, ww, wh);
+      c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(wx, wy, ww, wh * .3);
+    }
+  }
+  function skyline(c, w, base, hMin, hMax, col, R, litCol, lit = .25) {
+    let x = -10; c.fillStyle = col;
+    while (x < w + 10) {
+      const bw = 18 + R() * 46, bh = hMin + R() * (hMax - hMin);
+      c.fillStyle = col; c.fillRect(x, base - bh, bw, bh + 2);
+      if (R() < .3) c.fillRect(x + bw * .4, base - bh - 10 - R() * 20, 2, 30);
+      if (litCol) for (let yy = base - bh + 6; yy < base - 4; yy += 7) for (let xx = x + 4; xx < x + bw - 4; xx += 6) if (R() < lit) { c.fillStyle = litCol; c.fillRect(xx, yy, 2.5, 3); }
+      x += bw + R() * 4;
+    }
+  }
+  function tree(c, x, y, s, col, R) { c.fillStyle = col; for (let i = 0; i < 14; i++) { c.beginPath(); c.arc(x + (R() - .5) * s * 1.4, y - s * .5 - R() * s, s * (.25 + R() * .3), 0, 7); c.fill(); } c.fillRect(x - s * .05, y - s * .5, s * .1, s * .5); }
+
+  const SCENES = {
+    bakery(c, w, h, R) {
+      sky(c, w, h, [[0, '#2f4f86'], [.35, '#e5867a'], [.55, '#ffc98f'], [1, '#ffd9a8']]);
+      glow(c, w * .82, h * .32, w * .35, 'rgba(255,190,120,.8)');
+      // building
+      c.fillStyle = '#b8563f'; c.fillRect(w * .08, h * .1, w * .84, h * .72);
+      for (let y = h * .1; y < h * .82; y += 9) { c.fillStyle = 'rgba(0,0,0,.06)'; c.fillRect(w * .08, y, w * .84, 1.5); }
+      windows(c, w * .12, h * .13, w * .76, h * .22, 4, 1, R, .5);
+      // sign & awning
+      c.fillStyle = '#163b34'; c.fillRect(w * .14, h * .38, w * .72, h * .08);
+      c.fillStyle = '#f6e7c0'; c.font = `700 ${h * .052}px Georgia, serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('BREAD & BUTTER', w * .5, h * .422);
+      const aw = h * .1, ay = h * .47;
+      for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? '#f4ead2' : '#c8302c'; c.beginPath(); c.moveTo(w * .12 + i * w * .0633, ay); c.lineTo(w * .12 + (i + 1) * w * .0633, ay); c.lineTo(w * .12 + (i + 1) * w * .0633 + 4, ay + aw); c.lineTo(w * .12 + i * w * .0633 + 4, ay + aw); c.fill(); c.beginPath(); c.arc(w * .12 + (i + .5) * w * .0633 + 4, ay + aw, w * .0316, 0, Math.PI); c.fill(); }
+      // shop window glowing
+      const wy = ay + aw + h * .04, wh = h * .22;
+      const g = c.createLinearGradient(0, wy, 0, wy + wh); g.addColorStop(0, '#ffe3a1'); g.addColorStop(1, '#f2a24e'); c.fillStyle = g; c.fillRect(w * .14, wy, w * .5, wh);
+      c.fillStyle = '#6b3a1c'; c.fillRect(w * .14, wy + wh * .55, w * .5, 3); c.fillRect(w * .14, wy + wh * .9, w * .5, 3);
+      for (let i = 0; i < 7; i++) { c.fillStyle = ['#a8612a', '#c47a34', '#8a4b1f'][i % 3]; c.beginPath(); c.ellipse(w * .18 + i * w * .065, wy + wh * .47, w * .028, h * .022, -.2, 0, 7); c.fill(); c.beginPath(); c.ellipse(w * .19 + i * w * .065, wy + wh * .83, w * .03, h * .02, .1, 0, 7); c.fill(); }
+      c.fillStyle = 'rgba(255,255,255,.25)'; c.beginPath(); c.moveTo(w * .2, wy); c.lineTo(w * .3, wy); c.lineTo(w * .2, wy + wh); c.lineTo(w * .14, wy + wh); c.fill();
+      c.fillStyle = '#163b34'; c.fillRect(w * .68, wy - h * .01, w * .16, wh + h * .01); c.fillStyle = '#ffd890'; c.fillRect(w * .7, wy + h * .01, w * .12, wh * .55);
+      // pavement and glow spill
+      c.fillStyle = '#7d6a66'; c.fillRect(0, h * .82, w, h * .18);
+      for (let i = 0; i < 9; i++) { c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(0, h * .82 + i * i * 1.6, w, 1); }
+      glow(c, w * .38, h * .85, w * .35, 'rgba(255,190,100,.55)');
+      // bicycle
+      c.strokeStyle = '#1b1b24'; c.lineWidth = 3; const bx = w * .76, by = h * .9, br = h * .055;
+      c.beginPath(); c.arc(bx - br * 1.6, by, br, 0, 7); c.arc(bx + br * 1.6, by, br, 0, 7); c.stroke();
+      c.beginPath(); c.moveTo(bx - br * 1.6, by); c.lineTo(bx - br * .2, by - br * 1.2); c.lineTo(bx + br * 1.2, by - br * 1.2); c.lineTo(bx + br * 1.6, by); c.moveTo(bx - br * .2, by - br * 1.2); c.lineTo(bx, by); c.lineTo(bx + br * 1.2, by - br * 1.2); c.stroke();
+      c.fillStyle = '#3f7a3a'; for (let i = 0; i < 8; i++) { c.beginPath(); c.ellipse(w * .1 + (R() - .5) * 20, h * .76 - R() * 20, 10, 5, R() * 3, 0, 7); c.fill(); }
+      c.fillStyle = '#9b4a2c'; c.fillRect(w * .07, h * .77, w * .07, h * .06);
+    },
+    market(c, w, h, R) {
+      sky(c, w, h, [[0, '#1d7fc6'], [.5, '#7cc3ea'], [1, '#d8eef7']]);
+      glow(c, w * .2, h * .12, w * .4, 'rgba(255,250,210,.9)');
+      for (let i = 0; i < 3; i++) { c.fillStyle = 'rgba(255,255,255,.85)'; const cx = w * (.45 + i * .22), cy = h * (.12 + (i % 2) * .06); for (let k = 0; k < 6; k++) { c.beginPath(); c.arc(cx + (k - 2.5) * 14, cy + (k % 2) * -6, 14 + R() * 8, 0, 7); c.fill(); } }
+      // perspective street facades
+      const vx = w * .5, vy = h * .5;
+      const side = (s) => { const x0 = s < 0 ? 0 : w; c.fillStyle = s < 0 ? '#d9a35c' : '#5ca4a0'; c.beginPath(); c.moveTo(x0, 0); c.lineTo(vx + s * w * .12, vy - h * .25); c.lineTo(vx + s * w * .12, vy + h * .05); c.lineTo(x0, h * .82); c.fill();
+        for (let k = 0; k < 7; k++) { const t = k / 7, x = lerp(x0, vx + s * w * .12, t * .9), top = lerp(h * .08, vy - h * .2, t * .9), bot = lerp(h * .6, vy, t * .9); c.fillStyle = R() < .4 ? '#ffe7a8' : 'rgba(30,40,60,.55)'; c.fillRect(x - s * 4, top, -s * lerp(26, 6, t), (bot - top) * .4); } };
+      side(-1); side(1);
+      // ground
+      c.fillStyle = '#b8a48e'; c.beginPath(); c.moveTo(0, h * .82); c.lineTo(vx - w * .12, vy + h * .05); c.lineTo(vx + w * .12, vy + h * .05); c.lineTo(w, h * .82); c.lineTo(w, h); c.lineTo(0, h); c.fill();
+      // stall awnings receding
+      const cols = ['#e2357a', '#f2b632', '#2fa36b', '#ef6b3a', '#3a6fd8', '#f4f0e6'];
+      for (let k = 6; k >= 0; k--) {
+        const t = k / 7, s = lerp(1, .25, t), y = lerp(h * .7, vy, t);
+        for (const sd of [-1, 1]) {
+          const x = vx + sd * lerp(w * .32, w * .08, t), aw = 90 * s, ah = 34 * s;
+          c.fillStyle = cols[(k * 2 + (sd > 0 ? 1 : 0)) % cols.length]; c.beginPath(); c.moveTo(x - aw / 2, y); c.lineTo(x + aw / 2, y); c.lineTo(x + aw * .42, y - ah); c.lineTo(x - aw * .42, y - ah); c.fill();
+          for (let q = 0; q < 4; q++) { c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(x - aw / 2 + q * aw / 4, y - 2, aw / 8, 2); }
+          c.fillStyle = 'rgba(60,40,30,.8)'; c.fillRect(x - aw * .45, y + ah * .1, aw * .9, ah * .6);
+          for (let q = 0; q < 5; q++) { c.fillStyle = cols[(q + k) % cols.length]; c.fillRect(x - aw * .4 + q * aw * .17, y + ah * .05, aw * .1, ah * .25); }
+        }
+      }
+      // bunting across the street
+      for (let b = 0; b < 3; b++) {
+        const y0 = h * (.08 + b * .1), sag = h * .08;
+        c.strokeStyle = 'rgba(40,30,30,.7)'; c.lineWidth = 1.5; c.beginPath();
+        for (let x = 0; x <= w; x += 8) { const t = x / w, y = y0 + sag * 4 * t * (1 - t); x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
+        for (let x = 10; x < w; x += 26) { const t = x / w, y = y0 + sag * 4 * t * (1 - t); c.fillStyle = cols[(x / 26 + b) % cols.length | 0]; c.beginPath(); c.moveTo(x - 9, y); c.lineTo(x + 9, y + 1); c.lineTo(x, y + 20); c.fill(); }
+      }
+      // crowd
+      for (let i = 0; i < 26; i++) { const t = R(), x = R() * w, y = lerp(h * .98, h * .62, t * t), s = lerp(1, .3, t * t); c.fillStyle = ['#2b2a3a', '#7a3b3b', '#2f4e6e', '#c9a46a', '#5b6b3a'][i % 5]; c.beginPath(); c.ellipse(x, y, 11 * s, 26 * s, 0, 0, 7); c.fill(); c.fillStyle = '#e7b48c'; c.beginPath(); c.arc(x, y - 30 * s, 8 * s, 0, 7); c.fill(); }
+    },
+    canal(c, w, h, R) {
+      const top = cv => { sky(cv, w, h * .55, [[0, '#f0b45a'], [.6, '#f7d79a'], [1, '#fbe9c3']]); glow(cv, w * .7, h * .32, w * .4, 'rgba(255,220,150,.9)');
+        cv.fillStyle = '#2f4a2a'; for (let i = 0; i < 9; i++) tree(cv, i * w * .13 - 20, h * .55, h * (.18 + R() * .1), i % 2 ? '#2f4a2a' : '#3d5c30', R);
+        cv.fillStyle = '#6e6458'; cv.fillRect(0, h * .5, w, h * .05);
+        // lock gates
+        cv.fillStyle = '#2a201b'; cv.fillRect(w * .35, h * .36, w * .3, h * .17); cv.fillStyle = '#4a3a30'; for (let k = 0; k < 5; k++) cv.fillRect(w * .35, h * .37 + k * h * .033, w * .3, h * .012);
+        cv.fillStyle = '#f2efe6'; cv.fillRect(w * .33, h * .345, w * .34, h * .02); cv.fillStyle = '#1b1414'; cv.fillRect(w * .28, h * .33, w * .1, h * .012); cv.fillRect(w * .62, h * .33, w * .1, h * .012);
+      };
+      top(c);
+      // reflection
+      const ref = mk(w, h); const rc = ref.getContext('2d'); top(rc);
+      for (let y = 0; y < h * .45; y++) { const sy = h * .55 - y - 1, off = Math.sin(y * .35) * (1 + y * .04); c.drawImage(ref, 0, sy, w, 1, off, h * .55 + y, w, 1); }
+      c.fillStyle = 'rgba(20,50,60,.35)'; c.fillRect(0, h * .55, w, h * .45);
+      for (let i = 0; i < 60; i++) { c.fillStyle = 'rgba(255,240,200,.35)'; const y = h * .56 + R() * h * .44; c.fillRect(R() * w, y, 8 + R() * 30, 1.5); }
+      // narrowboat
+      const by = h * .62, bx = w * .08, bw = w * .55, bh = h * .07;
+      c.fillStyle = '#1f5a3a'; c.beginPath(); c.moveTo(bx, by); c.lineTo(bx + bw, by); c.lineTo(bx + bw + 18, by + bh * .4); c.lineTo(bx + bw, by + bh); c.lineTo(bx + 6, by + bh); c.fill();
+      c.fillStyle = '#b5302c'; c.fillRect(bx + bw * .1, by - bh * .9, bw * .78, bh * .9);
+      c.fillStyle = '#f2c94c'; c.fillRect(bx, by - 3, bw, 3); for (let k = 0; k < 7; k++) { c.fillStyle = '#fbe9c3'; c.fillRect(bx + bw * .14 + k * bw * .1, by - bh * .7, bw * .05, bh * .4); }
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(bx, by + bh, bw, bh * .6);
+      // towpath
+      c.fillStyle = '#9a8a6a'; c.beginPath(); c.moveTo(w * .7, h); c.lineTo(w, h * .62); c.lineTo(w, h); c.fill();
+    },
+    roof(c, w, h, R) {
+      sky(c, w, h, [[0, '#2b1d55'], [.35, '#9b3c7a'], [.6, '#f2774a'], [.75, '#ffc46b'], [1, '#ffe2a6']]);
+      c.fillStyle = '#ffe9b0'; c.beginPath(); c.arc(w * .62, h * .62, w * .07, 0, 7); c.fill(); glow(c, w * .62, h * .62, w * .45, 'rgba(255,170,90,.9)');
+      skyline(c, w, h * .7, h * .05, h * .16, 'rgba(110,60,110,.75)', R);
+      skyline(c, w, h * .74, h * .08, h * .26, '#3a1f45', R, '#ffd27a', .18);
+      // parapet
+      c.fillStyle = '#2a1a22'; c.fillRect(0, h * .74, w, h * .26); c.fillStyle = '#4a2c32'; c.fillRect(0, h * .74, w, h * .02);
+      // string lights
+      for (let s = 0; s < 2; s++) { const y0 = h * (.12 + s * .14), sag = h * .12; c.strokeStyle = 'rgba(20,10,20,.8)'; c.lineWidth = 1.2; c.beginPath(); for (let x = 0; x <= w; x += 6) { const t = x / w, y = y0 + sag * 4 * t * (1 - t); x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
+        for (let x = 12; x < w; x += 30) { const t = x / w, y = y0 + sag * 4 * t * (1 - t) + 6; c.fillStyle = '#fff1b8'; c.beginPath(); c.arc(x, y, 3.2, 0, 7); c.fill(); glow(c, x, y, 18, 'rgba(255,220,140,.8)'); } }
+      // plants in pots
+      for (let i = 0; i < 5; i++) { const x = w * (.06 + i * .22) + (R() - .5) * 20, y = h * .86, s = h * (.1 + R() * .06);
+        c.fillStyle = '#b4552e'; c.beginPath(); c.moveTo(x - s * .35, y - s * .3); c.lineTo(x + s * .35, y - s * .3); c.lineTo(x + s * .26, y + s * .3); c.lineTo(x - s * .26, y + s * .3); c.fill();
+        for (let k = 0; k < 16; k++) { c.fillStyle = ['#1f3a22', '#2d5230', '#3c6a36'][k % 3]; c.save(); c.translate(x, y - s * .3); c.rotate(-1.6 + (k / 16) * 3.2 + (R() - .5) * .3); c.beginPath(); c.ellipse(0, -s * .45, s * .09, s * .45, 0, 0, 7); c.fill(); c.restore(); } }
+      // a cat on the parapet, watching the sunset
+      const kx = w * .5, ky = h * .74;
+      c.fillStyle = '#120a10'; c.beginPath(); c.ellipse(kx, ky - h * .035, w * .03, h * .04, 0, 0, 7); c.fill();
+      c.beginPath(); c.arc(kx, ky - h * .085, w * .018, 0, 7); c.fill();
+      c.beginPath(); c.moveTo(kx - w * .016, ky - h * .095); c.lineTo(kx - w * .012, ky - h * .118); c.lineTo(kx - w * .002, ky - h * .1); c.fill();
+      c.beginPath(); c.moveTo(kx + w * .016, ky - h * .095); c.lineTo(kx + w * .012, ky - h * .118); c.lineTo(kx + w * .002, ky - h * .1); c.fill();
+      c.strokeStyle = '#120a10'; c.lineWidth = w * .007; c.lineCap = 'round'; c.beginPath(); c.moveTo(kx + w * .025, ky - h * .01); c.quadraticCurveTo(kx + w * .07, ky, kx + w * .06, ky + h * .04); c.stroke();
+    },
+    kino(c, w, h, R) {
+      sky(c, w, h, [[0, '#070818'], [.5, '#151a3a'], [1, '#231a33']]);
+      c.fillStyle = '#1d1a2a'; c.fillRect(w * .05, h * .05, w * .9, h * .62);
+      windows(c, w * .08, h * .07, w * .84, h * .16, 6, 1, R, .35, '#ff9d5c');
+      // vertical blade sign
+      c.fillStyle = '#2a0f22'; c.fillRect(w * .78, h * .02, w * .1, h * .4); c.strokeStyle = '#ff4fa0'; c.lineWidth = 3; c.strokeRect(w * .785, h * .03, w * .09, h * .38); glow(c, w * .83, h * .22, w * .2, 'rgba(255,60,150,.6)');
+      c.fillStyle = '#ffd2ea'; c.font = `700 ${h * .045}px Georgia, serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; 'KINO'.split('').forEach((ch, i) => c.fillText(ch, w * .83, h * (.08 + i * .085)));
+      // marquee with bulbs
+      const mx = w * .12, my = h * .3, mw = w * .62, mh = h * .2;
+      c.fillStyle = '#f4ead2'; c.fillRect(mx, my, mw, mh);
+      c.fillStyle = '#1b1530'; c.font = `700 ${h * .045}px Georgia, serif`; c.fillText('LUMIÈRE', mx + mw / 2, my + mh * .33); c.font = `700 ${h * .032}px Georgia, serif`; c.fillText('LA JETÉE  ·  20:30', mx + mw / 2, my + mh * .72);
+      for (let i = 0; i <= 22; i++) for (const yy of [my - 6, my + mh + 6]) { const x = mx + i * mw / 22; c.fillStyle = '#fff6c8'; c.beginPath(); c.arc(x, yy, 3, 0, 7); c.fill(); glow(c, x, yy, 14, 'rgba(255,210,120,.7)'); }
+      glow(c, mx + mw / 2, my + mh / 2, mw * .8, 'rgba(255,200,120,.35)');
+      c.fillStyle = '#ffcf7a'; c.fillRect(w * .2, h * .52, w * .46, h * .15); c.fillStyle = 'rgba(40,20,20,.6)'; for (let k = 0; k < 4; k++) c.fillRect(w * .21 + k * w * .115, h * .53, w * .1, h * .14);
+      // wet street with reflections
+      c.fillStyle = '#0d0c18'; c.fillRect(0, h * .67, w, h * .33);
+      for (let i = 0; i < 140; i++) { const x = R() * w, y = h * .68 + R() * h * .32; const src = x > w * .76 && x < w * .9 ? '#ff4fa0' : x > w * .12 && x < w * .74 ? '#ffd890' : '#4a5aa8'; c.fillStyle = src; c.globalAlpha = .1 + R() * .35; c.fillRect(x, y, 2 + R() * 3, 6 + R() * 26); }
+      c.globalAlpha = 1;
+      for (let i = 0; i < 5; i++) { const x = w * (.2 + i * .14), y = h * .8 + (i % 2) * h * .05, s = h * .1; c.fillStyle = '#05040a'; c.beginPath(); c.ellipse(x, y, s * .2, s * .5, 0, 0, 7); c.fill(); c.beginPath(); c.arc(x, y - s * .62, s * .14, 0, 7); c.fill(); if (i === 2) { c.beginPath(); c.arc(x + 4, y - s * .72, s * .45, Math.PI, 0); c.fill(); } }
+    },
+  };
+  // the cross-processed lomo look: curves, saturation, vignette, leak, grain
+  function lomo(src, seed, leakSide) {
+    const w = src.width, h = src.height, c = src.getContext('2d'), id = c.getImageData(0, 0, w, h), d = id.data, R = rng(seed);
+    const lx = leakSide < 0 ? -.1 : 1.1, ly = .2 + R() * .6, cx = w / 2, cy = h / 2, md = Math.hypot(cx, cy);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4; let r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+      const l = .299 * r + .587 * g + .114 * b;
+      r = l + (r - l) * 1.4; g = l + (g - l) * 1.3; b = l + (b - l) * 1.3;
+      r = r * r * (3 - 2 * r) * .7 + r * .3; g = g * g * (3 - 2 * g) * .6 + g * .4; b = b * .8 + .1;
+      r += .05 * l; g += .045 * l; b += .1 * (1 - l) - .06 * l;
+      const dd = Math.hypot(x - cx, y - cy) / md, v = 1 - .8 * Math.pow(dd, 2.4);
+      r *= v; g *= v; b *= v * .97 + .02;
+      const ld = Math.exp(-(Math.pow((x / w - lx) / .28, 2) + Math.pow((y / h - ly) / .6, 2)));
+      r += ld * .85; g += ld * .28; b += ld * .08;
+      const n = (R() - .5) * .11; r += n; g += n; b += n;
+      d[i] = clamp(r, 0, 1) * 255; d[i + 1] = clamp(g, 0, 1) * 255; d[i + 2] = clamp(b, 0, 1) * 255;
+    }
+    c.putImageData(id, 0, 0);
+    return src;
+  }
+  const cache = {};
+  function photo(k, size = 512) {
+    const key = k + size; if (cache[key]) return cache[key];
+    const cv = mk(size, size), c = cv.getContext('2d'), seed = { bakery: 3, market: 7, canal: 11, roof: 13, kino: 17 }[k];
+    SCENES[k](c, size, size, rng(seed));
+    return cache[key] = lomo(cv, seed * 31, seed % 2 ? -1 : 1);
+  }
+
+  /* ————————————————— background photograph & contact strip ————————————————— */
+  function drawBg() {
+    const cv = $('#bgPhoto'), w = 640, h = Math.round(640 * innerHeight / Math.max(1, innerWidth));
+    cv.width = w; cv.height = Math.max(200, Math.min(1400, h));
+    const tmp = mk(w, cv.height); SCENES.roof(tmp.getContext('2d'), w, cv.height, rng(5)); lomo(tmp, 99, -1);
+    cv.getContext('2d').drawImage(tmp, 0, 0);
+  }
+  const strip = $('#strip');
+  ['bakery', 'market', 'canal', 'roof', 'kino'].forEach(k => { const c = mk(240, 160); const p = photo(k, 256); c.getContext('2d').drawImage(p, 0, 48, 256, 170, 0, 0, 240, 160); strip.insertBefore(c, strip.querySelector('.edge')); });
+
+  /* ————————————————— the fisheye lens (WebGL) ————————————————— */
+  const lens = $('#lens'); let gl = null, prog, tex, uni = {};
+  try {
+    gl = lens.getContext('webgl', { premultipliedAlpha: false, alpha: true });
+    const vs = `attribute vec2 p; varying vec2 v; void main(){ v = p*.5+.5; gl_Position = vec4(p,0.,1.); }`;
+    const fs = `precision mediump float; varying vec2 v; uniform sampler2D t; uniform vec2 pan; uniform float time, zoom, bend, open, iris;
+      float h(vec2 q){ return fract(sin(dot(q, vec2(12.9898,78.233))) * 43758.5453); }
+      void main(){
+        vec2 p = (v*2.-1.); float r = length(p);
+        float th = r*bend; float s = (bend > .01) ? tan(th)/tan(bend) : r;
+        vec2 dir = r > 0. ? p/r : vec2(0.);
+        vec2 q = dir*s*zoom;
+        vec2 uv = vec2(.5) + pan + q*.5; uv.y = 1. - uv.y;
+        float ca = .012*r*r;
+        vec2 c0 = vec2(.5, .5);
+        float R = texture2D(t, c0 + (uv-c0)*(1.+ca)).r;
+        float G = texture2D(t, uv).g;
+        float B = texture2D(t, c0 + (uv-c0)*(1.-ca)).b;
+        vec3 col = vec3(R,G,B);
+        col *= mix(.25, 1., smoothstep(1.02, .45, r));
+        col += (h(v*640. + time) - .5) * .09;
+        col *= open;
+        // six-bladed iris that springs open like a camera aperture
+        float ang = atan(p.y, p.x) + (1.25 - iris) * 1.1;
+        float sec = 1.0471976;
+        float aa = mod(ang, sec) - sec * .5;
+        float edge = iris * cos(sec * .5) / cos(aa);
+        float m = smoothstep(edge, edge - .015, r);
+        float blade = .06 + .05 * smoothstep(-.5, .5, sin(ang * 6. + r * 3.)) + .08 * smoothstep(.04, 0., abs(r - edge));
+        vec3 bc = vec3(blade * 1.05, blade, blade * 1.15);
+        col = mix(bc, col, m);
+        float a = smoothstep(1., .985, r);
+        gl_FragColor = vec4(col, a);
+      }`;
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+    prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link');
+    gl.useProgram(prog);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    ['pan', 'time', 'zoom', 'bend', 'open', 'iris'].forEach(n => uni[n] = gl.getUniformLocation(prog, n));
+    tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  } catch (e) { gl = null; }
+  const l2d = gl ? null : lens.getContext('2d');
+  let curKey = null;
+  function setTexture(k) {
+    if (curKey === k) return; curKey = k;
+    if (gl) { gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, photo(k)); }
+  }
+  function sizeLens() {
+    const d = parseFloat(getComputedStyle(peep).getPropertyValue('--d')) || 300, px = Math.round(d * .62 * Math.min(2, devicePixelRatio || 1));
+    if (lens.width !== px) { lens.width = lens.height = px; }
+  }
+  function renderLens() {
+    if (gl) {
+      gl.viewport(0, 0, lens.width, lens.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform2f(uni.pan, V.px, V.py); gl.uniform1f(uni.time, reduce ? 0 : (performance.now() % 10000) / 37);
+      gl.uniform1f(uni.zoom, V.zoom); gl.uniform1f(uni.bend, V.bend); gl.uniform1f(uni.open, .55 + .45 * V.reveal); gl.uniform1f(uni.iris, Math.max(0, V.flap));
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    } else if (curKey) {
+      const s = lens.width, p = photo(curKey); l2d.clearRect(0, 0, s, s); l2d.save(); l2d.beginPath(); l2d.arc(s / 2, s / 2, s / 2, 0, 7); l2d.clip();
+      l2d.drawImage(p, (.5 + V.px) * 512 - 256 * V.zoom, (.5 - V.py) * 512 - 256 * V.zoom, 512 * V.zoom, 512 * V.zoom, 0, 0, s, s); l2d.restore();
+    }
+  }
+
+  /* ————————————————— peeping behaviour ————————————————— */
+  const peep = $('#peep'), links = [...document.querySelectorAll('.print a')];
+  const V = { show: 0, sv: 0, target: 0, px: 0, py: 0, tpx: 0, tpy: 0, zoom: .78, bend: 1.2, reveal: 0, flap: 0, fv: 0, flapT: 0, x: 0, y: 0 };
+  let active = null, touchMode = false;
+  links.forEach(a => {
+    const k = a.dataset.k, sd = document.createElement('span');
+    sd.className = 'sr'; sd.id = 'desc-' + k; sd.textContent = `Preview: ${DEST[k].t}. ${DEST[k].d}`; a.after(sd); a.setAttribute('aria-describedby', sd.id);
+    a.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') openFor(a, e.clientX); });
+    a.addEventListener('pointermove', e => { if (active === a) look(a, e.clientX, e.clientY); });
+    a.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch' && active === a) closePeep(); });
+    a.addEventListener('focus', () => { if (!touchMode) openFor(a); });
+    a.addEventListener('blur', () => { if (active === a && !throughOpen) closePeep(); });
+    a.addEventListener('pointerdown', e => { touchMode = e.pointerType === 'touch'; document.body.classList.toggle('touch', touchMode); });
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      if (touchMode && active !== a) { openFor(a); return; }
+      stepThrough(a);
+    });
+  });
+  document.addEventListener('pointerdown', e => { if (touchMode && active && !e.target.closest('.print a')) closePeep(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { if (throughOpen) { closeThrough(); e.preventDefault(); } else if (active) { closePeep(); e.preventDefault(); } }
+    if (throughOpen && e.key === 'Tab') { e.preventDefault(); $('#back').focus(); }
+  });
+
+  let firstPeek = true;
+  function openFor(a, clientX) {
+    const k = a.dataset.k;
+    if (active && active !== a) { V.fv -= 9; } // the iris blinks when you switch rooms
+    links.forEach(l => l.classList.toggle('on', l === a));
+    active = a; setTexture(k); sizeLens();
+    $('#capT').textContent = DEST[k].t; $('#capS').textContent = DEST[k].s;
+    V.target = 1; V.flapT = 1; place(a, clientX);
+    if (V.show < .05) { V.reveal = 0; }
+    if (firstPeek) { firstPeek = false; $('#hint').classList.add('gone'); }
+    clink();
+    wake();
+  }
+  function closePeep() { V.target = 0; V.flapT = 0; links.forEach(l => l.classList.remove('on')); active = null; wake(); }
+  function place(a, clientX) {
+    const r = a.getClientRects(), first = r[0], d = parseFloat(getComputedStyle(peep).getPropertyValue('--d')) || 300;
+    const capH = 64, totalH = d + capH, gap = 10;
+    const ax = clientX != null ? clientX : first.left + first.width / 2;
+    let x = clamp(ax - d / 2, 8, innerWidth - d - 8);
+    let y = first.top - totalH - gap;
+    if (y < 8) y = r[r.length - 1].bottom + gap;
+    if (y + totalH > innerHeight - 4) y = Math.max(4, innerHeight - totalH - 4);
+    if (V.show < .05) { V.x = x; V.y = y; }
+    V.tx = x; V.ty = y;
+  }
+  function look(a, cx, cy) {
+    const rects = [...a.getClientRects()]; let rr = rects[0];
+    for (const q of rects) if (cy >= q.top - 2 && cy <= q.bottom + 2) rr = q;
+    const t = clamp((cx - rr.left) / Math.max(1, rr.width), 0, 1);
+    V.tpx = (t - .5) * .22; V.tpy = (rects.indexOf(rr) / Math.max(1, rects.length - 1) - .5) * .12;
+    wake();
+  }
+
+  /* ————————————————— stepping through the door ————————————————— */
+  const through = $('#through'); let throughOpen = false, throughFrom = null;
+  function stepThrough(a) {
+    const k = a.dataset.k; throughFrom = a; throughOpen = true;
+    const big = mk(900, 900); SCENES[k](big.getContext('2d'), 900, 900, rng({ bakery: 3, market: 7, canal: 11, roof: 13, kino: 17 }[k])); lomo(big, 4242, -1);
+    $('#thCv').getContext('2d').drawImage(big, 0, 0);
+    $('#thT').textContent = DEST[k].t; $('#thS').textContent = DEST[k].s;
+    V.zoomPunch = 1; wake();
+    setTimeout(() => { through.classList.add('open'); $('#back').focus(); $('#live').textContent = `Opened ${DEST[k].t}`; }, reduce ? 0 : 260);
+    closePeep();
+  }
+  function closeThrough() { throughOpen = false; through.classList.remove('open'); if (throughFrom) throughFrom.focus({ preventScroll: true }); }
+  $('#back').addEventListener('click', closeThrough);
+
+  /* ————————————————— little brass clink ————————————————— */
+  let AC = null;
+  function clink() {
+    try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    if (AC.state !== 'running') return;   // only after the page has had a gesture
+    const t = AC.currentTime, g = AC.createGain(); g.gain.value = .05; g.connect(AC.destination);
+    [1870, 2810, 4120].forEach((f, i) => { const o = AC.createOscillator(), e = AC.createGain(); o.frequency.value = f; e.gain.setValueAtTime(.6 / (i + 1), t); e.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(e).connect(g); o.start(t); o.stop(t + .3); });
+  }
+  addEventListener('pointerdown', () => { try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} }, { once: true });
+
+  /* ————————————————— loop ————————————————— */
+  let raf = 0, last = 0;
+  function wake() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0; const dt = Math.min(.033, (now - last) / 1000); last = now;
+    // pop-in spring
+    V.sv += (240 * (V.target - V.show) - 22 * V.sv) * dt; V.show += V.sv * dt;
+    if (reduce) V.show = V.target;
+    // iris aperture: springs open with a little overshoot, snaps shut when you leave
+    const it = V.flapT ? 1.25 : 0;
+    V.fv += ((V.flapT ? 120 : 260) * (it - V.flap) - (V.flapT ? 11 : 26) * V.fv) * dt;
+    V.flap += V.fv * dt; if (reduce) V.flap = it;
+    V.reveal = clamp(V.flap / 1.1, 0, 1);
+    // looking around
+    V.px += (V.tpx - V.px) * Math.min(1, dt * 6); V.py += (V.tpy - V.py) * Math.min(1, dt * 6);
+    V.zoom = lerp(V.zoom, active ? .9 : 1, Math.min(1, dt * 3));
+    V.x += ((V.tx || 0) - V.x) * Math.min(1, dt * 14); V.y += ((V.ty || 0) - V.y) * Math.min(1, dt * 14);
+    const sc = .55 + .45 * clamp(V.show, 0, 1.2);
+    peep.style.setProperty('--x', V.x.toFixed(1) + 'px'); peep.style.setProperty('--y', V.y.toFixed(1) + 'px');
+    peep.style.transform = `translate(${V.x.toFixed(1)}px,${V.y.toFixed(1)}px) scale(${sc.toFixed(3)}) rotate(${((1 - clamp(V.show, 0, 1)) * -8).toFixed(2)}deg)`;
+    peep.style.opacity = clamp(V.show * 1.6, 0, 1).toFixed(3);
+    if (V.show > .01) renderLens();
+    const busy = Math.abs(V.show - V.target) > .002 || Math.abs(V.sv) > .01 || Math.abs(V.fv) > .02 || Math.abs(V.flap - (V.flapT ? 1.25 : 0)) > .01 || Math.abs(V.px - V.tpx) > .001 || (active && !reduce);
+    if (busy) raf = requestAnimationFrame(frame);
+    else if (V.show <= .01) peep.style.opacity = 0;
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  addEventListener('resize', () => { drawBg(); sizeLens(); if (active) place(active); wake(); });
+  drawBg(); sizeLens();
+  window.__peep = { open: i => openFor(links[i]), look: (i, t) => { const r = links[i].getClientRects()[0]; look(links[i], r.left + r.width * t, r.top + 2); }, through: i => stepThrough(links[i]) };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fountain Pen Signature</title>
+<meta name="description" content="A signature pad on a Victorian engraved lease: pointed-nib ink swells on downstrokes, pools when you pause, feathers into laid paper and dries from wet blue to matte black. Rock the blotter to dry it; tear off the slip to start again.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=Pinyon+Script&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Fountain Pen Signature","reimagines":"Signature pad","category":"Text & Data Entry","description":"Sign a lease on laid paper beneath an engraved Victorian letterhead. The pointed nib swells on downstrokes and thins on the way up, ink pools when you pause and feathers into the fibres, and it dries over a few seconds from glossy blue to matte black. Rock the blotter across it to dry it at once (it keeps a mirror-image impression), or tear off the slip to start again.","hint":"Sign on the slip; rock the blotter to dry; tear the slip to start again"}
+</script>
+<style>
+  :root{
+    --leather:#1f3a2e;
+    --gold:#c9a24a;
+    --paper:#f3ead6;
+    --ink:#1d2033;
+    --oxblood:#6e1c22;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;color:var(--ink);font-family:"Bodoni Moda",Didot,"Bodoni 72",Georgia,serif}
+  body{background:radial-gradient(120% 90% at 40% 30%,#2a4a3b 0%,#1f3a2e 55%,#142a20 100%)}
+  .desk::before{content:"";position:fixed;inset:14px;border:1.5px solid rgba(201,162,74,.55);box-shadow:inset 0 0 0 5px rgba(201,162,74,0),inset 0 0 0 6px rgba(201,162,74,.35);pointer-events:none}
+  .grain{position:fixed;inset:0;opacity:.35;mix-blend-mode:overlay;pointer-events:none}
+  .doc{position:fixed;z-index:2;background-color:var(--paper);background-size:400px;box-shadow:0 1px 1px rgba(0,0,0,.2),0 24px 50px -18px rgba(0,0,0,.65),0 6px 14px rgba(0,0,0,.25);padding:4.2% 7% 0;overflow:visible}
+  .doc::before,.doc::after{content:"";position:absolute;pointer-events:none}
+  .doc::before{left:3.2%;right:3.2%;top:2.4%;bottom:3%;border:1.2px solid rgba(29,32,51,.8)}
+  .doc::after{left:calc(3.2% + 4px);right:calc(3.2% + 4px);top:calc(2.4% + 4px);bottom:calc(3% + 4px);border:.6px solid rgba(29,32,51,.6)}
+  .doc .lh{text-align:center}
+  .doc .firm{font-weight:600;letter-spacing:.32em;font-size:clamp(13px,1.9vh,17px);margin-top:4px}
+  .doc .sub{font-style:italic;font-size:clamp(11px,1.5vh,13px);margin-top:3px;color:#3a3a4a}
+  .doc .addr{font-size:clamp(9px,1.25vh,11px);letter-spacing:.2em;margin-top:5px;color:#4a4a58}
+  .doc svg.rule{display:block;width:100%;height:auto;margin:8px 0 4px}
+  .doc h1{font-family:"Pinyon Script",cursive;font-weight:400;font-size:clamp(30px,5.4vh,48px);text-align:center;margin:2px 0 4px;line-height:1.1}
+  .doc p{font-size:clamp(10.5px,1.55vh,13.5px);line-height:1.55;text-align:justify;hyphens:auto;margin:0 0 8px}
+  .doc p .sc{font-variant:small-caps;letter-spacing:.06em;font-weight:600}
+  .doc .clause{font-style:italic;text-align:center;margin-top:4px}
+  .slip{position:absolute;left:0;right:0;bottom:0;background-color:var(--paper);background-size:400px;transform-origin:100% 0;touch-action:none;will-change:transform}
+  .slip.fresh{animation:rise .5s cubic-bezier(.2,.8,.3,1)}
+  @keyframes rise{from{transform:translateY(8px);opacity:.3}to{transform:none;opacity:1}}
+  .perf{position:absolute;left:0;right:0;top:-1px;height:8px;background:radial-gradient(circle at 4px 1px,rgba(20,30,20,.45) 1.4px,transparent 1.8px) 0 0/9px 8px repeat-x}
+  .slip .slab{position:absolute;left:7%;top:12px;font-variant:small-caps;letter-spacing:.14em;font-size:clamp(10px,1.4vh,12px);font-weight:600;color:#3a3a4a;pointer-events:none}
+  .slip .base{position:absolute;left:7%;right:7%;border-bottom:1.5px dotted rgba(29,32,51,.55);pointer-events:none}
+  .slip .who{position:absolute;left:7%;font-size:clamp(10px,1.4vh,12px);letter-spacing:.12em;color:#4a4a58;pointer-events:none}
+  .slip .who i{font-family:"Pinyon Script",cursive;font-style:normal;font-size:1.5em;letter-spacing:0;color:#2a2a3a;margin-left:6px}
+  .slip .date{position:absolute;right:7%;font-size:clamp(10px,1.4vh,12px);letter-spacing:.12em;color:#4a4a58;pointer-events:none;text-align:right}
+  .slip canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  .tab{position:absolute;left:-2px;top:-14px;z-index:3;font-family:inherit;font-style:italic;font-size:12px;color:#3a3a4a;background:var(--paper);border:1px solid rgba(29,32,51,.4);padding:3px 9px 3px 7px;cursor:grab;transform:rotate(-4deg);box-shadow:0 2px 4px rgba(0,0,0,.2);touch-action:none;display:flex;align-items:center;gap:5px}
+  .tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .typed{position:absolute;left:7%;right:7%;z-index:2;display:none;pointer-events:auto}
+  .typed.on{display:block}
+  .typed input{width:100%;font-family:"Pinyon Script",cursive;font-size:28px;line-height:1.25;color:transparent;caret-color:#1b3a9c;background:transparent;border:0;outline:none;padding:0}
+  .typed input::placeholder{color:rgba(27,58,156,.25)}
+  .typed input:focus-visible{outline:1px dashed rgba(29,32,51,.35);outline-offset:4px}
+  .side{position:fixed;z-index:3;display:flex;flex-direction:column;gap:12px}
+  .card{font-family:inherit;font-size:15px;letter-spacing:.06em;color:var(--ink);background:#f3ead6;border:0;cursor:pointer;padding:11px 16px;text-align:left;position:relative;
+    box-shadow:inset 0 0 0 1px #1d2033,inset 0 0 0 4px #f3ead6,inset 0 0 0 5px #1d2033,0 3px 6px rgba(0,0,0,.35)}
+  .card small{display:block;font-style:italic;font-size:12px;letter-spacing:.02em;color:#555}
+  .card:hover{background:#fbf4e4}
+  .card:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  .card.primary{background:var(--oxblood);color:#f6e7c8;box-shadow:inset 0 0 0 1px #c9a24a,inset 0 0 0 4px #6e1c22,inset 0 0 0 5px #c9a24a,0 3px 6px rgba(0,0,0,.35);font-weight:600;letter-spacing:.14em;font-variant:small-caps;font-size:17px}
+  .card.primary small{color:#e8cfa0;font-variant:normal;letter-spacing:.02em;font-weight:400}
+  .card[disabled]{opacity:.55;cursor:not-allowed}
+  .blotter{position:fixed;z-index:4;cursor:grab;touch-action:none;transform-origin:50% 85%}
+  .blotter:focus-visible{outline:2px solid var(--gold);outline-offset:6px}
+  .blotter svg{display:block;width:100%;height:100%;overflow:visible}
+  .blotter canvas{position:absolute;left:6%;width:88%;bottom:0;height:26%;pointer-events:none;mix-blend-mode:multiply}
+  .inkwell{position:fixed;z-index:2;pointer-events:none}
+  .seal{position:absolute;z-index:3;pointer-events:none;opacity:0}
+  .note{font-style:italic;font-size:14px;color:#e9dcb8;line-height:1.4;max-width:240px;min-height:40px}
+  .note b{font-style:normal;color:#f6e7c8;font-weight:600}
+  .hint{position:fixed;z-index:3;font-family:"Pinyon Script",cursive;font-size:24px;color:rgba(29,32,51,.45);pointer-events:none;transition:opacity .6s;white-space:nowrap}
+  .hint.gone{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (max-width:760px){
+    .desk::before{inset:6px}
+    .doc{padding:5% 6% 0}
+    .doc .addr{display:none}
+    .doc p{font-size:10.5px;line-height:1.45;margin-bottom:5px}
+    .doc p.long{display:none}
+    .side{flex-direction:row;flex-wrap:wrap;gap:8px}
+    .card{font-size:13px;padding:9px 11px}
+    .card small{display:none}
+    .card.primary{font-size:15px}
+    .note{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){ .slip.fresh{animation:none} }
+</style>
+</head>
+<body class="desk">
+<svg class="grain" width="100%" height="100%" aria-hidden="true"><filter id="lg"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" seed="4"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .6 0"/></filter><rect width="100%" height="100%" filter="url(#lg)"/></svg>
+
+<svg class="inkwell" id="inkwell" viewBox="0 0 160 150" aria-hidden="true">
+  <defs><radialGradient id="glass" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#9fb3c8" stop-opacity=".9"/><stop offset=".5" stop-color="#3a4a66" stop-opacity=".9"/><stop offset="1" stop-color="#0d1222"/></radialGradient>
+  <linearGradient id="brass" x1="0" x2="1"><stop offset="0" stop-color="#7a5a1c"/><stop offset=".4" stop-color="#f0d27a"/><stop offset=".7" stop-color="#b88a2e"/><stop offset="1" stop-color="#5e4210"/></linearGradient></defs>
+  <ellipse cx="72" cy="138" rx="62" ry="9" fill="rgba(0,0,0,.35)"/>
+  <path d="M20 70 Q16 132 72 136 Q128 132 124 70 Q120 52 72 50 Q24 52 20 70Z" fill="url(#glass)"/>
+  <path d="M34 78 Q36 112 58 122" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="5" stroke-linecap="round"/>
+  <rect x="50" y="34" width="44" height="20" rx="3" fill="url(#brass)"/>
+  <ellipse cx="72" cy="34" rx="22" ry="5" fill="#2a1d0a"/>
+  <path d="M78 34 L140 -40" stroke="#1d1410" stroke-width="7" stroke-linecap="round"/>
+  <path d="M78 34 L100 8" stroke="url(#brass)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M74 38 L80 30 L84 33 Z" fill="#d8b860"/>
+</svg>
+
+<article class="doc" id="doc" aria-label="Counterpart lease">
+  <div class="lh">
+    <svg viewBox="0 0 60 36" width="54" height="32" aria-hidden="true"><g fill="none" stroke="#1d2033" stroke-width=".9"><path d="M30 4 L36 14 L30 24 L24 14 Z"/><path d="M30 8 L33.5 14 L30 20 L26.5 14 Z" fill="#1d2033"/><path d="M22 14 Q12 4 4 12 Q10 10 12 16 Q14 22 22 18"/><path d="M38 14 Q48 4 56 12 Q50 10 48 16 Q46 22 38 18"/><path d="M30 26 Q30 32 26 33 M30 26 Q30 32 34 33"/></g></svg>
+    <div class="firm">HARTLEY, PRYCE &amp; WREN</div>
+    <div class="sub">Solicitors · Commissioners for Oaths</div>
+    <div class="addr">4 NEW SQUARE · LINCOLN’S INN · LONDON WC2A 3RJ</div>
+    <svg class="rule" viewBox="0 0 400 16" aria-hidden="true" preserveAspectRatio="none"><g fill="#1d2033"><path d="M10 8 Q100 6.6 188 7.4 L188 8.6 Q100 9.4 10 8 Z"/><path d="M390 8 Q300 6.6 212 7.4 L212 8.6 Q300 9.4 390 8 Z"/><path d="M200 2 L206 8 L200 14 L194 8 Z"/><circle cx="185" cy="8" r="1.6"/><circle cx="215" cy="8" r="1.6"/></g><g fill="none" stroke="#1d2033" stroke-width=".7"><path d="M188 8 Q178 0 170 6 Q176 5 177 9"/><path d="M212 8 Q222 0 230 6 Q224 5 223 9"/><path d="M188 8 Q178 16 170 10 Q176 11 177 7"/><path d="M212 8 Q222 16 230 10 Q224 11 223 7"/></g></svg>
+  </div>
+  <h1>Counterpart Lease</h1>
+  <p><span class="sc">This Lease</span> is made the seventh day of October, two thousand and twenty-six, <span class="sc">between</span> Aurelia Property Holdings Limited (“the Landlord”) and Adaeze Okonkwo (“the Tenant”).</p>
+  <p class="long">The Landlord lets to the Tenant the dwelling known as Flat 3, 14 Albemarle Row, Bath BA1 2LT, for a term of twelve months from the first day of November, at a rent of £1,450 per calendar month, payable in advance.</p>
+  <p class="clause"><span class="sc">In witness</span> whereof the Tenant has signed this lease as a deed.</p>
+  <div class="slip" id="slip"></div>
+  <img class="seal" id="seal" alt="" aria-hidden="true">
+</article>
+
+<div class="hint" id="hint">sign here</div>
+
+<div class="blotter" id="blotter" tabindex="0" role="button" aria-label="Rocker blotter. Drag it across the signature to dry the ink, or press Enter to blot.">
+  <svg viewBox="0 0 220 120" aria-hidden="true">
+    <defs>
+      <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a4f2a"/><stop offset=".5" stop-color="#5e2f16"/><stop offset="1" stop-color="#3b1b0b"/></linearGradient>
+      <linearGradient id="br2" x1="0" x2="1"><stop offset="0" stop-color="#7a5a1c"/><stop offset=".45" stop-color="#f3d986"/><stop offset="1" stop-color="#7a5a1c"/></linearGradient>
+      <pattern id="woodGrain" width="60" height="8" patternUnits="userSpaceOnUse"><path d="M0 4 Q15 1 30 4 T60 4" fill="none" stroke="rgba(0,0,0,.25)" stroke-width="1"/></pattern>
+    </defs>
+    <ellipse cx="110" cy="114" rx="100" ry="7" fill="rgba(0,0,0,.35)"/>
+    <path d="M14 84 Q110 126 206 84 L206 96 Q110 136 14 96 Z" fill="#e8e2d0"/>
+    <path d="M14 84 Q110 126 206 84" fill="none" stroke="#2f5c45" stroke-width="5"/>
+    <path d="M10 60 Q110 98 210 60 L206 84 Q110 122 14 84 Z" fill="url(#wood)"/>
+    <path d="M10 60 Q110 98 210 60 L206 84 Q110 122 14 84 Z" fill="url(#woodGrain)"/>
+    <path d="M30 70 Q110 102 190 70" fill="none" stroke="rgba(255,220,180,.35)" stroke-width="2"/>
+    <rect x="26" y="40" width="168" height="24" rx="12" fill="url(#wood)"/>
+    <rect x="26" y="40" width="168" height="24" rx="12" fill="url(#woodGrain)"/>
+    <path d="M40 46 H180" stroke="rgba(255,230,190,.4)" stroke-width="2" stroke-linecap="round"/>
+    <rect x="96" y="20" width="28" height="24" rx="4" fill="url(#br2)"/>
+    <ellipse cx="110" cy="14" rx="20" ry="13" fill="url(#br2)"/>
+    <ellipse cx="104" cy="9" rx="7" ry="3.5" fill="rgba(255,255,255,.7)"/>
+  </svg>
+  <canvas id="blotInk"></canvas>
+</div>
+
+<div class="side" id="side">
+  <button class="card primary" id="sign" type="button" disabled>Sign the lease<small>Signs and seals as a deed</small></button>
+  <button class="card" id="blotBtn" type="button">Blot the ink<small>Dries it at once</small></button>
+  <button class="card" id="typeBtn" type="button" aria-pressed="false">Type my name instead<small>Set in copperplate</small></button>
+  <button class="card" id="tearBtn" type="button">Tear off &amp; start again<small>A fresh slip underneath</small></button>
+  <div class="note" id="note" aria-live="polite">Sign with your mouse, finger or stylus. Pause and the ink pools; press harder on the way down.</div>
+</div>
+<div class="sr" id="live" aria-live="assertive"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const doc = $('doc');
+  let W = 0, H = 0, mobile = false, dpr = 1;
+  const DRY_MS = 6500;
+  const WET = [27, 58, 156], DRY = [32, 33, 52], BLOTTED = [62, 64, 86];
+
+  /* ---------------- laid paper ---------------- */
+  (function paper() {
+    const N = 400, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+    g.fillStyle = '#f3ead6'; g.fillRect(0, 0, N, N);
+    let s = 3; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 40; i++) { const x = r() * N, y = r() * N, rr = 20 + r() * 50, warm = r() < .5; for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rr); gr.addColorStop(0, `rgba(${warm ? '180,150,100' : '255,255,245'},.028)`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x + ox - rr, y + oy - rr, rr * 2, rr * 2); } }
+    for (let y = 0; y < N; y += 1.25) { g.fillStyle = `rgba(120,100,60,${.035 + r() * .03})`; g.fillRect(0, y, N, .5); }
+    for (let x = 12; x < N; x += 25) { /* chain lines */ g.fillStyle = 'rgba(120,100,60,.07)'; g.fillRect(x, 0, 1.2, N); g.fillStyle = 'rgba(255,255,250,.08)'; g.fillRect(x + 1.4, 0, 1, N); }
+    for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(110,90,60,${r() * .12})`; g.fillRect(r() * N, r() * N, r() * 2.4, .6); }
+    const url = c.toDataURL('image/png');
+    document.documentElement.style.setProperty('--laid', `url(${url})`);
+    doc.style.backgroundImage = `url(${url})`;
+    paperURL = url;
+  })();
+  var paperURL;
+
+  /* ---------------- audio ---------------- */
+  let ac = null, scratch = null;
+  function A() { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; } }
+  function nbuf(sec) { const len = Math.floor(ac.sampleRate * sec), b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; return b; }
+  function scratchOn() {
+    if (!A() || scratch) return;
+    const s = ac.createBufferSource(); s.buffer = nbuf(1); s.loop = true;
+    const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 5200; f.Q.value = 1.2;
+    const g = ac.createGain(); g.gain.value = 0; s.connect(f).connect(g).connect(ac.destination); s.start();
+    scratch = { s, g, f };
+  }
+  function scratchLevel(v) { if (!scratch) return; const t = ac.currentTime; scratch.g.gain.setTargetAtTime(Math.min(.05, v * .02), t, .02); scratch.f.frequency.setTargetAtTime(3800 + Math.min(3000, v * 1500), t, .03); }
+  function scratchOff() { if (!scratch) return; const sc = scratch; scratch = null; sc.g.gain.setTargetAtTime(0, ac.currentTime, .03); sc.s.stop(ac.currentTime + .2); }
+  function tearSound(dur) { if (!A()) return; const t = ac.currentTime; const s = ac.createBufferSource(); s.buffer = nbuf(dur); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(1200, t); f.frequency.linearRampToValueAtTime(3200, t + dur); f.Q.value = .8; const g = ac.createGain(); g.gain.setValueAtTime(0, t); for (let k = 0; k < dur * 60; k++) g.gain.setValueAtTime(Math.random() * .14, t + k / 60); g.gain.linearRampToValueAtTime(0, t + dur); s.connect(f).connect(g).connect(ac.destination); s.start(t); }
+  function thump() { if (!A()) return; const t = ac.currentTime; const o = ac.createOscillator(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(48, t + .2); const g = ac.createGain(); g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .3); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .32); }
+  function hush() { if (!A()) return; const t = ac.currentTime; const s = ac.createBufferSource(); s.buffer = nbuf(.4); const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.08, t + .1); g.gain.linearRampToValueAtTime(0, t + .4); s.connect(f).connect(g).connect(ac.destination); s.start(t); }
+
+  /* ---------------- slip + ink engine ---------------- */
+  let slip, cv, ctx, dryC, dryG, SW = 0, SH = 0, baseY = 0;
+  let strokes = [], hasInk = false, sealed = false, cur = null, typedMode = false, typedStroke = null;
+  function buildSlip(fresh) {
+    const old = slip;
+    slip = document.createElement('div'); slip.className = 'slip' + (fresh ? ' fresh' : ''); slip.style.backgroundImage = `url(${paperURL})`;
+    slip.innerHTML = `<div class="perf"></div>
+      <button class="tab" type="button" aria-label="Tear off the slip and start again"><svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><circle cx="3" cy="3" r="2.2" fill="none" stroke="#3a3a4a" stroke-width="1.2"/><circle cx="3" cy="9" r="2.2" fill="none" stroke="#3a3a4a" stroke-width="1.2"/><path d="M5 4 L13 9 M5 8 L13 3" stroke="#3a3a4a" stroke-width="1.2"/></svg>tear here</button>
+      <div class="slab">Signed as a deed by the Tenant</div>
+      <div class="base"></div>
+      <div class="who">ADAEZE OKONKWO <i>in the presence of</i></div>
+      <div class="date">Bath, 7 October 2026</div>
+      <div class="typed"><input type="text" aria-label="Type your full name to sign" placeholder="Adaeze Okonkwo" autocomplete="name"></div>
+      <canvas aria-label="Signature area. Draw your signature here." role="img"></canvas>`;
+    doc.insertBefore(slip, $('seal'));
+    if (old) old.remove();
+    cv = slip.querySelector('canvas'); ctx = cv.getContext('2d');
+    strokes = []; hasInk = false; cur = null; typedStroke = null;
+    bindSlip(); sizeSlip();
+    $('sign').disabled = true;
+    const ti = slip.querySelector('.typed input');
+    ti.addEventListener('input', () => setTyped(ti.value));
+    ti.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('sign').click(); } });
+    if (typedMode) { slip.querySelector('.typed').classList.add('on'); }
+  }
+  function sizeSlip() {
+    const dh = doc.clientHeight;
+    SH = Math.round(dh * (mobile ? .36 : .4)); slip.style.height = SH + 'px';
+    SW = slip.clientWidth;
+    dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = SW * dpr; cv.height = SH * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    dryC = document.createElement('canvas'); dryC.width = cv.width; dryC.height = cv.height; dryG = dryC.getContext('2d'); dryG.setTransform(dpr, 0, 0, dpr, 0, 0);
+    baseY = SH * .7;
+    slip.querySelector('.base').style.top = baseY + 'px';
+    slip.querySelector('.who').style.top = (baseY + 8) + 'px';
+    slip.querySelector('.date').style.top = (baseY + (mobile ? 30 : 10)) + 'px';
+    const tsz = Math.min(SH * .42, 54), tin = slip.querySelector('.typed input'); tin.style.fontSize = tsz + 'px';
+    slip.querySelector('.typed').style.top = (baseY - 8 - tsz * 1.02) + 'px';
+    strokes.forEach(s => s.done = false);
+    redraw(performance.now());
+  }
+  function mix(a, b, t) { return `rgb(${(a[0] + (b[0] - a[0]) * t) | 0},${(a[1] + (b[1] - a[1]) * t) | 0},${(a[2] + (b[2] - a[2]) * t) | 0})`; }
+  function wetness(s, now) { if (s.drawing) return 1; if (s.blotted) return 0; return Math.max(0, 1 - (now - s.tEnd) / DRY_MS); }
+  function drawStroke(g, s, now) {
+    const w = wetness(s, now);
+    const base = s.blotted ? BLOTTED : DRY;
+    const col = mix(base, WET, Math.pow(w, .7));
+    if (s.type === 'text') {
+      g.save(); g.font = `${s.size}px "Pinyon Script", cursive`; g.fillStyle = col; g.textBaseline = 'alphabetic';
+      g.fillText(s.text, s.x, s.y);
+      if (w > 0) { g.globalAlpha = .35 * w; g.fillStyle = '#c9d6ff'; g.fillText(s.text, s.x - .6, s.y - .7); }
+      g.restore(); return;
+    }
+    // feathered fibres first (under the stroke)
+    g.strokeStyle = col; g.globalAlpha = .38; g.lineWidth = .55; g.beginPath();
+    for (const f of s.fibres) { const grow = Math.min(1, (now - f.t) / 900); g.moveTo(f.x, f.y); g.lineTo(f.x + f.dx * grow, f.y + f.dy * grow); }
+    g.stroke(); g.globalAlpha = 1;
+    // body
+    g.fillStyle = col; g.beginPath();
+    for (const p of s.pts) { g.moveTo(p.x + p.r, p.y); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); }
+    g.fill();
+    // wet sheen: a glossy ridge riding the upper-left of the ink
+    if (w > .02) {
+      g.fillStyle = `rgba(190,205,255,${.42 * w})`; g.beginPath();
+      for (let i = 0; i < s.pts.length; i += 2) { const p = s.pts[i]; if (p.r < 1.1) continue; const rr = p.r * .38; g.moveTo(p.x - p.r * .3 + rr, p.y - p.r * .35); g.arc(p.x - p.r * .3, p.y - p.r * .35, rr, 0, Math.PI * 2); }
+      g.fill();
+      // pooled blots catch a bright point of light
+      g.fillStyle = `rgba(255,255,255,${.6 * w})`;
+      for (const p of s.pools) { g.beginPath(); g.ellipse(p.x - p.r * .35, p.y - p.r * .4, p.r * .22, p.r * .14, -.5, 0, Math.PI * 2); g.fill(); }
+    }
+  }
+  let raf = 0;
+  function redraw(now) {
+    ctx.clearRect(0, 0, SW, SH);
+    ctx.drawImage(dryC, 0, 0, SW, SH);
+    let live = false;
+    for (const s of strokes) {
+      if (s.done) continue;
+      drawStroke(ctx, s, now);
+      if (wetness(s, now) <= 0 && now - (s.tEnd || 0) > 950 && !s.drawing) { drawStroke(dryG, s, now); s.done = true; }
+      else live = true;
+    }
+    return live;
+  }
+  function loop(now) {
+    // ink keeps flowing while the nib rests: pooling
+    if (cur && cur.drawing && now - cur.lastMove > 90) {
+      const p = cur.pts[cur.pts.length - 1];
+      if (p && p.r < cur.maxPool) {
+        const np = { x: p.x + (Math.random() - .5) * .3, y: p.y + (Math.random() - .5) * .3, r: Math.min(cur.maxPool, p.r + .045) };
+        cur.pts.push(np);
+        if (!cur.pools.length || cur.pools[cur.pools.length - 1].x !== p.x) cur.pools.push(np); else cur.pools[cur.pools.length - 1].r = np.r;
+        if (Math.random() < .3) fibre(cur, np, now);
+      }
+    }
+    const live = redraw(now);
+    updateSheen(now);
+    raf = (live || (cur && cur.drawing)) && !document.hidden ? requestAnimationFrame(loop) : 0;
+  }
+  function kick() { if (!raf && !document.hidden) raf = requestAnimationFrame(loop); }
+  document.addEventListener('visibilitychange', kick);
+  function fibre(s, p, now) {
+    const a = (Math.random() < .7 ? 0 : Math.PI / 2) + (Math.random() - .5) * .5 + (Math.random() < .5 ? Math.PI : 0);
+    const len = 1.5 + Math.random() * 4 * Math.min(2, p.r / 1.6);
+    const sx = p.x + Math.cos(a) * p.r * .9, sy = p.y + Math.sin(a) * p.r * .9;
+    s.fibres.push({ x: sx, y: sy, dx: Math.cos(a) * len, dy: Math.sin(a) * len, t: now });
+  }
+  function bindSlip() {
+    let last = null;
+    cv.addEventListener('pointerdown', e => {
+      if (sealed || typedMode) return;
+      e.preventDefault(); A(); scratchOn();
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, now = performance.now();
+      cur = { pts: [], fibres: [], pools: [], drawing: true, t0: now, lastMove: now, maxPool: 4.2 + Math.random() * 1.5, tEnd: 0 };
+      strokes.push(cur);
+      last = { x, y, t: now, r: 1.6 };
+      cur.pts.push({ x, y, r: 1.8 });
+      try { cv.setPointerCapture(e.pointerId); } catch (er) {} hideHint(); kick();
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!cur || !cur.drawing) return;
+      const r = cv.getBoundingClientRect();
+      const ce = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+      const evs = ce && ce.length ? ce : [e];
+      for (const ev of evs) {
+        const x = ev.clientX - r.left, y = ev.clientY - r.top, now = ev.timeStamp || performance.now();
+        const dx = x - last.x, dy = y - last.y, dist = Math.hypot(dx, dy);
+        if (dist < .4) continue;
+        const dt = Math.max(1, now - last.t), speed = dist / dt; // px per ms
+        // pointed nib: swells on downstrokes, hairline on upstrokes; faster = thinner
+        const down = dy / dist; // -1 (up) .. 1 (down)
+        const press = ev.pointerType === 'pen' && ev.pressure ? .5 + ev.pressure : 1;
+        const target = Math.max(.55, (0.5 + 2.9 * Math.max(0, down * .85 + .15)) * press / (1 + speed * .9));
+        const rr = last.r + (target - last.r) * .28;
+        const steps = Math.ceil(dist / .6);
+        for (let i = 1; i <= steps; i++) { const t = i / steps; cur.pts.push({ x: last.x + dx * t, y: last.y + dy * t, r: last.r + (rr - last.r) * t }); }
+        if (rr > 1.6 && Math.random() < .25) fibre(cur, { x, y, r: rr }, performance.now());
+        last = { x, y, t: now, r: rr };
+        cur.lastMove = performance.now();
+        scratchLevel(speed);
+      }
+      kick();
+    });
+    const end = () => {
+      if (!cur) return;
+      cur.drawing = false; cur.tEnd = performance.now();
+      if (cur.pts.length > 2) { hasInk = true; noteSigned(); }
+      cur = null; scratchOff(); kick();
+    };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+    // tearing
+    const tab = slip.querySelector('.tab');
+    let tear = null;
+    tab.addEventListener('pointerdown', e => { if (sealed) return; e.preventDefault(); A(); tear = { x: e.clientX, y: e.clientY, p: 0, lastSnd: 0 }; tab.setPointerCapture(e.pointerId); tab.style.cursor = 'grabbing'; });
+    tab.addEventListener('pointermove', e => {
+      if (!tear) return;
+      const d = Math.max(0, (e.clientY - tear.y) * .9 + (e.clientX - tear.x) * .35);
+      tear.p = Math.min(1, d / (SW * .45));
+      slip.style.transform = `rotate(${tear.p * 16}deg)`;
+      slip.style.clipPath = tornPath(tear.p);
+      if (tear.p - tear.lastSnd > .08) { tear.lastSnd = tear.p; tearSound(.12); }
+    });
+    const tend = () => {
+      if (!tear) return; const p = tear.p; tear = null; tab.style.cursor = '';
+      if (p > .5) tearOff(); else { slip.style.transition = 'transform .35s cubic-bezier(.3,1.5,.5,1)'; slip.style.transform = ''; slip.style.clipPath = ''; setTimeout(() => slip && (slip.style.transition = ''), 400); }
+    };
+    tab.addEventListener('pointerup', tend); tab.addEventListener('pointercancel', tend);
+    tab.addEventListener('click', e => { if (e.detail === 0) tearOff(); }); // keyboard activation
+  }
+  function tornPath(p) {
+    // perforation tears from the left: hide a ragged sliver along the top edge as it opens
+    const pts = [];
+    const n = 24, edge = p * 100;
+    for (let i = 0; i <= n; i++) { const x = i / n * 100; const y = x < edge ? (Math.sin(i * 2.3) + 1) * .9 : 0; pts.push(`${x}% ${y}px`); }
+    return `polygon(${pts.join(',')}, 100% 100%, 0% 100%)`;
+  }
+  function tearOff() {
+    if (sealed) return;
+    A(); tearSound(.45);
+    const old = slip;
+    const clone = old; // let the old slip fall away
+    slip = null;
+    const r = clone.getBoundingClientRect();
+    document.body.appendChild(clone);
+    Object.assign(clone.style, { position: 'fixed', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', bottom: 'auto', right: 'auto', zIndex: 6, pointerEvents: 'none', boxShadow: '0 12px 30px rgba(0,0,0,.4)' });
+    const rot0 = parseFloat((clone.style.transform.match(/rotate\(([-\d.]+)deg\)/) || [0, 0])[1]) || 0;
+    if (!reduce) clone.animate([{ transform: `rotate(${rot0}deg)` }, { transform: `translate(${40}px, ${H}px) rotate(${rot0 + 38}deg)` }], { duration: 900, easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'forwards' }).onfinish = () => clone.remove();
+    else clone.remove();
+    buildSlip(true);
+    say('Slip torn off. A fresh one is ready to sign.');
+    setNote('A fresh slip. Take your time.');
+    clearBlotter();
+  }
+
+  /* ---------------- typed alternative ---------------- */
+  function setTyped(text) {
+    if (sealed) return;
+    if (!typedStroke) { typedStroke = { type: 'text', text: '', x: SW * .07, y: baseY - 8, size: Math.min(SH * .42, 54), drawing: false, tEnd: performance.now(), fibres: [], pts: [], pools: [] }; strokes.push(typedStroke); }
+    hideHint(); typedStroke.text = text; typedStroke.tEnd = performance.now(); typedStroke.done = false; typedStroke.blotted = false;
+    hasInk = text.trim().length > 1; if (hasInk) noteSigned(); else $('sign').disabled = true;
+    kick();
+  }
+  $('typeBtn').addEventListener('click', () => {
+    typedMode = !typedMode; $('typeBtn').setAttribute('aria-pressed', String(typedMode));
+    const t = slip.querySelector('.typed'); t.classList.toggle('on', typedMode);
+    $('typeBtn').firstChild.textContent = typedMode ? 'Draw my signature instead' : 'Type my name instead';
+    if (typedMode) t.querySelector('input').focus();
+  });
+
+  /* ---------------- blotter ---------------- */
+  const bl = $('blotter'), blInk = $('blotInk'), blG = blInk.getContext('2d');
+  let blPos = { x: 0, y: 0 }, blRest = { x: 0, y: 0 }, blDrag = null, blSize = 200;
+  function placeBlotter(x, y, rot) { blPos = { x, y }; bl.style.left = x + 'px'; bl.style.top = y + 'px'; bl.style.transform = `rotate(${rot || 0}deg)`; }
+  function clearBlotter() { blG.clearRect(0, 0, blInk.width, blInk.height); }
+  function contactRect() { const r = bl.getBoundingClientRect(); return { x: r.left + r.width * .1, y: r.top + r.height * .62, w: r.width * .8, h: r.height * .36 }; }
+  function blotUnder() {
+    if (!slip) return;
+    const c = contactRect(), sr = cv.getBoundingClientRect();
+    const box = { x: c.x - sr.left, y: c.y - sr.top - 20, w: c.w, h: c.h + 40 };
+    const now = performance.now(); let any = false;
+    for (const s of strokes) {
+      if (s.done || s.blotted || wetness(s, now) <= 0) continue;
+      let hit = false;
+      if (s.type === 'text') hit = box.x < s.x + SW * .8 && box.x + box.w > s.x && box.y < s.y && box.y + box.h > s.y - s.size;
+      else for (let i = 0; i < s.pts.length; i += 6) { const p = s.pts[i]; if (p.x > box.x && p.x < box.x + box.w && p.y > box.y && p.y < box.y + box.h) { hit = true; break; } }
+      if (hit) { s.blotted = true; any = true; }
+    }
+    if (any) {
+      // the blotter keeps a mirror-image impression
+      blG.save(); blG.globalAlpha = .45; blG.translate(blInk.width, 0); blG.scale(-1, 1);
+      const sx = (c.x - sr.left) * dpr, sy = (c.y - sr.top - 30) * dpr, sw = c.w * dpr, sh = (c.h + 60) * dpr;
+      try { blG.drawImage(cv, sx, sy, sw, sh, 0, 0, blInk.width, blInk.height); } catch (e) {}
+      blG.restore();
+      hush(); kick(); say('Blotted. The ink is dry.'); setNote('Blotted dry. Notice the blotter now reads backwards.');
+    }
+  }
+  bl.addEventListener('pointerdown', e => { e.preventDefault(); A(); blDrag = { dx: e.clientX - blPos.x, dy: e.clientY - blPos.y, lx: e.clientX, vx: 0 }; bl.setPointerCapture(e.pointerId); bl.style.cursor = 'grabbing'; bl.style.transition = ''; hideHint(); });
+  bl.addEventListener('pointermove', e => {
+    if (!blDrag) return;
+    blDrag.vx = blDrag.vx * .7 + (e.clientX - blDrag.lx) * .3; blDrag.lx = e.clientX;
+    const rot = reduce ? 0 : Math.max(-14, Math.min(14, blDrag.vx * 1.6));
+    placeBlotter(e.clientX - blDrag.dx, e.clientY - blDrag.dy, rot);
+    blotUnder();
+  });
+  const blEnd = () => { if (!blDrag) return; blDrag = null; bl.style.cursor = ''; bl.style.transition = 'left .5s cubic-bezier(.3,1.2,.4,1), top .5s cubic-bezier(.3,1.2,.4,1), transform .4s'; placeBlotter(blRest.x, blRest.y, 0); setTimeout(() => bl.style.transition = '', 520); };
+  bl.addEventListener('pointerup', blEnd); bl.addEventListener('pointercancel', blEnd);
+  function autoBlot(done) {
+    if (!slip) { done && done(); return; }
+    const sr = cv.getBoundingClientRect(), r = bl.getBoundingClientRect();
+    const y = sr.top + baseY - r.height * .78, x0 = sr.left - r.width * .2, x1 = sr.left + sr.width - r.width * .8;
+    const T = reduce ? 200 : 1200, t0 = performance.now();
+    bl.style.transition = '';
+    const step = now => {
+      const p = Math.min(1, (now - t0) / T), e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      const x = x0 + (x1 - x0) * e, rot = reduce ? 0 : Math.sin(p * Math.PI * 3) * 9;
+      placeBlotter(x, y, rot); blotUnder();
+      if (p < 1) requestAnimationFrame(step);
+      else { bl.style.transition = 'left .5s cubic-bezier(.3,1.2,.4,1), top .5s cubic-bezier(.3,1.2,.4,1), transform .4s'; placeBlotter(blRest.x, blRest.y, 0); setTimeout(() => { bl.style.transition = ''; done && done(); }, 520); }
+    };
+    requestAnimationFrame(step);
+  }
+  bl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A(); autoBlot(); } });
+  $('blotBtn').addEventListener('click', () => { A(); autoBlot(); });
+  $('tearBtn').addEventListener('click', () => {
+    if (sealed) { // start a fresh counterpart
+      sealed = false; const seal = $('seal'); seal.getAnimations().forEach(a => a.cancel()); seal.style.opacity = 0;
+      $('sign').firstChild.textContent = 'Sign the lease';
+      $('tearBtn').firstChild.textContent = 'Tear off & start again';
+    }
+    tearOff();
+  });
+
+  /* ---------------- signing & seal ---------------- */
+  function noteSigned() { if (!sealed) { $('sign').disabled = false; setNote('Ink is wet for a few seconds. Blot it, or simply let it dry.'); } }
+  function anyWet() { const now = performance.now(); return strokes.some(s => !s.done && wetness(s, now) > 0); }
+  $('sign').addEventListener('click', () => {
+    if (sealed || !hasInk) return;
+    A();
+    const go = () => {
+      sealed = true;
+      const seal = $('seal'); seal.src = sealSVG();
+      const sr = slip.getBoundingClientRect(), dr = doc.getBoundingClientRect();
+      const sz = Math.min(110, SH * .62);
+      seal.style.width = sz + 'px'; seal.style.left = (sr.right - dr.left - sz - SW * .06) + 'px'; seal.style.top = (sr.top - dr.top + SH * .12) + 'px';
+      seal.style.opacity = 1;
+      if (!reduce) seal.animate([{ transform: 'scale(1.8) rotate(-30deg)', opacity: 0 }, { transform: 'scale(.94) rotate(-8deg)', opacity: 1, offset: .7 }, { transform: 'scale(1) rotate(-8deg)', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'forwards' });
+      else seal.style.transform = 'rotate(-8deg)';
+      setTimeout(thump, reduce ? 0 : 300);
+      const t = new Date(); const time = t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      slip.querySelector('.date').innerHTML = `Signed &amp; sealed, Bath<br>7 October 2026 at ${time}`;
+      $('sign').disabled = true; $('sign').firstChild.textContent = 'Signed as a deed';
+      cv.style.cursor = 'default'; slip.querySelector('.tab').style.display = 'none';
+      setNote('<b>Executed.</b> Your counterpart has gone to Hartley, Pryce &amp; Wren. Keys from 1 November.');
+      $('tearBtn').firstChild.textContent = 'Sign a fresh counterpart';
+      say('Lease signed and sealed.');
+    };
+    if (anyWet()) { setNote('Blotting the ink first…'); autoBlot(go); } else go();
+  });
+  function sealSVG() {
+    const s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><radialGradient id="w" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#d0464a"/><stop offset=".55" stop-color="#8e1b22"/><stop offset="1" stop-color="#4a0a10"/></radialGradient><radialGradient id="i" cx=".5" cy=".5" r=".5"><stop offset=".7" stop-color="#7a141b"/><stop offset="1" stop-color="#a52a30"/></radialGradient></defs>
+      <path d="M60 4 C78 2 96 10 106 22 C118 34 118 50 115 62 C120 78 110 98 94 108 C80 118 62 118 48 114 C30 116 12 104 8 88 C0 72 4 56 6 44 C6 26 22 8 40 6 C46 4 54 4 60 4Z" fill="url(#w)"/>
+      <circle cx="60" cy="61" r="36" fill="url(#i)"/><circle cx="60" cy="61" r="36" fill="none" stroke="#5a0c12" stroke-width="2"/><circle cx="60" cy="61" r="31" fill="none" stroke="#c0484c" stroke-width="1"/>
+      <text x="60" y="72" text-anchor="middle" font-family="Pinyon Script, cursive" font-size="34" fill="#4e0a10">HPW</text><text x="60" y="72.8" text-anchor="middle" font-family="Pinyon Script, cursive" font-size="34" fill="none" stroke="#c8565a" stroke-width=".6" opacity=".7">HPW</text>
+      <ellipse cx="44" cy="30" rx="12" ry="5" fill="rgba(255,220,220,.35)" transform="rotate(-25 44 30)"/></svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+  }
+
+  /* ---------------- misc ---------------- */
+  function say(t) { $('live').textContent = ''; setTimeout(() => $('live').textContent = t, 20); }
+  function setNote(h) { $('note').innerHTML = h; }
+  let hintGone = false; function hideHint() { if (!hintGone) { hintGone = true; $('hint').classList.add('gone'); } }
+  function updateSheen() {}
+
+  /* ---------------- layout ---------------- */
+  function layout() {
+    W = innerWidth; H = innerHeight; mobile = W < 760;
+    let dw, dh, dx, dy;
+    if (mobile) { dw = W - 20; dh = Math.min(H - 200, dw * 1.72); dx = 10; dy = 12; }
+    else { dh = H - 56; dw = Math.min(dh * .74, W * .52); dx = Math.max(40, W * .44 - dw / 2); dy = 28; }
+    Object.assign(doc.style, { left: dx + 'px', top: dy + 'px', width: dw + 'px', height: dh + 'px' });
+    const side = $('side'), iw = $('inkwell');
+    if (mobile) {
+      side.style.left = '10px'; side.style.right = '10px'; side.style.top = (dy + dh + 12) + 'px'; side.style.width = 'auto';
+      blSize = 120; iw.style.display = 'none';
+      bl.style.width = blSize + 'px'; bl.style.height = blSize * 120 / 220 + 'px';
+      blRest = { x: W - blSize - 16, y: H - blSize * 120 / 220 - 14 };
+      [...side.querySelectorAll('.card')].forEach(c => { c.style.flex = '1 1 40%'; });
+      side.style.right = (blSize * 0 + 10) + 'px';
+    } else {
+      const sx = dx + dw + 46;
+      side.style.left = sx + 'px'; side.style.top = (dy + dh * .5) + 'px'; side.style.width = Math.min(260, W - sx - 30) + 'px'; side.style.right = 'auto';
+      blSize = Math.min(220, W - sx - 30);
+      bl.style.width = blSize + 'px'; bl.style.height = blSize * 120 / 220 + 'px';
+      blRest = { x: sx + 4, y: dy + dh * .5 - blSize * .62 - 18 };
+      iw.style.display = ''; iw.style.width = Math.min(140, (dx - 30)) + 'px'; iw.style.left = Math.max(16, dx - 150) + 'px'; iw.style.top = (dy + dh * .12) + 'px';
+      if (dx < 150) iw.style.display = 'none';
+    }
+    placeBlotter(blRest.x, blRest.y, 0);
+    blInk.width = 200; blInk.height = 60;
+    if (slip) sizeSlip();
+    const hint = $('hint');
+    requestAnimationFrame(() => { if (!slip) return; const r = slip.getBoundingClientRect(); hint.style.left = (r.left + r.width * .3) + 'px'; hint.style.top = (r.top + baseY - 44) + 'px'; });
+  }
+  addEventListener('resize', layout);
+  buildSlip(false);
+  layout();
+  if (document.fonts) document.fonts.ready.then(() => { layout(); });
+  window.__fp = {
+    sign: async (pts) => { /* test hook: synthesise a stroke from points */ },
+    blot: () => autoBlot(), tear: () => tearOff(), seal: () => $('sign').click(),
+    demo: () => { // a quick synthetic signature for previews
+      const r = cv.getBoundingClientRect(); const fire = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { clientX: r.left + x, clientY: r.top + y, bubbles: true, pointerId: 1, pointerType: 'mouse' }));
+      const path = [];
+      // a capital loop, then a run of trochoid loops tailing into an underline flourish
+      const x0 = SW * .1, y0 = baseY - 26;
+      for (let t = 0; t <= 1; t += .01) { const a = t * Math.PI * 2.2; path.push([x0 + 18 + Math.sin(a) * 18 + t * 30, y0 - 10 - Math.cos(a) * 30 + t * 22]); }
+      const L = SW * .58, n = 9;
+      for (let t = 0; t <= 1; t += .0025) { const w = t * Math.PI * 2 * n; path.push([x0 + 48 + t * L - Math.sin(w) * 9, y0 + 4 - (1 - Math.cos(w)) * (11 + 7 * Math.sin(t * 7)) ]); }
+      const ex = path[path.length - 1];
+      for (let t = 0; t <= 1; t += .02) path.push([ex[0] + 20 - t * (L * .8), ex[1] + 14 + Math.sin(t * Math.PI) * 8]);
+      fire('pointerdown', path[0][0], path[0][1]);
+      let i = 0; return new Promise(res => { const st = () => { for (let k = 0; k < 3 && i < path.length; k++, i++) fire('pointermove', path[i][0], path[i][1]); if (i < path.length) requestAnimationFrame(st); else { fire('pointerup', path[path.length - 1][0], path[path.length - 1][1]); res(); } }; st(); });
+    }
+  };
+})();
+</script>
+</body>
+</html>

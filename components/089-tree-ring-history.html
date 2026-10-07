@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tree Ring History</title>
+<meta name="description" content="Sixteen years of an open-source project printed as a linocut tree slice: ring width is that year's commits, scars are incidents, and an increment borer drills out a core sample that lays the years out as a bar chart.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Tree Ring History","reimagines":"Radial chart / yearly summary","category":"Data & Visualization","description":"A project's history as a three-block linocut of a tree slice: each ring's width is that year's commits, incidents are carved as scars, and hovering a ring overprints it in red. Drive an increment borer into the trunk and it pulls out a core sample, laying the sixteen years out flat as a bar chart you can read.","hint":"Hover a ring for its year; drag the borer into the bark to take a core sample"}
+</script>
+<style>
+  :root{ --paper:#efe6d1; --ink:#1b1714; --ochre:#d49a3a; --red:#c4432b; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+  body{font-family:"Courier Prime", "Courier New", monospace;color:var(--ink)}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .carved{font-family:"Bowlby One SC", Impact, sans-serif;filter:url(#rough);letter-spacing:.02em}
+  .col{position:absolute;pointer-events:none}
+  .col > *{pointer-events:auto}
+  h1{margin:0;font-size:58px;line-height:.92;color:var(--ink)}
+  h1 span{color:var(--red);display:block;font-size:24px;line-height:1.1;margin-top:6px}
+  .lede{font:400 15px/1.5 "Courier Prime",monospace;margin:14px 0 0;max-width:430px}
+  .key{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0 0;font:700 13px/1.3 "Courier Prime"}
+  .key i{display:inline-block;width:22px;height:12px;vertical-align:-1px;margin-right:6px;background:var(--ink);filter:url(#rough)}
+  .key i.o{background:var(--ochre)} .key i.r{background:var(--red)}
+  .slip{margin-top:16px;padding:14px 16px 12px;background:#f7f0df;border:2px solid var(--ink);filter:url(#roughSoft);min-height:140px;position:relative}
+  .slip .yr{font:400 34px/1 "Bowlby One SC",sans-serif;margin:0}
+  .slip .row{display:grid;grid-template-columns:repeat(3, auto);gap:4px 22px;margin:8px 0 6px;font:400 14px/1.3 "Courier Prime"}
+  .slip .row b{display:block;font:700 22px/1.1 "Courier Prime"}
+  .slip .note{font:italic 400 14px/1.4 "Courier Prime";margin:0}
+  .slip .stamp{position:absolute;right:12px;top:12px;font:400 13px/1 "Bowlby One SC";color:var(--red);border:2px solid var(--red);padding:5px 7px 4px;transform:rotate(4deg);filter:url(#rough)}
+  .btns{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .blk{all:unset;cursor:pointer;font:400 15px/1 "Bowlby One SC",sans-serif;letter-spacing:.04em;padding:12px 16px 11px;background:var(--ink);color:var(--paper);filter:url(#rough);transition:transform .1s}
+  .blk[hidden]{display:none}
+  .blk.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 3px var(--ink)}
+  .blk:hover{transform:translate(-1px,-1px) rotate(-.5deg)}
+  .blk:active{transform:translate(1px,1px)}
+  .blk:focus-visible{outline:3px dashed var(--red);outline-offset:4px}
+  .ed{position:absolute;font:italic 400 13px/1.2 "Courier Prime";color:#5a5047;margin:0}
+  .tip{position:absolute;pointer-events:none;background:#f7f0df;border:2px solid var(--ink);padding:6px 9px 5px;font:400 13px/1.35 "Courier Prime";white-space:nowrap;filter:url(#roughSoft)}
+  .tip b{font:400 15px "Bowlby One SC",sans-serif}
+  @media (max-width:760px){
+    h1{font-size:30px} h1 span{font-size:14px;margin-top:3px}
+    .lede{font-size:12.5px;margin-top:6px;line-height:1.35}
+    .key{display:none}
+    .slip{margin-top:8px;padding:9px 11px 8px;min-height:96px}
+    .slip .yr{font-size:24px}
+    .slip .row{font-size:12px;gap:2px 14px;margin:4px 0}
+    .slip .row b{font-size:17px}
+    .slip .note{font-size:12px}
+    .blk{font-size:13px;padding:10px 12px 9px}
+    .btns{margin-top:8px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>
+  <filter id="roughSoft"><feTurbulence type="fractalNoise" baseFrequency=".6" numOctaves="2" seed="9" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6"/></filter>
+</svg>
+<main class="stage" id="stage">
+  <canvas id="cv" tabindex="0" role="application" aria-roledescription="tree ring chart" aria-describedby="summary"></canvas>
+  <section class="col" id="col">
+    <h1 class="carved">Kestrel<span>Sixteen rings · 2011 – 2026</span></h1>
+    <p class="lede" id="lede">An open-source database, cut across. Each ring is a year: its width is the commits merged, its scars the incidents it lived through.</p>
+    <div class="key"><span><i></i>late wood</span><span><i class="o"></i>early wood</span><span><i class="r"></i>scar · incident</span></div>
+    <div class="slip" id="slip" aria-live="polite"></div>
+    <div class="btns">
+      <button class="blk" id="bore" type="button">Take a core sample</button>
+      <button class="blk alt" id="plug" type="button" hidden>Plug the hole</button>
+    </div>
+  </section>
+  <p class="ed" id="ed">Linocut, three blocks: ochre, black, vermilion · edition 7/50 · Kestrel project, 2026</p>
+  <div class="tip" id="tip" hidden></div>
+  <p class="sr" id="summary"></p>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+const INK = '#1b1714', PAPER = '#efe6d1', OCHRE = '#d49a3a', RED = '#c4432b';
+
+/* ---------------- the project's years ---------------- */
+const YEARS = [
+  {y:2011, c:412,  p:3,   r:1,  note:'First commit on 14 March, a weekend project by Ana Ferreira.'},
+  {y:2012, c:1180, p:9,   r:3,  note:'Version 0.5 adds replication. First outside contributor.'},
+  {y:2013, c:2340, p:24,  r:5,  note:'1.0 ships in June. Adopted by two hosting companies.'},
+  {y:2014, c:3910, p:51,  r:6,  note:'Fast growth, and the year of the 1.4 data-loss bug.', scar:{a:-2.2, t:'Data-loss bug in 1.4.2, 9 Sept: 31 users affected, fixed in 2 days'}},
+  {y:2015, c:4620, p:78,  r:6,  note:'Test suite rebuilt after the 1.4 bug; coverage from 41% to 88%.'},
+  {y:2016, c:5480, p:112, r:7,  note:'2.0: columnar storage. The biggest release to date.'},
+  {y:2017, c:4930, p:120, r:5,  note:'Steady year; first conference, KestrelConf in Porto.'},
+  {y:2018, c:2210, p:64,  r:2,  note:'A thin ring: two core maintainers stepped back from burnout.', scar:{a:0.5, t:'Maintainer burnout, March: releases paused for 5 months'}},
+  {y:2019, c:3050, p:86,  r:4,  note:'The Kestrel Foundation forms; paid maintainers for the first time.'},
+  {y:2020, c:6140, p:158, r:8,  note:'Record year as remote teams adopt the sync engine.'},
+  {y:2021, c:7320, p:201, r:9,  note:'The widest ring. Also the year of CVE-2021-3418.', scar:{a:2.6, t:'CVE-2021-3418, 2 Nov: remote code execution, patched in 19 hours'}},
+  {y:2022, c:6880, p:214, r:8,  note:'Most contributors ever: 214 people merged at least one change.'},
+  {y:2023, c:5960, p:190, r:6,  note:'Licence change splits the community; the Merlin fork appears.', scar:{a:-0.7, t:'Licence change and fork, 12 May: 38 contributors leave for Merlin'}},
+  {y:2024, c:4410, p:133, r:5,  note:'Smaller and calmer; the licence is reverted in August.'},
+  {y:2025, c:5190, p:167, r:6,  note:'Recovery: 3.0 and the new query planner.'},
+  {y:2026, c:3870, p:142, r:4,  note:'This year so far, to 7 October. The ring is still growing.', live:true},
+];
+const N = YEARS.length, TOTAL = YEARS.reduce((a,y)=>a+y.c,0);
+const fmt = n => n.toLocaleString('en-GB');
+
+/* ---------------- geometry ---------------- */
+let W=0,H=0,DPR=1, mob=false, S={};
+const slice = document.createElement('canvas'), sg = slice.getContext('2d');
+function layout(){
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height; mob = W < 760;
+  DPR = Math.min(2, devicePixelRatio||1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  const col = $('col'), ed = $('ed');
+  if (!mob){
+    const R = Math.min(300, H*0.39, (W - 520)/2);
+    S = {cx: 60 + R + 20, cy: H*0.48, R};
+    const cx0 = S.cx + R + 70;
+    Object.assign(col.style, {left: cx0 + 'px', top: '40px', width: Math.min(470, W - cx0 - 40) + 'px'});
+    S.tray = {x: cx0, y: H - 150, w: Math.min(470, W - cx0 - 40), h: 34};
+    Object.assign(ed.style, {left: '60px', bottom: '22px', top: 'auto'});
+  } else {
+    const R = Math.min(150, W*0.38);
+    S = {cx: W/2, cy: 22 + R + 6, R};
+    Object.assign(col.style, {left: '14px', top: (S.cy + R + 92) + 'px', width: (W - 28) + 'px'});
+    S.tray = {x: 14, y: S.cy + R + 30, w: W - 28, h: 26};
+    Object.assign(ed.style, {left: '14px', bottom: '8px', top: 'auto'});
+  }
+  S.rPith = S.R*0.03; S.rWood = S.R*0.9;  // bark from 0.9R to R
+  S.ecc = [S.R*0.05, -S.R*0.03];
+  borer.restA = mob ? 0.25 : 2.35; resetBorerRest();
+  paintSlice(); placeTray();
+}
+function placeTray(){
+  if (mob) return;
+  const b = $('col').getBoundingClientRect().bottom;
+  S.tray.y = Math.min(H - 110, b + 64);
+}
+const distort = (th) => 1 + 0.035*Math.sin(3*th + 0.6) + 0.025*Math.sin(5*th + 2.1) + 0.012*Math.sin(11*th + 1.3);
+// boundary i (0 = pith, N = cambium under the bark), as radius from the slice centre at angle th
+function bR(i, th){
+  const cum = YEARS.slice(0, i).reduce((a,y)=>a+y.c,0)/TOTAL;
+  const r = S.rPith + cum*(S.rWood - S.rPith);
+  // the pith sits off-centre; inner rings are pushed toward it
+  const k = 1 - cum;
+  const ox = S.ecc[0]*k, oy = S.ecc[1]*k;
+  return {r: r*distort(th), ox, oy};
+}
+function bPt(i, th){ const b = bR(i, th); return [S.cx + b.ox + Math.cos(th)*b.r, S.cy + b.oy + Math.sin(th)*b.r]; }
+function ringPath(g, i, n=180){ g.beginPath(); for (let k=0;k<=n;k++){ const th = k/n*TAU, [x,y] = bPt(i, th); k ? g.lineTo(x,y) : g.moveTo(x,y); } g.closePath(); }
+function ringAt(x, y){
+  const th = Math.atan2(y - S.cy, x - S.cx);
+  const d = Math.hypot(x - S.cx, y - S.cy);
+  if (d > S.R) return -1;
+  for (let i=N-1;i>=0;i--){ const [px,py] = bPt(i, th); const di = Math.hypot(px - S.cx, py - S.cy); if (d >= di) return i; }
+  return 0;
+}
+
+/* ---------------- printing the blocks ---------------- */
+function paintSlice(){
+  slice.width = cv.width; slice.height = cv.height;
+  const g = sg; g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H);
+  const R = S.R, r = mulberry32(89);
+  // background lino: stray strips the carver left behind
+  g.save(); g.globalAlpha = 0.85; g.strokeStyle = INK; g.lineCap = 'round';
+  for (let k=0;k<7;k++){
+    const a = r()*TAU, d = R*(1.08 + r()*0.12), x = S.cx + Math.cos(a)*d, y = S.cy + Math.sin(a)*d;
+    for (let j=0;j<5 + r()*5;j++){ g.lineWidth = 1 + r()*2.2; const len = 10 + r()*28, ox = (r()-0.5)*20, oy = j*5; g.beginPath(); g.moveTo(x + ox, y + oy); g.quadraticCurveTo(x + ox + len*0.5, y + oy - 3, x + ox + len, y + oy + (r()-0.5)*4); g.stroke(); }
+  }
+  g.restore();
+  // BLOCK 2: black key block, the rings carved out of it
+  // bark
+  g.save();
+  g.beginPath();
+  for (let k=0;k<=360;k++){ const th = k/360*TAU; const rr = R*(0.985 + 0.02*Math.sin(th*23) + 0.012*Math.sin(th*61 + 1)) * distort(th)*0.985; const x = S.cx + Math.cos(th)*rr, y = S.cy + Math.sin(th)*rr; k ? g.lineTo(x,y) : g.moveTo(x,y); }
+  g.closePath(); g.fillStyle = INK; g.fill();
+  // carve the inner wood out of the black, then put latewood bands back
+  g.globalCompositeOperation = 'destination-out';
+  ringPath(g, N); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  // BLOCK 1 (printed first, shown through the carving): ochre wood, a little off-register
+  g.save(); g.translate(2.5, -1.5);
+  const og = g.createRadialGradient(S.cx, S.cy, 0, S.cx, S.cy, S.R);
+  og.addColorStop(0, '#dca850'); og.addColorStop(1, OCHRE);
+  g.fillStyle = og; ringPath(g, N); g.fill();
+  g.restore();
+  g.save(); ringPath(g, N); g.clip(); g.fillStyle = 'rgba(239,230,209,.35)';
+  const rp = mulberry32(12); for (let k=0;k<S.R*2;k++){ const a = rp()*TAU, d = Math.sqrt(rp())*S.R; g.fillRect(S.cx + Math.cos(a)*d, S.cy + Math.sin(a)*d, 2 + rp()*4, 1); }
+  g.restore();
+  // bark fissures, carved
+  g.strokeStyle = PAPER; g.lineCap = 'round';
+  for (let k=0;k<70;k++){ const th = r()*TAU, b = bR(N, th).r; const r0 = b + R*0.015, r1 = R*(0.97 + r()*0.02); g.lineWidth = 1 + r()*1.5; g.beginPath(); g.moveTo(S.cx + Math.cos(th)*r0, S.cy + Math.sin(th)*r0); g.lineTo(S.cx + Math.cos(th + (r()-0.5)*0.02)*r1, S.cy + Math.sin(th + (r()-0.5)*0.02)*r1); g.stroke(); }
+  g.restore();
+  // latewood: the dark outer part of each ring, carved with a gouge on its inner edge
+  for (let i=0;i<N;i++){
+    const y = YEARS[i];
+    g.save();
+    // latewood band = between 62% and 100% of the ring (none yet for the growing ring)
+    const lw = y.live ? 0 : 0.36;
+    g.beginPath();
+    for (let k=0;k<=180;k++){ const th = k/180*TAU, a = bR(i+1, th), b = bR(i, th); const rr = a.r - (a.r - b.r)*lw; const x = S.cx + (a.ox)*1 + Math.cos(th)*a.r, yv = S.cy + a.oy + Math.sin(th)*a.r; k ? g.lineTo(x, yv) : g.moveTo(x, yv); }
+    for (let k=180;k>=0;k--){ const th = k/180*TAU, a = bR(i+1, th), b = bR(i, th); const rr = a.r - (a.r - b.r)*lw; const ox = a.ox + (b.ox - a.ox)*lw, oy = a.oy + (b.oy - a.oy)*lw; g.lineTo(S.cx + ox + Math.cos(th)*rr, S.cy + oy + Math.sin(th)*rr); }
+    g.closePath(); g.fillStyle = INK; g.fill();
+    // gouge marks in the early wood: short tangential nicks of black left on the block
+    const rr = mulberry32(100 + i);
+    const cnt = Math.floor((bR(i+1, 0).r - bR(i, 0).r)*1.4 + 20);
+    g.strokeStyle = INK; g.lineCap = 'round';
+    for (let k=0;k<cnt;k++){
+      const th = rr()*TAU, a = bR(i+1, th), b = bR(i, th);
+      const u = 0.1 + rr()*(1 - lw - 0.2), rad = b.r + (a.r - b.r)*u, ox = b.ox + (a.ox - b.ox)*u, oy = b.oy + (a.oy - b.oy)*u;
+      const len = 0.02 + rr()*0.05; g.lineWidth = 0.8 + rr()*1.4;
+      g.beginPath(); g.arc(S.cx + ox, S.cy + oy, rad, th, th + len); g.stroke();
+    }
+    g.restore();
+  }
+  // pith
+  g.fillStyle = INK; g.beginPath(); g.arc(S.cx + S.ecc[0], S.cy + S.ecc[1], S.rPith*1.2, 0, TAU); g.fill();
+  // radial check cracks carved through the wood (paper shows)
+  g.strokeStyle = PAPER; g.lineCap = 'round';
+  for (const [th, l] of [[0.95, 0.42],[3.75, 0.3],[5.4, 0.22]]){
+    g.lineWidth = 2.6;
+    g.beginPath(); const [x0,y0] = bPt(N, th); g.moveTo(x0, y0);
+    for (let k=1;k<=12;k++){ const u = k/12; const [x,y] = bPt(N, th + Math.sin(u*9)*0.01); const d = 1 - u*l; g.lineTo(S.cx + (x - S.cx)*d, S.cy + (y - S.cy)*d); g.lineWidth = 2.6*(1 - u); }
+    g.stroke();
+  }
+  // BLOCK 3: vermilion scars (incidents)
+  YEARS.forEach((y, i) => { if (y.scar) scar(g, i, y.scar.a); });
+  // ink texture: paper showing through where the brayer missed
+  const tex = mulberry32(7);
+  g.save(); ringPath(g, N); g.clip();
+  g.fillStyle = 'rgba(239,230,209,.55)';
+  for (let k=0;k<R*R*0.02;k++){ const a = tex()*TAU, d = Math.sqrt(tex())*R; g.fillRect(S.cx + Math.cos(a)*d, S.cy + Math.sin(a)*d, 1 + tex()*1.5, 0.8 + tex()); }
+  g.globalAlpha = 0.18; g.fillStyle = PAPER;
+  for (let k=0;k<26;k++){ const y = S.cy - R + tex()*2*R; g.fillRect(S.cx - R, y, 2*R, 0.8 + tex()*1.2); }
+  g.restore();
+}
+function scar(g, i, a){
+  // a wound carved where the cambium was killed; later rings curl around it
+  const w = 0.16;
+  g.save();
+  g.beginPath();
+  const inner = i, outer = Math.min(N, i + 2);
+  for (let k=0;k<=20;k++){ const th = a - w/2 + w*k/20; const [x,y] = bPt(outer, th); const f = Math.sin(k/20*Math.PI); const b = bPt(inner, th); const mx = b[0] + (x - b[0])*f, my = b[1] + (y - b[1])*f; k ? g.lineTo(mx, my) : g.moveTo(mx, my); }
+  g.closePath();
+  g.fillStyle = RED; g.globalAlpha = 0.92; g.fill();
+  g.globalAlpha = 1; g.strokeStyle = INK; g.lineWidth = 2; g.stroke();
+  // callus ridges
+  g.strokeStyle = RED; g.lineWidth = 1.6;
+  for (let k=1;k<=2;k++){ const th0 = a - w/2 - 0.03*k, th1 = a + w/2 + 0.03*k; const ring = Math.min(N, outer + k - 1); g.beginPath(); for (let j=0;j<=12;j++){ const th = th0 + (th1 - th0)*j/12; const [x,y] = bPt(ring, th); j ? g.lineTo(x,y) : g.moveTo(x,y); } g.stroke(); }
+  g.restore();
+}
+
+/* ---------------- the increment borer ---------------- */
+const borer = {a: 2.35, depth: 0, state: 'rest', x:0, y:0, rot:0, restA: 2.35, core: []};
+function resetBorerRest(){
+  // the borer lies on the paper beside the slice until you pick it up
+  if (!mob){ borer.restA = 0; borer.rx = S.cx - S.R*0.62; borer.ry = Math.min(H - 56, S.cy + S.R*1.14); }
+  else { borer.restA = Math.PI/2; borer.rx = W - 16; borer.ry = 16; }
+  if (borer.state === 'rest'){ borer.x = borer.rx; borer.y = borer.ry; borer.a = borer.restA; }
+}
+function borerTip(){ const d = S.R - borer.depth; return [S.cx + Math.cos(borer.a)*d, S.cy + Math.sin(borer.a)*d]; }
+function drawBorer(g){
+  // T-handle auger, printed as a black silhouette with carved highlights
+  let tx, ty;
+  if (borer.state === 'rest'){ tx = borer.x; ty = borer.y; }
+  else [tx, ty] = borerTip();
+  const a = borer.a, L = S.R*0.95, ux = Math.cos(a), uy = Math.sin(a);
+  const hx = tx + ux*L, hy = ty + uy*L;  // handle end (outside)
+  g.save();
+  g.lineCap = 'round';
+  // shaft
+  g.strokeStyle = INK; g.lineWidth = Math.max(5, S.R*0.024);
+  g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx, hy); g.stroke();
+  g.strokeStyle = PAPER; g.lineWidth = 1.2;
+  const spin = borer.rot;
+  for (let k=0;k<14;k++){ const u = (k/14 + spin*0.02) % 1; const x = tx + ux*L*0.65*u, y = ty + uy*L*0.65*u; g.beginPath(); g.moveTo(x - uy*3, y + ux*3); g.lineTo(x + uy*3 + ux*3, y - ux*3 + uy*3); g.stroke(); }
+  // handle (T)
+  const hw = S.R*0.32*Math.abs(Math.cos(spin)) + S.R*0.05;
+  g.strokeStyle = INK; g.lineWidth = Math.max(12, S.R*0.06);
+  g.beginPath(); g.moveTo(hx - uy*hw, hy + ux*hw); g.lineTo(hx + uy*hw, hy - ux*hw); g.stroke();
+  g.strokeStyle = OCHRE; g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(hx - uy*hw*0.85 - ux*2, hy + ux*hw*0.85 - uy*2); g.lineTo(hx + uy*hw*0.85 - ux*2, hy - ux*hw*0.85 - uy*2); g.stroke();
+  // bit
+  g.fillStyle = INK; g.beginPath(); g.moveTo(tx - ux*6, ty - uy*6); g.lineTo(tx + ux*4 - uy*4, ty + uy*4 + ux*4); g.lineTo(tx + ux*4 + uy*4, ty + uy*4 - ux*4); g.closePath(); g.fill();
+  g.restore();
+  return {hx, hy};
+}
+function drawBoreHole(g){
+  if (borer.depth <= 0) return;
+  const a = borer.a, [tx, ty] = borerTip(), ex = S.cx + Math.cos(a)*S.R, ey = S.cy + Math.sin(a)*S.R;
+  g.save(); g.lineCap = 'butt';
+  g.strokeStyle = INK; g.lineWidth = S.R*0.034; g.beginPath(); g.moveTo(ex, ey); g.lineTo(tx, ty); g.stroke();
+  g.strokeStyle = PAPER; g.lineWidth = S.R*0.022; g.beginPath(); g.moveTo(ex, ey); g.lineTo(tx, ty); g.stroke();
+  g.restore();
+}
+// rings crossed between the bark and depth d along angle a
+function coreRings(a, depth){
+  const out = [];
+  for (let i=N-1;i>=0;i--){
+    const r0 = Math.hypot(...bPt(i, a).map((v,k) => v - (k ? S.cy : S.cx))), r1 = Math.hypot(...bPt(i+1, a).map((v,k) => v - (k ? S.cy : S.cx)));
+    const reach = S.R - depth;
+    if (reach < r1) out.push({i, frac: Math.max(0, Math.min(1, (r1 - Math.max(reach, r0))/(r1 - r0))), len: r1 - r0});
+  }
+  return out;
+}
+
+/* ---------------- the core tray: a bar chart cut from the tree ---------------- */
+function drawTray(g){
+  const T = S.tray, rings = borer.core;
+  // the tray: a carved channel
+  g.save();
+  g.fillStyle = INK; g.fillRect(T.x - 4, T.y - 4, T.w + 8, T.h + 8);
+  g.fillStyle = PAPER; g.fillRect(T.x, T.y, T.w, T.h);
+  g.fillStyle = INK; g.font = `400 ${mob?11:13}px "Bowlby One SC", sans-serif`; g.textAlign = 'left'; g.textBaseline = 'bottom';
+  g.fillText(rings.length ? 'Core sample · pith to bark' : 'Core tray · empty', T.x, T.y - 10);
+  g.font = `400 ${mob?10.5:12}px "Courier Prime", monospace`; g.textAlign = 'right';
+  if (rings.length) g.fillText(`${rings.filter(r=>r.frac>0.98).length} of ${N} rings`, T.x + T.w, T.y - 10);
+  // segments laid left (pith, 2011) to right (bark, 2026); width ∝ commits
+  const done = rings.filter(r => r.frac > 0);
+  if (done.length){
+    const scale = T.w/TOTAL;
+    let x = T.x;
+    for (let i=0;i<N;i++){
+      const seg = done.find(r => r.i === i);
+      const w = YEARS[i].c*scale;
+      if (seg){
+        const f = seg.frac, filled = w*f;
+        const sx = x + (w - filled);
+        g.fillStyle = OCHRE; g.fillRect(sx, T.y + 3, filled, T.h - 6);
+        g.fillStyle = INK; g.fillRect(x + w - Math.min(filled, w*0.36), T.y + 3, Math.min(filled, w*0.36), T.h - 6);
+        if (YEARS[i].scar && f > 0.98){ g.fillStyle = RED; g.fillRect(x + w*0.4, T.y + 3, Math.max(2, w*0.12), T.h - 6); }
+        if (hoverRing === i){ g.strokeStyle = RED; g.lineWidth = 2.5; g.strokeRect(x + 1, T.y + 1, w - 2, T.h - 2); }
+        // year under each segment (every other on narrow screens)
+        if (f > 0.98 && (w > (mob ? 22 : 26) || i % 2 === 0 || i === N-1)){
+          g.fillStyle = INK; g.font = `700 ${mob?9.5:11}px "Courier Prime"`; g.textAlign = 'center'; g.textBaseline = 'top';
+          g.fillText(w > 30 ? String(YEARS[i].y) : "'" + String(YEARS[i].y).slice(2), x + w/2, T.y + T.h + 7);
+        }
+      }
+      x += w;
+    }
+  }
+  g.restore();
+}
+
+/* ---------------- frame ---------------- */
+let hoverRing = -1, sel = -1;
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = PAPER; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.drawImage(slice, 0, 0);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // vermilion overprint of the hovered / selected ring (multiply, like a third block)
+  const hl = hoverRing >= 0 ? hoverRing : sel;
+  if (hl >= 0){
+    ctx.save(); ctx.globalCompositeOperation = 'multiply';
+    ctx.beginPath();
+    for (let k=0;k<=180;k++){ const th = k/180*TAU, [x,y] = bPt(hl+1, th); k ? ctx.lineTo(x,y) : ctx.moveTo(x,y); }
+    for (let k=180;k>=0;k--){ const th = k/180*TAU, [x,y] = bPt(hl, th); ctx.lineTo(x,y); }
+    ctx.closePath(); ctx.fillStyle = 'rgba(196,67,43,.85)'; ctx.fill('evenodd');
+    ctx.restore();
+    // year cut into a small tag on the ring
+    const th = hoverAngle ?? -0.9, [x, y] = bPt(hl + 1, th);
+  }
+  drawBoreHole(ctx);
+  drawBorer(ctx);
+  drawTray(ctx);
+  // scar labels: small numbered flags
+  YEARS.forEach((yr, i) => {
+    if (!yr.scar) return;
+    const [x, y] = bPt(Math.min(N, i + 2), yr.scar.a);
+    const ox = Math.cos(yr.scar.a)*14, oy = Math.sin(yr.scar.a)*14;
+    ctx.fillStyle = RED; ctx.beginPath(); ctx.arc(x + ox, y + oy, mob ? 8 : 10, 0, TAU); ctx.fill();
+    ctx.fillStyle = PAPER; ctx.font = `400 ${mob?9:11}px "Bowlby One SC"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText("'" + String(yr.y).slice(2), x + ox, y + oy + 1);
+  });
+}
+let hoverAngle = null;
+
+/* ---------------- details slip ---------------- */
+function showYear(i){
+  const y = YEARS[i], prev = YEARS[i-1];
+  const ch = prev ? Math.round((y.c - prev.c)/prev.c*100) : null;
+  $('slip').innerHTML = `<p class="yr">${y.y}${y.live ? ' <small style="font-size:.45em">so far</small>' : ''}</p>${y.scar ? '<span class="stamp">Scar</span>' : ''}
+    <div class="row"><span><b>${fmt(y.c)}</b>commits</span><span><b>${y.p}</b>contributors</span><span><b>${y.r}</b>releases</span></div>
+    <p class="note">${ch === null ? 'The first ring.' : (ch >= 0 ? '+' : '') + ch + '% on ' + prev.y + '. '}${y.scar ? '<b style="color:#c4432b">' + y.scar.t + '.</b> ' : ''}${y.note}</p>`;
+}
+function showOverview(){
+  const widest = YEARS.reduce((a,y)=> y.c > a.c ? y : a), thinnest = YEARS.slice(3, N-1).reduce((a,y)=> y.c < a.c ? y : a);
+  $('slip').innerHTML = `<p class="yr">${fmt(TOTAL)}</p><div class="row"><span><b>${N}</b>rings</span><span><b>${widest.y}</b>widest</span><span><b>${thinnest.y}</b>leanest since 1.0</span></div>
+    <p class="note">Commits merged since March 2011. Four scars mark incidents: 2014, 2018, 2021 and 2023. Hover a ring, or bore a core, to read the years.</p>`;
+}
+function summary(){
+  $('summary').textContent = 'Kestrel commits per year: ' + YEARS.map(y => `${y.y} ${fmt(y.c)} commits, ${y.p} contributors${y.scar ? ', incident: ' + y.scar.t : ''}`).join('; ') + '.';
+  cv.setAttribute('aria-label', 'Tree ring chart of the Kestrel project. Up and Down arrows move between rings; B takes a core sample.');
+}
+
+/* ---------------- interaction ---------------- */
+let drag = null;
+function nearBorer(x, y){
+  let tx, ty;
+  if (borer.state === 'rest'){ tx = borer.x; ty = borer.y; } else [tx, ty] = borerTip();
+  const L = S.R*0.95, hx = tx + Math.cos(borer.a)*L, hy = ty + Math.sin(borer.a)*L;
+  // distance to the shaft segment
+  const vx = hx - tx, vy = hy - ty, wx = x - tx, wy = y - ty;
+  const t = Math.max(0, Math.min(1, (wx*vx + wy*vy)/(vx*vx + vy*vy)));
+  return Math.hypot(x - (tx + vx*t), y - (ty + vy*t)) < S.R*0.09 + 10;
+}
+cv.addEventListener('pointerdown', e => {
+  audio();
+  const x = e.clientX, y = e.clientY;
+  if (nearBorer(x, y) && borer.state !== 'auto'){
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+    drag = {x, y};
+    if (borer.state === 'rest' || borer.state === 'out'){ borer.state = 'aim'; borer.depth = 0; borer.core = []; }
+    e.preventDefault(); return;
+  }
+  const i = ringAt(x, y);
+  if (i >= 0){ sel = i; showYear(i); announce(describe(i)); }
+});
+cv.addEventListener('pointermove', e => {
+  const x = e.clientX, y = e.clientY;
+  if (drag){
+    const dx = x - S.cx, dy = y - S.cy, d = Math.hypot(dx, dy);
+    if (borer.state === 'aim' && d > S.R*0.98){ const ta = Math.atan2(dy, dx); borer.a += Math.atan2(Math.sin(ta - borer.a), Math.cos(ta - borer.a))*0.35; borer.x = x; borer.y = y; }
+    else if (borer.state === 'aim' || borer.state === 'drill'){
+      if (borer.state === 'aim'){ borer.state = 'drill'; borer.a = Math.atan2(dy, dx); }
+      // push along the shaft: depth follows how far inside the bark the pointer is
+      const proj = (dx*Math.cos(borer.a) + dy*Math.sin(borer.a));
+      const nd = Math.max(0, Math.min(S.R - S.rPith*0.5, S.R - proj));
+      if (nd > borer.depth){ borer.rot += (nd - borer.depth)*0.08; crunch(nd - borer.depth); }
+      borer.depth = Math.max(borer.depth, nd);
+      borer.core = coreRings(borer.a, borer.depth);
+      if (borer.depth >= S.R - S.rPith*0.6) extract();
+    }
+    return;
+  }
+  cv.style.cursor = nearBorer(x, y) ? 'grab' : 'default';
+  // tray hover
+  const T = S.tray;
+  if (y > T.y - 4 && y < T.y + T.h + 24 && x > T.x && x < T.x + T.w && borer.core.length){
+    let acc = T.x; for (let i=0;i<N;i++){ const w = YEARS[i].c/TOTAL*T.w; if (x < acc + w){ setHover(i, x, y); return; } acc += w; }
+  }
+  const i = ringAt(x, y);
+  hoverAngle = Math.atan2(y - S.cy, x - S.cx);
+  setHover(i, x, y);
+});
+function setHover(i, x, y){
+  if (i !== hoverRing){ hoverRing = i; if (i >= 0){ showYear(i); } else if (sel >= 0) showYear(sel); else showOverview(); }
+  const tip = $('tip');
+  if (i >= 0){ const yr = YEARS[i]; tip.innerHTML = `<b>${yr.y}</b> · ${fmt(yr.c)} commits${yr.scar ? ' · <span style="color:#c4432b">scar</span>' : ''}`; tip.hidden = false;
+    tip.style.left = Math.min(W - tip.offsetWidth - 8, x + 14) + 'px'; tip.style.top = Math.max(6, y - 36) + 'px'; }
+  else tip.hidden = true;
+}
+const endDrag = () => {
+  if (!drag) return; drag = null;
+  if (borer.state === 'aim'){ borer.state = 'rest'; resetBorerRest(); }
+  else if (borer.state === 'drill'){ borer.state = 'out'; $('plug').hidden = false; announce(`Partial core: ${borer.core.filter(r=>r.frac>0.98).length} rings, back to ${YEARS[Math.min(...borer.core.filter(r=>r.frac>0.98).map(r=>r.i).concat([N-1]))].y}.`); }
+};
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => { if (!drag){ hoverRing = -1; $('tip').hidden = true; if (sel >= 0) showYear(sel); else showOverview(); } });
+function extract(){
+  if (borer.state === 'done' || borer.state === 'auto-done') return;
+  drag = null; borer.state = 'done'; borer.core = coreRings(borer.a, S.R);
+  borer.core.forEach(r => r.frac = 1);
+  thunk(); $('plug').hidden = false;
+  announce('Core extracted: all 16 rings, laid out pith to bark in the tray. ' + YEARS.map(y => `${y.y} ${fmt(y.c)}`).join(', ') + '.');
+}
+function autoBore(){
+  audio();
+  borer.a = mob ? -0.35 : -0.55; borer.depth = 0; borer.core = []; borer.state = 'auto';
+  $('plug').hidden = true;
+  if (reduce){ borer.depth = S.R; extract(); borer.depth = S.R - S.rPith*0.6; return; }
+}
+$('bore').addEventListener('click', autoBore);
+$('plug').addEventListener('click', () => { borer.state = 'rest'; borer.depth = 0; borer.core = []; resetBorerRest(); $('plug').hidden = true; announce('Hole plugged. The tree heals.'); $('bore').focus(); });
+cv.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowRight'){ e.preventDefault(); sel = Math.min(N-1, (sel < 0 ? N-1 : sel + 1)); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft'){ e.preventDefault(); sel = Math.max(0, (sel < 0 ? N-1 : sel - 1)); }
+  else if (e.key === 'Home'){ sel = 0; } else if (e.key === 'End'){ sel = N-1; }
+  else if (e.key === 'b' || e.key === 'B'){ autoBore(); return; }
+  else return;
+  showYear(sel); announce(describe(sel)); tick();
+});
+cv.addEventListener('focus', () => { if (sel < 0){ sel = N-1; showYear(sel); announce(describe(sel)); } });
+function describe(i){ const y = YEARS[i]; return `${y.y}: ${fmt(y.c)} commits, ${y.p} contributors, ${y.r} releases.${y.scar ? ' Scar: ' + y.scar.t + '.' : ''} ${y.note}`; }
+function announce(s){ $('live').textContent = s; }
+
+/* ---------------- sound: wood ---------------- */
+let AC = null, master = null, lastCr = 0;
+function audio(){ if (AC){ if (AC.state==='suspended') AC.resume(); return; } try{ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.16; master.connect(AC.destination);}catch(e){ AC = null; } }
+function burst(len, f, q, vol, type='bandpass'){
+  if (!AC) return; const t0 = AC.currentTime, b = AC.createBuffer(1, Math.ceil(AC.sampleRate*len), AC.sampleRate), d = b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.pow(1 - i/d.length, 2);
+  const s = AC.createBufferSource(); s.buffer = b; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = AC.createGain(); g.gain.value = vol; s.connect(fl); fl.connect(g); g.connect(master); s.start(t0);
+}
+function crunch(dd){ const now = performance.now(); if (now - lastCr < 45) return; lastCr = now; burst(0.05, 900 + Math.random()*700, 2.5, Math.min(0.5, 0.15 + dd*0.05)); }
+function thunk(){ if (!AC) return; const t0 = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(180, t0); o.frequency.exponentialRampToValueAtTime(70, t0 + 0.15); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3); o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.32); burst(0.12, 400, 1, 0.3, 'lowpass'); }
+function tick(){ burst(0.02, 2400, 4, 0.12); }
+
+/* ---------------- loop ---------------- */
+let last = performance.now();
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  if (borer.state === 'auto'){
+    const prev = borer.depth;
+    borer.depth = Math.min(S.R - S.rPith*0.6, borer.depth + dt*S.R*0.42);
+    borer.rot += (borer.depth - prev)*0.08; crunch(borer.depth - prev);
+    borer.core = coreRings(borer.a, borer.depth);
+    if (borer.depth >= S.R - S.rPith*0.6){ borer.state = 'drill'; extract(); }
+  }
+  if (borer.state === 'rest'){ borer.x += (borer.rx - borer.x)*Math.min(1, dt*8); borer.y += (borer.ry - borer.y)*Math.min(1, dt*8); borer.a += (borer.restA - borer.a)*Math.min(1, dt*8); }
+  draw();
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', layout);
+summary(); showOverview();
+layout();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paintSlice(); placeTray(); });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

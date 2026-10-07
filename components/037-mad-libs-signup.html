@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mad Libs Signup</title>
+<meta name="description" content="A sign-up form written as one sentence in Swiss International Style: inline blanks that size to your words, typographic typeahead, and a finished sentence that typesets itself into a red and black poster.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Mad Libs Signup","reimagines":"Multi-field form","category":"Text & Data Entry","description":"A four-field sign-up written as a single sentence on a Swiss International Style poster grid. Each blank grows with your words and offers typographic typeahead you accept with Tab; when the sentence is complete it typesets itself into a red and black membership poster.","hint":"Fill in the blanks; Tab accepts a suggestion"}
+</script>
+<style>
+  :root{
+    --paper:#f1eee7;
+    --black:#111111;
+    --red:#e2231a;
+    --grey:#a39e94;
+    --hair:rgba(17,17,17,.09);
+    --col:calc((100vw - 2 * var(--m) - 11 * var(--g)) / 12);
+    --m:clamp(16px,3.6vw,48px);
+    --g:clamp(8px,1.2vw,16px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);color:var(--black);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;font-stretch:100%}
+  .stage{position:fixed;inset:0;overflow:hidden}
+  .grid{position:absolute;inset:0 var(--m);display:grid;grid-template-columns:repeat(12,1fr);column-gap:var(--g);pointer-events:none}
+  .grid i{border-left:1px solid var(--hair);border-right:1px solid var(--hair);position:relative;transform-origin:50% 0}
+  .grid i b{position:absolute;top:8px;left:4px;font-size:10px;font-weight:500;color:var(--grey);letter-spacing:.04em}
+  header{position:absolute;left:var(--m);right:var(--m);top:clamp(18px,4vh,32px);display:grid;grid-template-columns:repeat(12,1fr);column-gap:var(--g);align-items:end;padding-bottom:12px;border-bottom:6px solid var(--black);z-index:3}
+  header .logo{grid-column:1 / span 3;font-weight:800;font-size:22px;letter-spacing:-.02em;font-stretch:90%}
+  header .logo span{color:var(--red)}
+  header .what{grid-column:4 / span 5;font-size:13px;font-weight:500;line-height:1.25}
+  header .steps{grid-column:9 / span 4;display:flex;gap:18px;justify-content:flex-end;font-size:13px;font-weight:600}
+  header .steps span{color:var(--grey)}
+  header .steps span.on{color:var(--black)}
+  header .steps span.on::before{content:"";display:inline-block;width:9px;height:9px;background:var(--red);margin-right:6px}
+  .form{position:absolute;left:var(--m);right:var(--m);top:clamp(96px,17vh,140px);bottom:clamp(86px,14vh,120px);display:grid;grid-template-columns:repeat(12,1fr);column-gap:var(--g);z-index:2}
+  .sentence{grid-column:1 / span 9;font-weight:700;font-size:clamp(30px,4.9vw,66px);line-height:1.16;letter-spacing:-.025em;font-stretch:88%;margin:0;align-self:start}
+  .sentence .w{transition:opacity .4s}
+  .blank{display:inline-flex;align-items:baseline;position:relative;max-width:100%;vertical-align:baseline;white-space:nowrap}
+  .blank::after{content:"";position:absolute;left:.16em;right:0;bottom:.02em;height:.07em;background:var(--black);transform-origin:0 50%;transition:background .2s,height .2s}
+  .blank.focus::after{background:var(--red);height:.1em}
+  .blank .num{display:inline-block;align-self:flex-start;font-size:.2em;line-height:1;padding-top:.55em;margin-right:.08em;font-weight:700;letter-spacing:.02em;color:var(--grey);font-stretch:100%}
+  .blank.focus .num{color:var(--red)}
+  .blank input{font:inherit;font-stretch:88%;letter-spacing:inherit;color:var(--red);background:transparent;border:0;outline:none;padding:0;margin:0;min-width:1ch;max-width:100%;caret-color:var(--black)}
+  .blank input::placeholder{color:#c9c4b9;font-weight:500}
+  .blank .ghost{color:var(--grey);font-weight:500;pointer-events:none;white-space:pre}
+  .blank.done input{color:var(--black)}
+  .blank.bad::after{background:repeating-linear-gradient(90deg,var(--red) 0 .12em,transparent .12em .2em)}
+  aside{grid-column:10 / span 3;align-self:start;padding-top:6px}
+  aside .lbl{font-size:12px;font-weight:600;letter-spacing:.02em;border-top:2px solid var(--black);padding-top:8px;display:flex;justify-content:space-between}
+  aside .lbl span{color:var(--red)}
+  aside ol{list-style:none;padding:0;margin:10px 0 0}
+  aside li{display:grid;grid-template-columns:28px 1fr;gap:6px;padding:7px 0 8px;border-bottom:1px solid var(--hair);font-size:17px;font-weight:500;line-height:1.15;cursor:pointer;font-stretch:95%}
+  aside li em{font-style:normal;font-size:11px;font-weight:600;color:var(--grey);padding-top:3px}
+  aside li mark{background:none;color:var(--black);font-weight:800}
+  aside li.on{color:var(--red)}
+  aside li.on em{color:var(--red)}
+  aside li.on em::before{content:"→ "}
+  aside .note{font-size:14px;line-height:1.35;color:#5d5850;margin-top:10px;max-width:24ch}
+  footer{position:absolute;left:var(--m);right:var(--m);bottom:clamp(18px,4vh,34px);display:grid;grid-template-columns:repeat(12,1fr);column-gap:var(--g);align-items:end;z-index:3}
+  .progress{grid-column:1 / span 5;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:600}
+  .progress i{display:inline-block;width:14px;height:14px;border:2px solid var(--black)}
+  .progress i.f{background:var(--black)}
+  .progress i.f:last-of-type{background:var(--red);border-color:var(--red)}
+  #status{font-weight:500;color:#5d5850}
+  .cta{grid-column:9 / span 4;justify-self:end;display:flex;gap:12px}
+  .btn{font:inherit;font-weight:700;font-size:17px;font-stretch:95%;letter-spacing:-.01em;background:var(--black);color:var(--paper);border:0;padding:16px 22px;cursor:pointer;display:flex;gap:28px;align-items:center;transition:background .15s}
+  .btn:hover:not([disabled]){background:var(--red)}
+  .btn[disabled]{background:#cfcac0;color:#8d877c;cursor:not-allowed}
+  .btn.line{background:transparent;color:var(--black);box-shadow:inset 0 0 0 2px var(--black)}
+  .btn.line:hover{background:var(--black);color:var(--paper)}
+  .btn:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+  .orb{position:absolute;border-radius:50%;background:var(--red);z-index:1;transform:scale(.06);transition:transform .7s cubic-bezier(.3,1.4,.4,1),opacity .3s;pointer-events:none}
+  .stage.typeset .orb{opacity:0}
+  .poster{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .poster .el{position:absolute;transform-origin:0 0;white-space:nowrap}
+  .poster.on{pointer-events:auto}
+  .poster .circle{position:absolute;border-radius:50%;background:var(--red)}
+  .poster .tiny{font-size:12px;font-weight:600;line-height:1.3;letter-spacing:.01em}
+  .poster .big{font-weight:900;letter-spacing:-.045em;line-height:.84;font-stretch:72%}
+  .poster .mid{font-weight:800;letter-spacing:-.035em;line-height:.92;font-stretch:80%;white-space:normal}
+  .poster .rule{position:absolute;height:6px;background:var(--black);transform-origin:0 50%}
+  .poster .vr{position:absolute;width:2px;background:var(--black);transform-origin:50% 0}
+  .poster-actions{position:absolute;z-index:5;display:none;gap:12px}
+  .poster-actions.on{display:flex}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .stage.typeset .form,.stage.typeset footer .progress{pointer-events:none}
+  @media (max-width:760px){
+    .grid i:nth-child(n+7){display:none}
+    .grid{grid-template-columns:repeat(6,1fr)}
+    header{grid-template-columns:1fr auto;border-bottom-width:4px;padding-bottom:8px;top:14px}
+    header .logo{grid-column:1;font-size:19px}
+    header .what{display:none}
+    header .steps{grid-column:2;gap:10px;font-size:11px}
+    .form{top:66px;bottom:auto;display:block}
+    .sentence{font-size:30px;line-height:1.24}
+    aside{margin-top:14px;padding-top:0}
+    aside li{font-size:15px;padding:5px 0 6px}
+    aside li:nth-child(n+6){display:none}
+    aside .note{font-size:13px}
+    footer{grid-template-columns:1fr;row-gap:12px;bottom:14px}
+    .progress{grid-column:1}
+    .cta{grid-column:1;justify-self:stretch}
+    .cta .btn{flex:1;justify-content:space-between}
+  }
+  @media (prefers-reduced-motion: reduce){ .sentence .w,.blank::after{transition:none} }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="grid" id="grid" aria-hidden="true"></div>
+  <header>
+    <div class="logo">Fieldwork<span>.</span></div>
+    <div class="what">Membership application, autumn intake 2026.<br>A studio for people building small, useful things.</div>
+    <div class="steps"><span class="on" id="st1">01 Sentence</span><span id="st2">02 Poster</span></div>
+  </header>
+  <form class="form" id="form" autocomplete="on" novalidate>
+    <p class="sentence" id="sentence">
+      <span class="w">Hi, I’m </span><span class="blank" data-k="name"><span class="num" aria-hidden="true">01</span><input id="f-name" name="given-name" autocomplete="given-name" placeholder="your name" aria-label="Your first name" spellcheck="false"><span class="ghost"></span></span><span class="w"> and I’m building </span><span class="blank" data-k="project"><span class="num" aria-hidden="true">02</span><input id="f-project" name="project" autocomplete="off" placeholder="something" aria-label="What you are building" aria-autocomplete="inline" aria-controls="sugg"><span class="ghost"></span></span><span class="w"> for </span><span class="blank" data-k="audience"><span class="num" aria-hidden="true">03</span><input id="f-audience" name="audience" autocomplete="off" placeholder="someone" aria-label="Who it is for" aria-autocomplete="inline" aria-controls="sugg"><span class="ghost"></span></span><span class="w">. Send my welcome letter to </span><span class="blank" data-k="email"><span class="num" aria-hidden="true">04</span><input id="f-email" name="email" type="text" inputmode="email" autocomplete="email" autocapitalize="off" placeholder="you@where" aria-label="Email address" spellcheck="false" aria-autocomplete="inline"><span class="ghost"></span></span><span class="w">.</span>
+    </p>
+    <aside aria-live="polite">
+      <div class="lbl" id="sLbl">Suggestions <span id="sNum">02</span></div>
+      <ol id="sugg" role="listbox" aria-label="Suggestions"></ol>
+      <div class="note" id="note">Tab accepts the grey ending. Up and down choose another.</div>
+    </aside>
+  </form>
+  <footer>
+    <div class="progress" aria-hidden="false"><span id="sq"><i></i> <i></i> <i></i> <i></i></span><span id="status">0 of 4 blanks filled</span></div>
+    <div class="cta"><button class="btn" id="go" type="button" disabled><span>Typeset my poster</span><span aria-hidden="true">→</span></button></div>
+  </footer>
+  <div class="orb" id="orb" aria-hidden="true"></div>
+  <div class="poster" id="poster" aria-hidden="true"></div>
+  <div class="poster-actions" id="pa">
+    <button class="btn line" id="edit" type="button">Edit sentence</button>
+    <button class="btn" id="cont" type="button"><span>Enter the studio</span><span aria-hidden="true">→</span></button>
+  </div>
+  <div class="sr" id="live" aria-live="polite"></div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const stage = $('stage');
+  const DATA = {
+    name: { label: 'name', list: [], note: 'Your first name is enough. It goes at the top of your poster, very large.' },
+    project: { label: 'project', list: ['a field guide to city birds', 'a budgeting app for freelancers', 'a co-op bakery', 'an open-source synthesiser', 'a tenant union website', 'a tiny type foundry', 'a coding club for kids', 'a podcast about bridges', 'a booking tool for climbing gyms', 'a recipe archive for my gran', 'a repair café', 'a map of public toilets'], note: 'Say it plainly, the way you’d say it at a party.' },
+    audience: { label: 'audience', list: ['first-time founders', 'my neighbours', 'small museums', 'night-shift nurses', 'people learning Welsh', 'parents of toddlers', 'independent bookshops', 'amateur astronomers', 'birdwatchers in Leeds', 'anyone with a bike'], note: 'Who will be glad it exists?' },
+    email: { label: 'email', list: ['gmail.com', 'fastmail.com', 'proton.me', 'outlook.com', 'icloud.com', 'hey.com'], note: 'One letter, then only when something real happens.' }
+  };
+  const KEYS = ['name', 'project', 'audience', 'email'];
+  const blanks = {}; KEYS.forEach(k => { const el = document.querySelector(`.blank[data-k="${k}"]`); blanks[k] = { el, input: el.querySelector('input'), ghost: el.querySelector('.ghost'), sel: 0, matches: [] }; });
+  let active = 'project';
+
+  /* ---------- grid ---------- */
+  const grid = $('grid');
+  for (let i = 1; i <= 12; i++) { const c = document.createElement('i'); c.innerHTML = `<b>${String(i).padStart(2, '0')}</b>`; grid.appendChild(c); }
+
+  /* ---------- sizing ---------- */
+  const meas = document.createElement('span');
+  meas.setAttribute('aria-hidden', 'true');
+  meas.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0';
+  $('sentence').appendChild(meas);
+  function fit(k) {
+    const b = blanks[k], cs = getComputedStyle(b.input);
+    meas.style.font = cs.font; meas.style.fontStretch = cs.fontStretch; meas.style.letterSpacing = cs.letterSpacing; meas.style.fontWeight = b.input.value ? cs.fontWeight : '500';
+    meas.textContent = b.input.value || b.input.placeholder;
+    const maxW = b.el.parentElement.clientWidth - 30;
+    b.input.style.width = Math.min(maxW, Math.max(20, meas.getBoundingClientRect().width + 3)) + 'px';
+  }
+  function fitAll() { KEYS.forEach(fit); }
+
+  /* ---------- suggestions ---------- */
+  function matchesFor(k) {
+    const v = blanks[k].input.value;
+    if (k === 'email') {
+      const at = v.indexOf('@'); if (at < 1) return [];
+      const dom = v.slice(at + 1).toLowerCase();
+      return DATA.email.list.filter(d => d.startsWith(dom) && d !== dom).map(d => ({ full: v.slice(0, at + 1) + d, show: d, hit: dom.length }));
+    }
+    const q = v.trim().toLowerCase();
+    const list = DATA[k].list;
+    if (!q) return list.slice(0, 6).map(s => ({ full: s, show: s, hit: 0 }));
+    const pre = list.filter(s => s.toLowerCase().startsWith(q)), inn = list.filter(s => !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
+    return pre.concat(inn).filter(s => s.toLowerCase() !== q).slice(0, 6).map(s => ({ full: s, show: s, hit: q.length, pre: s.toLowerCase().startsWith(q) }));
+  }
+  function refresh(k) {
+    const b = blanks[k];
+    b.matches = matchesFor(k);
+    if (b.sel >= b.matches.length) b.sel = 0;
+    const m = b.matches[b.sel];
+    const v = b.input.value;
+    // inline ghost only for prefix matches, when caret is at the end
+    const atEnd = b.input.selectionStart == null || b.input.selectionStart === v.length;
+    b.ghost.textContent = (document.activeElement === b.input && m && v && atEnd && m.full.toLowerCase().startsWith(v.toLowerCase())) ? m.full.slice(v.length) : '';
+    if (k === active) drawList();
+    fit(k);
+  }
+  function drawList() {
+    const b = blanks[active], ol = $('sugg');
+    $('sNum').textContent = String(KEYS.indexOf(active) + 1).padStart(2, '0') + ' ' + DATA[active].label;
+    $('note').textContent = DATA[active].note;
+    ol.innerHTML = '';
+    b.matches.forEach((m, i) => {
+      const li = document.createElement('li'); li.setAttribute('role', 'option'); li.id = 'opt' + i; li.setAttribute('aria-selected', String(i === b.sel));
+      if (i === b.sel) li.className = 'on';
+      const s = m.show, q = active === 'email' ? m.hit : (m.pre ? m.hit : 0);
+      li.innerHTML = `<em>${String(i + 1).padStart(2, '0')}</em><span>${q ? `<mark>${esc(s.slice(0, q))}</mark>${esc(s.slice(q))}` : esc(s)}</span>`;
+      li.addEventListener('pointerdown', e => { e.preventDefault(); b.sel = i; accept(active); });
+      ol.appendChild(li);
+    });
+    if (b.matches.length) b.input.setAttribute('aria-activedescendant', 'opt' + b.sel); else b.input.removeAttribute('aria-activedescendant');
+  }
+  function esc(s) { return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+  function accept(k) {
+    const b = blanks[k], m = b.matches[b.sel];
+    if (!m) return false;
+    b.input.value = m.full; click(); refresh(k); progress();
+    say(`${DATA[k].label}: ${m.full}`);
+    return true;
+  }
+
+  /* ---------- validation / progress ---------- */
+  const emailOk = v => /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(v.trim()) && /\.[a-z]{2,}$/i.test(v.trim());
+  function filled(k) { const v = blanks[k].input.value.trim(); return k === 'email' ? emailOk(v) : v.length > 0; }
+  function progress() {
+    const n = KEYS.filter(filled).length;
+    const sq = $('sq').querySelectorAll('i');
+    sq.forEach((q, i) => q.classList.toggle('f', i < n));
+    KEYS.forEach(k => blanks[k].el.classList.toggle('done', filled(k) && k !== active));
+    const em = blanks.email.input.value.trim();
+    blanks.email.el.classList.toggle('bad', !!em && !emailOk(em) && active !== 'email');
+    let msg = `${n} of 4 blanks filled`;
+    if (em && !emailOk(em) && active !== 'email') msg = 'That email needs a full domain, like name@studio.com';
+    $('status').textContent = msg;
+    $('go').disabled = n < 4;
+    $('orb').style.transform = `scale(${[.06, .25, .5, .75, 1][n]})`;
+  }
+
+  /* ---------- events ---------- */
+  KEYS.forEach((k, idx) => {
+    const b = blanks[k], inp = b.input;
+    inp.addEventListener('focus', () => { active = k; KEYS.forEach(kk => blanks[kk].el.classList.toggle('focus', kk === k)); b.sel = 0; refresh(k); progress(); });
+    inp.addEventListener('blur', () => { b.ghost.textContent = ''; b.el.classList.remove('focus'); setTimeout(progress, 0); fit(k); });
+    inp.addEventListener('input', () => { b.sel = 0; refresh(k); progress(); });
+    ['keyup', 'click'].forEach(ev => inp.addEventListener(ev, e => { if (ev === 'keyup' && ['ArrowUp', 'ArrowDown', 'Tab', 'Enter'].includes(e.key)) return; refresh(k); }));
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!b.matches.length) return;
+        e.preventDefault(); b.sel = (b.sel + (e.key === 'ArrowDown' ? 1 : b.matches.length - 1)) % b.matches.length; refresh(k); say(b.matches[b.sel].full);
+      } else if ((e.key === 'Tab' && !e.shiftKey) || (e.key === 'ArrowRight' && inp.selectionStart === inp.value.length)) {
+        if (b.ghost.textContent || (e.key === 'Tab' && b.matches.length && !inp.value.trim() && false)) { e.preventDefault(); accept(k); }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (b.ghost.textContent) { accept(k); return; }
+        if (idx < KEYS.length - 1) blanks[KEYS[idx + 1]].input.focus();
+        else if (!$('go').disabled) typeset();
+        else { const first = KEYS.find(kk => !filled(kk)); if (first) blanks[first].input.focus(); }
+      } else if (e.key === 'Escape') { b.ghost.textContent = ''; }
+    });
+  });
+  $('form').addEventListener('submit', e => e.preventDefault());
+  document.querySelectorAll('.sentence .w').forEach(w => w.addEventListener('pointerdown', e => {
+    // clicking a word focuses the nearest following blank
+    let n = w.nextElementSibling; while (n && !n.classList.contains('blank')) n = n.nextElementSibling;
+    if (n) { e.preventDefault(); n.querySelector('input').focus(); }
+  }));
+
+  /* ---------- sound ---------- */
+  let ac = null;
+  function click(delay, f) {
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime + (delay || 0);
+      const len = Math.floor(ac.sampleRate * .03), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+      const s = ac.createBufferSource(); s.buffer = buf; const fl = ac.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f || 2600; fl.Q.value = 2;
+      const g = ac.createGain(); g.gain.value = .16; s.connect(fl).connect(g).connect(ac.destination); s.start(t);
+    } catch (e) {}
+  }
+  function say(t) { $('live').textContent = ''; setTimeout(() => $('live').textContent = t, 20); }
+
+  /* ---------- typeset into a poster ---------- */
+  let posterOn = false;
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function typeset() {
+    if (KEYS.some(k => !filled(k)) || posterOn) return;
+    posterOn = true;
+    const v = {}; KEYS.forEach(k => v[k] = blanks[k].input.value.trim());
+    document.activeElement && document.activeElement.blur();
+    const P = $('poster'); P.innerHTML = ''; P.classList.add('on'); P.setAttribute('aria-hidden', 'false');
+    stage.classList.add('typeset');
+    $('st1').classList.remove('on'); $('st2').classList.add('on');
+    const W = innerWidth, H = innerHeight, mobile = W < 760;
+    const m = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m')) || Math.max(16, Math.min(48, W * .036));
+    const gutter = Math.max(8, Math.min(16, W * .012));
+    const cols = mobile ? 6 : 12, colW = (W - 2 * m - (cols - 1) * gutter) / cols;
+    const cx = c => m + c * (colW + gutter);
+    const top = mobile ? 70 : Math.max(96, H * .16);
+    const els = [];
+    function add(cls, html, x, y, style) { const d = document.createElement('div'); d.className = 'el ' + cls; d.innerHTML = html; d.style.left = x + 'px'; d.style.top = y + 'px'; if (style) Object.assign(d.style, style); P.appendChild(d); els.push(d); return d; }
+    // red circle
+    const R = mobile ? W * .62 : Math.min(H * .62, W * .34);
+    const circ = document.createElement('div'); circ.className = 'circle';
+    circ.style.width = circ.style.height = R + 'px';
+    circ.style.left = (mobile ? W - R * .72 : cx(8)) + 'px'; circ.style.top = (mobile ? H * .44 : top + H * .08) + 'px';
+    P.appendChild(circ);
+    // name, huge
+    const nameSize = Math.min(mobile ? 96 : 230, (mobile ? W - 2 * m : cx(9) - m) / Math.max(3, v.name.length * .5));
+    const nameEl = add('big', esc(cap(v.name)), m - nameSize * .04, top + (mobile ? 10 : 0), { fontSize: nameSize + 'px' });
+    const nameBottom = top + nameSize * .86 + (mobile ? 18 : 10);
+    // rule
+    const rule = document.createElement('div'); rule.className = 'rule'; rule.style.left = m + 'px'; rule.style.width = (mobile ? W - 2 * m : cx(7) - m) + 'px'; rule.style.top = (nameBottom + 8) + 'px'; P.appendChild(rule);
+    // "is building"
+    const lab = mobile ? 20 : 0;
+    add('tiny', 'is building', m, nameBottom + 26);
+    const projSize = mobile ? 40 : Math.min(76, H * .095);
+    const proj = add('mid', esc(v.project), mobile ? m : cx(2), nameBottom + 22 + lab, { fontSize: projSize + 'px', color: 'var(--red)', width: (mobile ? W - 2 * m : cx(8) - cx(2)) + 'px' });
+    const projH = proj.getBoundingClientRect().height + lab;
+    add('tiny', 'for', m, nameBottom + 30 + projH + 8);
+    const aud = add('mid', esc(v.audience), mobile ? m : cx(2), nameBottom + 26 + projH + 8 + lab, { fontSize: (projSize * .62) + 'px', width: (mobile ? W - 2 * m : cx(7) - cx(2)) + 'px' });
+    const audH = aud.getBoundingClientRect().height + lab;
+    // meta column
+    const metaY = Math.min(H - (mobile ? 190 : 150), nameBottom + 50 + projH + audH);
+    add('tiny', `Member no. 0412<br>Autumn intake<br>07.10.2026`, m, metaY);
+    add('tiny', `Welcome letter<br>posted to<br><span style="color:var(--red)">${esc(v.email)}</span>`, mobile ? cx(3) : cx(2), metaY);
+    if (!mobile) add('tiny', `Fieldwork<br>Studio for small,<br>useful things`, cx(4), metaY);
+    const vr = document.createElement('div'); vr.className = 'vr'; vr.style.left = (mobile ? cx(3) - gutter / 2 : cx(2) - gutter / 2) + 'px'; vr.style.top = metaY + 'px'; vr.style.height = '48px'; P.appendChild(vr);
+    // fade the sentence form out
+    const words = document.querySelectorAll('.sentence .w, aside, .progress, .cta');
+    words.forEach(w => { w.style.transition = 'opacity .3s'; w.style.opacity = 0; });
+    // fly the answers from their blanks into place (FLIP)
+    const pairs = [[blanks.name.input, nameEl], [blanks.project.input, proj], [blanks.audience.input, aud]];
+    KEYS.forEach(k => blanks[k].el.style.opacity = 0);
+    const T = reduce ? 0 : 1;
+    pairs.forEach(([from, to], i) => {
+      const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+      const s = parseFloat(getComputedStyle(from).fontSize) / parseFloat(getComputedStyle(to).fontSize);
+      if (T) {
+        to.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${s})`, color: getComputedStyle(from).color }, { transform: 'none', color: getComputedStyle(to).color }], { duration: 760, delay: i * 120, easing: 'cubic-bezier(.7,0,.15,1)', fill: 'backwards' });
+      }
+      setTimeout(() => click(0, 1800 + i * 500), (760 + i * 120) * T);
+    });
+    if (T) {
+      circ.animate([{ transform: 'scale(0)' }, { transform: 'scale(1.06)', offset: .8 }, { transform: 'scale(1)' }], { duration: 700, delay: 420, easing: 'cubic-bezier(.3,0,.2,1)', fill: 'backwards' });
+      rule.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 500, delay: 650, easing: 'cubic-bezier(.7,0,.2,1)', fill: 'backwards' });
+      vr.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 400, delay: 900, fill: 'backwards' });
+      P.querySelectorAll('.tiny').forEach((t, i) => t.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 300, delay: 800 + i * 60, fill: 'backwards' }));
+      grid.querySelectorAll('i').forEach((g, i) => g.animate([{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], { duration: 500, delay: i * 30, easing: 'cubic-bezier(.6,0,.2,1)' }));
+    }
+    const pa = $('pa'); pa.classList.add('on');
+    pa.style.right = m + 'px'; pa.style.bottom = (mobile ? 14 : Math.max(18, H * .04)) + 'px';
+    if (mobile) { pa.style.left = m + 'px'; }
+    setTimeout(() => $('cont').focus({ preventScroll: true }), 1100 * T);
+    say(`Poster typeset. ${v.name} is building ${v.project} for ${v.audience}. Welcome letter posted to ${v.email}.`);
+  }
+  function untypeset() {
+    if (!posterOn) return;
+    posterOn = false;
+    const P = $('poster');
+    const fade = reduce ? null : P.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260 });
+    const done = () => { P.innerHTML = ''; P.classList.remove('on'); P.setAttribute('aria-hidden', 'true'); };
+    if (fade) fade.onfinish = done; else done();
+    stage.classList.remove('typeset');
+    $('st1').classList.add('on'); $('st2').classList.remove('on');
+    document.querySelectorAll('.sentence .w, aside, .progress, .cta').forEach(w => w.style.opacity = 1);
+    KEYS.forEach(k => blanks[k].el.style.opacity = 1);
+    $('pa').classList.remove('on');
+    blanks.project.input.focus();
+  }
+  $('go').addEventListener('click', typeset);
+  $('edit').addEventListener('click', untypeset);
+  $('cont').addEventListener('click', () => { $('cont').firstElementChild.textContent = 'Opening your studio…'; click(); say('Opening your studio'); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && posterOn) untypeset(); });
+
+  /* ---------- start ---------- */
+  blanks.name.input.value = 'Imogen';
+  blanks.project.input.value = 'a field';
+  function placeOrb() { const o = $('orb'), W = innerWidth, H = innerHeight, mob = W < 760; const R = mob ? Math.min(W * .5, H * .17) : Math.min(H * .3, W * .16); o.style.width = o.style.height = R * 2 + 'px'; o.style.left = (mob ? W - R * 1.3 : W * .62 - R) + 'px'; o.style.top = (mob ? H - 150 - R * 1.9 : H - R * 1.55) + 'px'; }
+  placeOrb();
+  addEventListener('resize', () => { placeOrb(); fitAll(); if (posterOn) { posterOn = false; typeset(); } });
+  fitAll(); progress(); active = 'project'; refresh('project'); drawList();
+  if (document.fonts) document.fonts.ready.then(() => { fitAll(); });
+  window.__ml = { fill: o => { Object.entries(o).forEach(([k, v]) => { blanks[k].input.value = v; fit(k); }); progress(); }, typeset, focus: k => blanks[k].input.focus() };
+})();
+</script>
+</body>
+</html>

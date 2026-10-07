@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photocopier Copy</title>
+<meta name="description" content="A copy-to-clipboard button as a punk-zine photocopier: hit COPY, the green scan light sweeps under the code snippet and a grainy duplicate drops into the output tray — and the code really lands on your clipboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Photocopier Copy","reimagines":"Copy-to-clipboard button","category":"Buttons & Actions","description":"A code snippet lies on the glass of a photocopier in a cut-and-paste punk zine. Hitting COPY flashes the green scan light under the page and feeds a grainy, slightly crooked duplicate into the output tray, ticks the counter — and really copies the code to your clipboard. Lighter/darker changes how the copies come out.","hint":"Pick a language tab, then smash the green COPY button"}
+</script>
+<style>
+:root{ --paper:#ecebe5; --ink:#111; --green:#2dff74; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:"Courier Prime",Courier,monospace;color:var(--ink);-webkit-font-smoothing:antialiased}
+.page{position:relative;width:100vw;height:100dvh;overflow:hidden;display:grid;grid-template-columns:minmax(260px,360px) minmax(420px,600px) 210px;justify-content:center;align-items:center;gap:30px;padding:24px 36px}
+/* toner grit, streaks and the shadow of the copier lid edge */
+.grit{position:fixed;inset:0;pointer-events:none;z-index:50;mix-blend-mode:multiply;
+  background:
+   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 22 -16.6'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23f)'/%3E%3C/svg%3E"),
+   linear-gradient(90deg, rgba(0,0,0,.28), transparent 26px),
+   linear-gradient(90deg, transparent 0 22%, rgba(0,0,0,.07) 22% 22.2%, transparent 22.2% 61%, rgba(0,0,0,.09) 61% 61.15%, transparent 61.15% 83%, rgba(0,0,0,.05) 83% 83.4%, transparent 83.4%)}
+.xerox{filter:url(#xerox)}
+.zine{position:relative;z-index:2}
+.ransom{display:flex;flex-wrap:wrap;gap:4px 3px;margin:0;line-height:1;font-weight:400}
+.ransom .w{display:inline-flex;gap:2px;margin-right:12px}
+.ransom span{display:inline-block;padding:.05em .1em .02em;background:#fff;box-shadow:1px 1px 0 #000,0 0 0 1px rgba(0,0,0,.35)}
+.ransom span.inv{background:#000;color:#fff}
+.ransom span.dot{background:radial-gradient(circle,#000 .9px,transparent 1.2px) 0 0/4px 4px,#fff}
+.ransom span.gr{background:var(--green)}
+h1.ransom{font-size:58px;max-width:350px}
+.issue{margin:18px 0 10px;font:700 13px "Courier Prime",monospace;letter-spacing:.12em;text-transform:uppercase;display:inline-block;background:#000;color:#fff;padding:3px 8px;transform:rotate(-1.5deg)}
+.zine p{font-size:15.5px;line-height:1.45;margin:10px 0;max-width:330px}
+.zine p mark{background:var(--green);padding:0 2px}
+.scrawl{font-family:"Permanent Marker",cursive;font-size:22px;line-height:1.05;transform:rotate(-4deg);margin-top:18px;display:flex;align-items:center;gap:6px}
+.scrawl svg{width:110px;height:50px;flex:none}
+.tape{position:absolute;width:86px;height:26px;background:rgba(230,230,220,.75);box-shadow:0 0 0 1px rgba(0,0,0,.15);z-index:5;mix-blend-mode:multiply}
+
+.machine{position:relative;z-index:2;width:100%}
+.lid{position:relative;height:96px;margin:0 30px -2px;clip-path:polygon(7% 0,93% 0,100% 100%,0 100%);background:
+  repeating-linear-gradient(-45deg,#000 0 2px,transparent 2px 7px),#fff;border:0}
+.lid::after{content:"";position:absolute;inset:6px 10% 0;clip-path:polygon(6% 0,94% 0,100% 100%,0 100%);background:radial-gradient(circle,#000 1.1px,transparent 1.5px) 0 0/5px 5px,#fff}
+.lid .lbl{position:absolute;left:50%;top:38%;transform:translateX(-50%);z-index:1;font:400 22px Anton,Impact,sans-serif;letter-spacing:.08em;background:#000;color:#fff;padding:2px 10px}
+.lid.hop{animation:hop .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes hop{30%{transform:translateY(-7px) scaleY(1.05)}}
+.body{position:relative;background:#fff;border:4px solid #000;padding:18px 18px 14px;box-shadow:10px 10px 0 #000}
+.body::before{content:"";position:absolute;right:-14px;top:6px;bottom:-14px;width:10px;background:radial-gradient(circle,#000 1.3px,transparent 1.7px) 0 0/5px 5px}
+.glass{position:relative;background:#1a1a1a;border:3px solid #000;padding:26px 22px;min-height:250px;overflow:hidden;display:grid;place-items:center;
+  background-image:radial-gradient(circle,#333 1px,transparent 1.4px),linear-gradient(115deg,transparent 40%,rgba(255,255,255,.08) 45%,transparent 52%);background-size:5px 5px,100% 100%}
+.ruler{position:absolute;left:0;right:0;top:0;height:12px;background:repeating-linear-gradient(90deg,#fff 0 1px,transparent 1px 10px);opacity:.6}
+.light{position:absolute;top:0;bottom:0;width:18px;left:-40px;background:var(--green);box-shadow:0 0 30px 14px rgba(45,255,116,.75),0 0 90px 40px rgba(45,255,116,.35);opacity:0;pointer-events:none}
+.light.top{z-index:3;mix-blend-mode:multiply;box-shadow:none;width:40px;background:linear-gradient(90deg,transparent,rgba(45,255,116,.6),transparent)}
+.orig{position:relative;z-index:2;background:#fbfbf8;padding:16px 18px 18px;transform:rotate(-.6deg);box-shadow:0 0 0 1px #000;max-width:100%;transition:transform .35s cubic-bezier(.3,1.4,.5,1),opacity .2s}
+.orig.swap{transform:translateX(-120%) rotate(-8deg);opacity:0}
+.orig pre{margin:0;font:400 13.5px/1.5 "Courier Prime",monospace;white-space:pre;user-select:text;-webkit-user-select:text}
+.orig .cap{display:flex;justify-content:space-between;font:700 10.5px "Courier Prime",monospace;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;border-bottom:2px solid #000;padding-bottom:4px}
+.tabs{display:flex;gap:6px;margin:0 0 -3px 10px;position:relative;z-index:3}
+.tab{font:700 13px "Courier Prime",monospace;text-transform:uppercase;letter-spacing:.08em;background:#fff;color:#000;border:3px solid #000;border-bottom:0;padding:5px 12px 6px;cursor:pointer;clip-path:polygon(0 8%,12% 0,30% 6%,52% 0,70% 5%,88% 0,100% 7%,100% 100%,0 100%)}
+.tab[aria-selected="true"]{background:#000;color:#fff}
+.tab:focus-visible{outline:3px dashed var(--green);outline-offset:2px}
+.panel{display:flex;align-items:center;gap:16px;margin-top:14px;padding-top:12px;border-top:3px solid #000;flex-wrap:wrap}
+.counter{background:#000;color:#fff;padding:6px 10px 4px;font:400 30px/1 Anton,Impact,sans-serif;letter-spacing:.12em;min-width:92px;text-align:center;position:relative}
+.counter small{display:block;font:700 9px "Courier Prime",monospace;letter-spacing:.2em;margin-top:3px}
+.counter .d{display:inline-block}
+.counter .d.flip{animation:flip .3s}
+@keyframes flip{0%{transform:scaleY(.2)}100%{transform:none}}
+.dark{display:flex;flex-direction:column;gap:4px;font:700 10px "Courier Prime",monospace;letter-spacing:.14em;text-transform:uppercase}
+.dark .opts{display:flex;border:2px solid #000}
+.dark button{font:700 11px "Courier Prime",monospace;letter-spacing:.06em;background:#fff;border:0;border-right:2px solid #000;padding:5px 7px;cursor:pointer;color:#000}
+.dark button:last-child{border-right:0}
+.dark button[aria-pressed="true"]{background:#000;color:#fff}
+.dark button:focus-visible{outline:3px dashed var(--green);outline-offset:-3px}
+.copy{margin-left:auto;position:relative;width:150px;height:76px;border:4px solid #000;background:var(--green);cursor:pointer;box-shadow:6px 6px 0 #000;padding:0;transition:transform .06s,box-shadow .06s;touch-action:manipulation}
+.copy:active,.copy.down{transform:translate(5px,5px);box-shadow:1px 1px 0 #000}
+.copy .ransom{justify-content:center;font-size:34px;pointer-events:none}
+.copy .ransom span{box-shadow:1px 1px 0 #000}
+.copy:focus-visible{outline:4px dashed #000;outline-offset:5px}
+.copy[aria-busy="true"]{cursor:progress}
+.status{position:absolute;left:18px;bottom:-62px;font:700 14px "Courier Prime",monospace;background:#fff;border:2px solid #000;padding:6px 10px;transform:rotate(-1.2deg);opacity:0;transition:opacity .25s;white-space:nowrap;z-index:4}
+.status.on{opacity:1}
+.status b{background:var(--green);padding:0 3px}
+.tray{position:relative;z-index:2;height:min(430px,60vh);display:flex;flex-direction:column;align-items:center}
+.tray .slot{width:100%;height:16px;background:#000;position:relative}
+.tray .slot::after{content:"OUTPUT";position:absolute;right:6px;top:2px;color:#fff;font:700 9px "Courier Prime",monospace;letter-spacing:.2em}
+.tray .bin{flex:1;width:100%;border:4px solid #000;border-top:0;background:repeating-linear-gradient(0deg,#fff 0 9px,#000 9px 10px);position:relative;overflow:visible}
+.stack{position:absolute;left:12px;right:12px;top:16px;bottom:16px}
+.cp{position:absolute;left:0;top:0;width:100%;background:#f7f7f2;box-shadow:0 0 0 1px #000,inset 6px 0 6px -4px rgba(0,0,0,.6);overflow:hidden;cursor:pointer;transform-origin:50% 0}
+.cp pre{margin:0;padding:9px 8px;font:700 6.3px/1.45 "Courier Prime",monospace;white-space:pre;filter:url(#xerox2)}
+.cp::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent 0 var(--s1,30%),rgba(0,0,0,.35) var(--s1,30%) calc(var(--s1,30%) + 1px),transparent 0),radial-gradient(circle at var(--sx,70%) var(--sy,60%),rgba(0,0,0,.5) 0 1px,transparent 2px);pointer-events:none}
+.cp.light pre{opacity:.55;filter:url(#xerox3)}
+.cp.darker pre{filter:url(#xerox2) contrast(2)}
+.cp.darker{background:#e2e2dc}
+.tray .note{margin-top:12px;font-family:"Permanent Marker",cursive;font-size:16px;transform:rotate(3deg);text-align:center;line-height:1.1}
+.tray .clear{margin-top:8px;font:700 12px "Courier Prime",monospace;letter-spacing:.1em;text-transform:uppercase;background:#fff;border:2px solid #000;padding:4px 10px;cursor:pointer;box-shadow:3px 3px 0 #000;color:#000}
+.tray .clear:focus-visible{outline:3px dashed var(--green);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mute{position:fixed;right:12px;top:12px;width:34px;height:34px;border:3px solid #000;background:#fff;cursor:pointer;padding:5px;z-index:60;color:#000}
+.mute svg{width:100%;height:100%;display:block}
+.mute:focus-visible{outline:3px dashed var(--green)}
+@media (max-width:1100px) and (min-width:761px){ .page{grid-template-columns:minmax(220px,300px) minmax(380px,520px) 170px;gap:20px;padding:20px} h1.ransom{font-size:46px} }
+@media (max-width:760px){
+  .page{grid-template-columns:1fr;grid-template-rows:auto auto auto;align-content:start;gap:12px;padding:14px 14px 10px}
+  h1.ransom{font-size:30px;max-width:none}
+  .issue{margin:8px 0 2px;font-size:10.5px}
+  .zine p{display:none}
+  .zine p.keep{display:block;font-size:13px;margin:6px 0 0}
+  .scrawl{display:none}
+  .mute{top:auto;bottom:14px;right:14px}
+  .lid{height:46px;margin:0 18px -2px}
+  .lid .lbl{font-size:14px;top:26%}
+  .body{padding:12px 12px 10px;box-shadow:6px 6px 0 #000}
+  .glass{padding:16px 10px;min-height:0}
+  .orig{padding:10px 10px 12px}
+  .orig pre{font-size:11.4px;white-space:pre-wrap;word-break:break-all}
+  .glass{padding:20px 10px}
+  .panel{gap:10px;margin-top:10px;padding-top:9px}
+  .counter{font-size:22px;min-width:64px;padding:4px 6px 3px}
+  .dark{display:none}
+  .copy{width:118px;height:58px}
+  .copy .ransom{font-size:26px}
+  .tabs{margin-left:6px}
+  .tab{font-size:11px;padding:4px 9px 5px}
+  .tray{height:auto;flex-direction:row;gap:10px;align-items:stretch}
+  .tray .slot{width:12px;height:auto;flex:none}
+  .tray .slot::after{display:none}
+  .tray .bin{flex:1;height:118px;border-top:4px solid #000;border-left:0;background:repeating-linear-gradient(90deg,#fff 0 9px,#000 9px 10px)}
+  .stack{left:10px;top:8px;bottom:8px;right:auto;width:150px}
+  .cp pre{font-size:4.2px;padding:5px}
+  .tray .side{display:flex;flex-direction:column;justify-content:center;align-items:center;width:96px}
+  .tray .note{font-size:12px;margin:0}
+  .status{bottom:auto;top:-84px;left:50%;transform:translateX(-50%) rotate(-1.2deg);font-size:12px}
+}
+@media (prefers-reduced-motion:reduce){ .lid.hop{animation:none} .orig{transition:none} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="xerox" x="-2%" y="-2%" width="104%" height="104%">
+    <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="1" seed="3" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="xerox2" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency=".6" numOctaves="2" seed="11" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feMorphology in="d" operator="dilate" radius=".25"/>
+  </filter>
+  <filter id="xerox3" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="1" seed="5" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3 0 0 0 2.2" result="m"/>
+    <feComposite in="SourceGraphic" in2="m" operator="in"/>
+  </filter>
+</svg>
+<div class="grit" aria-hidden="true"></div>
+<main class="page">
+  <section class="zine xerox">
+    <h1 class="ransom" id="title" aria-label="Copy that code"></h1>
+    <div class="issue">Issue #3 · Talking to the API</div>
+    <p class="keep">Step 2: <mark>place an order.</mark> Put the snippet on the glass, smash COPY, paste it in your terminal.</p>
+    <p>Swap <b>$NW_KEY</b> for the key from your dashboard. Sandbox orders are free and vanish at midnight UTC.</p>
+    <p>Copies come out a bit crooked. The clipboard doesn't.</p>
+    <div class="scrawl">press the green one <svg viewBox="0 0 110 50" fill="none" stroke="#111" stroke-width="3.5" stroke-linecap="round"><path d="M4 30c20-18 50-24 92-8"/><path d="M80 10l17 12-19 9"/></svg></div>
+  </section>
+
+  <section class="machine" aria-label="Photocopier">
+    <div class="lid xerox" id="lid" aria-hidden="true"><span class="lbl">NORTHWIND 9000</span></div>
+    <div class="tabs" role="tablist" aria-label="Snippet language">
+      <button class="tab" role="tab" aria-selected="true" data-k="curl" type="button">curl</button>
+      <button class="tab" role="tab" aria-selected="false" data-k="js" type="button">JavaScript</button>
+      <button class="tab" role="tab" aria-selected="false" data-k="py" type="button">Python</button>
+    </div>
+    <div class="body">
+      <div class="glass" id="glass">
+        <div class="ruler" aria-hidden="true"></div>
+        <div class="light" id="light"></div>
+        <div class="orig" id="orig"><div class="cap"><span id="cap">POST /v2/orders · curl</span><span>orig.</span></div><pre id="code"></pre></div>
+        <div class="light top" id="light2"></div>
+      </div>
+      <div class="panel">
+        <div class="counter" aria-live="off"><span id="count"><span class="d">0</span><span class="d">0</span><span class="d">0</span></span><small>COPIES</small></div>
+        <div class="dark"><span>Darkness</span><div class="opts" role="group" aria-label="Copy darkness">
+          <button type="button" data-d="light" aria-pressed="false">Lighter</button><button type="button" data-d="normal" aria-pressed="true">Normal</button><button type="button" data-d="darker" aria-pressed="false">Darker</button></div></div>
+        <button class="copy" id="copy" type="button" aria-label="Copy code to clipboard"><span class="ransom" id="copyWord"></span></button>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="tray" aria-label="Output tray">
+    <div class="slot" aria-hidden="true"></div>
+    <div class="bin"><div class="stack" id="stack"></div></div>
+    <div class="side"><p class="note" id="note">output tray<br>(empty)</p><button class="clear" id="clear" type="button">Bin the copies</button></div>
+  </section>
+</main>
+<button class="mute" id="mute" type="button" aria-label="Mute sound" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor"/><path id="mw" d="M13 7c1.5 1.5 1.5 4.5 0 6M15.5 5c3 3 3 7 0 10"/></svg></button>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+const FONTS = ['Anton, Impact, sans-serif', 'Georgia, serif', '"Courier Prime", monospace', '"Times New Roman", Times, serif', '"Arial Black", Arial, sans-serif', '"Permanent Marker", cursive'];
+function ransom(el, text, opt={}){
+  el.innerHTML = '';
+  text.split(' ').forEach(word => {
+    const w = document.createElement('span'); w.className = 'w'; w.style.cssText = 'background:none;box-shadow:none;padding:0';
+    [...word].forEach(ch => {
+      const s = document.createElement('span'); s.textContent = ch; s.setAttribute('aria-hidden','true');
+      const r = rnd();
+      s.style.fontFamily = FONTS[Math.floor(rnd()*FONTS.length)];
+      s.style.fontSize = (0.78 + rnd()*.42) + 'em';
+      s.style.transform = `rotate(${(rnd()-.5)*12}deg) translateY(${(rnd()-.5)*5}px)`;
+      s.style.textTransform = rnd() < .5 ? 'uppercase' : 'lowercase';
+      if (rnd() < .5) s.style.fontWeight = '700';
+      if (r < .28) s.className = 'inv'; else if (r < .4) s.className = 'dot'; else if (r < .46 && opt.green !== false) s.className = 'gr';
+      w.appendChild(s);
+    });
+    el.appendChild(w);
+  });
+}
+ransom($('#title'), 'Copy that code');
+seed = 42; ransom($('#copyWord'), 'COPY', {green:false});
+
+/* ---------- snippets ---------- */
+const SNIP = {
+  curl: {cap:'POST /v2/orders · curl', code:`curl https://api.northwind.dev/v2/orders \\
+  -H "Authorization: Bearer $NW_KEY" \\
+  -d item=sku_4471 \\
+  -d quantity=2`},
+  js: {cap:'POST /v2/orders · JavaScript', code:`const res = await fetch(
+  "https://api.northwind.dev/v2/orders", {
+    method: "POST",
+    headers: { Authorization: \`Bearer \${NW_KEY}\` },
+    body: new URLSearchParams({
+      item: "sku_4471", quantity: "2",
+    }),
+  });`},
+  py: {cap:'POST /v2/orders · Python', code:`import requests
+
+r = requests.post(
+    "https://api.northwind.dev/v2/orders",
+    headers={"Authorization": f"Bearer {NW_KEY}"},
+    data={"item": "sku_4471", "quantity": 2},
+)`},
+};
+let lang = 'curl', darkness = 'normal', busy = false, count = 0;
+const code = $('#code'), cap = $('#cap'), orig = $('#orig');
+function setLang(k, animate){
+  lang = k; document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.k === k));
+  const apply = () => { code.textContent = SNIP[k].code; cap.textContent = SNIP[k].cap; };
+  if (animate && !reduce){ orig.classList.add('swap'); paper(); setTimeout(() => { apply(); orig.classList.remove('swap'); }, 260); } else apply();
+}
+document.querySelectorAll('.tab').forEach((t, i, all) => {
+  t.addEventListener('click', () => { if (!busy && t.dataset.k !== lang) setLang(t.dataset.k, true); });
+  t.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); const n = all[(i + (e.key === 'ArrowRight' ? 1 : all.length - 1)) % all.length]; n.focus(); n.click(); } });
+});
+document.querySelectorAll('.dark button').forEach(b => b.addEventListener('click', () => {
+  darkness = b.dataset.d; document.querySelectorAll('.dark button').forEach(x => x.setAttribute('aria-pressed', x === b));
+}));
+setLang('curl');
+
+/* ---------- audio ---------- */
+let ac = null, master = null, muted = false, NB = null;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .17; master.connect(ac.destination);
+  const b = ac.createBuffer(1, ac.sampleRate*2, ac.sampleRate), d = b.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; NB = b; } catch(e){} }
+  if (ac && ac.state === 'suspended') ac.resume(); return ac && !muted; }
+function nz(t0, dur, f, q, v, type='bandpass'){ const n = ac.createBufferSource(); n.buffer = NB; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ac.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(v, t0 + .02); g.gain.setValueAtTime(v, t0 + dur - .05); g.gain.linearRampToValueAtTime(0, t0 + dur);
+  n.connect(fl).connect(g).connect(master); n.start(t0, Math.random()); n.stop(t0 + dur + .02); return fl; }
+function clunk(){ if (!audio()) return; const t = ac.currentTime; const o = ac.createOscillator(), g = ac.createGain(); o.type='triangle'; o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(60,t+.1);
+  g.gain.setValueAtTime(.7,t); g.gain.exponentialRampToValueAtTime(.001,t+.14); o.connect(g).connect(master); o.start(t); o.stop(t+.15); nz(t, .05, 3000, .7, .3); }
+function scanSound(dur){ if (!audio()) return; const t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(110, t); o.frequency.linearRampToValueAtTime(122, t + dur);
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t+.1); g.gain.setValueAtTime(.16, t+dur-.1); g.gain.linearRampToValueAtTime(0, t+dur);
+  o.connect(f).connect(g).connect(master); o.start(t); o.stop(t+dur+.02);
+  const h = ac.createOscillator(), hg = ac.createGain(); h.type = 'sine'; h.frequency.value = 2400; hg.gain.setValueAtTime(0,t); hg.gain.linearRampToValueAtTime(.03,t+.1); hg.gain.linearRampToValueAtTime(0,t+dur); h.connect(hg).connect(master); h.start(t); h.stop(t+dur+.02);
+  nz(t, dur, 900, .5, .08); }
+function feed(){ if (!audio()) return; const t = ac.currentTime; const f = nz(t, .55, 1200, .8, .22); f.frequency.setValueAtTime(800, t); f.frequency.linearRampToValueAtTime(2600, t+.5);
+  for (let i=0;i<4;i++) nz(t + .08 + i*.11, .04, 4000, 1, .12); }
+function paper(){ if (!audio()) return; const t = ac.currentTime; nz(t, .25, 3000, .5, .12, 'highpass'); }
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').setAttribute('aria-pressed', muted); $('#mw').style.display = muted ? 'none' : ''; });
+
+/* ---------- clipboard ---------- */
+async function toClipboard(text){
+  try { if (navigator.clipboard && window.isSecureContext !== false){ await navigator.clipboard.writeText(text); return true; } } catch(e){}
+  try {
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly',''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand && document.execCommand('copy'); ta.remove(); return !!ok;
+  } catch(e){ return false; }
+}
+
+/* ---------- the copy run ---------- */
+const btn = $('#copy'), lid = $('#lid'), light = $('#light'), light2 = $('#light2'), status = $('#status'), stack = $('#stack'), note = $('#note');
+function wait(ms){ return new Promise(r => setTimeout(r, reduce ? Math.min(ms, 40) : ms)); }
+function setCount(n){
+  const s = String(n).padStart(3, '0'), ds = document.querySelectorAll('#count .d');
+  [...s].forEach((c, i) => { if (ds[i].textContent !== c){ ds[i].textContent = c; ds[i].classList.remove('flip'); void ds[i].offsetWidth; ds[i].classList.add('flip'); } });
+}
+let statusT = 0;
+function showStatus(html){ status.innerHTML = html; status.classList.add('on'); clearTimeout(statusT); statusT = setTimeout(() => status.classList.remove('on'), 2600); }
+async function runCopy(){
+  if (busy) return; busy = true; btn.setAttribute('aria-busy', 'true');
+  const text = SNIP[lang].code;
+  const clip = toClipboard(text); // inside the user gesture
+  clunk(); lid.classList.remove('hop'); void lid.offsetWidth; lid.classList.add('hop');
+  await wait(180);
+  // green light sweeps under the glass
+  const gw = $('#glass').offsetWidth, dur = 950;
+  scanSound(dur/1000);
+  if (!reduce){
+    const kf = [{left:'-40px', opacity:0},{left:'0px', opacity:1, offset:.08},{left:(gw-18)+'px', opacity:1, offset:.92},{left:(gw+20)+'px', opacity:0}];
+    light.animate(kf, {duration:dur, easing:'cubic-bezier(.45,0,.55,1)'}); light2.animate(kf, {duration:dur, easing:'cubic-bezier(.45,0,.55,1)'});
+    document.querySelector('.grit').animate([{opacity:1},{opacity:.85},{opacity:1}], {duration:dur});
+  }
+  await wait(dur);
+  feed();
+  const ok = await clip;
+  makeCopy(text);
+  count++; setCount(count);
+  if (ok) showStatus(`<b>Copied</b> to clipboard · paste it with ${navigator.platform && /Mac/.test(navigator.platform) ? '⌘V' : 'Ctrl+V'}`);
+  else { showStatus('Clipboard is jammed — the code is selected, copy it by hand'); const r = document.createRange(); r.selectNodeContents(code); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  await wait(380);
+  busy = false; btn.removeAttribute('aria-busy');
+}
+function makeCopy(text){
+  const cps = stack.querySelectorAll('.cp');
+  const el = document.createElement('div'); el.className = 'cp' + (darkness === 'normal' ? '' : ' ' + darkness);
+  const pre = document.createElement('pre'); pre.textContent = text; el.appendChild(pre);
+  el.style.setProperty('--s1', (15 + Math.random()*70) + '%'); el.style.setProperty('--sx', (10 + Math.random()*80) + '%'); el.style.setProperty('--sy', (10 + Math.random()*80) + '%');
+  el.setAttribute('role', 'img'); el.setAttribute('aria-label', `Copy ${count + 1} of the ${lang} snippet`);
+  el.title = 'Click to copy this one again';
+  el.addEventListener('click', async () => { const ok = await toClipboard(text); paper(); el.animate([{transform:el.style.transform + ' translateY(-8px)'},{transform:el.style.transform}], {duration:220}); if (ok) showStatus('<b>Copied</b> again from the tray'); });
+  const n = cps.length, mobile = innerWidth < 760;
+  const rot = (Math.random() - .5)*7, ox = (Math.random() - .5)*10, oy = Math.min(n, 14) * (mobile ? 1.2 : 3.2);
+  const final = `translate(${ox}px, ${oy}px) rotate(${rot}deg)`;
+  el.style.transform = final; el.style.zIndex = n + 1;
+  stack.appendChild(el);
+  if (!reduce) el.animate(mobile
+    ? [{transform:`translate(-180px, 0) rotate(0deg)`},{transform:`translate(10px, ${oy}px) rotate(${rot*.4}deg)`, offset:.7},{transform:final}]
+    : [{transform:`translate(0, -120%) rotate(0deg)`, clipPath:'inset(100% 0 0 0)'},{transform:`translate(0, -40%) rotate(0deg)`, clipPath:'inset(0 0 0 0)', offset:.45},{transform:`translate(${ox*.5}px, ${oy+14}px) rotate(${rot*.6}deg)`, offset:.8},{transform:final}],
+    {duration:700, easing:'cubic-bezier(.2,.7,.3,1)'});
+  if (n >= 24) stack.firstChild.remove();
+  note.innerHTML = count + 1 === 1 ? 'fresh copy!<br>(still warm)' : `${count + 1} copies<br>${count + 1 > 9 ? 'save some trees' : 'still warm'}`;
+}
+btn.addEventListener('pointerdown', () => { btn.classList.add('down'); audio(); });
+addEventListener('pointerup', () => btn.classList.remove('down'));
+btn.addEventListener('click', runCopy);
+addEventListener('keydown', e => { if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey && !e.target.closest('input,textarea')) runCopy(); });
+$('#clear').addEventListener('click', () => {
+  const cps = [...stack.querySelectorAll('.cp')]; if (!cps.length) return; paper();
+  cps.forEach((c, i) => { const a = c.animate([{transform:c.style.transform, opacity:1},{transform:`translate(${(Math.random()-.5)*300}px, 400px) rotate(${(Math.random()-.5)*90}deg)`, opacity:0}], {duration: reduce ? 1 : 500 + i*20, easing:'cubic-bezier(.5,0,.8,.6)'}); a.onfinish = () => c.remove(); });
+  count = 0; setCount(0); note.innerHTML = 'output tray<br>(empty)';
+});
+})();
+</script>
+</body>
+</html>

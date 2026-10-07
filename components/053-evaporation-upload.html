@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaporation Upload</title>
+<meta name="description" content="Upload progress painted in wet-on-wet watercolour: each file is a puddle of pigment that dries from the edges inward as it uploads, its vapour blooming into a growing cloud. A failed upload rains back down.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Evaporation Upload","reimagines":"Upload progress","category":"Feedback & Status","description":"Every file is a puddle of watercolour pigment that dries from its edges inward as it uploads, leaving a tide-mark stain while its vapour blooms into a cloud that grows with everything you have stored. If a connection drops, the cloud darkens and rains the file back into its puddle so you can try again.","hint":"Watch the puddles evaporate, tap a rained-on puddle to retry, or spill another file"}
+</script>
+<style>
+:root{--ink:#3b3530;--ink2:#6d6258;--paper:#f6f0e4;--hand:"Kalam","Segoe Print","Bradley Hand",cursive;--serif:"Cormorant Garamond",Georgia,serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:var(--hand);color:var(--ink);-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#paint{mix-blend-mode:multiply}
+header{position:absolute;left:34px;top:24px;z-index:5;max-width:44vw}
+header h1{margin:0;font:italic 600 34px/1 var(--serif);letter-spacing:.2px}
+header p{margin:4px 0 0;font-size:17px;font-weight:300;color:var(--ink2)}
+.mute{position:absolute;right:28px;top:26px;z-index:6;width:46px;height:46px;border:0;background:none;padding:0;cursor:pointer}
+.mute canvas,.btn canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+.mute svg{position:relative;width:26px;height:26px;margin:10px}
+.mute[aria-pressed="true"] .w{display:none}.mute[aria-pressed="false"] .x{display:none}
+#cloudLabel{position:absolute;z-index:5;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;width:min(90vw,520px)}
+#cloudLabel b{display:block;font:italic 600 26px/1.05 var(--serif)}
+#cloudLabel span{font-size:16px;color:var(--ink2);font-weight:300}
+.puddle{position:absolute;z-index:4;transform:translate(-50%,-50%);border-radius:50%;cursor:default;background:none;border:0;padding:0}
+.puddle.failed{cursor:pointer}
+.puddle:focus-visible{outline:2px dashed var(--ink2);outline-offset:6px}
+.lab{position:absolute;z-index:5;transform:translateX(-50%);text-align:center;pointer-events:none;width:max-content;max-width:min(42vw,250px)}
+.lab .n{font-weight:700;font-size:17px;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lab .s{font-weight:300;font-size:15px;line-height:1.25;color:var(--ink2)}
+.lab .s em{font-style:normal;font-weight:400;color:#b23a48}
+.lab.done .s{color:#3c6d4b}
+.lab .x{pointer-events:auto;position:absolute;right:-26px;top:-2px;width:22px;height:22px;border:0;background:none;font:400 20px/1 var(--hand);color:var(--ink2);cursor:pointer;padding:0}
+.lab .x:hover{color:var(--ink)}
+.dock{position:absolute;z-index:6;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:94vw}
+.btn{position:relative;isolation:isolate;border:0;background:none;padding:12px 30px 10px;font:700 19px var(--hand);color:var(--ink);cursor:pointer;transition:transform .15s}
+.btn:hover{transform:translateY(-1px) rotate(-.6deg)}
+.btn:active{transform:translateY(2px)}
+.link{border:0;background:none;font:300 16px var(--hand);color:var(--ink2);cursor:pointer;text-decoration:underline;text-decoration-style:wavy;text-decoration-thickness:1px;text-underline-offset:5px;padding:4px}
+button:focus-visible{outline:2px dashed var(--ink2);outline-offset:4px}
+.hint{position:absolute;z-index:5;right:34px;bottom:30px;font-size:16px;font-weight:300;color:var(--ink2);max-width:250px;text-align:right;transition:opacity .8s;line-height:1.3}
+.drop{position:absolute;inset:14px;z-index:8;border:2px dashed rgba(59,53,48,.45);border-radius:30px;display:grid;place-items:center;font:italic 600 34px var(--serif);opacity:0;pointer-events:none;transition:opacity .2s;background:rgba(246,240,228,.35)}
+.drop.on{opacity:1}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  header{left:20px;top:16px;max-width:70vw}
+  header h1{font-size:27px}
+  header p{font-size:15px}
+  .mute{right:14px;top:14px}
+  #cloudLabel b{font-size:22px}
+  #cloudLabel span{font-size:14px}
+  .lab .n{font-size:15px}.lab .s{font-size:13.5px}
+  .lab{max-width:62vw}
+  .hint{display:none}
+  .dock{bottom:14px;gap:6px;flex-direction:column}
+  .btn{font-size:17px;padding:10px 26px 8px}
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="paper" aria-hidden="true"></canvas>
+  <canvas id="paint" aria-hidden="true"></canvas>
+  <header>
+    <h1>Fieldwork 2026</h1>
+    <p>Shared drive · Ruth’s field notes</p>
+  </header>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sounds"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="none" stroke="#3b3530" stroke-width="1.6" stroke-linejoin="round"/><path class="w" d="M15.5 9q2 3 0 6M18 7q3.6 5 0 10" fill="none" stroke="#3b3530" stroke-width="1.6" stroke-linecap="round"/><path class="x" d="M15.5 9.5l5 5M20.5 9.5l-5 5" stroke="#3b3530" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  <div id="cloudLabel" aria-live="off"><b id="cloudTitle">The cloud</b><span id="cloudSub">0 files · 0 MB</span></div>
+  <div id="puddles" role="list" aria-label="Uploads"></div>
+  <div class="dock">
+    <button class="btn" id="another" type="button">Upload another file</button>
+    <button class="link" id="choose" type="button">or choose from your computer</button>
+    <input type="file" id="file" multiple hidden>
+  </div>
+  <p class="hint" id="hint">Each puddle dries as its file uploads. If one rains back down, tap it to try again. You can also drop files anywhere.</p>
+  <div class="drop" id="drop" aria-hidden="true">Spill your files here</div>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const paperC = $('#paper'), paintC = $('#paint'), pg = paperC.getContext('2d'), g = paintC.getContext('2d');
+const DPR = Math.min(2, devicePixelRatio || 1);
+let W = innerWidth, H = innerHeight, MOB = W < 760;
+
+/* ---------- noise ---------- */
+function hash(x, y, s){ let h = Math.imul(x|0, 374761393) ^ Math.imul(y|0, 668265263) ^ Math.imul(s|0, 1442695041); h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967295; }
+function vn(x, y, s){ const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+  const a = hash(xi,yi,s), b = hash(xi+1,yi,s), c = hash(xi,yi+1,s), d = hash(xi+1,yi+1,s); return a + (b-a)*u + (c-a)*v + (a-b-c+d)*u*v; }
+function fbm(x, y, s, o){ let t = 0, a = .5, f = 1; for(let i=0;i<(o||4);i++){ t += a*vn(x*f, y*f, s+i*17); f *= 2.03; a *= .5; } return t; }
+const rnd = (a,b) => a + Math.random()*(b-a);
+function gauss(){ return (Math.random()+Math.random()+Math.random()-1.5)/1.5; }
+
+/* ---------- watercolour blob (layered deformed polygons) ---------- */
+function deform(poly, depth, vari){
+  let p = poly;
+  for(let d=0; d<depth; d++){
+    const n = []; for(let i=0;i<p.length;i++){ const a = p[i], b = p[(i+1)%p.length]; n.push(a);
+      const len = Math.hypot(b[0]-a[0], b[1]-a[1]); const v = (a[2]+b[2])/2;
+      n.push([(a[0]+b[0])/2 + gauss()*len*vari*v*.5, (a[1]+b[1])/2 + gauss()*len*vari*v*.5, v*(.85+Math.random()*.3)]); }
+    p = n;
+  }
+  return p;
+}
+function basePoly(cx, cy, rx, ry, n){ const p = []; for(let i=0;i<n;i++){ const a = i/n*Math.PI*2, r = .8 + Math.random()*.35; p.push([cx + Math.cos(a)*rx*r, cy + Math.sin(a)*ry*r, .5 + Math.random()*.9]); } return p; }
+function wcBlob(ctx, cx, cy, rx, ry, rgb, alpha, layers, edge){
+  const base = deform(basePoly(cx, cy, rx, ry, 10), 2, .9);
+  ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+  for(let i=0;i<layers;i++){ const p = deform(base, 3, .55); ctx.beginPath(); p.forEach((q,j) => j ? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fill(); }
+  if(edge){ ctx.strokeStyle = `rgba(${rgb[0]*.7|0},${rgb[1]*.7|0},${rgb[2]*.7|0},${edge})`; ctx.lineWidth = 1.2; const p = deform(base, 2, .3); ctx.beginPath(); p.forEach((q,j) => j ? ctx.lineTo(q[0],q[1]) : ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.stroke(); }
+}
+function swatch(w, h, rgb, seed){ // painted button backgrounds
+  const c = document.createElement('canvas'); c.width = w*DPR; c.height = h*DPR; const x = c.getContext('2d'); x.scale(DPR,DPR);
+  wcBlob(x, w/2, h/2, w*.46, h*.42, rgb, .07, 22, .08); wcBlob(x, w*.38, h*.45, w*.22, h*.28, rgb, .04, 10);
+  return c;
+}
+
+/* ---------- paper ---------- */
+let ground = null;
+function paintPaper(){
+  const s = .5, pw = Math.ceil(W*s), ph = Math.ceil(H*s);
+  const off = document.createElement('canvas'); off.width = pw; off.height = ph; const o = off.getContext('2d');
+  const im = o.createImageData(pw, ph), d = im.data;
+  for(let y=0;y<ph;y++) for(let x=0;x<pw;x++){
+    const i = (y*pw+x)*4; const big = fbm(x*.012, y*.012, 3, 3), fine = hash(x, y, 9), mid = vn(x*.18, y*.18, 5);
+    const v = 246 - (1-big)*10 - fine*7 - mid*6;
+    d[i] = v; d[i+1] = v - 5; d[i+2] = v - 15; d[i+3] = 255;
+  }
+  o.putImageData(im, 0, 0);
+  paperC.width = W*DPR; paperC.height = H*DPR; pg.setTransform(1,0,0,1,0,0);
+  pg.imageSmoothingEnabled = true; pg.drawImage(off, 0, 0, paperC.width, paperC.height);
+  const vg = pg.createRadialGradient(paperC.width/2, paperC.height*.45, Math.min(paperC.width, paperC.height)*.3, paperC.width/2, paperC.height/2, Math.max(paperC.width, paperC.height)*.75);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(90,70,40,.12)'); pg.fillStyle = vg; pg.fillRect(0,0,paperC.width,paperC.height);
+  ground = renderGround();
+}
+function smooth(e0,e1,x){ const t = Math.max(0, Math.min(1, (x-e0)/(e1-e0))); return t*t*(3-2*t); }
+function renderGround(){
+  const s = .5, gw = Math.ceil(W*s), gh = Math.ceil(H*s), hz = horizon()*s;
+  const c = document.createElement('canvas'); c.width = gw; c.height = gh; const x2 = c.getContext('2d');
+  const im = x2.createImageData(gw, gh), d = im.data;
+  const hills = new Float32Array(gw), hills2 = new Float32Array(gw);
+  for(let x=0;x<gw;x++){ hills[x] = hz - (10 + 70*Math.pow(fbm(x*.006, .5, 21, 4), 1.6))*s*2; hills2[x] = hz - (4 + 34*fbm(x*.011, 2.5, 23, 3))*s*2; }
+  for(let y=0;y<gh;y++) for(let x=0;x<gw;x++){
+    const i = (y*gw+x)*4; let a = 0, r = 0, g2 = 0, b = 0;
+    const grain = .72 + .56*hash(x, y, 77);
+    if(y > hills[x] && y < hz + 4){ const t = y - hills[x]; const rim = Math.exp(-t/2.2); a = (.1 + .34*rim) * (.6 + .8*fbm(x*.03, y*.03, 4, 3)) * Math.min(1, t) * (1 - .5*Math.min(1, t/40)); r = 100; g2 = 118; b = 168; }
+    if(y > hills2[x] && y < hz + 6){ const t = y - hills2[x]; const rim = Math.exp(-t/2); const a2 = (.12 + .3*rim) * (.6 + .8*fbm(x*.04, y*.04, 8, 3)) * Math.min(1, t); if(a2 > a){ a = a2; r = 96; g2 = 138; b = 110; } }
+    if(y >= hz){
+      const depth = (y - hz)/(gh - hz); const hue = fbm(x*.005, y*.008, 31, 3);
+      const mix = smooth(.35, .65, hue);
+      const rr = 200 + (118-200)*mix, gg = 170 + (146-170)*mix, bb = 104 + (82-104)*mix;
+      let w = (.16 - depth*.07) * (.55 + .9*fbm(x*.012, y*.02, 41, 4));
+      const bl = fbm(x*.035, y*.05, 51, 3); const rim = smooth(.58,.61,bl)*(1-smooth(.61,.66,bl)); if(bl > .61) w *= .45; w += rim*.12;
+      if(Math.abs(y - hz) < 2.5) w += .1;
+      if(w > a){ a = w; r = rr; g2 = gg; b = bb; }
+    }
+    a *= grain;
+    d[i] = r; d[i+1] = g2; d[i+2] = b; d[i+3] = Math.max(0, Math.min(1, a))*255;
+  }
+  x2.putImageData(im, 0, 0);
+  const out = document.createElement('canvas'); out.width = W; out.height = H; const o = out.getContext('2d'); o.drawImage(c, 0, 0, W, H);
+  o.strokeStyle = 'rgba(96,120,70,.22)'; o.lineCap = 'round';
+  for(let i=0;i<70;i++){ const x = rnd(0,W), y = rnd(horizon()+20, H-10); o.lineWidth = rnd(.6,1.4); o.beginPath(); o.moveTo(x,y); o.quadraticCurveTo(x+rnd(-3,3), y-6, x+rnd(-6,6), y-rnd(7,14)); o.stroke(); }
+  return out;
+}
+function horizon(){ return MOB ? H*.36 : H*.5; }
+
+/* ---------- cloud: an accumulating wet-in-wet density field ---------- */
+const CS = .5;
+let CX, CY, CW, CH, cloudR = 0, cw, ch, cD, cR, cG, cB, cN, cGr, cCan, cCtx, cImg;
+function setupCloud(keep){
+  const prev = keep && cD ? {cw, ch, cD, cR, cG, cB} : null;
+  CW = Math.min(W*.94, 940); CH = MOB ? 230 : 300; CX = W/2; CY = MOB ? 168 : 176;
+  cw = Math.round(CW*CS); ch = Math.round(CH*CS);
+  cD = new Float32Array(cw*ch); cR = new Float32Array(cw*ch); cG = new Float32Array(cw*ch); cB = new Float32Array(cw*ch); cN = new Float32Array(cw*ch); cGr = new Float32Array(cw*ch);
+  for(let y=0;y<ch;y++) for(let x=0;x<cw;x++){ const i = y*cw+x; cN[i] = .72 + .56*fbm(x*.06, y*.09, 61, 3); cGr[i] = .86 + .16*hash(x, y, 63) + .12*(vn(x*.45, y*.45, 64)-.5); }
+  cCan = document.createElement('canvas'); cCan.width = cw; cCan.height = ch; cCtx = cCan.getContext('2d'); cImg = cCtx.createImageData(cw, ch);
+  if(prev){ const ox = ((cw - prev.cw)/2)|0, oy = ((ch - prev.ch)/2)|0; for(let y=0;y<prev.ch;y++) for(let x=0;x<prev.cw;x++){ const X = x+ox, Y = y+oy; if(X<0||Y<0||X>=cw||Y>=ch) continue; const j = y*prev.cw+x, i = Y*cw+X; cD[i]=prev.cD[j]; cR[i]=prev.cR[j]; cG[i]=prev.cG[j]; cB[i]=prev.cB[j]; } }
+  const lab = $('#cloudLabel'); lab.style.top = (CY + (MOB ? 58 : 78)) + 'px';
+}
+function puff(x, y, r, amt, rgb){ // x,y relative to cloud centre, CSS px
+  const px = (CW/2 + x)*CS, py = (CH/2 + y)*CS, pr = r*CS, base = ch*.64;
+  const x0 = Math.max(0, (px - pr*1.1)|0), x1 = Math.min(cw-1, (px + pr*1.1)|0), y0 = Math.max(0, (py - pr*1.1)|0), y1 = Math.min(ch-1, (py + pr*1.1)|0);
+  for(let yy=y0; yy<=y1; yy++){ for(let xx=x0; xx<=x1; xx++){
+    const bl = base + (vn(xx*.07, 3.3, 71) - .5)*7; const fb = yy > bl ? Math.exp(-(yy-bl)/1.8) : 1;
+    const i = yy*cw+xx, d2 = ((xx-px)*(xx-px) + (yy-py)*(yy-py))/(pr*pr); if(d2 >= 1) continue;
+    const q = 1 - d2; let w = amt*q*q*1.6*fb*Math.max(0, 1.7 - cD[i]); if(w <= 0) continue;
+    cD[i] += w; cR[i] += w*rgb[0]; cG[i] += w*rgb[1]; cB[i] += w*rgb[2]; } }
+}
+const GREY = [92, 106, 142];
+function deposit(rgb, mb, big){
+  const t = Math.random()*Math.PI*2, spread = (60 + cloudR)*(MOB ? .62 : 1.2);
+  const x = Math.cos(t)*spread*Math.sqrt(Math.random()), y = -Math.abs(Math.sin(t))*rnd(8, 34) + rnd(-6, 14);
+  const k = .46; const mix = [GREY[0]*(1-k) + rgb[0]*k, GREY[1]*(1-k) + rgb[1]*k, GREY[2]*(1-k) + rgb[2]*k];
+  puff(x, y, big ? rnd(28, 40) : rnd(12, 22), big ? .32 : .09, mix);
+  cloudR = Math.min(MOB ? 110 : 250, cloudR + mb*.05);
+}
+function renderCloud(storm, t){
+  const d = cImg.data;
+  for(let y=0;y<ch;y++){ const shade = y/ch; for(let x=0;x<cw;x++){
+    const i = y*cw+x, k = i*4; const D0 = cD[i]; if(D0 < .01){ d[k+3] = 0; continue; }
+    const D = D0*cN[i];
+    let a = smooth(.07, .2, D)*.3 + smooth(.2, .8, D)*.24;
+    const rim = smooth(.07, .12, D)*(1 - smooth(.12, .22, D)); a += rim*.22;
+    a *= .36 + .8*smooth(.08, .85, shade);
+    if(y > 4){ const up = cD[i - 4*cw]*cN[i - 4*cw]; const grad = D - up; if(grad > 0) a *= 1 - Math.min(.6, grad*1.5); }
+    let r = cR[i]/D0, g2 = cG[i]/D0, b = cB[i]/D0;
+    const under = smooth(.25, .75, shade)*.45 + storm*.6;
+    r += (46 - r)*under; g2 += (52 - g2)*under; b += (74 - b)*under;
+    a = Math.min(.95, a*(1 + storm*.9) + storm*.12*smooth(.02,.12,D));
+    a *= cGr[i];
+    d[k] = r; d[k+1] = g2; d[k+2] = b; d[k+3] = a*255;
+  } }
+  cCtx.putImageData(cImg, 0, 0);
+}
+function seedCloud(){
+  const k = MOB ? .55 : 1;
+  for(let x=-170; x<=170; x+=34) puff(x*k, 22*k, 38*k, .22, GREY);
+  const N = 10;
+  for(let i=0;i<=N;i++){ const u = i/N, sn = Math.sin(Math.PI*u); puff((-200 + u*400)*k, (8 - sn*54 + rnd(-6,6))*k, (22 + sn*20 + rnd(-3,3))*k, .42, GREY); }
+  for(let i=0;i<4;i++){ puff(rnd(-120,120)*k, rnd(-40,-10)*k, rnd(18,28)*k, .3, GREY); }
+  for(let i=0;i<14;i++) deposit([[196,52,92],[44,70,168],[80,122,48],[170,82,40]][i%4], 0);
+}
+
+/* ---------- puddles ---------- */
+const PIG = { pdf:[196,52,92], img:[44,70,168], vid:[80,122,48], zip:[170,82,40], doc:[50,58,98], csv:[30,120,104] };
+const kindOf = n => { const e = (n.split('.').pop()||'').toLowerCase(); if(e==='pdf') return 'pdf'; if(['jpg','jpeg','png','heic','webp','gif','tif','tiff'].includes(e)) return 'img'; if(['mov','mp4','m4v','avi','webm'].includes(e)) return 'vid'; if(['zip','gz','tar','rar','7z'].includes(e)) return 'zip'; if(['csv','xls','xlsx','numbers'].includes(e)) return 'csv'; return 'doc'; };
+const SAMPLES = [
+  ['riverbank-survey.pdf', 12.4], ['heron-colony-0412.jpg', 8.6], ['tide-pool-timelapse.mov', 46.2], ['sediment-cores.csv', 3.1],
+  ['marsh-transect-maps.zip', 28.7], ['osprey-nest-cam.mp4', 38.5], ['field-journal-april.docx', 2.4], ['lichen-macro-17.png', 6.9]
+];
+let sampleIdx = 0;
+const puddles = []; let pid = 0;
+function slots(){
+  if(MOB){ const top = horizon() + 62; const step = Math.min(150, (H - 190 - top)/2); return [[W*.5, top], [W*.5, top+step], [W*.5, top+step*2]]; }
+  const y1 = horizon() + (H - horizon())*.32, y2 = horizon() + (H-horizon())*.56;
+  return [[W*.17, y2], [W*.39, y1], [W*.61, y2], [W*.83, y1]];
+}
+function freeSlot(){
+  const S = slots(); const used = new Set(puddles.filter(p=>!p.gone).map(p=>p.slot));
+  for(let i=0;i<S.length;i++) if(!used.has(i)) return i;
+  const done = puddles.filter(p=>p.state==='done' && !p.gone).sort((a,b)=>a.doneAt-b.doneAt)[0];
+  if(done){ retire(done, true); return done.slot; }
+  return -1;
+}
+function makePuddle(name, mb, opts={}){
+  const slot = freeSlot(); if(slot < 0){ say('Four files are already uploading. Wait for one to finish.'); return null; }
+  const kind = kindOf(name), rgb = PIG[kind];
+  const pw = Math.round(MOB ? 190 : 230 + Math.min(40, mb)), ph = Math.round(pw*.36);
+  const c = document.createElement('canvas'); c.width = pw; c.height = ph; const cx = c.getContext('2d');
+  const img = cx.createImageData(pw, ph);
+  const field = new Float32Array(pw*ph), dens = new Float32Array(pw*ph), refl = new Float32Array(pw*ph);
+  const s = (Math.random()*1000)|0;
+  for(let y=0;y<ph;y++) for(let x=0;x<pw;x++){
+    const i = y*pw+x, nx = (x - pw/2)/(pw*.44), ny = (y - ph/2)/(ph*.42);
+    const warp = (fbm(x*.022, y*.05, s, 4) - .5)*.55 + (vn(x*.09, y*.2, s+3) - .5)*.12;
+    field[i] = Math.hypot(nx, ny) + warp;
+    dens[i] = .55 + .55*fbm(x*.03, y*.06, s+11, 3) + (hash(x,y,s)-.5)*.22;
+    const ry = (ny + nx*.35);
+    refl[i] = Math.exp(-Math.pow((ry + .2)/.16, 2)) * (1 - Math.min(1, Math.abs(nx)));
+  }
+  const btn = document.createElement('div'); btn.className = 'puddle'; btn.setAttribute('role','progressbar'); btn.tabIndex = 0;
+  btn.setAttribute('aria-valuemin','0'); btn.setAttribute('aria-valuemax','100');
+  const lab = document.createElement('div'); lab.className = 'lab'; lab.setAttribute('role','listitem');
+  lab.innerHTML = `<div class="n"></div><div class="s"></div><button class="x" type="button" aria-label="Cancel upload of ${name}">×</button>`;
+  lab.querySelector('.n').textContent = name;
+  $('#puddles').append(btn, lab);
+  const p = { id: ++pid, name, mb, kind, rgb, pw, ph, c, cx, img, field, dens, refl, slot, btn, lab,
+    state:'spill', t:0, prog:0, level:0, spill:0, failAt: opts.failAt ?? (Math.random() < .14 ? rnd(.35,.8) : 2), speed:0, acc:0, storm:0, stain:1, x:0, y:-200, drop: RM ? 1 : 0 };
+  btn.addEventListener('click', () => retry(p));
+  btn.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); retry(p); } });
+  lab.querySelector('.x').addEventListener('click', () => { if(p.state==='done'){ retire(p); } else { say(`Cancelled ${name}`); retire(p); } });
+  puddles.push(p); place(p); updateLabel(p);
+  sfx.drip();
+  return p;
+}
+function place(p){ const S = slots()[p.slot]; p.x = S[0]; p.y = S[1];
+  p.btn.style.left = p.x+'px'; p.btn.style.top = p.y+'px'; p.btn.style.width = p.pw+'px'; p.btn.style.height = p.ph+'px';
+  p.lab.style.left = p.x+'px'; p.lab.style.top = (p.y + p.ph*.5 + 4)+'px'; }
+function retire(p, quick){ p.gone = true; p.state = 'gone'; p.btn.remove(); p.lab.remove(); if(!quick) p.fade = 1; else { const i = puddles.indexOf(p); if(i>=0) puddles.splice(i,1); } }
+function retry(p){
+  if(p.state !== 'failed') return;
+  p.state = 'up'; p.prog = 0; p.failAt = Math.random() < .2 ? rnd(.4,.85) : 2; p.lab.querySelector('.s').innerHTML = ''; updateLabel(p);
+  say(`Retrying ${p.name}`); sfx.drip(); hintOff();
+}
+function fmtMB(mb){ return mb >= 1000 ? (mb/1000).toFixed(2)+' GB' : mb.toFixed(1)+' MB'; }
+function updateLabel(p){
+  const s = p.lab.querySelector('.s'); const pct = Math.round(p.prog*100);
+  p.lab.classList.toggle('done', p.state==='done');
+  p.btn.classList.toggle('failed', p.state==='failed');
+  p.btn.setAttribute('aria-valuenow', pct);
+  p.btn.setAttribute('aria-label', p.state==='failed' ? `${p.name} failed to upload. Press to retry.` : `${p.name}, ${p.state==='done' ? 'uploaded' : 'uploading'}`);
+  let txt;
+  if(p.state==='spill') txt = `${fmtMB(p.mb)} · getting ready`;
+  else if(p.state==='up'){ const left = p.speed > .01 ? Math.ceil(p.mb*(1-p.prog)/p.speed) : '…'; txt = `${fmtMB(p.mb)} · ${pct}% · ${left} s left`; }
+  else if(p.state==='rain') txt = `<em>Connection dropped at ${Math.round(p.failProg*100)}%</em> · raining back`;
+  else if(p.state==='failed') txt = `<em>Upload failed at ${Math.round(p.failProg*100)}%.</em> Tap the puddle to try again`;
+  else if(p.state==='done') txt = `In the cloud · ${fmtMB(p.mb)} · ${p.doneTime}`;
+  if(s.dataset.t !== txt){ s.innerHTML = txt; s.dataset.t = txt; }
+}
+function renderPuddle(p){
+  const { pw, ph, field, dens, refl, img, rgb } = p; const d = img.data; const L = p.level; const st = p.stain;
+  const wetEdge = .14;
+  for(let i=0, n = pw*ph; i<n; i++){
+    const f = field[i]; let a = 0, r = rgb[0], gg = rgb[1], b = rgb[2];
+    if(f < L){
+      const e = Math.max(0, Math.min(1, (f - (L - wetEdge))/wetEdge)); const edge = e*e;
+      a = (.32 + .55*edge) * dens[i];
+      a *= Math.min(1, (L - f)/.012);
+      a *= 1 - refl[i]*.5*(L > .25 ? 1 : L/.25);
+      a = Math.max(a, .06*dens[i]*st);
+    } else if(f < 1.02 && st > 0){
+      const tide = Math.exp(-Math.pow((f - 1)/.02, 2))*.5;
+      a = (.07*dens[i] + tide*dens[i]) * st;
+      r = r*.85; gg = gg*.85; b = b*.85;
+    }
+    const k = i*4; d[k] = r; d[k+1] = gg; d[k+2] = b; d[k+3] = a*255;
+  }
+  p.cx.putImageData(img, 0, 0);
+}
+
+/* ---------- particles ---------- */
+const vap = [], rain = [];
+function emitVapour(p, n){
+  for(let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, r = Math.sqrt(Math.random())*Math.max(.05, p.level)*.42;
+    const sx = p.x + Math.cos(a)*r*p.pw, sy = p.y + Math.sin(a)*r*p.ph;
+    const tx = CX + rnd(-1,1)*(70 + cloudR)*(MOB?.6:1), ty = CY + rnd(-20, 20);
+    vap.push({ x:sx, y:sy, sx, sy, tx, ty, t:0, dur: rnd(1.6, 2.6)*(MOB?.8:1), ph: Math.random()*6, rgb:p.rgb, r: rnd(5, 10), mb: p.mb });
+  }
+}
+function drawVapour(dt){
+  for(let i=vap.length-1;i>=0;i--){
+    const v = vap[i]; v.t += dt/v.dur; if(v.t >= 1){ deposit(v.rgb, v.mb*.25); vap.splice(i,1); continue; }
+    const e = v.t*v.t*(3-2*v.t);
+    const wob = Math.sin(v.ph + v.t*7)*18*(1-v.t);
+    v.x = v.sx + (v.tx - v.sx)*e + wob; v.y = v.sy + (v.ty - v.sy)*(1 - Math.pow(1-v.t, 1.6));
+    const R = v.r*(1 + v.t*2.4); const al = .13*Math.sin(Math.PI*Math.min(1, v.t*1.15));
+    const grd = g.createRadialGradient(v.x, v.y, 0, v.x, v.y, R);
+    grd.addColorStop(0, `rgba(${v.rgb[0]},${v.rgb[1]},${v.rgb[2]},${al})`); grd.addColorStop(.7, `rgba(${v.rgb[0]},${v.rgb[1]},${v.rgb[2]},${al*.5})`); grd.addColorStop(1, `rgba(${v.rgb[0]},${v.rgb[1]},${v.rgb[2]},0)`);
+    g.fillStyle = grd; g.beginPath(); g.arc(v.x, v.y, R, 0, Math.PI*2); g.fill();
+  }
+}
+function drawRain(dt){
+  g.lineCap = 'round';
+  for(let i=rain.length-1;i>=0;i--){
+    const r = rain[i]; r.y += r.vy*dt; r.x += r.vx*dt;
+    if(r.y > r.ty){ rain.splice(i,1); r.p.level = Math.min(1, r.p.level + .012); continue; }
+    g.strokeStyle = `rgba(${(r.rgb[0]*.4+40)|0},${(r.rgb[1]*.4+46)|0},${(r.rgb[2]*.4+70)|0},.5)`; g.lineWidth = r.w;
+    g.beginPath(); g.moveTo(r.x, r.y); g.lineTo(r.x - r.vx*.02, r.y - 16); g.stroke();
+  }
+}
+
+/* ---------- sound ---------- */
+let actx = null, master = null, nbuf = null, muted = false, windG = null, rainG = null;
+function initAudio(){
+  try{
+    if(!actx){ const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return; actx = new AC(); master = actx.createGain(); master.gain.value = .16; master.connect(actx.destination);
+      nbuf = actx.createBuffer(1, actx.sampleRate*2, actx.sampleRate); const d = nbuf.getChannelData(0); let b = 0; for(let i=0;i<d.length;i++){ b = .97*b + .03*(Math.random()*2-1); d[i] = b*4 + (Math.random()*2-1)*.15; }
+      const mk = (type, f) => { const s = actx.createBufferSource(); s.buffer = nbuf; s.loop = true; const fl = actx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; const gn = actx.createGain(); gn.gain.value = 0; s.connect(fl).connect(gn).connect(master); s.start(); return gn; };
+      windG = mk('bandpass', 500); rainG = mk('highpass', 2500);
+    }
+    if(actx.state === 'suspended') actx.resume();
+  }catch(e){}
+}
+const sfx = {
+  drip(){ if(!actx||muted||actx.state!=='running') return; const t = actx.currentTime; const o = actx.createOscillator(), gn = actx.createGain(); o.type='sine'; o.frequency.setValueAtTime(1200,t); o.frequency.exponentialRampToValueAtTime(380,t+.12); gn.gain.setValueAtTime(.0001,t); gn.gain.exponentialRampToValueAtTime(.4,t+.005); gn.gain.exponentialRampToValueAtTime(.0001,t+.22); o.connect(gn).connect(master); o.start(t); o.stop(t+.25); },
+  chime(){ if(!actx||muted||actx.state!=='running') return; const t = actx.currentTime; [[784,.18],[1175,.12],[1568,.06]].forEach(([f,a],i)=>{ const o = actx.createOscillator(), gn = actx.createGain(); o.type='sine'; o.frequency.value=f; gn.gain.setValueAtTime(.0001,t+i*.07); gn.gain.exponentialRampToValueAtTime(a,t+i*.07+.01); gn.gain.exponentialRampToValueAtTime(.0001,t+i*.07+1.6); o.connect(gn).connect(master); o.start(t+i*.07); o.stop(t+i*.07+1.7); }); }
+};
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted?'Unmute sounds':'Mute sounds'); });
+addEventListener('pointerdown', initAudio, {capture:true}); addEventListener('keydown', initAudio, {capture:true});
+
+/* ---------- UI ---------- */
+const live = $('#live');
+function say(t){ live.textContent = ''; setTimeout(()=> live.textContent = t, 40); }
+let hinted = false; function hintOff(){ if(!hinted){ hinted = true; $('#hint').style.opacity = .25; } }
+function spillSample(){ const [n, mb] = SAMPLES[sampleIdx++ % SAMPLES.length]; return makePuddle(n, mb); }
+$('#another').addEventListener('click', () => { spillSample(); hintOff(); });
+$('#choose').addEventListener('click', () => $('#file').click());
+$('#file').addEventListener('change', e => { [...e.target.files].slice(0,4).forEach(f => makePuddle(f.name, Math.max(.2, f.size/1e6))); e.target.value = ''; hintOff(); });
+const drop = $('#drop'); let dragDepth = 0;
+addEventListener('dragenter', e => { if(e.dataTransfer && [...e.dataTransfer.types].includes('Files')){ dragDepth++; drop.classList.add('on'); } });
+addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth-1); if(!dragDepth) drop.classList.remove('on'); });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); dragDepth = 0; drop.classList.remove('on'); [...(e.dataTransfer.files||[])].slice(0,4).forEach(f => makePuddle(f.name, Math.max(.2, f.size/1e6))); hintOff(); });
+function paintButtons(){
+  [['#another',[64,96,150]],['#mute',[150,120,90]]].forEach(([sel, rgb]) => { const b = $(sel); const old = b.querySelector('canvas'); if(old) old.remove(); const r = b.getBoundingClientRect(); const c = swatch(Math.max(40, r.width), Math.max(40, r.height), rgb); c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:-1'; b.prepend(c); });
+}
+
+/* ---------- simulation + render ---------- */
+let stored = 0, storedFiles = 0;
+function updateCloudLabel(){
+  const up = puddles.filter(p => p.state==='up').length;
+  $('#cloudTitle').textContent = up ? `Rising into the cloud…` : 'All dry · everything is in the cloud';
+  $('#cloudSub').textContent = `${storedFiles} ${storedFiles===1?'file':'files'} · ${fmtMB(stored)} of 15 GB`;
+}
+let last = performance.now(), simT = 0, autoT = 0, bwPhase = 0, autoCount = 0;
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  simT += dt; bwPhase += dt;
+  const active = puddles.filter(p => p.state==='up');
+  const bw = 9 * (.75 + .35*Math.sin(bwPhase*1.3) + .15*Math.sin(bwPhase*4.1)); // MB/s shared
+  let storm = 0;
+  for(const p of puddles){
+    if(p.gone){ continue; }
+    p.t += dt;
+    if(p.state==='spill'){
+      p.drop = Math.min(1, p.drop + dt*2.2);
+      if(p.drop >= 1){ p.spill = Math.min(1, p.spill + dt*1.8); const e = 1 - Math.pow(1-p.spill, 3); p.level = e*1.06 - Math.max(0, e-.85)*.4; if(p.spill >= 1){ p.level = 1; p.state = 'up'; say(`Uploading ${p.name}`); } }
+    } else if(p.state==='up'){
+      p.speed = bw/Math.max(1, active.length) * (p.mb < 5 ? .7 : 1);
+      p.prog = Math.min(1, p.prog + p.speed*dt/p.mb);
+      p.level += ((1 - p.prog) - p.level)*Math.min(1, dt*6);
+      p.acc += dt * (RM ? 3 : 14) * Math.min(1.4, p.speed/3);
+      while(p.acc > 1){ p.acc--; emitVapour(p, 1); }
+      if(p.prog >= p.failAt){ p.state = 'rain'; p.failProg = p.prog; p.rainT = 0; say(`${p.name}: connection dropped at ${Math.round(p.prog*100)} percent. Raining back down.`); }
+      if(p.prog >= 1){ p.state = 'done'; p.level = 0; p.doneAt = simT; const d = new Date(2026,3,14,14,6 + storedFiles); p.doneTime = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); stored += p.mb; storedFiles++; deposit(p.rgb, p.mb*.6, true); deposit(p.rgb, p.mb*.3, true); sfx.chime(); say(`${p.name} uploaded`); }
+    } else if(p.state==='rain'){
+      p.rainT += dt; storm = Math.max(storm, Math.min(1, p.rainT*1.5));
+      if(!RM && p.rainT < 1.9) for(let k=0;k<3;k++) rain.push({ p, x: p.x + rnd(-.42,.42)*p.pw + 30, y: CY + rnd(0, 40), vx: -22, vy: rnd(700, 950), ty: p.y + rnd(-.3,.3)*p.ph, rgb:p.rgb, w: rnd(.8,1.8) });
+      if(RM) p.level = Math.min(1, p.level + dt*.8);
+      if(p.rainT > 2.3){ p.state = 'failed'; p.level = 1; p.failedAt = simT; sfx.drip(); }
+    } else if(p.state==='failed'){
+      storm = Math.max(storm, Math.max(0, 1 - (simT - p.failedAt)*.8));
+      p.level = 1 + Math.sin(simT*2.2 + p.id)*.015;
+      if(simT - p.failedAt > 9){ say(`Retrying ${p.name} automatically`); retry(p); }
+    } else if(p.state==='done'){
+      const age = simT - p.doneAt; p.stain = age < 12 ? 1 : Math.max(0, 1 - (age-12)/4);
+      if(p.stain <= 0) retire(p, true);
+    }
+    if(Math.floor(p.t*6) !== p.lt){ p.lt = Math.floor(p.t*6); updateLabel(p); }
+  }
+  for(let i=puddles.length-1;i>=0;i--){ const p = puddles[i]; if(p.fade !== undefined){ p.fade -= dt*1.5; p.stain = Math.max(0,p.fade); p.level = Math.min(p.level, p.fade); if(p.fade <= 0) puddles.splice(i,1); } }
+  stormLevel += (storm - stormLevel)*Math.min(1, dt*3);
+  if(windG && actx){ const tgt = muted ? 0 : Math.min(.5, vap.length/120)*.6; windG.gain.setTargetAtTime(tgt, actx.currentTime, .3); rainG.gain.setTargetAtTime(muted ? 0 : (rain.length ? .35 : 0), actx.currentTime, .15); }
+
+  // auto demo: keep something gently happening
+  autoT += dt;
+  if(autoT > 7 && !puddles.some(p => p.state==='up' || p.state==='spill' || p.state==='rain') && autoCount < 6 && simT > 6){ autoT = 0; autoCount++; spillSample(); }
+  if(Math.floor(simT*4) !== cloudTick){ cloudTick = Math.floor(simT*4); updateCloudLabel(); }
+
+  // render
+  g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H);
+  g.drawImage(ground, 0, 0, W, H);
+  renderCloud(stormLevel, simT);
+  const breathe = 1 + Math.sin(simT*.6)*.008;
+  g.save(); g.translate(CX, CY); g.scale(breathe, breathe); g.imageSmoothingEnabled = true; g.drawImage(cCan, -CW/2, -CH/2, CW, CH); g.restore();
+  for(const p of puddles){
+    if(p.state==='spill' && p.drop < 1){ // falling droplet
+      const y = CY + 40 + (p.y - CY - 40)*p.drop*p.drop; const r = 7;
+      g.fillStyle = `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},.55)`; g.beginPath(); g.ellipse(p.x, y, r*.8, r*1.25, 0, 0, Math.PI*2); g.fill();
+      continue;
+    }
+    renderPuddle(p);
+    g.drawImage(p.c, p.x - p.pw/2, p.y - p.ph/2);
+    if(p.state==='spill' && p.spill < .5){ const s = p.spill*2; g.strokeStyle = `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},${.35*(1-s)})`; g.lineWidth = 1.4; g.beginPath(); g.ellipse(p.x, p.y, p.pw*.55*s + 10, p.ph*.55*s + 4, 0, 0, Math.PI*2); g.stroke(); }
+    if(p.state==='done'){ // painted tick in the stain
+      const k = Math.min(1, (simT - p.doneAt)*1.6); g.strokeStyle = `rgba(60,109,75,${.65*p.stain})`; g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.beginPath(); const ax = p.x - 14, ay = p.y, bx = p.x - 4, by = p.y + 9, cx2 = p.x + 16, cy2 = p.y - 12;
+      g.moveTo(ax, ay); if(k < .35) g.lineTo(ax + (bx-ax)*k/.35, ay + (by-ay)*k/.35); else { g.lineTo(bx, by); const u = (k-.35)/.65; g.lineTo(bx + (cx2-bx)*u, by + (cy2-by)*u); } g.stroke();
+    }
+  }
+  drawVapour(dt); drawRain(dt);
+  requestAnimationFrame(frame);
+}
+let stormLevel = 0, cloudTick = -1;
+
+function layoutAll(){
+  W = innerWidth; H = innerHeight; MOB = W < 760;
+  paintC.width = W*DPR; paintC.height = H*DPR;
+  paintPaper(); setupCloud(!!cD);
+  puddles.forEach(p => { if(!p.gone) place(p); });
+  paintButtons();
+}
+let rT = 0; addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(layoutAll, 120); });
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+
+layoutAll();
+// pre-seed the cloud with what is already stored
+stored = 1840; storedFiles = 23; cloudR = MOB ? 50 : 110; seedCloud();
+const first = makePuddle('riverbank-survey.pdf', 12.4, {failAt:2}); if(first){ first.drop = 1; first.spill = .6; }
+setTimeout(() => { const p = makePuddle('heron-colony-0412.jpg', 8.6, {failAt:.58}); if(p) p.drop = .6; }, 250);
+setTimeout(() => { const p = makePuddle('tide-pool-timelapse.mov', 46.2, {failAt:2}); }, 700);
+sampleIdx = 3;
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(paintButtons);
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radio Tuner Dial</title>
+<meta name="description" content="A podcast and playlist picker drawn as a Rodchenko constructivist poster: spin a red-wedge tuning knob, the needle sweeps a diagonal dial band, static hisses between stations and the Shukhov tower broadcasts when you lock on.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=PT+Sans+Narrow:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Radio Tuner Dial","reimagines":"Selection knob","category":"Sliders, Knobs & Dials","description":"Pick tonight's podcast or playlist by spinning a red-wedge tuning knob on a constructivist radio poster. The knob has weight and momentum, the needle sweeps a diagonal dial band, static and heterodyne whistles fill the gaps, and the Shukhov tower blasts out waves when you lock onto a station.","hint":"Spin the knob (or drag the needle) until the static clears"}
+</script>
+<style>
+  :root{ --cream:#efe3c8; --red:#d42a1f; --black:#141110; --grey:#8c8273;
+    --head:'Oswald', 'Arial Narrow', 'Helvetica Neue', sans-serif; --body:'PT Sans Narrow', 'Arial Narrow', sans-serif; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--cream); color:var(--black); font-family:var(--body); overflow:hidden}
+  #poster{position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; user-select:none; -webkit-user-select:none}
+  .grain{position:fixed; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:.6;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .2 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .card{position:fixed; background:var(--red); color:var(--cream); padding:16px 20px 16px; transform:rotate(-2deg); box-shadow:8px 8px 0 var(--black); max-width:440px}
+  .card .k{font-family:var(--head); font-weight:500; font-size:14px; letter-spacing:.18em; text-transform:uppercase; display:flex; justify-content:space-between; gap:12px}
+  .card h2{font-family:var(--head); font-weight:700; font-size:46px; line-height:.95; margin:6px 0 4px; text-transform:uppercase; letter-spacing:.01em}
+  .card p{margin:0 0 12px; font-size:18px; line-height:1.2}
+  .card.off{background:var(--black)}
+  .card.off h2{color:var(--grey)}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .listen{font-family:var(--head); font-weight:700; font-size:20px; letter-spacing:.08em; text-transform:uppercase; background:var(--cream); color:var(--black); border:0; padding:9px 18px 8px; cursor:pointer; clip-path:polygon(0 0, 100% 0, 92% 100%, 0 100%); padding-right:28px}
+  .listen:hover{background:#fff}
+  .listen[disabled]{opacity:.35; cursor:default}
+  .listen:focus-visible, .mute:focus-visible{outline:3px solid var(--cream); outline-offset:3px}
+  .queued{font-family:var(--head); font-size:14px; letter-spacing:.12em; text-transform:uppercase; min-height:1.2em}
+  .mute{position:fixed; right:16px; bottom:14px; font-family:var(--head); font-weight:500; font-size:13px; letter-spacing:.14em; background:var(--black); color:var(--cream); border:0; padding:6px 10px 5px; cursor:pointer; text-transform:uppercase}
+  #knobHit{position:fixed; border-radius:50%; outline:none; touch-action:none; cursor:grab}
+  #knobHit.drag{cursor:grabbing}
+  #knobHit:focus-visible{box-shadow:0 0 0 4px var(--cream), 0 0 0 8px var(--black)}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    .card{padding:10px 14px 10px; max-width:none; box-shadow:5px 5px 0 var(--black)}
+    .card .k{font-size:11px}
+    .card h2{font-size:28px}
+    .card p{font-size:14px; margin-bottom:8px}
+    .listen{font-size:15px; padding:7px 22px 6px 12px}
+    .queued{font-size:11px}
+    .mute{right:10px; top:10px; bottom:auto; font-size:11px}
+  }
+</style>
+</head>
+<body>
+<svg id="poster" aria-hidden="true"></svg>
+<div class="grain" aria-hidden="true"></div>
+<div id="knobHit" role="slider" tabindex="0" aria-label="Tuning knob — choose a station" aria-valuemin="87.5" aria-valuemax="108.5" aria-valuenow="91.0" aria-valuetext="91.0 megahertz, static"></div>
+<section class="card off" id="card" aria-live="polite">
+  <div class="k"><span id="cardK">Searching · поиск</span><span id="cardF">91.0 MHz</span></div>
+  <h2 id="cardH">Static</h2>
+  <p id="cardP">Turn the knob until a station comes through clearly.</p>
+  <div class="row"><button class="listen" id="listen" disabled>Listen tonight</button><span class="queued" id="queued"></span></div>
+</section>
+<button class="mute" id="mute" aria-pressed="false">Sound · on</button>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const FMIN = 87.5, FMAX = 108.5;
+  const ST = [
+    { f: 88.6,  name: 'Morning Ledger',      ru: 'Утро',     kind: 'talk',  desc: 'News podcast · today’s episode, 24 min',          root: 220, tempo: 0 },
+    { f: 91.8,  name: 'Slow Radio',          ru: 'Тишина',   kind: 'music', desc: 'Ambient playlist · 3 h of drones and field recordings', root: 110, tempo: .25 },
+    { f: 94.7,  name: 'Deep Cuts Jazz',      ru: 'Джаз',     kind: 'music', desc: 'Playlist · 2 h 10 min of rare grooves',               root: 146.8, tempo: 2.2 },
+    { f: 97.3,  name: 'The Long Read',       ru: 'Чтение',   kind: 'talk',  desc: 'Narrated essays · ep. 88, 51 min',                   root: 180, tempo: 0 },
+    { f: 100.9, name: 'Factory Floor',       ru: 'Завод',    kind: 'music', desc: 'Techno playlist · 128 bpm, 1 h 40 min',               root: 65.4, tempo: 4.27 },
+    { f: 103.5, name: 'Kitchen Table Science', ru: 'Наука',  kind: 'talk',  desc: 'Science podcast · ep. 214, 48 min',                  root: 200, tempo: 0 },
+    { f: 106.8, name: 'Night Shift Classical', ru: 'Ночь',   kind: 'music', desc: 'Classical playlist · nocturnes, 2 h 30 min',          root: 130.8, tempo: .6 },
+  ];
+
+  // ---------- state ----------
+  let freq = 91.0, knobA = 0, knobV = 0, dragging = null, signal = 0, near = null, locked = null, interacted = false;
+  const TURN = 3.2; // MHz per full knob turn
+
+  // ---------- layout ----------
+  const svg = $('poster');
+  let W = 0, H = 0, L = {}, el = {};
+  const mk = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+  function layout(){
+    W = innerWidth; H = innerHeight;
+    const mob = W < 760;
+    L = mob ? {
+      ang: -14, bandC: [W * .5, H * .43], bandLen: W * 1.6, bandT: 92, span: W * .82, off: 0,
+      sun: [W * .9, H * .1, W * .42], tower: [W * .84, H * .37, H * .2, 54],
+      head: [12, H * .25, 60], sub: 'WED 7 OCT · EVENING BROADCAST', knob: [W * .3, H * .62, Math.min(W * .19, 80)],
+      meter: [W * .76, H * .6, 30], card: { left: 14, right: 14, top: H * .76 }
+    } : {
+      ang: -16, bandC: [W * .5, H * .45], bandLen: W * 1.4, bandT: 128, span: W * .78, off: W * .05,
+      sun: [W * .8, H * .18, H * .4], tower: [W * .86, H * .99, H * .42, 118],
+      head: [W * .04, H * .4, Math.min(130, W * .1)], sub: 'WED 7 OCT 2026 · CHOOSE THE EVENING BROADCAST', knob: [W * .14, H * .79, Math.min(96, H * .12)],
+      meter: [W * .275, H * .885, 32], card: { left: W * .36, top: H * .66 }
+    };
+    build();
+  }
+
+  function build(){
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = '';
+    const mob = W < 760;
+    const defs = mk('defs', {}, svg);
+    defs.innerHTML = `
+      <pattern id="dots" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><circle cx="3.5" cy="3.5" r="1.7" fill="#141110"/></pattern>
+      <pattern id="dotsR" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><circle cx="3" cy="3" r="1.3" fill="#8f1a12"/></pattern>
+      <clipPath id="sunClip"><circle cx="${L.sun[0]}" cy="${L.sun[1]}" r="${L.sun[2]}"/></clipPath>`;
+    // diagonal blocks
+    mk('path', { d:`M0 ${H * .86} L${W} ${H * .5} L${W} ${H * .58} L0 ${H * .94} Z`, fill:'#141110', opacity:.9 }, svg);
+    mk('path', { d:`M${W * .58} ${H} L${W} ${H * .74} L${W} ${H} Z`, fill:'url(#dots)', opacity:.55 }, svg);
+    // red sun with halftone
+    el.sun = mk('circle', { cx:L.sun[0], cy:L.sun[1], r:L.sun[2], fill:'#d42a1f' }, svg);
+    mk('rect', { x:0, y:0, width:W, height:H, fill:'url(#dotsR)', 'clip-path':'url(#sunClip)', opacity:.5 }, svg);
+    // broadcast waves from the tower top (animated)
+    el.waves = mk('g', { fill:'none', stroke:'#141110', 'stroke-linecap':'butt' }, svg);
+    // Shukhov tower: stacked hyperboloid sections, lattice of straight lines
+    const [tx, ty, th, tw] = L.tower; const tg = mk('g', { stroke:'#141110', 'stroke-width':mob ? 1.2 : 1.6, fill:'none' }, svg);
+    const secs = 6; let wBot = tw, y0 = ty;
+    for (let s = 0; s < secs; s++){
+      const hS = th / secs * (1 - s * .04), wTop = wBot * .78, y1 = y0 - hS, n = 12;
+      for (let i = 0; i <= n; i++){
+        const a = i / n, x0 = tx - wBot / 2 + a * wBot, x1 = tx - wTop / 2 + ((a + .35) % 1) * wTop, x2 = tx - wTop / 2 + ((a + .65) % 1) * wTop;
+        mk('line', { x1:x0, y1:y0, x2:x1, y2:y1 }, tg); mk('line', { x1:x0, y1:y0, x2:x2, y2:y1, opacity:.6 }, tg);
+      }
+      mk('line', { x1:tx - wBot / 2 - 3, y1:y0, x2:tx + wBot / 2 + 3, y2:y0, 'stroke-width':mob ? 3 : 4 }, tg);
+      y0 = y1; wBot = wTop * 1.02;
+    }
+    mk('line', { x1:tx, y1:y0, x2:tx, y2:y0 - (mob ? 26 : 40), 'stroke-width':mob ? 3 : 4 }, tg);
+    el.tip = [tx, y0 - (mob ? 26 : 40)];
+    // headline (rotated, huge)
+    const hg = mk('g', { transform:`translate(${L.head[0]} ${L.head[1]}) rotate(${L.ang})` }, svg);
+    const t1 = mk('text', { x:0, y:0, 'font-family':'Oswald, sans-serif', 'font-weight':700, 'font-size':L.head[2], fill:'#141110', 'letter-spacing':'-1' }, hg); t1.textContent = 'СЛУШАЙ!';
+    const t2 = mk('text', { x:6, y:L.head[2] * .42, 'font-family':'Oswald, sans-serif', 'font-weight':700, 'font-size':L.head[2] * .3, fill:'#d42a1f', 'letter-spacing':'3' }, hg); t2.textContent = 'TUNE IN TONIGHT';
+    const t3 = mk('text', { x:8, y:L.head[2] * .62, 'font-family':'PT Sans Narrow, sans-serif', 'font-weight':700, 'font-size':Math.max(12, L.head[2] * .12), fill:'#141110', 'letter-spacing':'2' }, hg); t3.textContent = L.sub;
+    // the dial band
+    const [bx, by] = L.bandC, T = L.bandT;
+    const band = mk('g', { transform:`translate(${bx} ${by}) rotate(${L.ang})` }, svg);
+    mk('rect', { x:-L.bandLen / 2, y:-T / 2, width:L.bandLen, height:T, fill:'#141110' }, band);
+    mk('rect', { x:-L.bandLen / 2, y:-T / 2 + 6, width:L.bandLen, height:3, fill:'#d42a1f' }, band);
+    mk('rect', { x:-L.bandLen / 2, y:T / 2 - 9, width:L.bandLen, height:3, fill:'#d42a1f' }, band);
+    el.band = band;
+    // ticks
+    for (let f = 88; f <= 108; f += .5){
+      const x = fx(f), major = f % 2 === 0;
+      mk('rect', { x:x - (major ? 1.5 : .8), y:-T / 2 + 12, width:major ? 3 : 1.6, height:major ? T * .2 : T * .11, fill:'#efe3c8' }, band);
+      if (major){ const t = mk('text', { x, y:-T / 2 + 12 + T * .2 + (mob ? 13 : 17), 'text-anchor':'middle', 'font-family':'Oswald, sans-serif', 'font-weight':500, 'font-size':mob ? 11 : 15, fill:'#efe3c8' }, band); t.textContent = f; }
+    }
+    // stations: name blocks along the lower half
+    el.stLabels = ST.map((s, i) => {
+      const x = fx(s.f), g = mk('g', {}, band);
+      mk('rect', { x:x - 2, y:T * .05, width:4, height:T * .14, fill:'#d42a1f' }, g);
+      const t = mk('text', { x, y:T / 2 - (mob ? 15 : 18), 'text-anchor':'middle', 'font-family':'PT Sans Narrow, sans-serif', 'font-weight':700, 'font-size':mob ? 9.5 : 13, fill:'#efe3c8', 'letter-spacing':'.5' }, g);
+      t.textContent = mob ? s.ru.toUpperCase() : s.name.toUpperCase();
+      return { g, t };
+    });
+    // needle (moves along the band)
+    el.needle = mk('g', {}, band);
+    mk('rect', { x:-5, y:-T / 2 - (mob ? 16 : 26), width:10, height:T + (mob ? 32 : 52), fill:'#d42a1f' }, el.needle);
+    mk('path', { d:`M-14 ${-T / 2 - (mob ? 16 : 26)}h28l-14 ${mob ? 14 : 20}z`, fill:'#141110' }, el.needle);
+    // signal meter: a wedge that closes into the circle when locked (constructivist "magic eye")
+    const [kx, ky, kr] = L.knob;
+    const [mx, my, mr] = L.meter;
+    el.meterG = mk('g', { transform:`translate(${mx} ${my})` }, svg);
+    mk('circle', { r:mr, fill:'#141110' }, el.meterG);
+    el.meterWedge = mk('path', { d:'', fill:'#d42a1f' }, el.meterG);
+    mk('circle', { r:mr * .28, fill:'#efe3c8' }, el.meterG);
+    const ml = mk('text', { x:0, y:mr + (mob ? 14 : 20), 'text-anchor':'middle', 'font-family':'Oswald, sans-serif', 'font-weight':500, 'font-size':mob ? 10 : 13, 'letter-spacing':'2', fill:'#141110' }, el.meterG); ml.textContent = 'СИГНАЛ · SIGNAL';
+    // knob: black ring, red wedge pointer, cream face with grip notches
+    el.knobG = mk('g', { transform:`translate(${kx} ${ky})` }, svg);
+    mk('circle', { r:kr * 1.22, fill:'none', stroke:'#141110', 'stroke-width':2, 'stroke-dasharray':'2 6' }, el.knobG);
+    mk('circle', { cx:6, cy:8, r:kr, fill:'#141110', opacity:.25 }, el.knobG);
+    el.knobRot = mk('g', {}, el.knobG);
+    mk('circle', { r:kr, fill:'#141110' }, el.knobRot);
+    for (let i = 0; i < 24; i++){ const a = i / 24 * Math.PI * 2; mk('rect', { x:kr - 9, y:-3, width:9, height:6, fill:'#efe3c8', transform:`rotate(${a * 180 / Math.PI})` }, el.knobRot); }
+    mk('circle', { r:kr * .74, fill:'#efe3c8' }, el.knobRot);
+    mk('path', { d:`M0 0L${kr * .74} ${-kr * .3}A${kr * .74} ${kr * .74} 0 0 1 ${kr * .74} ${kr * .3}Z`, fill:'#d42a1f' }, el.knobRot);
+    mk('circle', { r:kr * .14, fill:'#141110' }, el.knobRot);
+    const kl = mk('text', { x:0, y:kr * 1.22 + (mob ? 16 : 22), 'text-anchor':'middle', 'font-family':'Oswald, sans-serif', 'font-weight':700, 'font-size':mob ? 12 : 16, 'letter-spacing':'3', fill:'#141110' }, el.knobG); kl.textContent = 'НАСТРОЙКА · TUNE';
+    // knob hit area + card placement
+    const kh = $('knobHit'); kh.style.left = (kx - kr * 1.15) + 'px'; kh.style.top = (ky - kr * 1.15) + 'px'; kh.style.width = kh.style.height = (kr * 2.3) + 'px';
+    const card = $('card');
+    if (mob){ card.style.left = L.card.left + 'px'; card.style.right = L.card.right + 'px'; card.style.top = L.card.top + 'px'; card.style.bottom = ''; }
+    else { card.style.left = L.card.left + 'px'; card.style.right = ''; card.style.top = L.card.top + 'px'; }
+    el.mx = mr;
+    render();
+  }
+  function fx(f){ return (f - (FMIN + FMAX) / 2) / (FMAX - FMIN) * L.span + L.off; }
+
+  // ---------- render ----------
+  let t = 0;
+  function render(){
+    if (!el.needle) return;
+    el.needle.setAttribute('transform', `translate(${fx(freq).toFixed(2)} 0)`);
+    el.knobRot.setAttribute('transform', `rotate(${(knobA * 180 / Math.PI).toFixed(2)})`);
+    // signal wedge: opens wide on static, closes to a sliver of black when locked
+    const gap = (1 - signal) * Math.PI * .9 + .04, r = el.mx * .92;
+    const a0 = -Math.PI / 2 + gap / 2, a1 = -Math.PI / 2 - gap / 2 + Math.PI * 2;
+    el.meterWedge.setAttribute('d', `M0 0L${(Math.cos(a0) * r).toFixed(2)} ${(Math.sin(a0) * r).toFixed(2)}A${r} ${r} 0 1 1 ${(Math.cos(a1) * r).toFixed(2)} ${(Math.sin(a1) * r).toFixed(2)}Z`);
+    ST.forEach((s, i) => el.stLabels[i].t.setAttribute('fill', locked === s ? '#d42a1f' : '#efe3c8'));
+    // broadcast waves: crisp arcs radiating from the tower tip, louder with signal; jagged on static
+    const [wx, wy] = el.tip, mob = W < 760;
+    let html = '';
+    const n = 5;
+    for (let i = 0; i < n; i++){
+      const ph = ((t * (0.6 + signal * .9)) + i / n) % 1, rr = (mob ? 18 : 30) + ph * (mob ? 120 : 230);
+      const op = (1 - ph) * (.15 + signal * .85);
+      if (op < .03) continue;
+      const sw = (mob ? 3 : 5) * (1 - ph * .6) * (.4 + signal);
+      if (signal > .5){
+        html += `<path d="M${(wx - rr * .9).toFixed(1)} ${(wy - rr * .25).toFixed(1)}A${rr} ${rr} 0 0 1 ${(wx - rr * .25).toFixed(1)} ${(wy - rr * .9).toFixed(1)}" stroke-width="${sw.toFixed(1)}" opacity="${op.toFixed(2)}"/>`;
+        html += `<path d="M${(wx + rr * .25).toFixed(1)} ${(wy - rr * .9).toFixed(1)}A${rr} ${rr} 0 0 1 ${(wx + rr * .9).toFixed(1)} ${(wy - rr * .25).toFixed(1)}" stroke-width="${sw.toFixed(1)}" opacity="${op.toFixed(2)}"/>`;
+      } else {
+        // broken, stuttering fragments when there's only static
+        for (let k = 0; k < 6; k++){ if (Math.random() < .45) continue; const a = -Math.PI * .95 + k * .32 + Math.random() * .1; html += `<path d="M${(wx + Math.cos(a) * rr).toFixed(1)} ${(wy + Math.sin(a) * rr).toFixed(1)}l${(Math.cos(a + 1.57) * 10).toFixed(1)} ${(Math.sin(a + 1.57) * 10).toFixed(1)}" stroke-width="${(sw * .7).toFixed(1)}" opacity="${(op * .8).toFixed(2)}"/>`; }
+      }
+    }
+    el.waves.innerHTML = html;
+    // the sun throbs with the music
+    const beat = locked && locked.tempo ? Math.pow(Math.max(0, Math.sin(t * Math.PI * locked.tempo)), 8) : 0;
+    el.sun.setAttribute('r', (L.sun[2] * (1 + beat * .015 * signal)).toFixed(1));
+  }
+
+  // ---------- tuning logic ----------
+  function nearest(){ let b = ST[0], bd = 1e9; for (const s of ST){ const d = Math.abs(s.f - freq); if (d < bd){ bd = d; b = s; } } return [b, bd]; }
+  let lastLocked = null, lastUi = '';
+  function evaluate(){
+    const [s, d] = nearest();
+    near = s;
+    signal = Math.exp(-Math.pow(d / .22, 2));
+    const wasLocked = locked;
+    locked = d < .07 ? s : (locked && d < .12 ? locked : null);
+    if (locked !== lastLocked){
+      lastLocked = locked;
+      if (locked){ clunk(); }
+    }
+    const key = (locked ? locked.name : 'x') + freq.toFixed(1);
+    if (key !== lastUi){
+      lastUi = key;
+      $('cardF').textContent = freq.toFixed(1) + ' MHz';
+      const card = $('card');
+      if (locked){
+        card.classList.remove('off');
+        $('cardK').textContent = 'Now on air · в эфире';
+        $('cardH').textContent = locked.name;
+        $('cardP').textContent = locked.desc;
+        $('listen').disabled = false;
+      } else {
+        card.classList.add('off');
+        $('cardK').textContent = 'Searching · поиск';
+        $('cardH').textContent = signal > .25 ? 'Almost…' : 'Static';
+        $('cardP').textContent = signal > .25 ? `Something on ${s.f.toFixed(1)} — keep turning gently.` : 'Turn the knob until a station comes through clearly.';
+        $('listen').disabled = true;
+      }
+      const kh = $('knobHit');
+      kh.setAttribute('aria-valuenow', freq.toFixed(1));
+      kh.setAttribute('aria-valuetext', `${freq.toFixed(1)} megahertz, ${locked ? locked.name : 'static'}`);
+    }
+    if (!wasLocked && locked && !interacted){ /* first lock from the initial state is silent */ }
+  }
+
+  // ---------- input: knob with momentum ----------
+  const kh = $('knobHit');
+  let lastAng = 0, lastT = 0, angV = 0;
+  const angleAt = e => Math.atan2(e.clientY - L.knob[1], e.clientX - L.knob[0]);
+  kh.addEventListener('pointerdown', e => {
+    audio(); touched(); dragging = 'knob'; kh.classList.add('drag'); kh.setPointerCapture(e.pointerId);
+    lastAng = angleAt(e); lastT = performance.now(); angV = 0; knobV = 0;
+  });
+  kh.addEventListener('pointermove', e => {
+    if (dragging !== 'knob') return;
+    const a = angleAt(e); let d = a - lastAng; if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
+    lastAng = a; const now = performance.now(), dt = Math.max(1, now - lastT) / 1000; lastT = now;
+    angV = angV * .6 + (d / dt) * .4;
+    turn(d);
+  });
+  const endKnob = () => { if (dragging !== 'knob') return; dragging = null; kh.classList.remove('drag'); knobV = reduce ? 0 : Math.max(-30, Math.min(30, angV)); if (performance.now() - lastT > 80) knobV = 0; };
+  kh.addEventListener('pointerup', endKnob); kh.addEventListener('pointercancel', endKnob);
+  kh.addEventListener('wheel', e => { e.preventDefault(); audio(); touched(); turn((e.deltaY > 0 ? 1 : -1) * .12); }, { passive: false });
+  kh.addEventListener('keydown', e => {
+    let d = 0;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') d = .1; else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') d = -.1;
+    else if (e.key === 'PageUp' || e.key === 'PageDown'){
+      e.preventDefault(); audio(); touched();
+      const up = e.key === 'PageUp', list = up ? ST.filter(s => s.f > freq + .05) : ST.filter(s => s.f < freq - .05).reverse();
+      if (list[0]) glide(list[0].f); return;
+    }
+    else if (e.key === 'Home'){ e.preventDefault(); glide(FMIN); return; } else if (e.key === 'End'){ e.preventDefault(); glide(FMAX); return; }
+    else if (e.key === 'Enter' && locked){ $('listen').click(); return; }
+    else return;
+    e.preventDefault(); audio(); touched(); knobV = 0;
+    turn(d / TURN * Math.PI * 2);
+  });
+  function turn(da){
+    knobA += da;
+    freq = Math.max(FMIN, Math.min(FMAX, freq + da / (Math.PI * 2) * TURN));
+    tickDial();
+  }
+  let glideAnim = null;
+  function glide(f1){
+    const f0 = freq, st = performance.now(), dur = reduce ? 1 : 500 + Math.abs(f1 - f0) * 60;
+    knobV = 0;
+    glideAnim = now => { const k = Math.min(1, (now - st) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; const nf = f0 + (f1 - f0) * e; knobA += (nf - freq) / TURN * Math.PI * 2; freq = nf; if (k >= 1) glideAnim = null; };
+  }
+  // drag the needle directly along the band
+  svg.addEventListener('pointerdown', e => {
+    const p = toBand(e.clientX, e.clientY);
+    if (Math.abs(p.y) < L.bandT / 2 + 30 && Math.abs(p.x - L.off) < L.span / 2 + 20){
+      audio(); touched(); dragging = 'needle'; svg.setPointerCapture(e.pointerId); knobV = 0; glideAnim = null; setFromBand(p.x);
+    }
+  });
+  svg.addEventListener('pointermove', e => { if (dragging === 'needle') setFromBand(toBand(e.clientX, e.clientY).x); });
+  const endN = () => { if (dragging === 'needle') dragging = null; };
+  svg.addEventListener('pointerup', endN); svg.addEventListener('pointercancel', endN);
+  function toBand(x, y){ const a = -L.ang * Math.PI / 180, dx = x - L.bandC[0], dy = y - L.bandC[1]; return { x: dx * Math.cos(a) - dy * Math.sin(a), y: dx * Math.sin(a) + dy * Math.cos(a) }; }
+  function setFromBand(x){ const nf = Math.max(FMIN, Math.min(FMAX, (FMIN + FMAX) / 2 + (x - L.off) / L.span * (FMAX - FMIN))); knobA += (nf - freq) / TURN * Math.PI * 2; freq = nf; tickDial(); }
+  function touched(){ interacted = true; }
+
+  $('listen').addEventListener('click', () => {
+    if (!locked) return; audio();
+    $('queued').textContent = `Queued for 21:00 ✶`;
+    $('listen').textContent = 'Listening tonight';
+    fanfare();
+    setTimeout(() => { $('listen').textContent = 'Listen tonight'; }, 2400);
+  });
+
+  // ---------- audio ----------
+  let ac = null, master, staticG, whistle, whistleG, voiceG, talkG, talkF, pads = [], gate, mute = false;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination);
+      // static
+      const len = ac.sampleRate * 2, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (Math.random() < .002 ? 3 : .6);
+      const ns = ac.createBufferSource(); ns.buffer = b; ns.loop = true;
+      const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = .5;
+      staticG = ac.createGain(); staticG.gain.value = 0; ns.connect(bp); bp.connect(staticG); staticG.connect(master); ns.start();
+      // heterodyne whistle
+      whistle = ac.createOscillator(); whistle.type = 'sine'; whistleG = ac.createGain(); whistleG.gain.value = 0; whistle.connect(whistleG); whistleG.connect(master); whistle.start();
+      // station voice: pad chord gated by tempo + talk formants
+      voiceG = ac.createGain(); voiceG.gain.value = 0;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
+      gate = ac.createGain(); gate.gain.value = 1; gate.connect(lp); lp.connect(voiceG); voiceG.connect(master);
+      for (let i = 0; i < 3; i++){ const o = ac.createOscillator(); o.type = i ? 'triangle' : 'sawtooth'; const g = ac.createGain(); g.gain.value = i ? .18 : .06; o.connect(g); g.connect(gate); o.start(); pads.push(o); }
+      const ts = ac.createBufferSource(); ts.buffer = b; ts.loop = true; talkF = ac.createBiquadFilter(); talkF.type = 'bandpass'; talkF.Q.value = 6; talkF.frequency.value = 700;
+      talkG = ac.createGain(); talkG.gain.value = 0; ts.connect(talkF); talkF.connect(talkG); talkG.connect(voiceG); ts.start();
+    } catch(_) { ac = null; }
+  }
+  let lastTickF = 0;
+  function tickDial(){
+    if (!ac || mute) return;
+    if (Math.abs(freq - lastTickF) < .1) return; lastTickF = freq;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square'; o.frequency.value = 3200;
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.03, n + .002); g.gain.exponentialRampToValueAtTime(.0001, n + .02);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .03);
+  }
+  function clunk(){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(180, n); o.frequency.exponentialRampToValueAtTime(70, n + .1);
+    g.gain.setValueAtTime(.4, n); g.gain.exponentialRampToValueAtTime(.0001, n + .14);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .16);
+  }
+  function fanfare(){
+    if (!ac || mute) return;
+    [392, 523, 659, 784].forEach((f, i) => { const n = ac.currentTime + i * .1, o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.08, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + .3); const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; o.connect(lp); lp.connect(g); g.connect(master); o.start(n); o.stop(n + .32); });
+  }
+  function audioTick(){
+    if (!ac) return;
+    const n = ac.currentTime, on = mute ? 0 : 1, s = signal;
+    staticG.gain.setTargetAtTime(on * (1 - s) * .45, n, .03);
+    const st = near, off = st ? Math.abs(st.f - freq) : 1;
+    whistle.frequency.setTargetAtTime(120 + off * 5200, n, .02);
+    whistleG.gain.setTargetAtTime(on * (locked ? 0 : s * (1 - s) * .5), n, .03);
+    if (st){
+      const r = st.root;
+      [1, 1.26, 1.5].forEach((m, i) => pads[i].frequency.setTargetAtTime(r * m * (i ? 2 : 1), n, .05));
+      const music = st.kind === 'music';
+      const gl = music && st.tempo ? .35 + .65 * Math.pow(Math.max(0, Math.sin(t * Math.PI * st.tempo)), 2) : 1;
+      gate.gain.setTargetAtTime(music ? gl : 0, n, .01);
+      talkG.gain.setTargetAtTime(music ? 0 : (.6 + .4 * Math.sin(t * 13)) * (Math.sin(t * 4.3) > -.3 ? 1 : .1), n, .02);
+      talkF.frequency.setTargetAtTime(500 + 900 * Math.abs(Math.sin(t * 5.1 + Math.sin(t * 1.7))), n, .03);
+      voiceG.gain.setTargetAtTime(on * s * s * .8, n, .04);
+    }
+  }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'Sound · off' : 'Sound · on'; $('mute').setAttribute('aria-pressed', mute); });
+
+  // ---------- loop ----------
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now; t += dt;
+    if (glideAnim) glideAnim(now);
+    else if (dragging !== 'knob' && Math.abs(knobV) > .02){
+      // flywheel: the knob coasts and the dial sweeps past stations
+      turn(knobV * dt);
+      knobV *= Math.exp(-dt * (locked ? 9 : 2.2));
+      if (freq <= FMIN || freq >= FMAX) knobV = 0;
+    } else if (!dragging && near){
+      // gentle capture once close to a station (a pinch of AFC)
+      const d = near.f - freq;
+      if (Math.abs(d) < .16 && Math.abs(d) > .002){ const step = d * Math.min(1, dt * 5); knobA += step / TURN * Math.PI * 2; freq += step; }
+    }
+    evaluate(); render(); audioTick();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden){ running = false; if (ac) ac.suspend(); } else { running = true; last = performance.now(); if (ac) ac.resume(); requestAnimationFrame(frame); } });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 80); });
+  layout();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(layout);
+  requestAnimationFrame(frame);
+  window.__radio = { tune(f){ glideAnim = null; knobV = 0; knobA += (f - freq) / TURN * Math.PI * 2; freq = f; }, spin(v){ knobV = v; } };
+})();
+</script>
+</body>
+</html>

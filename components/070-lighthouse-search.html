@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lighthouse Search</title>
+<meta name="description" content="A command palette drawn as an antique sea chart at night: a lighthouse beam sweeps the chart's anchored commands, narrows onto the best match as you type, and Enter sails the chosen ship into harbour to run it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Lighthouse Search","reimagines":"Command palette / search","category":"Navigation & Wayfinding","description":"Every page and action of the app lies at anchor on an engraved sea chart, lit only by the lighthouse. Its golden beam sweeps the water and warms each ship it touches; type and it narrows and steadies onto the best match while the rest stay in darkness. Press Enter and that ship sails into harbour and the command runs.","hint":"Type where you want to go; arrow keys swing the beam, Enter sets sail"}
+</script>
+<style>
+  :root{--paper:#eadfc4;--ink:#2b2216;--ink2:#5a4630;--red:#8e2a1e;--gold:#b98a2e;--sea:#9fb3b0;--magenta:#a3355f;--land:#e2cf9e;--hlc-sel:rgba(185,138,46,.32)}
+  .night{--paper:#121a2a;--ink:#e0cfa6;--ink2:#a3937a;--red:#ea926f;--gold:#f2c868;--sea:#2b4467;--magenta:#d97aa5;--land:#1d2637;--hlc-sel:rgba(242,200,104,.2)}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d1320}
+  body{font-family:"IM Fell English",Georgia,serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;display:grid;grid-template-columns:1fr 360px;background:#0d1320}
+  .chart{position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--paper);color:var(--ink);transition:background .6s}
+  #base,#fx{position:absolute;inset:0;display:block}
+  #fx{pointer-events:none;z-index:2}
+  .cart{position:absolute;z-index:6;left:50%;top:22px;transform:translateX(-50%);width:min(560px,86%);text-align:center;padding:14px 26px 14px;
+    background:var(--paper);border:1.5px solid var(--ink);box-shadow:0 0 0 4px var(--paper), 0 0 0 5px var(--ink), 0 10px 30px rgba(0,0,0,.35);transition:background .6s}
+  .night .cart{background:linear-gradient(#18223a,#121a2a)}
+  .cart::before,.cart::after{content:"❦";position:absolute;top:50%;transform:translateY(-50%);font-size:22px;color:var(--ink2)}
+  .cart::before{left:8px}.cart::after{right:8px;transform:translateY(-50%) scaleX(-1)}
+  .cart .t{font-family:"IM Fell English SC",serif;font-size:13px;letter-spacing:.22em;margin:0}
+  .cart .t b{font-weight:400;font-size:20px;letter-spacing:.12em;display:block;margin-top:2px}
+  .field{position:relative;margin-top:8px;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:6px 0 4px;display:flex;align-items:center;gap:10px}
+  .field label{font-family:"IM Fell English SC",serif;font-size:14px;letter-spacing:.1em;white-space:nowrap;color:var(--ink2)}
+  #q{flex:1;min-width:0;font:inherit;font-style:italic;font-size:22px;color:var(--ink);background:transparent;border:0;outline:none;padding:2px 0;caret-color:var(--gold)}
+  #q::placeholder{color:var(--ink2);opacity:.7}
+  .kbd{font-family:"IM Fell English SC";font-size:12px;border:1px solid var(--ink2);padding:0 5px;border-radius:2px;color:var(--ink2);white-space:nowrap}
+  .field:focus-within{box-shadow:0 2px 0 -1px var(--gold)}
+  .status{margin:6px 0 0;font-style:italic;font-size:14px;color:var(--ink2);min-height:1.2em}
+  /* anchored commands: dark until the lamp finds them */
+  .ships{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .ship{--lit:0;--sail:var(--paper);position:absolute;pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-62%);
+    background:none;border:0;padding:0;font:inherit;color:var(--ink);transition:opacity .45s}
+  .ship svg{width:46px;height:42px;overflow:visible;filter:drop-shadow(0 0 calc(var(--lit) * 9px) rgba(255,190,80,calc(var(--lit) * .9)))}
+  .ship .nm{font-style:italic;font-size:17px;white-space:nowrap;padding:0 4px;line-height:1.1;background:linear-gradient(transparent 60%, var(--hlc,transparent) 60%);
+    text-shadow:0 0 2px var(--paper),0 0 5px var(--paper),0 0 calc(2px + var(--lit) * 12px) rgba(230,160,40,calc(var(--lit) * .9))}
+  .ship .kd{font-family:"IM Fell English SC";font-size:11px;letter-spacing:.12em;color:var(--ink2);text-shadow:0 0 2px var(--paper),0 0 5px var(--paper)}
+  .ship .nm u{text-decoration:none;color:var(--red);border-bottom:1.5px solid var(--red)}
+  .night .ship{color:color-mix(in srgb, #fff0c4 calc(var(--lit) * 100%), #7b705a);--sail:color-mix(in srgb, #f6d892 calc(var(--lit) * 92%), #172034);opacity:calc(.62 + .38 * var(--lit))}
+  .night .ship .nm{text-shadow:0 0 3px #0a0f1b,0 0 6px #0a0f1b,0 0 calc(2px + var(--lit) * 16px) rgba(255,190,80,calc(var(--lit) * .95))}
+  .night .ship .kd{color:color-mix(in srgb, #e8c47a calc(var(--lit) * 100%), #5f584a);text-shadow:0 0 3px #0a0f1b}
+  .night .ship .nm u{color:#ffd27a;border-bottom-color:#ffd27a}
+  .ship.dim{opacity:.13 !important;filter:blur(.6px)}
+  .ship[aria-selected="true"]{z-index:3}
+  .ship[aria-selected="true"] .nm{--hlc:var(--hlc-sel)}
+  .ship[aria-selected="true"] svg{animation:bob 1.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}
+  .ship:focus-visible{outline:none}
+  .ship:focus-visible .nm{outline:1.5px dashed var(--gold);outline-offset:2px}
+  .ship.sailing{transition:none;z-index:5}
+  /* the ship's log */
+  .log{position:relative;background:#f3ead4;color:#2b2216;border-left:3px double #2b2216;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+    background-image:repeating-linear-gradient(transparent 0 27px, rgba(80,110,150,.22) 27px 28px);background-position:0 18px}
+  .log::before{content:"";position:absolute;left:46px;top:0;bottom:0;width:1px;background:rgba(160,40,30,.35)}
+  .log::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 0% 60%, rgba(255,190,90,.16), transparent 60%)}
+  .log header{padding:18px 22px 8px 60px}
+  .log .k{font-family:"IM Fell English SC";font-size:13px;letter-spacing:.16em;color:#5a4630;margin:0}
+  .log h1{margin:2px 0 0;font-weight:400;font-size:34px;line-height:1.05}
+  .log .body{padding:4px 22px 20px 60px;overflow-y:auto;min-height:0;font-size:17px;line-height:28px;transition:opacity .35s}
+  .log .body.out{opacity:0}
+  .log table{width:100%;border-collapse:collapse}
+  .log td{padding:0 6px 0 0;vertical-align:top;line-height:28px}
+  .log td b{font-weight:400}
+  .log td:last-child{text-align:right;font-style:italic;white-space:nowrap}
+  .log .muted{color:#6b5638;font-style:italic}
+  .log .stamp{display:inline-block;font-family:"IM Fell English SC";font-size:13px;letter-spacing:.1em;color:#8e2a1e;border:1.5px solid #8e2a1e;padding:0 6px;transform:rotate(-3deg);line-height:20px}
+  .log input[type=email],.log input[type=text]{font:inherit;font-style:italic;width:100%;border:0;border-bottom:1px solid #2b2216;background:transparent;padding:0;line-height:27px;outline:none}
+  .log input:focus{border-bottom-color:#8e2a1e}
+  .log button{font-family:"IM Fell English SC";font-size:15px;letter-spacing:.08em;background:#2b2216;color:#f3ead4;border:0;padding:3px 14px;cursor:pointer;margin-top:8px}
+  .log button:focus-visible{outline:2px dashed #8e2a1e;outline-offset:3px}
+  .log label.sw{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .log label.sw input{appearance:none;width:36px;height:18px;border:1.5px solid #2b2216;border-radius:9px;position:relative;margin:0;cursor:pointer}
+  .log label.sw input::after{content:"";position:absolute;left:2px;top:2px;width:11px;height:11px;border-radius:50%;background:#2b2216;transition:left .2s}
+  .log label.sw input:checked{background:#c9a24a}.log label.sw input:checked::after{left:19px}
+  .log label.sw input:focus-visible{outline:2px dashed #8e2a1e;outline-offset:2px}
+  .toast{position:absolute;z-index:9;left:50%;bottom:30px;transform:translate(-50%,240%);background:var(--paper);border:1.5px solid var(--ink);box-shadow:0 0 0 3px var(--paper),0 0 0 4px var(--ink);padding:6px 16px;font-style:italic;font-size:16px;transition:transform .4s cubic-bezier(.3,1.4,.5,1);white-space:nowrap;color:var(--ink)}
+  .toast.on{transform:translate(-50%,0)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:820px){
+    #stage{grid-template-columns:1fr;grid-template-rows:60% 1fr}
+    .log{border-left:0;border-top:3px double #2b2216}
+    .log header{padding:10px 14px 2px 52px}.log h1{font-size:24px}
+    .log .body{padding:2px 14px 12px 52px;font-size:15px}
+    .log::before{left:40px}
+    .cart{top:10px;padding:8px 14px 8px;width:calc(100% - 24px)}
+    .cart::before,.cart::after{display:none}
+    .cart .t{font-size:10px}.cart .t b{font-size:15px}
+    #q{font-size:18px}
+    .field label{display:none}
+    .kbd{display:none}
+    .status{font-size:12px;margin-top:3px}
+    .ship svg{width:32px;height:30px}
+    .ship .nm{font-size:13px}
+    .ship .kd{display:none}
+    .toast{font-size:14px;bottom:24px}
+  }
+  @media (prefers-reduced-motion:reduce){ .ship[aria-selected="true"] svg{animation:none} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <section class="chart night" id="chart">
+    <canvas id="base" aria-hidden="true"></canvas>
+    <canvas id="fx" aria-hidden="true"></canvas>
+    <div class="ships" id="ships" role="listbox" aria-label="Destinations and commands"></div>
+    <div class="cart">
+      <p class="t">A new &amp; correct chart of<b>Harbour · Saltmarsh Studio</b></p>
+      <div class="field"><label for="q">Steer for</label>
+        <input id="q" type="text" autocomplete="off" spellcheck="false" placeholder="a page, a client or a command…" role="combobox" aria-expanded="true" aria-controls="ships" aria-autocomplete="list">
+        <span class="kbd">⌘K</span></div>
+      <p class="status" id="status">The lamp sweeps fifteen anchorages. Type to narrow the beam.</p>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </section>
+  <aside class="log" aria-live="polite"><header><p class="k" id="logK">Ship’s log · Tuesday 6 October 2026</p><h1 id="logT">Inbox</h1></header><div class="body" id="logB"></div></aside>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const chart = $('#chart'), base = $('#base'), fx = $('#fx'), bg = base.getContext('2d'), g = fx.getContext('2d');
+const isNight = () => chart.classList.contains('night');
+
+/* ---------------- commands ---------------- */
+const CMDS = [
+  { id:'inbox', name:'Inbox', kind:'page', keys:'mail messages' },
+  { id:'projects', name:'Projects', kind:'page', keys:'work jobs' },
+  { id:'roadmap', name:'Q3 roadmap', kind:'document', keys:'plan milestones' },
+  { id:'calendar', name:'Calendar', kind:'page', keys:'schedule meetings today' },
+  { id:'invoices', name:'Invoices', kind:'page', keys:'bills money paid' },
+  { id:'team', name:'Team', kind:'page', keys:'people members crew' },
+  { id:'reports', name:'Reports', kind:'page', keys:'stats analytics hours' },
+  { id:'billing', name:'Settings · Billing', short:'Billing', kind:'settings', keys:'plan payment subscription' },
+  { id:'notify', name:'Settings · Notifications', short:'Notifications', kind:'settings', keys:'alerts email' },
+  { id:'halden', name:'Halden Farm', kind:'client', keys:'customer client farm' },
+  { id:'brand', name:'Brand guidelines', kind:'document', keys:'logo colours type' },
+  { id:'newinv', name:'New invoice', kind:'action', keys:'create bill charge' },
+  { id:'invite', name:'Invite teammate', kind:'action', keys:'add person member' },
+  { id:'theme', name:'Switch to day chart', short:'Day chart', kind:'action', keys:'light dark mode theme night day' },
+  { id:'export', name:'Export timesheets', kind:'action', keys:'csv download hours' }
+];
+const N = CMDS.length;
+const SHIP = '<svg viewBox="0 0 46 42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.1"><path d="M6 30h34l-5 7H11z" fill="var(--sail)"/><path d="M8 33h30M10 35.5h26" stroke-width=".5"/><path d="M23 30V4M15 30V10"/><path d="M23 6c8 4 9 14 8 22H23zM23 6c-5 6-6 14-5 22" fill="var(--sail)"/><path d="M15 12c-6 4-7 10-7 16h7z" fill="var(--sail)"/><path d="M24 10l6 3M24 15l7 2M24 20l7 1M24 25h7" stroke-width=".45"/><path d="M23 4l7-2v4z" fill="var(--red)" stroke="none"/></g><path d="M2 39q5-3 10 0t10 0 10 0 10 0" fill="none" stroke="currentColor" stroke-width=".7"/></svg>';
+const BUOY = '<svg viewBox="0 0 46 42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.1"><path d="M15 32h16l-3-14H18z" fill="var(--sail)"/><path d="M16.5 25h13M17.5 21h11" stroke-width=".5"/><path d="M20 18l3-12 3 12"/><path d="M19 9l4-4 4 4z" fill="var(--red)" stroke="none"/><path d="M14 32q9 4 18 0"/><circle cx="23" cy="15" r="2" fill="currentColor"/></g><path d="M4 37q5-3 10 0t10 0 10 0 10 0" fill="none" stroke="currentColor" stroke-width=".7"/></svg>';
+const BOTTLE = '<svg viewBox="0 0 46 42" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.1" transform="rotate(-24 23 22)"><path d="M14 18h14q4 0 4 4v4q0 4-4 4H14q-4 0-4-4v-4q0-4 4-4z" fill="var(--sail)"/><path d="M32 21h5v6h-5"/><path d="M37 22h3v4h-3" fill="var(--red)" stroke="none"/><path d="M14 22h12M14 25h10" stroke-width=".5"/></g><path d="M2 38q5-3 10 0t10 0 10 0 10 0" fill="none" stroke="currentColor" stroke-width=".7"/></svg>';
+const ICON = k => k === 'action' ? BUOY : k === 'document' ? BOTTLE : SHIP;
+const KIND = { action:'Buoy · command', document:'Bottle · document', client:'Ship · client', settings:'Ship · settings', page:'Ship · page' };
+
+/* ---------------- layout ---------------- */
+let W, H, DPR, mobile, lamp, dock, tower, CW, positions = [], motes = [];
+const coastX = y => CW * Math.sqrt(Math.max(0, (y - H * 0.62) / (H * 0.42)));
+function layout(){
+  W = chart.clientWidth; H = chart.clientHeight; DPR = Math.min(2, devicePixelRatio || 1); mobile = innerWidth <= 820;
+  for (const c of [base, fx]) { c.width = W * DPR; c.height = H * DPR; c.style.width = W + 'px'; c.style.height = H + 'px'; }
+  CW = W * (mobile ? 0.42 : 0.3);
+  const th = mobile ? 108 : Math.min(205, H * 0.26);
+  tower = { x: W * (mobile ? 0.12 : 0.095), y: H * (mobile ? 0.955 : 0.935), s: th / 190 };
+  lamp = { x: tower.x, y: tower.y - 144.5 * tower.s };
+  const dy = H * (mobile ? 0.86 : 0.82); dock = { x: coastX(dy) + (mobile ? 12 : 18), y: dy };
+  // anchorages on a jittered grid, clear of the cartouche and the lighthouse headland
+  const cols = mobile ? 3 : 5, rows = mobile ? 6 : 4;
+  const top = mobile ? 122 : 196, left = mobile ? 10 : 34, right = W - (mobile ? 10 : 30), bottom = H - (mobile ? 16 : 34);
+  const cw = (right - left) / cols, ch = (bottom - top) / rows, cells = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const j = (r * 7 + c * 13) % 10 / 10 - 0.5, k = (r * 11 + c * 5) % 10 / 10 - 0.5;
+    const x = left + (c + 0.5) * cw + j * cw * 0.28, y = top + (r + 0.55) * ch + k * ch * (mobile ? 0.12 : 0.24);
+    if (x < tower.x + (mobile ? 72 : 120) && y > lamp.y - (mobile ? 62 : 74)) continue;
+    cells.push({ x, y });
+  }
+  positions = []; const M = cells.length;
+  for (let i = 0; i < N; i++) positions.push(cells[Math.min(M - 1, Math.floor(i * M / N))]);
+  ships.forEach((s, i) => { const p = positions[i]; s.x = p.x; s.y = p.y; if (!s.sailing) { s.el.style.left = p.x + 'px'; s.el.style.top = p.y + 'px'; } s.ang = Math.atan2(p.y - lamp.y, p.x - lamp.x); s.dist = Math.hypot(p.x - lamp.x, p.y - lamp.y); });
+  motes = Array.from({ length: mobile ? 70 : 150 }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 7, vy: -1.5 - Math.random() * 4, p: Math.random() * TAU, r: 0.5 + Math.random() * 1.3 }));
+  drawChart();
+}
+
+/* ---------------- the engraved chart ---------------- */
+function rng(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function css(v){ return getComputedStyle(chart).getPropertyValue(v).trim(); }
+function drawChart(){
+  const R = rng(1852), c = bg, night = isNight();
+  const P = { paper: css('--paper'), ink: css('--ink'), ink2: css('--ink2'), sea: css('--sea'), mag: css('--magenta'), red: css('--red'), land: css('--land'),
+    tower: night ? '#262f45' : '#f1e6cc', band: night ? '#6c3a33' : '#8e2a1e', glass: night ? '#0b111d' : '#c9b58a', win: night ? '#f2c868' : '#5a4630' };
+  c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
+  c.fillStyle = P.paper; c.fillRect(0, 0, W, H);
+  // paper: foxing, stains and grain
+  for (let i = 0; i < 14; i++) { const x = R() * W, y = R() * H, r = 20 + R() * 90, gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, night ? 'rgba(90,70,40,.10)' : 'rgba(150,100,40,.10)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); }
+  c.fillStyle = night ? 'rgba(220,200,160,.05)' : 'rgba(60,40,20,.08)'; for (let i = 0; i < 1600; i++) c.fillRect(R() * W, R() * H, 1, 1);
+  // engraved wave hatching across the open sea
+  c.strokeStyle = P.ink2; c.lineWidth = 0.5; c.globalAlpha = night ? 0.22 : 0.18;
+  for (let y = 120; y < H; y += 9) { c.beginPath(); for (let x = 0; x < W; x += 6) { const yy = y + Math.sin(x * 0.045 + y * 0.3) * 1.6; x ? c.lineTo(x, yy) : c.moveTo(x, yy); } c.stroke(); }
+  c.globalAlpha = 1;
+  // rhumb lines from the compass rose
+  const rose = { x: W * (mobile ? 0.7 : 0.66), y: H * (mobile ? 0.6 : 0.56), r: Math.min(W, H) * (mobile ? 0.12 : 0.15) };
+  c.strokeStyle = P.ink2; c.globalAlpha = 0.3; c.lineWidth = 0.6;
+  for (let i = 0; i < 32; i++) { const a = i / 32 * TAU; c.beginPath(); c.moveTo(rose.x, rose.y); c.lineTo(rose.x + Math.cos(a) * 3000, rose.y + Math.sin(a) * 3000); c.stroke(); }
+  c.globalAlpha = 1;
+  // the coast: a headland in the south-west, water-lined like an engraving
+  const coast = [], cy0 = H * 0.62;
+  for (let k = 0; k <= 40; k++) { const t = k / 40, y = cy0 + t * t * H * 0.42; coast.push([coastX(y) + Math.sin(t * 9) * 6 + (R() - 0.5) * 3, y + Math.sin(t * 13) * 4]); }
+  coast.push([CW + 30, H + 10]);
+  const coastPath = () => { c.beginPath(); c.moveTo(-10, cy0 - 10); coast.forEach(([x, y]) => c.lineTo(x, y)); c.lineTo(-10, H + 10); c.closePath(); };
+  for (let k = 9; k >= 1; k--) { coastPath(); c.strokeStyle = P.sea; c.globalAlpha = 0.14 + (9 - k) * 0.05; c.lineWidth = k * 6; c.stroke(); }
+  c.globalAlpha = 1;
+  for (let k = 1; k <= 5; k++) { c.save(); c.translate(k * 5, -k * 3); coastPath(); c.strokeStyle = P.ink2; c.globalAlpha = 0.4 - k * 0.06; c.lineWidth = 0.7; c.stroke(); c.restore(); }
+  c.globalAlpha = 1;
+  coastPath(); c.fillStyle = P.land; c.fill(); c.strokeStyle = P.ink; c.lineWidth = 1.4; c.stroke();
+  c.save(); coastPath(); c.clip(); c.strokeStyle = P.ink2; c.lineWidth = 0.6; c.globalAlpha = 0.5;
+  for (let i = 0; i < 160; i++) { const x = R() * CW, y = cy0 + R() * H * 0.4, a = R() * 0.6 - 1.2, l = 4 + R() * 6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke(); }
+  c.restore(); c.globalAlpha = 1;
+  // an island to the north-east
+  if (!mobile) { const isl = { x: W * 0.875, y: H * 0.875 }; c.beginPath(); for (let k = 0; k <= 24; k++) { const a = k / 24 * TAU, r = 22 + Math.sin(a * 3) * 5 + Math.cos(a * 5) * 3; const x = isl.x + Math.cos(a) * r * 1.4, y = isl.y + Math.sin(a) * r; k ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath();
+    for (let k = 5; k >= 1; k--) { c.strokeStyle = P.sea; c.globalAlpha = 0.16; c.lineWidth = k * 6; c.stroke(); } c.globalAlpha = 1; c.fillStyle = P.land; c.fill(); c.strokeStyle = P.ink; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = P.ink; c.font = 'italic 12px "IM Fell English"'; c.textAlign = 'center'; c.fillText('Archive Isle', isl.x, isl.y + 4); }
+  // soundings
+  c.fillStyle = P.ink2; c.font = `italic ${mobile ? 9 : 11}px "IM Fell English"`; c.textAlign = 'center'; c.globalAlpha = 0.8;
+  for (let i = 0; i < (mobile ? 40 : 90); i++) { const x = R() * W, y = 120 + R() * (H - 140); if (x < coastX(y) + 8) continue; const d = Math.round(4 + (x / W) * 40 + R() * 12); c.fillText(d < 10 ? d + '½' : String(d), x, y); }
+  c.globalAlpha = 1;
+  c.globalAlpha = night ? 0.75 : 0.62; drawRose(c, rose, P.ink, P.paper); c.globalAlpha = 1;
+  // frame with lat/long graduation
+  c.strokeStyle = P.ink; c.lineWidth = 1.2; c.strokeRect(8, 8, W - 16, H - 16); c.strokeRect(14, 14, W - 28, H - 28);
+  c.fillStyle = P.ink;
+  for (let x = 14, k = 0; x < W - 14; x += 26, k++) if (k % 2) { c.fillRect(x, 8, 26, 6); c.fillRect(x, H - 14, 26, 6); }
+  for (let y = 14, k = 0; y < H - 14; y += 26, k++) if (k % 2) { c.fillRect(8, y, 6, 26); c.fillRect(W - 14, y, 6, 26); }
+  if (!mobile) { const sx = W - 170, sy = 44; c.font = 'italic 12px "IM Fell English"'; c.textAlign = 'left'; c.fillText('Nautical miles', sx, sy - 8);
+    for (let k = 0; k < 4; k++) { c.fillStyle = k % 2 ? P.paper : P.ink; c.fillRect(sx + k * 30, sy, 30, 6); c.strokeStyle = P.ink; c.strokeRect(sx + k * 30, sy, 30, 6); c.fillStyle = P.ink; c.fillText(String(k), sx + k * 30 - 3, sy + 20); } }
+  // harbour quay
+  c.strokeStyle = P.ink; c.lineWidth = 3; c.beginPath(); c.moveTo(dock.x - 30, dock.y + 12); c.lineTo(dock.x + 16, dock.y + 12); c.stroke();
+  c.lineWidth = 1; for (let k = 0; k < 5; k++) { c.beginPath(); c.moveTo(dock.x - 26 + k * 10, dock.y + 12); c.lineTo(dock.x - 26 + k * 10, dock.y + 18); c.stroke(); }
+  c.fillStyle = P.ink; c.font = `italic ${mobile ? 10 : 12}px "IM Fell English"`; c.textAlign = 'left'; c.fillText('⚓ Harbour', dock.x - 22, dock.y + 32);
+  // the light itself
+  drawLighthouse(c, tower.x, tower.y, tower.s, P);
+  c.fillStyle = P.ink; c.font = `${mobile ? 10 : 12}px "IM Fell English SC"`; c.textAlign = 'left';
+  c.fillText(mobile ? 'Saltmarsh Lt.' : 'Saltmarsh Light · Fl.(2) 10s 24M', 22, H - 20);
+}
+function drawLighthouse(c, bx, by, s, P){
+  c.save(); c.translate(bx, by); c.scale(s, s); c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = P.ink;
+  // rocks
+  c.lineWidth = 1.3; c.fillStyle = P.land; c.beginPath(); c.moveTo(-62, 14);
+  [[-56, -4], [-42, -9], [-30, -3], [-16, -11], [-2, -7], [12, -10], [26, -5], [42, -9], [58, -3], [72, 8]].forEach(([x, y]) => c.quadraticCurveTo(x - 6, y - 7, x, y));
+  c.lineTo(76, 16); c.lineTo(-64, 16); c.closePath(); c.fill(); c.stroke();
+  c.lineWidth = 0.6; for (let x = -54; x < 68; x += 5) { c.beginPath(); c.moveTo(x, 14); c.lineTo(x + 4, 2); c.stroke(); }
+  // keeper's cottage with a lit window and smoke
+  c.lineWidth = 1.2; c.fillStyle = P.tower; c.fillRect(26, -30, 40, 26); c.strokeRect(26, -30, 40, 26);
+  c.fillStyle = P.band; c.beginPath(); c.moveTo(21, -30); c.lineTo(46, -50); c.lineTo(71, -30); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = P.tower; c.fillRect(56, -50, 6, 12); c.strokeRect(56, -50, 6, 12);
+  c.fillStyle = P.win; c.fillRect(31, -24, 9, 9); c.strokeRect(31, -24, 9, 9); c.beginPath(); c.moveTo(35.5, -24); c.lineTo(35.5, -15); c.moveTo(31, -19.5); c.lineTo(40, -19.5); c.stroke();
+  c.fillStyle = P.ink; c.fillRect(48, -20, 9, 16);
+  c.strokeStyle = P.ink2; c.lineWidth = 0.9; c.beginPath(); c.moveTo(59, -52); c.bezierCurveTo(54, -60, 66, -64, 60, -72); c.bezierCurveTo(56, -78, 68, -82, 64, -90); c.stroke(); c.strokeStyle = P.ink;
+  // tower body, banded and hatched
+  const body = () => { c.beginPath(); c.moveTo(-22, -4); c.lineTo(-14, -126); c.lineTo(14, -126); c.lineTo(22, -4); c.closePath(); };
+  body(); c.fillStyle = P.tower; c.fill();
+  c.save(); body(); c.clip(); c.fillStyle = P.band; [[-48, -32], [-90, -74], [-122, -108]].forEach(([a, b]) => c.fillRect(-30, a, 60, b - a));
+  c.strokeStyle = P.ink; c.lineWidth = 0.55; for (let k = 0; k < 10; k++) { const t = k / 10; c.beginPath(); c.moveTo(5 + t * 18, -4); c.lineTo(3 + t * 12, -126); c.stroke(); }
+  c.lineWidth = 0.4; for (let y = -10; y > -126; y -= 7) { c.beginPath(); c.moveTo(-22, y); c.lineTo(22, y); c.stroke(); }
+  c.restore(); c.lineWidth = 1.4; body(); c.stroke();
+  c.fillStyle = P.ink; c.beginPath(); c.moveTo(-5, -4); c.lineTo(-5, -16); c.arc(0, -16, 5, Math.PI, 0); c.lineTo(5, -4); c.closePath(); c.fill();
+  [-58, -98].forEach(y => { c.fillStyle = P.win; c.fillRect(-2.5, y, 5, 9); c.strokeRect(-2.5, y, 5, 9); });
+  // gallery, railing and corbels
+  c.fillStyle = P.ink; c.fillRect(-25, -131, 50, 5);
+  for (let x = -20; x <= 20; x += 8) { c.beginPath(); c.moveTo(x - 3, -126); c.lineTo(x + 3, -126); c.lineTo(x, -121); c.closePath(); c.fill(); }
+  c.lineWidth = 1; c.beginPath(); c.moveTo(-24, -143); c.lineTo(24, -143); for (let x = -23; x <= 23; x += 4) { c.moveTo(x, -131); c.lineTo(x, -143); } c.stroke();
+  // lamp room (glass glows from the fx layer)
+  c.fillStyle = P.glass; c.fillRect(-12, -158, 24, 27); c.lineWidth = 1.2; c.strokeRect(-12, -158, 24, 27);
+  // dome, ball and weather vane
+  c.fillStyle = P.band; c.beginPath(); c.moveTo(-16, -158); c.quadraticCurveTo(0, -180, 16, -158); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = P.ink; c.beginPath(); c.arc(0, -172, 2.6, 0, TAU); c.fill();
+  c.lineWidth = 1.1; c.beginPath(); c.moveTo(0, -174); c.lineTo(0, -190); c.moveTo(-9, -186); c.lineTo(9, -186); c.stroke();
+  c.beginPath(); c.moveTo(9, -186); c.lineTo(4, -189); c.lineTo(4, -183); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(-9, -186); c.lineTo(-13, -190); c.moveTo(-9, -186); c.lineTo(-13, -182); c.stroke();
+  c.restore();
+}
+function drawRose(c, o, INK, PAPER){
+  c.save(); c.translate(o.x, o.y); c.strokeStyle = INK; c.lineWidth = 1;
+  [1, 0.93, 0.8].forEach(k => { c.beginPath(); c.arc(0, 0, o.r * k, 0, TAU); c.stroke(); });
+  for (let i = 0; i < 360; i += 5) { const a = i * Math.PI / 180, r0 = o.r * (i % 30 ? 0.95 : 0.9); c.beginPath(); c.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); c.lineTo(Math.cos(a) * o.r, Math.sin(a) * o.r); c.stroke(); }
+  const point = (a, len, w, dark) => { const tip = [Math.cos(a) * len, Math.sin(a) * len], l = [Math.cos(a - Math.PI / 2) * w, Math.sin(a - Math.PI / 2) * w], rr = [Math.cos(a + Math.PI / 2) * w, Math.sin(a + Math.PI / 2) * w];
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(l[0], l[1]); c.lineTo(tip[0], tip[1]); c.closePath(); c.fillStyle = dark ? INK : PAPER; c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(rr[0], rr[1]); c.lineTo(tip[0], tip[1]); c.closePath(); c.fillStyle = dark ? PAPER : INK; c.fill(); c.stroke(); };
+  for (let i = 0; i < 8; i++) point(i / 8 * TAU - Math.PI / 2 + TAU / 16, o.r * 0.55, o.r * 0.07, i % 2);
+  for (let i = 0; i < 4; i++) point(i / 4 * TAU - Math.PI / 2, o.r * 0.82, o.r * 0.1, i % 2 === 0);
+  c.fillStyle = INK; c.font = `${Math.round(o.r * 0.16)}px "IM Fell English SC"`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('N', 0, -o.r * 1.1); c.fillText('S', 0, o.r * 1.1); c.fillText('E', o.r * 1.1, 0); c.fillText('W', -o.r * 1.1, 0);
+  c.beginPath(); c.arc(0, 0, o.r * 0.05, 0, TAU); c.fillStyle = PAPER; c.fill(); c.stroke();
+  c.restore(); c.textBaseline = 'alphabetic';
+}
+
+/* ---------------- ships ---------------- */
+const shipsEl = $('#ships');
+const ships = CMDS.map((cmd, i) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'ship'; b.id = 'opt-' + cmd.id; b.setAttribute('role', 'option'); b.tabIndex = -1;
+  b.innerHTML = ICON(cmd.kind) + `<span class="nm"></span><span class="kd">${KIND[cmd.kind]}</span>`;
+  b.addEventListener('pointerenter', () => { if (!sailing) { hoverHold = 1.4; select(i, true); } });
+  b.addEventListener('click', () => { audio(); select(i); sail(i); });
+  shipsEl.appendChild(b);
+  return { cmd, el: b, nm: b.querySelector('.nm'), x: 0, y: 0, ang: 0, dist: 1, match: true, score: 0, lit: 0, litShown: -1 };
+});
+
+/* ---------------- search ---------------- */
+const q = $('#q');
+function fuzzy(query, text){
+  const t = text.toLowerCase(); let qi = 0, score = 0, last = -2; const idx = [];
+  for (let i = 0; i < t.length && qi < query.length; i++) {
+    if (t[i] === query[qi]) { let s = 1; if (i === last + 1) s += 3; if (i === 0 || /[\s·\-:]/.test(t[i - 1])) s += 4; score += s; idx.push(i); last = i; qi++; }
+  }
+  return qi === query.length ? { score: score - t.length * 0.04, idx } : null;
+}
+let matches = ships.map((_, i) => i), sel = -1, beamW = 0.17, beamWt = 0.17, bi = 1, bit = 1;
+function update(){
+  const v = q.value.trim().toLowerCase();
+  matches = [];
+  ships.forEach((s, i) => {
+    let m = null;
+    if (!v) m = { score: 0, idx: [] };
+    else { m = fuzzy(v, s.cmd.name); if (!m && s.cmd.short) m = fuzzy(v, s.cmd.short); if (!m) { const k = fuzzy(v, s.cmd.keys); if (k) m = { score: k.score - 3, idx: [] }; } }
+    s.match = !!m; s.score = m ? m.score : -1e9;
+    const shown = s.cmd.short || s.cmd.name, hm = v ? fuzzy(v, shown) : null;
+    s.nm.innerHTML = hm && m ? [...shown].map((ch, j) => hm.idx.includes(j) ? `<u>${ch}</u>` : ch).join('') : shown;
+    s.el.classList.toggle('dim', !!v && !m);
+    s.el.setAttribute('aria-hidden', !!v && !m);
+    s.el.setAttribute('aria-label', `${s.cmd.name}, ${KIND[s.cmd.kind]}`);
+    if (m) matches.push(i);
+  });
+  if (v) matches.sort((a, b) => ships[b].score - ships[a].score);
+  if (v && matches.length) select(matches[0]); else if (!v) { sel = -1; ships.forEach(s => s.el.setAttribute('aria-selected', 'false')); q.removeAttribute('aria-activedescendant'); }
+  else { sel = -1; ships.forEach(s => s.el.setAttribute('aria-selected', 'false')); }
+  bit = v && !matches.length ? 0.45 : 1;
+  const st = $('#status');
+  st.textContent = !v ? 'The lamp sweeps fifteen anchorages. Type to narrow the beam.' : matches.length ? `${matches.length} in the light · ↑ ↓ swing the beam · Enter to set sail` : `Nothing answers to “${q.value}” — only fog out there.`;
+  $('#live').textContent = v ? (matches.length ? `${matches.length} results. ${ships[matches[0]].cmd.name}` : 'No results') : '';
+}
+function select(i, fromHover){
+  if (sel === i) return;
+  sel = i; ships.forEach((s, k) => s.el.setAttribute('aria-selected', k === i)); q.setAttribute('aria-activedescendant', ships[i].el.id);
+  if (!fromHover) $('#live').textContent = ships[i].cmd.name;
+  if (AC && !RM) creak();
+}
+q.addEventListener('input', () => { audio(); update(); });
+q.addEventListener('keydown', e => {
+  const list = q.value.trim() ? matches : ships.map((_, i) => i);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); audio(); if (!list.length) return;
+    let p = list.indexOf(sel); p = p < 0 ? 0 : (p + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length; select(list[p]);
+  } else if (e.key === 'Enter') { e.preventDefault(); audio(); if (sel >= 0 && (!q.value.trim() || ships[sel].match)) sail(sel); else if (list.length) { select(list[0]); sail(list[0]); } }
+  else if (e.key === 'Escape') { q.value = ''; update(); }
+});
+document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); q.focus(); q.select(); } else if (e.key === '/' && document.activeElement !== q && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); } });
+
+/* ---------------- beam & sailing ---------------- */
+let theta = -0.9, om = 0, spd = 0.55, time = 0, sailing = null, last = 0, running = true, hoverHold = 0;
+const wrap = a => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
+function sail(i){
+  if (sailing) return; const s = ships[i];
+  sailing = { i, t: 0, from: { x: s.x, y: s.y }, c: { x: (s.x + dock.x) / 2 + 60, y: Math.min(s.y, dock.y) - 40 }, to: { x: dock.x, y: dock.y }, dur: RM ? 0.01 : 1.6, p: { x: s.x, y: s.y } };
+  s.sailing = true; s.el.classList.add('sailing'); q.disabled = true; bell(0); $('#status').textContent = `Setting a course for ${s.cmd.name}…`;
+}
+function bez(a, c, b, t){ const u = 1 - t; return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y }; }
+const smooth = k => k * k * (3 - 2 * k);
+function beamAt(x, y){ const d = Math.abs(wrap(Math.atan2(y - lamp.y, x - lamp.x) - theta)); return smooth(Math.max(0, 1 - d / (beamW * 1.25))); }
+function wedge(w, Rm){ g.beginPath(); g.moveTo(lamp.x, lamp.y); g.arc(lamp.x, lamp.y, Rm, theta - w, theta + w); g.closePath(); }
+function frame(ts){
+  if (!running) return;
+  const dt = Math.min(0.05, (ts - (last || ts)) / 1000); last = ts; time += dt;
+  const v = q.value.trim(), night = isNight();
+  // where the beam wants to point
+  let aim = null, aimDist = 300;
+  if (sailing) { aim = Math.atan2(sailing.p.y - lamp.y, sailing.p.x - lamp.x); aimDist = Math.hypot(sailing.p.x - lamp.x, sailing.p.y - lamp.y); }
+  else if (sel >= 0 && (v || document.activeElement === q || hoverHold > 0)) { aim = ships[sel].ang; aimDist = ships[sel].dist; }
+  if (aim != null) {
+    const d = wrap(aim - theta), k = sailing ? 140 : 42, c = sailing ? 22 : 11; om += (d * k - om * c) * dt; theta = wrap(theta + om * dt);
+    beamWt = Math.max(0.05, Math.min(0.11, Math.atan(60 / Math.max(80, aimDist))));
+    if (!v && !sailing) beamWt = Math.max(beamWt, 0.09);
+  } else {
+    om *= 0.9;
+    const a0 = Math.atan2(-lamp.y, -lamp.x) - 0.1, a1 = Math.atan2(H - lamp.y, W - lamp.x) + 0.1, on = theta > a0 && theta < a1;
+    spd += ((RM ? 0.2 : on ? 0.55 : 3.4) - spd) * Math.min(1, dt * 3);
+    theta = wrap(theta + spd * dt);
+    beamWt = v ? 0.24 : 0.17;
+  }
+  hoverHold = Math.max(0, hoverHold - dt);
+  beamW += (beamWt - beamW) * Math.min(1, dt * 5);
+  bi += (bit - bi) * Math.min(1, dt * 3);
+  // ships warm as the beam touches them; the best match is fully lit
+  ships.forEach((s, i) => {
+    let t = 0;
+    if (!v || s.match) t = beamAt(s.x, s.y) * bi;
+    if (v && s.match && i !== sel) t = Math.max(t, 0.22);
+    if (sailing && sailing.i === i) t = 1;
+    const rate = t > s.lit ? 10 : (v ? 4 : 0.9);
+    s.lit += (t - s.lit) * Math.min(1, dt * rate);
+    if (Math.abs(s.lit - s.litShown) > 0.008) { s.litShown = s.lit; s.el.style.setProperty('--lit', s.lit.toFixed(3)); }
+  });
+  draw(dt, night);
+  requestAnimationFrame(frame);
+}
+function draw(dt, night){
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  const Rm = Math.hypot(W, H) * 1.15, s = tower.s, fl = 0.93 + 0.07 * Math.sin(time * 11.3) * Math.sin(time * 6.7);
+  if (night) {
+    // 1. the dark: the chart is lit only by the lamp
+    g.fillStyle = 'rgba(3,6,14,.55)'; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'destination-out';
+    const halo = g.createRadialGradient(lamp.x, lamp.y + 40 * s, 0, lamp.x, lamp.y + 40 * s, 230 * s); halo.addColorStop(0, 'rgba(0,0,0,.95)'); halo.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = halo; g.fillRect(0, 0, W, H);
+    for (let k = 0; k < 4; k++) {
+      const gr = g.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, Rm);
+      gr.addColorStop(0, `rgba(0,0,0,${(0.5 - k * 0.1) * bi})`); gr.addColorStop(0.55, `rgba(0,0,0,${(0.32 - k * 0.06) * bi})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; wedge(beamW * (0.55 + k * 0.38), Rm); g.fill();
+    }
+    // 2. the volumetric cone, layered additively
+    g.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 6; k++) {
+      const a = 0.055 * (1 - k / 7) * bi * fl, gr = g.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, Rm);
+      gr.addColorStop(0, `rgba(255,214,130,${a * 3})`); gr.addColorStop(0.18, `rgba(255,196,100,${a * 1.6})`); gr.addColorStop(0.6, `rgba(240,170,70,${a * 0.7})`); gr.addColorStop(1, 'rgba(240,160,60,0)');
+      g.fillStyle = gr; wedge(beamW * (0.3 + k * 0.3), Rm); g.fill();
+    }
+    const core = g.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, Rm * 0.7); core.addColorStop(0, `rgba(255,240,200,${0.22 * bi * fl})`); core.addColorStop(1, 'rgba(255,230,180,0)');
+    g.fillStyle = core; wedge(beamW * 0.16, Rm); g.fill();
+    // streaks inside the cone
+    g.lineWidth = 1;
+    for (let k = -4; k <= 4; k++) { const a = theta + k * beamW / 5 + Math.sin(time * 0.7 + k) * beamW * 0.04; const al = 0.05 * bi * (1 - Math.abs(k) / 5) * (0.6 + 0.4 * Math.sin(time * 1.3 + k * 2));
+      const gr = g.createLinearGradient(lamp.x, lamp.y, lamp.x + Math.cos(a) * Rm * 0.6, lamp.y + Math.sin(a) * Rm * 0.6); gr.addColorStop(0, `rgba(255,230,170,${al * 2})`); gr.addColorStop(1, 'rgba(255,230,170,0)');
+      g.strokeStyle = gr; g.beginPath(); g.moveTo(lamp.x, lamp.y); g.lineTo(lamp.x + Math.cos(a) * Rm * 0.6, lamp.y + Math.sin(a) * Rm * 0.6); g.stroke(); }
+    // 3. dust and spray drifting through the light
+    for (const m of motes) {
+      if (!RM) { m.x += (m.vx + Math.sin(time * 0.6 + m.p) * 3) * dt; m.y += m.vy * dt; if (m.y < 0) { m.y = H; m.x = Math.random() * W; } if (m.x < 0) m.x += W; if (m.x > W) m.x -= W; }
+      const I = beamAt(m.x, m.y) * bi; if (I < 0.03) continue;
+      g.fillStyle = `rgba(255,228,160,${I * (0.45 + 0.4 * Math.sin(time * 3 + m.p))})`; g.beginPath(); g.arc(m.x, m.y, m.r, 0, TAU); g.fill();
+    }
+  } else {
+    // day chart: the beam reads as a warm wash of ink on parchment
+    g.globalCompositeOperation = 'multiply';
+    for (let k = 0; k < 5; k++) {
+      const a = 0.11 * (1 - k / 6) * bi, gr = g.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, Rm);
+      gr.addColorStop(0, `rgba(226,160,50,${a * 2})`); gr.addColorStop(0.5, `rgba(226,160,50,${a})`); gr.addColorStop(1, 'rgba(226,160,50,0)');
+      g.fillStyle = gr; wedge(beamW * (0.35 + k * 0.32), Rm); g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+    g.strokeStyle = 'rgba(120,80,20,.25)'; g.lineWidth = 0.6;
+    for (let k = -5; k <= 5; k++) { const a = theta + k * beamW / 6; g.beginPath(); g.moveTo(lamp.x, lamp.y); g.lineTo(lamp.x + Math.cos(a) * Rm * 0.7, lamp.y + Math.sin(a) * Rm * 0.7); g.stroke(); }
+  }
+  // 4. the lamp room burns, with an engraved glory of rays
+  g.globalCompositeOperation = night ? 'lighter' : 'source-over';
+  for (let k = 0; k < 32; k++) {
+    const a = k / 32 * TAU + time * 0.04; if (Math.sin(a) > 0.72) continue;
+    const r0 = 21 * s, r1 = r0 + (k % 2 ? 18 : 36) * s * (0.92 + 0.08 * fl);
+    g.strokeStyle = night ? `rgba(255,210,120,${0.4 * fl})` : 'rgba(150,100,30,.55)'; g.lineWidth = k % 2 ? 0.8 : 1.2;
+    g.beginPath(); g.moveTo(lamp.x + Math.cos(a) * r0, lamp.y + Math.sin(a) * r0); g.lineTo(lamp.x + Math.cos(a) * r1, lamp.y + Math.sin(a) * r1); g.stroke();
+  }
+  const glow = g.createRadialGradient(lamp.x, lamp.y, 0, lamp.x, lamp.y, 60 * s); glow.addColorStop(0, `rgba(255,226,150,${(night ? 0.75 : 0.45) * fl})`); glow.addColorStop(1, 'rgba(255,210,120,0)');
+  g.fillStyle = glow; g.beginPath(); g.arc(lamp.x, lamp.y, 60 * s, 0, TAU); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  const gx = lamp.x - 12 * s, gy = lamp.y - 13.5 * s, gw = 24 * s, gh = 27 * s;
+  const lg = g.createLinearGradient(gx, 0, gx + gw, 0); lg.addColorStop(0, '#f6c35a'); lg.addColorStop(0.5 + 0.35 * Math.cos(theta), '#fff6d8'); lg.addColorStop(1, '#e9a83c');
+  g.fillStyle = lg; g.globalAlpha = 0.9 * fl + 0.1; g.fillRect(gx, gy, gw, gh); g.globalAlpha = 1;
+  g.strokeStyle = night ? '#0b111d' : '#2b2216'; g.lineWidth = 1.2 * s; g.strokeRect(gx, gy, gw, gh);
+  g.beginPath(); g.moveTo(gx + gw / 3, gy); g.lineTo(gx + gw / 3, gy + gh); g.moveTo(gx + 2 * gw / 3, gy); g.lineTo(gx + 2 * gw / 3, gy + gh); g.stroke();
+  // 5. the course plotted in red ink while a ship sails home
+  if (sailing) {
+    const S = sailing, sh = ships[S.i]; S.t = Math.min(1, S.t + dt / S.dur); const e = S.t < 0.5 ? 2 * S.t * S.t : 1 - Math.pow(-2 * S.t + 2, 2) / 2;
+    g.strokeStyle = css('--red'); g.lineWidth = 1.5; g.setLineDash([6, 5]); g.beginPath();
+    for (let k = 0; k <= 40; k++) { const p = bez(S.from, S.c, S.to, k / 40 * Math.max(e, 0.02)); k ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); } g.stroke(); g.setLineDash([]);
+    const p = bez(S.from, S.c, S.to, e), p2 = bez(S.from, S.c, S.to, Math.min(1, e + 0.02)); S.p = p;
+    sh.el.style.left = p.x + 'px'; sh.el.style.top = p.y + 'px';
+    sh.el.style.transform = `translate(-50%,-62%) scale(${1 - e * 0.35}) scaleX(${p2.x < p.x ? -1 : 1})`;
+    if (S.t >= 1) { const cmd = sh.cmd; sailing = null; bell(1); run(cmd);
+      setTimeout(() => { sh.sailing = false; sh.el.classList.remove('sailing'); sh.el.style.transform = ''; sh.el.style.left = sh.x + 'px'; sh.el.style.top = sh.y + 'px'; if (!RM) sh.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 600 }); q.disabled = false; q.value = ''; update(); q.focus(); }, 700); }
+  }
+}
+shipsEl.addEventListener('pointermove', () => { hoverHold = 1.4; });
+document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { last = 0; requestAnimationFrame(frame); } });
+
+/* ---------------- the ship's log (the app) ---------------- */
+const T = rows => `<table><tbody>${rows.map(r => `<tr><td><b>${r[0]}</b><br><span class="muted">${r[1]}</span></td><td>${r[2]}</td></tr>`).join('')}</tbody></table>`;
+const PAGES = {
+  inbox: ['Inbox', 'Four unread · newest first', T([['Ines Carvalho', 'Revised quote for the cider labels', '09:12'], ['Tom Reyes', 'Print proof approved ✓', '08:47'], ['Halden Farm', 'Spring menu — final copy', 'Mon'], ['Bank feed', 'Payment received · £3,860', 'Mon']])],
+  projects: ['Projects', 'Six afloat · two due this week', T([['Orchard Cider · packaging', 'due Fri 9 Oct', '72%'], ['Northwind · spring campaign', 'due 23 Oct', '40%'], ['Halden Farm · menu', 'due Thu 8 Oct', '95%'], ['Studio website refresh', 'due 6 Nov', '18%']])],
+  roadmap: ['Q3 roadmap', 'Document · edited by Ada Murray yesterday', `<p>July — move every client onto shared timesheets. <span class="stamp">Done</span></p><p>August — launch the studio’s print shop for small runs. <span class="stamp">Done</span></p><p>September — hire a second designer; brief written, interviews booked for 12 & 14 Oct.</p>`],
+  calendar: ['Calendar', 'Tuesday 6 October 2026', T([['09:30', 'Stand-up, whole studio', 'Studio'], ['11:00', 'Orchard Cider · label review', 'Video'], ['14:00', 'Portfolio review with Wen', 'Room 2'], ['16:30', 'Invoice run', 'You']])],
+  invoices: ['Invoices', '£24,610 outstanding · one overdue', T([['INV-1047 · Fennick & Co', '£12,400', 'overdue 9 d'], ['INV-1052 · Northwind Bikes', '£8,350', 'due 20 Oct'], ['INV-1053 · Halden Farm', '£3,860', 'paid']])],
+  team: ['Team', 'Five hands on deck', T([['Ada Murray', 'Studio lead', 'in'], ['Wen Li', 'Designer', 'in'], ['Tom Reyes', 'Production', 'out until 2pm'], ['Sam Okoro', 'Accounts', 'in'], ['Priya Shah', 'Finance', 'Thu only']])],
+  reports: ['Reports', 'September at a glance', T([['Billable hours', '612 of 700', '87%'], ['Revenue', '£41,280', '+12%'], ['Average days to pay', '23', '−4']])],
+  billing: ['Settings · Billing', 'Plan & payment', T([['Plan', 'Studio · 8 seats', '£64 / month'], ['Next bill', '1 November 2026', 'Direct debit'], ['Last bill', '1 October 2026', 'paid']])],
+  notify: ['Settings · Notifications', 'What rings the ship’s bell', `<label class="sw">Daily digest at 08:00 <input type="checkbox" checked></label><label class="sw">Invoice paid <input type="checkbox" checked></label><label class="sw">Mentions in comments <input type="checkbox" checked></label><label class="sw">Weekend messages <input type="checkbox"></label>`],
+  halden: ['Halden Farm', 'Client since March 2024 · Somerset', T([['Contact', 'Grace Halden', '07700 900 418'], ['Open projects', 'Spring menu', 'due 8 Oct'], ['Lifetime billed', '£18,920', '9 invoices']])],
+  brand: ['Brand guidelines', 'Document · Saltmarsh Studio · v3', `<p>Typeface: a sturdy old-style serif for display, a quiet sans for body.</p><p>Colours: harbour navy, sail cream, lamp gold. Never place gold on cream below 18 pt.</p><p class="muted">Last opened by Wen Li, 2 October 2026.</p>`],
+  newinv: ['New invoice', 'Draft · INV-1054', `<label>Client<input type="text" value="Orchard Cider Co"></label><label>For<input type="text" value="Packaging design, final artwork"></label><label>Amount<input type="text" value="£6,200.00"></label><button type="button" data-act="send">Save draft</button>`],
+  invite: ['Invite teammate', 'They’ll join as a crew member', `<label>Email address<input type="email" placeholder="name@saltmarsh.studio"></label><button type="button" data-act="invite">Send invitation</button>`]
+};
+function run(cmd){
+  if (cmd.id === 'theme') {
+    chart.classList.toggle('night'); const n = isNight();
+    cmd.name = n ? 'Switch to day chart' : 'Switch to night chart'; cmd.short = n ? 'Day chart' : 'Night chart';
+    drawChart(); update(); ships.forEach(s => s.litShown = -1);
+    toast(n ? 'Night chart · lit by the lamp alone' : 'Day chart · the lamp still turns'); return;
+  }
+  if (cmd.id === 'export') { toast('timesheets-sep-2026.csv is ready in Downloads'); return; }
+  const p = PAGES[cmd.id] || PAGES.inbox;
+  const b = $('#logB'); b.classList.add('out');
+  setTimeout(() => { $('#logT').textContent = p[0]; $('#logK').textContent = 'Ship’s log · ' + p[1]; b.innerHTML = p[2]; b.classList.remove('out');
+    b.querySelectorAll('[data-act]').forEach(x => x.addEventListener('click', () => { if (x.dataset.act === 'invite') { const m = b.querySelector('input[type=email]').value.trim(); toast(m && /@/.test(m) ? `Invitation sent to ${m}` : 'Add an email address first'); } else toast('Draft INV-1054 saved'); })); }, RM ? 0 : 250);
+  toast(`Docked · ${cmd.name}`);
+  $('#live').textContent = `Opened ${cmd.name}`;
+}
+let tt; function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), 2400); }
+
+/* ---------------- audio: bell buoy and rigging ---------------- */
+let AC = null, master = null;
+function audio(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.15; master.connect(AC.destination); } catch (e) { AC = null; } } if (AC && AC.state === 'suspended') AC.resume(); }
+function bell(k){ if (!AC) return; const t = AC.currentTime, f0 = k ? 523 : 392; [1, 2.0, 2.76, 5.4].forEach((m, j) => { const o = AC.createOscillator(), gg = AC.createGain(); o.frequency.value = f0 * m; gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.22 / (j + 1), t + 0.004); gg.gain.exponentialRampToValueAtTime(0.0001, t + 2.2 / (j + 1)); o.connect(gg).connect(master); o.start(t); o.stop(t + 2.3); }); }
+let lastCreak = 0;
+function creak(){ const now = performance.now(); if (now - lastCreak < 90) return; lastCreak = now; const t = AC.currentTime, o = AC.createOscillator(), f = AC.createBiquadFilter(), gg = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(90, t); o.frequency.linearRampToValueAtTime(130, t + 0.08); f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 6; gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(0.12, t + 0.02); gg.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.connect(f).connect(gg).connect(master); o.start(t); o.stop(t + 0.14); }
+
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); update(); }, 80); });
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => drawChart());
+layout(); update(); run(CMDS[0]); $('#toast').classList.remove('on');
+requestAnimationFrame(frame);
+window.__lh = { type: s => { q.value = s; update(); }, sail: () => sail(sel), q, aim: a => { theta = a; } };
+})();
+</script>
+</body>
+</html>

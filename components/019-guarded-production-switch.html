@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guarded Production Switch</title>
+<meta name="description" content="A staging/production deploy toggle as a 1970s Apollo-era console: master-arm key, flip-up guard cover, bat toggle, annunciators and a DSKY-style readout.">
+<script type="application/json" id="component-meta">
+{"name":"Guarded Production Switch","reimagines":"Dangerous toggle (staging / production)","category":"Toggles & Switches","description":"Switching a service to production is a three-step ritual on an Apollo-era console: turn the master-arm key, lift the red guard, throw the bat toggle. Annunciators light, the DSKY readout flips from STG to PRD and the teleprinter logs who did it. Drop the guard and it slams the switch back to staging.","hint":"Turn the key to ARM, lift the red guard, then flip the switch up"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--panel:#8a9192;--insert:#979e9f;--engr:#f2f1ea;--dark:#202325;--amber:#ffb23a;--red:#e2372b;--green:#6fe08a}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#2d3133}
+body{font-family:"Barlow Condensed","Arial Narrow",sans-serif;color:var(--engr);-webkit-font-smoothing:antialiased}
+.room{position:fixed;inset:0;background:radial-gradient(90% 70% at 50% 30%,#4a5052,#24282a 70%,#181a1b)}
+.console{position:absolute;left:50%;top:50%;width:1060px;height:690px;transform-origin:0 0;border-radius:10px;padding:22px;
+  background:linear-gradient(180deg,#959c9d,#868d8e 50%,#7d8384);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.25),0 30px 60px rgba(0,0,0,.6),0 4px 0 #5e6465;
+  display:grid;grid-template-columns:300px 1fr 250px;grid-template-rows:74px 1fr 170px;gap:16px;
+  grid-template-areas:"head head head" "cw main key" "dsky dsky tape"}
+.console::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;mix-blend-mode:multiply;opacity:.6;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .52 0 0 0 0 .52 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+.ins{position:relative;background:linear-gradient(180deg,#9aa1a2,#8f9697);border-radius:4px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.28),0 2px 3px rgba(0,0,0,.25)}
+.scr{position:absolute;width:11px;height:11px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e7eaea,#7e8586 70%,#5d6364);box-shadow:0 1px 1px rgba(0,0,0,.4)}
+.scr::before,.scr::after{content:"";position:absolute;left:2px;right:2px;top:4.6px;height:1.6px;background:#4a5051;transform:rotate(var(--r,20deg))}
+.scr::after{transform:rotate(calc(var(--r,20deg) + 90deg))}
+.scr.tl{left:6px;top:6px}.scr.tr{right:6px;top:6px;--r:-35deg}.scr.bl{left:6px;bottom:6px;--r:60deg}.scr.br{right:6px;bottom:6px;--r:5deg}
+.lbl{font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--engr);text-shadow:0 -1px 0 rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.12)}
+.head{grid-area:head;display:flex;align-items:center;justify-content:space-between;padding:0 26px}
+.head .t{font-size:26px;font-weight:700;letter-spacing:.12em}
+.head .s{font-size:14px;letter-spacing:.16em;opacity:.85}
+.met{display:flex;align-items:center;gap:12px}
+.dsp{background:#0d1210;border-radius:3px;padding:6px 10px;box-shadow:inset 0 2px 6px rgba(0,0,0,.9),0 0 0 2px #5d6364,0 1px 0 2px rgba(255,255,255,.2)}
+.dsp svg{display:block}
+.cw{grid-area:cw;padding:30px 20px 18px}
+.cw .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ann{height:52px;border-radius:2px;display:flex;align-items:center;justify-content:center;text-align:center;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:13px;line-height:1.05;letter-spacing:.06em;
+  background:linear-gradient(180deg,#d7d4c6,#c6c3b4);color:#4b4a43;box-shadow:inset 0 0 0 2px #2b2e30,inset 0 0 0 4px #6d7273,0 1px 0 rgba(255,255,255,.25);transition:background .12s,color .12s,box-shadow .12s}
+.ann.on{color:#2a1b05}
+.ann.on.amber{background:radial-gradient(circle at 50% 45%,#fff2c8,#ffc65a 55%,#e8962a);box-shadow:inset 0 0 0 2px #2b2e30,inset 0 0 0 4px #6d7273,0 0 18px rgba(255,178,58,.55)}
+.ann.on.red{background:radial-gradient(circle at 50% 45%,#ffd2c8,#ff6a4f 50%,#d1281c);color:#2a0703;box-shadow:inset 0 0 0 2px #2b2e30,inset 0 0 0 4px #6d7273,0 0 20px rgba(226,55,43,.65)}
+.ann.on.green{background:radial-gradient(circle at 50% 45%,#e6ffe9,#8ff0a3 55%,#3fbf63);color:#05230d;box-shadow:inset 0 0 0 2px #2b2e30,inset 0 0 0 4px #6d7273,0 0 16px rgba(111,224,138,.45)}
+.ann.on.white{background:radial-gradient(circle at 50% 45%,#ffffff,#f1f0e6 60%,#cfcdbf);color:#222;box-shadow:inset 0 0 0 2px #2b2e30,inset 0 0 0 4px #6d7273,0 0 14px rgba(255,255,240,.5)}
+.cw .cap{font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between}
+.main{grid-area:main;display:flex;align-items:center;justify-content:center;gap:34px;padding:16px}
+.trow{display:flex;align-items:stretch;gap:12px}
+.tlabs{display:flex;flex-direction:column;justify-content:space-between;padding:26px 0 24px;border-right:2px solid rgba(242,241,234,.85);padding-right:12px;text-align:right}
+.tlabs .pos{margin:0}
+.tlabs .pos small{text-align:right}
+.tgroup{position:relative;width:300px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.tgroup .ttl{font-size:17px;margin-bottom:10px}
+.bracket{position:absolute;left:28px;right:28px;border:2px solid var(--engr);opacity:.85}
+.bracket.top{top:44px;height:16px;border-bottom:0}
+.bracket.bot{bottom:40px;height:16px;border-top:0}
+.pos{font-size:22px;font-weight:700;letter-spacing:.14em;margin:6px 0}
+.pos small{display:block;font-size:11px;letter-spacing:.14em;opacity:.8;text-align:center;font-weight:600}
+.well{position:relative;width:150px;height:220px;perspective:900px;perspective-origin:50% 30%}
+#toggle{position:absolute;inset:0;border:0;padding:0;background:none;cursor:pointer;touch-action:none;outline:none}
+#toggle svg{width:100%;height:100%;display:block;overflow:visible}
+#toggle:focus-visible{outline:2px dashed var(--amber);outline-offset:4px}
+.guard{position:absolute;left:11px;top:16px;width:128px;height:188px;transform-style:preserve-3d;transform-origin:50% 0;cursor:pointer;touch-action:none;outline:none}
+.guard:focus-visible .gface{outline:3px dashed var(--amber);outline-offset:3px}
+.gface,.gunder,.gside{position:absolute;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.gface{left:0;top:0;width:128px;height:188px;transform:translateZ(34px);border-radius:6px 6px 10px 10px;overflow:hidden;
+  background:linear-gradient(180deg,#e6463a,#c8281f 60%,#a81d16);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -3px 0 rgba(0,0,0,.25)}
+.gface::before{content:"";position:absolute;left:0;right:0;bottom:0;height:46px;background:repeating-linear-gradient(-45deg,#151515 0 10px,#f1c232 10px 20px);opacity:.92;border-top:2px solid rgba(0,0,0,.4)}
+.gface::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,rgba(255,255,255,.28),rgba(255,255,255,0) 38%,rgba(0,0,0,0) 70%,rgba(0,0,0,.18))}
+.gface .st{position:absolute;left:0;right:0;top:46px;text-align:center;font-weight:700;font-size:30px;letter-spacing:.14em;color:#fff4ee;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.gface .st2{position:absolute;left:0;right:0;top:86px;text-align:center;font-weight:600;font-size:12px;letter-spacing:.2em;color:#ffe6df}
+.gunder{left:0;top:0;width:128px;height:188px;transform:translateZ(34px) rotateX(180deg);border-radius:6px 6px 10px 10px;background:linear-gradient(0deg,#5e0f0b,#7a1611);box-shadow:inset 0 0 0 8px #8a1d16,inset 0 0 18px rgba(0,0,0,.6)}
+.gside.l{left:0;top:0;width:34px;height:188px;transform-origin:0 0;transform:rotateY(-90deg);background:linear-gradient(90deg,#7c140f,#a51e16)}
+.gside.r{right:0;top:0;width:34px;height:188px;transform-origin:100% 0;transform:rotateY(90deg);background:linear-gradient(270deg,#6a110c,#97190f)}
+.gside.b{left:0;bottom:0;width:128px;height:34px;transform-origin:50% 100%;transform:rotateX(90deg);background:linear-gradient(0deg,#8d1912,#b52219)}
+.hinge{position:absolute;left:4px;right:4px;top:6px;height:16px;border-radius:8px;background:linear-gradient(180deg,#f0f2f2,#9aa1a2 45%,#5b6162);box-shadow:0 2px 3px rgba(0,0,0,.4);z-index:3;pointer-events:none}
+.gshadow{position:absolute;left:14px;top:22px;width:128px;height:188px;border-radius:8px;background:rgba(0,0,0,.45);filter:blur(6px);transform-origin:50% 0;pointer-events:none}
+.keyg{grid-area:key;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px}
+#key{width:170px;height:170px;border:0;background:none;padding:0;cursor:grab;touch-action:none;outline:none;border-radius:50%}
+#key:focus-visible{outline:2px dashed var(--amber);outline-offset:4px}
+#key svg{width:100%;height:100%;display:block;overflow:visible}
+.kwrap{position:relative;padding-top:34px}
+.ks,.ka{position:absolute;top:0;font-size:17px;font-weight:700;letter-spacing:.14em}
+.ks{left:-8px}.ka{right:-8px}
+.kcap{font-size:12px;letter-spacing:.1em;margin-top:14px;opacity:.85}
+.keyg .ttl{font-size:17px;margin-bottom:8px}
+.dskyw{grid-area:dsky;display:flex;align-items:center;gap:18px;padding:18px 24px}
+.dskyw .col{display:flex;flex-direction:column;gap:6px}
+.dskyw .lab{font-size:12px;letter-spacing:.16em;color:#d8f7df;background:#2d6b3b;padding:2px 6px;border-radius:2px;text-shadow:none;align-self:flex-start}
+.dskyw .lab.off{background:#3b4244;color:#8d9799}
+.placard{margin-left:auto;max-width:230px;border:2px solid #f2f1ea;padding:8px 10px;font-size:13px;line-height:1.2;letter-spacing:.05em;text-transform:uppercase;font-weight:600;color:#f2f1ea;background:rgba(160,30,20,.55);box-shadow:inset 0 0 0 3px rgba(0,0,0,.2)}
+.placard b{display:block;font-size:15px;letter-spacing:.2em;color:#ffd0c4}
+.tape{grid-area:tape;position:relative;padding:16px 16px 12px;display:flex;flex-direction:column}
+.tape .ttl{font-size:13px;margin-bottom:6px}
+.paper{flex:1;background:linear-gradient(90deg,#efeadb,#f8f4e8 50%,#ece6d4);border-radius:2px;overflow:hidden;position:relative;box-shadow:inset 0 6px 8px -4px rgba(0,0,0,.35)}
+.paper::before{content:"";position:absolute;left:0;right:0;top:0;bottom:0;background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 15px,rgba(80,120,90,.08) 15px 30px)}
+.lines{position:absolute;left:8px;right:8px;bottom:6px;font-family:"Share Tech Mono",monospace;font-size:11px;line-height:15px;color:#26303a;white-space:pre;transition:transform .25s steps(3)}
+.lines div{opacity:.92}
+.lines div:last-child{color:#0b1218}
+.mute{font:600 11px "Barlow Condensed";letter-spacing:.12em;background:none;border:0;color:var(--engr);cursor:pointer;opacity:.7}
+.mute:focus-visible{outline:1px dashed var(--amber)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  .console{width:370px;height:820px;padding:12px;gap:10px;grid-template-columns:1fr 1fr;grid-template-rows:62px 150px 1fr 100px 120px;
+    grid-template-areas:"head head" "cw cw" "main key" "dsky dsky" "tape tape"}
+  .head{padding:0 14px}
+  .head .t{font-size:17px}
+  .dc{display:none}
+  .head .s,.metl,.placard,.dskyw .cmt,.tlabs .pos small{display:none}
+  .tlabs{padding:20px 6px 18px 0}
+  .tlabs .pos{font-size:14px}
+  .tgroup{width:170px}
+  .trow{gap:4px}
+  .cw{padding:12px 10px 10px}
+  .cw .cap{display:none}
+  .cw .grid{gap:5px}
+  .ann{height:40px;font-size:10.5px}
+  .main{padding:6px;gap:0}
+  .well{transform:scale(.72);transform-origin:50% 50%;margin:-30px -20px}
+  .bracket{left:10px;right:10px}
+  .bracket.top{top:36px}.bracket.bot{bottom:30px}
+  .pos{font-size:17px}
+  .keyg{padding:6px}
+  #key{width:130px;height:130px}
+  .ks,.ka{font-size:13px}
+  .kwrap{padding-top:24px}
+  .kcap{display:none}
+  .dskyw{padding:10px 12px;gap:10px}
+  .tape{padding:10px}
+  .tape .ttl{display:none}
+}
+</style>
+</head>
+<body>
+<div class="room"></div>
+<div class="console" id="console">
+  <section class="ins head"><div><div class="lbl t"><span class="dc">Deploy control · </span>ledger-api</div><div class="lbl s">Release 4.12.0 · build 2026.10.07-1142 · 412 of 412 tests passed</div></div>
+    <div class="met"><button class="mute" id="mute" aria-pressed="false">Sound on</button><span class="lbl metl" style="font-size:13px">T + since freeze</span><div class="dsp"><svg id="met" aria-label="Time since code freeze" role="img"></svg></div></div></section>
+  <section class="ins cw" aria-label="Caution and warning lights">
+    <span class="scr tl"></span><span class="scr tr"></span><span class="scr bl"></span><span class="scr br"></span>
+    <div class="lbl cap"><span>Caution / warning</span><span>Lamp test: hold T</span></div>
+    <div class="grid" id="anns">
+      <div class="ann green on" id="aBuild">Build<br>OK</div>
+      <div class="ann green on" id="aTests">Tests<br>412/412</div>
+      <div class="ann green on" id="aRb">Rollback<br>ready</div>
+      <div class="ann amber" id="aArm">Master<br>arm</div>
+      <div class="ann amber" id="aGuard">Guard<br>open</div>
+      <div class="ann amber" id="aReq">Arm<br>required</div>
+      <div class="ann green on" id="aStg">Staging<br>live</div>
+      <div class="ann red" id="aPrd">Prod<br>live</div>
+      <div class="ann white" id="aUp">Uplink</div>
+    </div>
+  </section>
+  <section class="ins main">
+    <span class="scr tl"></span><span class="scr tr"></span><span class="scr bl"></span><span class="scr br"></span>
+    <div class="tgroup">
+      <div class="trow"><div class="tlabs"><div class="lbl pos up">PROD<small>eu-west-1</small></div><div class="lbl pos dn">STAGING<small>eu-west-2</small></div></div>
+      <div class="well" id="well">
+        <button id="toggle" role="switch" aria-checked="false" aria-disabled="true" aria-label="Deploy target production"><svg id="tsvg" viewBox="0 0 150 220" aria-hidden="true"></svg></button>
+        <div class="gshadow" id="gshadow"></div>
+        <div class="guard" id="guard" role="switch" aria-checked="false" aria-label="Safety guard over the production switch" tabindex="0">
+          <div class="gside l"></div><div class="gside r"></div><div class="gside b"></div>
+          <div class="gunder"></div>
+          <div class="gface"><div class="st">PROD</div><div class="st2">LIFT TO ACCESS</div></div>
+        </div>
+        <div class="hinge"></div>
+      </div></div>
+      <div class="lbl ttl" style="margin:14px 0 0">Deploy target<span class="dc"> · ledger-api</span></div>
+    </div>
+  </section>
+  <section class="ins keyg">
+    <span class="scr tl"></span><span class="scr tr"></span><span class="scr bl"></span><span class="scr br"></span>
+    <div class="lbl ttl">Master arm</div>
+    <div class="kwrap"><span class="lbl ks">Safe</span><span class="lbl ka">Arm</span>
+    <button id="key" role="switch" aria-checked="false" aria-label="Master arm key"><svg viewBox="-85 -85 170 170" aria-hidden="true" id="ksvg"></svg></button></div>
+    <div class="lbl kcap" id="kcap">Key OPS-07 · held by R. Lindqvist</div>
+  </section>
+  <section class="ins dskyw" aria-label="Target readout">
+    <span class="scr tl"></span><span class="scr tr"></span><span class="scr bl"></span><span class="scr br"></span>
+    <div class="col"><span class="lab" id="lProg">Env</span><div class="dsp"><svg id="dEnv" role="img" aria-label="Environment"></svg></div></div>
+    <div class="col"><span class="lab">Region</span><div class="dsp"><svg id="dReg" role="img" aria-label="Region"></svg></div></div>
+    <div class="col"><span class="lab" id="lTraf">Traffic %</span><div class="dsp"><svg id="dTraf" role="img" aria-label="Traffic share"></svg></div></div>
+    <div class="col cmt"><span class="lab">Commit</span><div class="dsp"><svg id="dCmt" role="img" aria-label="Commit 4f9a2c1"></svg></div></div>
+    <div class="placard"><b>Caution</b>Production serves live ledgers for 48,210 accounts. Two people must be on call before arming.</div>
+  </section>
+  <section class="ins tape">
+    <div class="lbl ttl">Teleprinter · audit log</div>
+    <div class="paper"><div class="lines" id="lines" aria-live="polite"></div></div>
+  </section>
+</div>
+<div class="sr" aria-live="assertive" id="live"></div>
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const con = $('console'), guard = $('guard'), gshadow = $('gshadow'), toggle = $('toggle'), tsvg = $('tsvg'), keyBtn = $('key'), ksvg = $('ksvg');
+const live = $('live'), lines = $('lines');
+function mk(tag, a, p){ const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; }
+
+/* ---------- fit the console to the viewport ---------- */
+function fit(){
+  const mob = innerWidth <= 760, W = mob ? 370 : 1060, H = mob ? 820 : 690;
+  const s = Math.min((innerWidth - (mob ? 20 : 40)) / W, (innerHeight - (mob ? 20 : 40)) / H, mob ? 1.2 : 1.15);
+  con.style.transform = `scale(${s}) translate(-50%, -50%)`;
+}
+fit(); addEventListener('resize', fit);
+
+/* ---------- audio ---------- */
+let ac = null, master = null, muted = false;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .17; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function noise(dur, type, f, q, gain, when = 0){
+  if (!ac || muted) return; const t = ac.currentTime + when, n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+  const s = ac.createBufferSource(); s.buffer = b; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ac.createGain(); g.gain.value = gain; s.connect(fl); fl.connect(g); g.connect(master); s.start(t);
+}
+function tone(f, dur, gain, type = 'sine', when = 0){
+  if (!ac || muted) return; const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = f; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+}
+const sToggle = () => { noise(.04, 'bandpass', 2200, 1.2, 1.2); tone(160, .12, .5, 'sine'); noise(.12, 'lowpass', 400, .7, .5, .01); };
+const sSlam = () => { tone(90, .25, .8); noise(.15, 'lowpass', 600, .7, 1.2); noise(.04, 'bandpass', 2600, 1.4, .9, .02); };
+const sKey = () => { for (let i = 0; i < 3; i++) noise(.012, 'bandpass', 4200 + i * 300, 3, .6, i * .035); tone(1900, .05, .08, 'triangle', .1); };
+const sHinge = () => { noise(.18, 'bandpass', 900, 6, .5); };
+const sCaution = () => { tone(750, .12, .18, 'square'); tone(1250, .14, .14, 'square', .14); };
+const sTeletype = (n) => { for (let i = 0; i < n; i++) noise(.012, 'bandpass', 3000 + Math.random() * 1500, 2, .35, i * .028); };
+$('mute').addEventListener('click', () => { muted = !muted; $('mute').textContent = muted ? 'Sound off' : 'Sound on'; $('mute').setAttribute('aria-pressed', String(muted)); });
+
+/* ---------- seven-segment readouts (EL green) ---------- */
+const SEG = {'0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g', ' ': '',
+  C: 'adef', P: 'abefg', r: 'eg', d: 'bcdeg', S: 'acdfg', t: 'defg', G: 'acdef', E: 'adefg', u: 'cde', U: 'bcdef', A: 'abcefg', F: 'aefg', L: 'def', o: 'cdeg', n: 'ceg', b: 'cdefg', H: 'bcefg'};
+function segChar(g, x, ch, on, dot){
+  const w = 16, h = 30, t = 3.6, polys = {
+    a: [[2, 0], [w - 2, 0], [w - 2 - t, t], [2 + t, t]], d: [[2, h], [w - 2, h], [w - 2 - t, h - t], [2 + t, h - t]],
+    g: [[2, h / 2], [2 + t, h / 2 - t / 2], [w - 2 - t, h / 2 - t / 2], [w - 2, h / 2], [w - 2 - t, h / 2 + t / 2], [2 + t, h / 2 + t / 2]],
+    f: [[0, 2], [t, 2 + t], [t, h / 2 - t / 2], [0, h / 2 - 1]], e: [[0, h / 2 + 1], [t, h / 2 + t / 2], [t, h - 2 - t], [0, h - 2]],
+    b: [[w, 2], [w - t, 2 + t], [w - t, h / 2 - t / 2], [w, h / 2 - 1]], c: [[w, h / 2 + 1], [w - t, h / 2 + t / 2], [w - t, h - 2 - t], [w, h - 2]]};
+  const lit = SEG[ch] || '';
+  for (const k in polys) {
+    const isOn = on && lit.includes(k);
+    mk('polygon', {points: polys[k].map(p => `${(x + p[0] + (h - p[1]) * .12).toFixed(1)},${p[1] + 3}`).join(' '), fill: isOn ? '#8dffa9' : '#1a2a20', filter: isOn ? 'url(#elglow)' : ''}, g);
+  }
+  if (dot) mk('circle', {cx: x + w + 3, cy: h + 2, r: 2, fill: on ? '#8dffa9' : '#1a2a20'}, g);
+}
+const glowDefs = `<defs><filter id="elglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+function seg(svg, str, on = true){
+  const chars = [...str].filter(c => c !== '.' && c !== ':');
+  const W = chars.length * 22 + ((str.match(/:/g) || []).length * 8) + 6;
+  svg.setAttribute('viewBox', `0 0 ${W} 37`); svg.setAttribute('width', W * .9); svg.setAttribute('height', 33);
+  svg.innerHTML = glowDefs;
+  const g = mk('g', {}, svg); let x = 3;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i]; if (c === '.') continue;
+    if (c === ':') { mk('circle', {cx: x + 1, cy: 12, r: 1.8, fill: '#8dffa9', filter: 'url(#elglow)'}, g); mk('circle', {cx: x + 1, cy: 24, r: 1.8, fill: '#8dffa9', filter: 'url(#elglow)'}, g); x += 8; continue; }
+    segChar(g, x, c, on, str[i + 1] === '.'); x += 22;
+  }
+}
+
+/* ---------- bat-handle toggle ---------- */
+function buildToggle(){
+  const g = mk('g', {}, tsvg);
+  // engraved arrow marks
+  mk('path', {d: 'M75 34 l-8 10 h16 Z', fill: '#f2f1ea', opacity: .8}, g);
+  mk('path', {d: 'M75 186 l-8 -10 h16 Z', fill: '#f2f1ea', opacity: .8}, g);
+  // hex nut + bushing
+  mk('polygon', {points: '75,80 106,98 106,122 75,140 44,122 44,98', fill: 'url(#nut)', stroke: '#4a5051', 'stroke-width': 1.2}, g);
+  mk('circle', {cx: 75, cy: 110, r: 18, fill: 'url(#bush)', stroke: '#3e4344'}, g);
+  mk('circle', {cx: 75, cy: 110, r: 9, fill: '#2a2d2e'}, g);
+  const bat = mk('g', {id: 'bat'}, g);
+  const defs = mk('defs', {}, tsvg);
+  defs.innerHTML = `<linearGradient id="nut" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9eded"/><stop offset=".5" stop-color="#a3aaab"/><stop offset="1" stop-color="#5f6566"/></linearGradient>
+    <radialGradient id="bush" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".4" stop-color="#b7bdbe"/><stop offset="1" stop-color="#585e5f"/></radialGradient>
+    <linearGradient id="shaft" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6c7273"/><stop offset=".35" stop-color="#ffffff"/><stop offset=".6" stop-color="#b9bfc0"/><stop offset="1" stop-color="#4f5556"/></linearGradient>
+    <radialGradient id="tip" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#c3c9ca"/><stop offset="1" stop-color="#5a6061"/></radialGradient>`;
+  mk('ellipse', {id: 'batShadow', cx: 75, cy: 110, rx: 8, ry: 30, fill: '#000', opacity: .35}, bat);
+  mk('path', {id: 'batShaft', fill: 'url(#shaft)', stroke: '#3e4344', 'stroke-width': .8}, bat);
+  mk('ellipse', {id: 'batTip', rx: 12, ry: 9, fill: 'url(#tip)', stroke: '#3e4344', 'stroke-width': .8}, bat);
+}
+buildToggle();
+function drawBat(a){ // a: -1 (down/staging) … +1 (up/prod)
+  const len = 62 * Math.abs(a) * .92 + 6, dir = a >= 0 ? -1 : 1;
+  const ty = 110 + dir * len, w0 = 6, w1 = 9.5;
+  $('batShaft').setAttribute('d', `M${75 - w0} 110 L${75 - w1} ${ty} L${75 + w1} ${ty} L${75 + w0} 110 Z`);
+  const tip = $('batTip'); tip.setAttribute('cx', 75); tip.setAttribute('cy', ty); tip.setAttribute('ry', 7 + 3 * (1 - Math.abs(a)));
+  const sh = $('batShadow'); sh.setAttribute('cx', 79); sh.setAttribute('cy', 112 + dir * len * .55); sh.setAttribute('ry', len * .55); sh.setAttribute('rx', 9);
+}
+
+/* ---------- key switch ---------- */
+function buildKey(){
+  ksvg.innerHTML = `<defs>
+    <radialGradient id="bez" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#b8bfc0"/><stop offset="1" stop-color="#555b5c"/></radialGradient>
+    <radialGradient id="cyl" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#f6f0d8"/><stop offset=".5" stop-color="#c9b77c"/><stop offset="1" stop-color="#7d6a33"/></radialGradient>
+    <linearGradient id="kbow" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2c4"/><stop offset=".4" stop-color="#d8b55a"/><stop offset="1" stop-color="#8a6a22"/></linearGradient></defs>`;
+  const g = mk('g', {}, ksvg);
+  // detent marks
+  [[-45, 'SAFE'], [45, 'ARM']].forEach(([ang]) => { const r = (ang - 90) * Math.PI / 180; mk('line', {x1: Math.cos(r) * 62, y1: Math.sin(r) * 62, x2: Math.cos(r) * 76, y2: Math.sin(r) * 76, stroke: '#f2f1ea', 'stroke-width': 4}, g); });
+  mk('circle', {r: 54, fill: 'url(#bez)', stroke: '#3e4344'}, g);
+  mk('circle', {r: 40, fill: 'url(#cyl)', stroke: '#5e5021'}, g);
+  const rot = mk('g', {id: 'krot'}, g);
+  mk('rect', {x: -3.5, y: -26, width: 7, height: 52, rx: 2, fill: '#2a2216'}, rot);
+  // key bow sticking out toward the viewer
+  mk('path', {d: 'M-9 -14 L9 -14 L7 -52 Q0 -64 -7 -52 Z', fill: '#000', opacity: .3, transform: 'translate(5 6)'}, rot);
+  mk('path', {d: 'M-6 -6 L6 -6 L6 -30 L-6 -30 Z', fill: 'url(#kbow)', stroke: '#6b5118'}, rot);
+  mk('path', {d: 'M-20 -30 Q-22 -72 0 -74 Q22 -72 20 -30 Z', fill: 'url(#kbow)', stroke: '#6b5118', 'stroke-width': 1.2}, rot);
+  mk('circle', {cx: 0, cy: -58, r: 6, fill: '#2b2e30', stroke: '#6b5118'}, rot);
+  mk('path', {d: 'M-14 -38 Q-14 -64 -4 -68', stroke: '#fff8dc', 'stroke-width': 2.5, fill: 'none', opacity: .7}, rot);
+  const t = mk('text', {x: 0, y: -40, 'text-anchor': 'middle', 'font-family': 'Barlow Condensed', 'font-weight': 700, 'font-size': 9, fill: '#5b4412', 'letter-spacing': 1}, rot); t.textContent = 'OPS 07';
+}
+buildKey();
+
+/* ---------- state ---------- */
+let armed = false, prod = false;
+let keyA = -45, keyTarget = -45, keyDrag = null;
+let gAng = 0, gVel = 0, gOpenLatched = false, gDrag = null;
+let batA = -1, batV = 0, batTarget = -1;
+let lampTest = false, reqFlash = 0, uplink = 0;
+const ann = id => $(id);
+function logLine(txt){
+  const d = new Date(), ts = d.toTimeString().slice(0, 8);
+  const div = document.createElement('div'); div.textContent = `${ts}  ${txt}`;
+  lines.appendChild(div); while (lines.children.length > 12) lines.firstChild.remove();
+  sTeletype(Math.min(18, txt.length / 2));
+}
+function say(t){ live.textContent = t; }
+function setArmed(v){
+  if (v === armed) return; armed = v; keyBtn.setAttribute('aria-checked', String(armed)); sKey();
+  logLine(armed ? 'MASTER ARM  KEY OPS-07  ARMED   R.LINDQVIST' : 'MASTER ARM  SAFE');
+  say(armed ? 'Master arm on. Lift the guard to reach the production switch.' : 'Master arm safe.');
+  if (!armed && prod) { setProd(false, 'KEY SAFED'); }
+  refresh();
+}
+function setProd(v, why){
+  if (v === prod) return;
+  prod = v; batTarget = prod ? 1 : -1; toggle.setAttribute('aria-checked', String(prod));
+  if (prod) { uplink = 1.8; logLine('TARGET  PRD-EU-1  LEDGER-API 4.12.0  GO'); say('Production. ledger-api 4.12.0 is now targeting eu-west-1.'); }
+  else { logLine(`TARGET  STG-EU-2${why ? '  (' + why + ')' : ''}`); say(`Back to staging${why ? ': ' + why.toLowerCase() : ''}.`); }
+  refresh();
+}
+function tryFlip(up){
+  if (gAng < 70) return;
+  if (up && !armed) { // refuse: the bat springs back, caution tone, ARM REQUIRED flashes
+    batV = 9; reqFlash = 2.2; sCaution(); logLine('ATTEMPT PRD  REFUSED  MASTER ARM SAFE'); say('Refused. Turn the master arm key first.');
+    return;
+  }
+  sToggle(); setProd(up);
+}
+function refresh(){
+  const L = (id, on) => ann(id).classList.toggle('on', lampTest || on);
+  L('aArm', armed); L('aGuard', gAng > 20); L('aPrd', prod); L('aStg', !prod); L('aUp', uplink > 0 && Math.floor(uplink * 6) % 2 === 0);
+  L('aReq', reqFlash > 0 && Math.floor(reqFlash * 5) % 2 === 0);
+  L('aBuild', true); L('aTests', true); L('aRb', true);
+  toggle.setAttribute('aria-disabled', String(gAng < 70));
+  guard.setAttribute('aria-checked', String(gOpenLatched));
+  seg($('dEnv'), prod ? 'Prd' : '5tG', true);
+  seg($('dReg'), prod ? 'Eu-1' : 'Eu-2', true);
+  seg($('dCmt'), '4F9A2C1', true);
+  $('lProg').classList.toggle('off', false);
+}
+
+/* ---------- key input ---------- */
+function keyAngleFrom(e){ const r = keyBtn.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; return Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI + 90; }
+keyBtn.addEventListener('pointerdown', e => { audio(); keyDrag = {start: keyAngleFrom(e), a0: keyA, moved: false}; try { keyBtn.setPointerCapture(e.pointerId); } catch (_) {} });
+keyBtn.addEventListener('pointermove', e => {
+  if (!keyDrag) return; let d = keyAngleFrom(e) - keyDrag.start; if (d > 180) d -= 360; if (d < -180) d += 360;
+  if (Math.abs(d) > 4) keyDrag.moved = true;
+  if (keyDrag.moved) { keyA = clamp(keyDrag.a0 + d, -45, 45); keyTarget = keyA; }
+});
+keyBtn.addEventListener('pointerup', () => {
+  if (!keyDrag) return;
+  if (!keyDrag.moved) keyTarget = armed ? -45 : 45; else keyTarget = keyA > 0 ? 45 : -45;
+  keyDrag = null; setArmed(keyTarget === 45);
+});
+keyBtn.addEventListener('pointercancel', () => { keyDrag = null; keyTarget = armed ? 45 : -45; });
+keyBtn.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); audio(); keyTarget = armed ? -45 : 45; setArmed(!armed); } });
+
+/* ---------- guard input ---------- */
+function openGuard(v){
+  audio();
+  if (v) { gOpenLatched = true; gVel = 260; sHinge(); logLine('GUARD  OPEN'); say('Guard open.'); }
+  else { gOpenLatched = false; gVel = -60; logLine('GUARD  CLOSING'); }
+  refresh();
+}
+guard.addEventListener('pointerdown', e => { audio(); gDrag = {y: e.clientY, a0: gAng, moved: false}; try { guard.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+guard.addEventListener('pointermove', e => {
+  if (!gDrag) return; const dy = gDrag.y - e.clientY; if (Math.abs(dy) > 5) gDrag.moved = true;
+  if (gDrag.moved) { const s = con.getBoundingClientRect().width / con.offsetWidth; gAng = clamp(gDrag.a0 + dy / s * .9, 0, 112); gVel = 0; }
+});
+guard.addEventListener('pointerup', () => {
+  if (!gDrag) return;
+  if (!gDrag.moved) openGuard(!gOpenLatched);
+  else { const want = gAng > 55; if (want !== gOpenLatched) openGuard(want); }
+  gDrag = null;
+});
+guard.addEventListener('pointercancel', () => { gDrag = null; });
+guard.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); openGuard(!gOpenLatched); } });
+
+/* ---------- toggle input ---------- */
+let tDrag = null;
+toggle.addEventListener('pointerdown', e => { if (gAng < 70) return; audio(); tDrag = {y: e.clientY, fired: false}; try { toggle.setPointerCapture(e.pointerId); } catch (_) {} });
+toggle.addEventListener('pointermove', e => {
+  if (!tDrag || tDrag.fired) return; const dy = e.clientY - tDrag.y;
+  if (dy < -14 && !prod) { tDrag.fired = true; tryFlip(true); }
+  if (dy > 14 && prod) { tDrag.fired = true; tryFlip(false); }
+});
+toggle.addEventListener('pointerup', () => { if (tDrag && !tDrag.fired) tryFlip(!prod); tDrag = null; });
+toggle.addEventListener('pointercancel', () => { tDrag = null; });
+toggle.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); audio(); if (gAng < 70) { say('The guard is down. Lift it first.'); return; } tryFlip(!prod); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); audio(); if (gAng >= 70) tryFlip(true); }
+  if (e.key === 'ArrowDown') { e.preventDefault(); audio(); if (gAng >= 70) tryFlip(false); }
+});
+// lamp test: hold T
+addEventListener('keydown', e => { if ((e.key === 't' || e.key === 'T') && !e.repeat && !e.metaKey && !e.ctrlKey) { lampTest = true; refresh(); } });
+addEventListener('keyup', e => { if (e.key === 't' || e.key === 'T') { lampTest = false; refresh(); } });
+
+/* ---------- loop ---------- */
+const freeze = Date.now() - ((4 * 3600 + 13 * 60 + 22) * 1000);
+let last = performance.now(), raf = 0, lastSec = -1, prevG = 0;
+function frame(now){
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  // key spring
+  if (!keyDrag) keyA += (keyTarget - keyA) * Math.min(1, dt * (reduced ? 60 : 16));
+  $('krot').setAttribute('transform', `rotate(${keyA.toFixed(2)})`);
+  // guard: latched spring when open, falls under its own weight when released
+  if (!gDrag) {
+    if (reduced) gAng = gOpenLatched ? 108 : 0;
+    else if (gOpenLatched) { gVel += ((108 - gAng) * 90 - gVel * 11) * dt; gAng += gVel * dt; }
+    else { gVel -= 1500 * dt * (gAng > 90 ? -.4 : 1); gAng += gVel * dt; if (gAng > 112) { gAng = 112; gVel = 0; } }
+    if (gAng < 0) { if (gVel < -120) { sSlam(); } gAng = 0; gVel = Math.abs(gVel) > 120 ? -gVel * .18 : 0; }
+  }
+  // closing guard drives the bat back to staging
+  if (gAng < 34 && prod) { sToggle(); setProd(false, 'GUARD CLOSED'); }
+  if ((prevG >= 70) !== (gAng >= 70) || (prevG > 20) !== (gAng > 20)) refresh();
+  prevG = gAng;
+  guard.style.transform = `rotateX(${gAng.toFixed(2)}deg)`;
+  guard.querySelector('.gface').style.pointerEvents = gAng > 80 ? 'none' : '';
+  guard.style.pointerEvents = gAng > 80 ? 'none' : '';
+  const gk = Math.cos(gAng * Math.PI / 180);
+  gshadow.style.transform = `scaleY(${Math.max(0, gk).toFixed(3)})`; gshadow.style.opacity = (Math.max(0, gk) * .9).toFixed(2);
+  if (gAng > 80) { guard.style.pointerEvents = 'auto'; guard.querySelector('.gface').style.pointerEvents = 'auto'; }
+  // bat spring
+  if (reduced) batA = batTarget; else { batV += ((batTarget - batA) * 700 - batV * 26) * dt; batA += batV * dt; }
+  drawBat(clamp(batA, -1.05, 1.05));
+  // timers
+  if (reqFlash > 0) { reqFlash = Math.max(0, reqFlash - dt); refresh(); }
+  if (uplink > 0) {
+    uplink = Math.max(0, uplink - dt);
+    const p = Math.round((1 - uplink / 1.8) * 100); seg($('dTraf'), String(prod ? p : 0).padStart(3, ' '));
+    refresh();
+  }
+  const sec = Math.floor((Date.now() - freeze) / 1000);
+  if (sec !== lastSec) {
+    lastSec = sec; const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s2 = sec % 60;
+    seg($('met'), `${String(h).padStart(3, '0')}:${String(m).padStart(2, '0')}:${String(s2).padStart(2, '0')}`);
+    if (!uplink) seg($('dTraf'), prod ? '100' : '  0');
+  }
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frame); } });
+// a little history on the tape so the log reads as real
+lines.innerHTML = ['11:02:41  BUILD  2026.10.07-1142  OK', '11:09:15  TESTS  412/412  PASS', '11:10:02  TARGET  STG-EU-2  LEDGER-API 4.12.0', '11:31:48  SMOKE  STG  GREEN'].map(t => `<div>${t}</div>`).join('');
+refresh(); drawBat(-1);
+raf = requestAnimationFrame(frame);
+window.__panel = {arm: () => { keyTarget = 45; setArmed(true); }, open: () => openGuard(true), close: () => openGuard(false), up: () => tryFlip(true)};
+})();
+</script>
+</body>
+</html>

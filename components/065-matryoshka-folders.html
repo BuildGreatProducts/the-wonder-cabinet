@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matryoshka Folders</title>
+<meta name="description" content="A file browser of nesting dolls painted in Khokhloma red, gold and black: folders split open to release their contents, and the path you took lines up as dolls by size.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ruslan+Display&family=Philosopher:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Matryoshka Folders","reimagines":"Folder hierarchy / file browser","category":"Navigation & Wayfinding","description":"Every folder is a hand-painted nesting doll, sized by how much it holds. Open one and it splits at the waist, its contents hopping out onto the shelf; the folders you've opened stand in a row by size as your breadcrumb, and choosing one nests the smaller dolls back inside.","hint":"Tap a doll to open it; tap a doll in the row above to go back"}
+</script>
+<style>
+  :root{--lac:#0e0a08;--red:#b8231b;--red2:#7d140f;--gold:#e2ad37;--gold2:#f4d27a;--cream:#f3e3c3}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--lac)}
+  body{font-family:"Philosopher","Palatino Linotype",Georgia,serif;color:var(--cream);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;
+    background:radial-gradient(ellipse 80% 60% at 40% 25%, #2a1a12 0%, #140d0a 55%, #090605 100%)}
+  #orn{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  header{position:absolute;left:44px;top:30px;right:44px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;z-index:3}
+  h1{font-family:"Ruslan Display",Georgia,serif;font-weight:400;font-size:34px;margin:0;color:var(--gold2);letter-spacing:.02em;
+    background:linear-gradient(180deg,#fbe7a8,#e2ad37 55%,#a87618);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 #000)}
+  .sub{margin:4px 0 0;font-style:italic;font-size:15px;color:#d8b77a}
+  .usage{font-size:14px;color:#d8b77a;text-align:right;white-space:nowrap}
+  .usage b{color:var(--gold2);font-weight:700}
+  .meter{width:160px;height:8px;margin-top:6px;margin-left:auto;border:1px solid var(--gold);border-radius:4px;overflow:hidden}
+  .meter i{display:block;height:100%;width:24%;background:repeating-linear-gradient(90deg,var(--red) 0 6px,#d33a2e 6px 8px)}
+  /* breadcrumb dolls */
+  nav.crumbs{position:absolute;left:44px;top:100px;right:380px;height:100px;z-index:3}
+  nav.crumbs ol{list-style:none;margin:0;padding:0;position:relative;height:100%}
+  nav.crumbs li{position:absolute;bottom:0}
+  .crumb{all:unset;cursor:pointer;display:block;position:relative}
+  .crumb svg{display:block;width:100%;height:100%;overflow:visible}
+  .crumb .cl{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:16px;font-size:12.5px;line-height:1.1;text-align:center;width:var(--lw);color:#d8b77a}
+  .crumb[aria-current] .cl{color:var(--gold2);font-weight:700}
+  .crumb:hover svg,.crumb:focus-visible svg{animation:rock .9s ease-out}
+  .crumb:focus-visible .cl{outline:1.5px dashed var(--gold);outline-offset:3px}
+  .sep{position:absolute;bottom:40px;color:var(--gold);font-size:14px}
+  .shelfline{position:absolute;left:44px;right:380px;top:200px;height:11px;z-index:2;border-top:2px solid var(--gold);
+    background:linear-gradient(var(--red2),#4a0c08)}
+  /* main shelf */
+  #shelf{position:absolute;left:0;top:0;right:0;bottom:0;z-index:4;pointer-events:none}
+  .item{position:absolute;pointer-events:auto;cursor:pointer;outline:none;transform-origin:50% 100%}
+  .item svg{display:block;width:100%;height:100%;overflow:visible}
+  .item .plq{position:absolute;left:50%;top:calc(100% + 22px);transform:translateX(-50%);text-align:center;width:var(--lw);line-height:1.15;pointer-events:none}
+  .item .plq b{display:block;font-size:16px;color:var(--gold2);font-weight:700;letter-spacing:.01em}
+  .item .plq span{font-size:13px;color:#cfa86a;font-style:italic}
+  .item:hover .wob,.item:focus-visible .wob{animation:rock 1.1s ease-out}
+  .item:focus-visible .plq b{text-decoration:underline;text-decoration-style:wavy;text-decoration-color:var(--red);text-underline-offset:5px}
+  .item.sel .plq b{color:#fff}
+  .item.sel .egg-glow{opacity:1}
+  .wob{transform-origin:50% 96%;transform-box:fill-box}
+  @keyframes rock{0%{transform:rotate(0)}15%{transform:rotate(-7deg)}35%{transform:rotate(5deg)}55%{transform:rotate(-3deg)}75%{transform:rotate(1.4deg)}100%{transform:rotate(0)}}
+  .item.doll .top{transform-box:fill-box;transform-origin:50% 100%;transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+  .item.doll:hover .top,.item.doll:focus-visible .top{transform:translate(-2px,-7px) rotate(-4deg)}
+  .rim{opacity:0}
+  .item.doll:hover .rim,.item.doll:focus-visible .rim{opacity:1}
+  .open .rim{opacity:1}
+  .floor{position:absolute;left:44px;right:380px;z-index:3;height:14px;border-top:2px solid var(--gold);background:linear-gradient(var(--red),var(--red2) 60%,#3a0906);box-shadow:0 18px 30px rgba(0,0,0,.6)}
+  .floor::after{content:"";position:absolute;left:0;right:0;top:4px;height:2px;background:repeating-linear-gradient(90deg,var(--gold) 0 10px,transparent 10px 16px);opacity:.6}
+  /* tray preview */
+  aside.tray{position:absolute;right:30px;top:96px;bottom:28px;width:330px;z-index:5;display:flex;flex-direction:column;align-items:center}
+  .plate{position:relative;width:310px;height:310px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 40% 35%, #2b1d14, #0f0a07 65%);box-shadow:0 0 0 3px var(--gold), 0 0 0 9px var(--lac), 0 0 0 11px var(--gold), 0 20px 40px rgba(0,0,0,.7)}
+  .plate svg.ring{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px)}
+  .plate .inner{position:absolute;inset:56px;border-radius:50%;display:grid;place-items:center;text-align:center}
+  .plate .inner svg{width:100%;height:100%}
+  .info{margin-top:24px;width:100%;text-align:center}
+  .info h2{margin:0;font-family:"Ruslan Display",Georgia,serif;font-weight:400;font-size:22px;color:var(--gold2);word-break:break-word;line-height:1.15}
+  .info .kind{margin:6px 0 12px;font-style:italic;color:#cfa86a;font-size:15px}
+  .info dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 auto;text-align:left;font-size:15px;max-width:270px}
+  .info dt{color:#cfa86a}
+  .info dd{margin:0;color:var(--cream)}
+  .info .acts{display:flex;gap:10px;justify-content:center;margin-top:14px}
+  .btn{all:unset;cursor:pointer;font-size:14px;padding:7px 14px;color:var(--lac);background:linear-gradient(#f4d27a,#d39b24);border-radius:16px;box-shadow:inset 0 -2px 0 #9b6a12, 0 2px 0 #000;font-weight:700}
+  .btn.alt{background:linear-gradient(#d33a2e,#9b1b14);color:var(--cream);box-shadow:inset 0 -2px 0 #5d0d08, 0 2px 0 #000}
+  .btn:focus-visible{outline:2px dashed var(--gold2);outline-offset:3px}
+  .hint{position:absolute;left:84px;bottom:40px;z-index:6;font-style:italic;font-size:15px;color:#cfa86a;transition:opacity 1s}
+  .hint.hide{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:820px){
+    header{left:16px;right:16px;top:14px}
+    h1{font-size:22px}.sub{font-size:13px}
+    .usage{display:none}
+    nav.crumbs{left:12px;right:12px;top:62px;height:80px}
+    .shelfline{left:12px;right:12px;top:142px}
+    .crumb .cl{font-size:11px;margin-top:14px}
+    .floor{left:12px;right:12px}
+    aside.tray{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:178px;flex-direction:row;align-items:center;gap:14px}
+    .plate{width:150px;height:150px}
+    .plate .inner{inset:28px}
+    .info{margin:0;text-align:left;flex:1;min-width:0}
+    .info h2{font-size:16px}
+    .info .kind{margin:2px 0 6px;font-size:13px}
+    .info dl{font-size:13px;gap:2px 10px;margin:0}
+    .info .acts{justify-content:flex-start;margin-top:8px}
+    .btn{font-size:12.5px;padding:5px 10px}
+    .item .plq b{font-size:14px}.item .plq span{font-size:12px}
+    .hint{left:16px;bottom:198px;font-size:13px;display:none}
+  }
+  @media (prefers-reduced-motion:reduce){ .item:hover .wob,.crumb:hover svg{animation:none} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="orn" aria-hidden="true"></svg>
+  <header>
+    <div><h1>Fernwood Studio</h1><p class="sub">Shared drive · painted by hand, opened by you</p></div>
+    <div class="usage"><b>2.4 GB</b> of 10 GB used<div class="meter"><i></i></div></div>
+  </header>
+  <nav class="crumbs" aria-label="Breadcrumb"><ol id="crumbs"></ol></nav>
+  <div class="shelfline" aria-hidden="true"></div>
+  <div class="floor" id="floor" aria-hidden="true"></div>
+  <div id="shelf" role="listbox" aria-label="Folder contents" aria-orientation="horizontal"></div>
+  <aside class="tray" aria-live="polite">
+    <div class="plate"><svg class="ring" id="ring" viewBox="0 0 320 320" aria-hidden="true"></svg><div class="inner" id="pv"></div></div>
+    <div class="info" id="info"></div>
+  </aside>
+  <p class="hint" id="hint">Tap a doll to open it · tap a doll in the row above to go back</p>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const wait = ms => new Promise(r => setTimeout(r, RM ? 0 : ms));
+
+/* ---------------- tree ---------------- */
+const F = (name, kids) => ({ name, kids, folder: true });
+const f = (name, size, date, by) => ({ name, size, date, by });
+const root = F('Fernwood Studio', [
+  F('Clients', [
+    F('Orchard Cider Co', [
+      F('Brand', [f('logo-primary.svg','24 KB','12 Mar 2026','Wen Li'), f('logo-mono.svg','18 KB','12 Mar 2026','Wen Li'), f('brand-guidelines.pdf','8.2 MB','2 Apr 2026','Ada Murray')]),
+      F('Packaging', [f('can-label-v3.ai','46.1 MB','28 Apr 2026','Wen Li'), f('dieline-330ml.pdf','1.3 MB','30 Apr 2026','Tom Reyes'), f('print-proof.jpg','6.4 MB','4 May 2026','Tom Reyes')]),
+      f('contract-2026.pdf','412 KB','9 Jan 2026','Priya Shah')
+    ]),
+    F('Northwind Bikes', [
+      F('Campaign', [f('hero-shoot-01.jpg','12.8 MB','17 Jun 2026','Sam Okoro'), f('hero-shoot-02.jpg','11.9 MB','17 Jun 2026','Sam Okoro'), f('storyboard.pdf','3.1 MB','2 Jun 2026','Ada Murray')]),
+      f('creative-brief.docx','86 KB','21 May 2026','Sam Okoro')
+    ]),
+    F('Halden Farm', [f('spring-menu.pdf','2.2 MB','14 Mar 2026','Ada Murray'), f('shop-sign.svg','31 KB','19 Mar 2026','Wen Li')])
+  ]),
+  F('Internal', [
+    F('Finance', [f('budget-2026.xlsx','148 KB','6 Jan 2026','Priya Shah'), f('invoices-q3.xlsx','92 KB','2 Oct 2026','Priya Shah'), f('expenses-oct.csv','14 KB','5 Oct 2026','Priya Shah')]),
+    F('Hiring', [f('designer-role.docx','38 KB','11 Sep 2026','Ada Murray'), f('portfolio-reviews.xlsx','64 KB','29 Sep 2026','Wen Li')]),
+    f('offsite-agenda.pdf','780 KB','1 Oct 2026','Ada Murray')
+  ]),
+  F('Photos 2026', [
+    F('Spring', [f('blossom-walk.jpg','7.7 MB','18 Apr 2026','Tom Reyes'), f('studio-party.jpg','9.3 MB','25 Apr 2026','Tom Reyes')]),
+    F('Summer', [f('pier-day.jpg','8.8 MB','12 Jul 2026','Wen Li'), f('rooftop-crit.jpg','6.1 MB','30 Jul 2026','Sam Okoro')])
+  ]),
+  f('read-me-first.txt','2 KB','5 Jan 2026','Ada Murray')
+]);
+let vi = 0;
+(function prep(n, p, d){ n.parent = p; n.depth = d; if (n.folder) { n.v = vi++ % 3; n.kids.forEach(k => prep(k, n, d + 1)); } })(root, null, 0);
+const files = n => n.folder ? n.kids.reduce((a, k) => a + files(k), 0) : 1;
+const ext = n => n.name.split('.').pop().toLowerCase();
+const KIND = { pdf:'PDF document', jpg:'JPEG photograph', svg:'Vector graphic', ai:'Illustrator artwork', docx:'Word document', xlsx:'Spreadsheet', csv:'Comma-separated data', txt:'Plain text' };
+
+/* ---------------- painted SVG ---------------- */
+const VAR = [
+  { body:'#c0281e', dark:'#6e110c', scarf:'#120c0a', apron:'#e8b43a', berry:'#c0281e', leaf:'#120c0a', trim:'#f2cd6a' },
+  { body:'#171010', dark:'#000000', scarf:'#c0281e', apron:'#e8b43a', berry:'#c0281e', leaf:'#171010', trim:'#e8b43a' },
+  { body:'#dfa933', dark:'#8a5e10', scarf:'#c0281e', apron:'#171010', berry:'#c0281e', leaf:'#e8b43a', trim:'#171010' }
+];
+const DOLL = 'M50 3C31 3 23 18 24 36C25 47 19 55 15 70C9 95 10 129 20 141C30 150 70 150 80 141C90 129 91 95 85 70C81 55 75 47 76 36C77 18 69 3 50 3Z';
+const SEAM = 68;
+let uid = 0;
+function curl(x, y, r, dir, col, w){ // travka grass curl
+  let d = `M${x} ${y}`; const n = 14;
+  for (let i = 1; i <= n; i++) { const t = i / n, a = -Math.PI / 2 + dir * t * Math.PI * 1.8, rr = r * (1 - t * 0.75); d += ` L${(x + dir * r * 0.0 + Math.cos(a) * rr * dir + r * dir * t * 0.6).toFixed(1)} ${(y - r * t * 1.4 + Math.sin(a) * rr + r).toFixed(1)}`; }
+  return `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w || 1.4}" stroke-linecap="round"/>`;
+}
+function ornament(cx, cy, s, v){ // berry cluster with leaves and grass curls
+  const B = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${v.berry}" stroke="#2a0705" stroke-width=".6"/><circle cx="${x - r * 0.35}" cy="${y - r * 0.35}" r="${r * 0.3}" fill="#fff" opacity=".7"/>`;
+  const L = (x, y, a, l, c) => `<path transform="translate(${x} ${y}) rotate(${a})" d="M0 0Q${l * 0.5} ${-l * 0.35} ${l} 0Q${l * 0.5} ${l * 0.35} 0 0Z" fill="${c}"/>`;
+  return `<g transform="translate(${cx} ${cy}) scale(${s})">
+    <path d="M0 22C-2 10 -1 0 0 -14" stroke="${v.leaf}" stroke-width="1.6" fill="none"/>
+    ${L(0, 6, -150, 14, v.leaf)}${L(0, 6, -30, 14, v.leaf)}${L(0, 16, -160, 11, v.leaf)}${L(0, 16, -20, 11, v.leaf)}
+    ${curl(-4, 18, 5, -1, v.leaf, 1.2)}${curl(4, 18, 5, 1, v.leaf, 1.2)}
+    ${B(0, -16, 4.4)}${B(-6, -11, 3.8)}${B(6, -11, 3.8)}${B(0, -7, 3.6)}
+  </g>`;
+}
+function dollBody(v, id){
+  return `<path d="${DOLL}" fill="url(#bg${id})" stroke="#050303" stroke-width="1.4"/>
+    <path d="M50 6C33 6 26 19 27 35C27.5 45 25 52 22 60Q50 70 78 60C75 52 72.5 45 73 35C74 19 67 6 50 6Z" fill="${v.scarf}"/>
+    ${[0,1,2,3,4,5,6].map(i => `<circle cx="${30 + i * 6.7}" cy="${61 + Math.sin(i / 6 * Math.PI) * 3.5}" r="1.4" fill="${v.trim}"/>`).join('')}
+    <path d="M30 22Q50 10 70 22" stroke="${v.trim}" stroke-width="1.2" fill="none" stroke-dasharray="1.5 2.5"/>
+    <ellipse cx="50" cy="36" rx="15" ry="16.5" fill="#f6e1c2"/>
+    <path d="M35 31Q50 17 65 31Q61 23.5 50 22.5Q39 23.5 35 31Z" fill="#2d1a0e"/>
+    <path d="M42 37.5q2.8-2.6 5.6 0M52.4 37.5q2.8-2.6 5.6 0" stroke="#1a0f08" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <circle cx="40.5" cy="43" r="3.4" fill="#e0573f" opacity=".75"/><circle cx="59.5" cy="43" r="3.4" fill="#e0573f" opacity=".75"/>
+    <path d="M46.6 47.2q3.4 2 6.8 0q-3.4 3-6.8 0Z" fill="#c0281e"/>
+    <ellipse cx="50" cy="105" rx="27" ry="34" fill="${v.apron}" stroke="${v.trim}" stroke-width="2"/>
+    <ellipse cx="50" cy="105" rx="23" ry="30" fill="none" stroke="${v.dark}" stroke-width=".8" opacity=".6"/>
+    ${ornament(50, 106, 1.25, v)}
+    ${curl(20, 128, 7, 1, v.trim, 1.6)}${curl(80, 128, 7, -1, v.trim, 1.6)}${curl(19, 92, 6, 1, v.trim, 1.3)}${curl(81, 92, 6, -1, v.trim, 1.3)}
+    <path d="M18 ${SEAM}Q50 ${SEAM + 7} 82 ${SEAM}" stroke="${v.trim}" stroke-width="2.4" fill="none"/>
+    <path d="M28 66C22 86 21 112 27 134" stroke="rgba(255,255,255,.3)" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="41" cy="14" rx="7" ry="3.5" fill="rgba(255,255,255,.28)" transform="rotate(-20 41 14)"/>`;
+}
+function dollSVG(v){
+  const id = ++uid;
+  return `<svg viewBox="0 0 100 150" aria-hidden="true"><defs>
+      <clipPath id="ct${id}"><rect x="-30" y="-40" width="160" height="${SEAM + 40}"/></clipPath>
+      <clipPath id="cb${id}"><rect x="-30" y="${SEAM}" width="160" height="120"/></clipPath>
+      <linearGradient id="bg${id}" x1="0" x2="1"><stop offset="0" stop-color="${v.dark}"/><stop offset=".3" stop-color="${v.body}"/><stop offset=".75" stop-color="${v.body}"/><stop offset="1" stop-color="${v.dark}"/></linearGradient></defs>
+    <ellipse cx="50" cy="147" rx="33" ry="4.5" fill="rgba(0,0,0,.55)"/>
+    <g class="wob">
+      <g class="bot" clip-path="url(#cb${id})">${dollBody(v, id)}</g>
+      <ellipse class="rim" cx="50" cy="${SEAM + 2}" rx="31.5" ry="5.5" fill="#3a220f" stroke="#e8c48b" stroke-width="2.4"/>
+      <g class="top" clip-path="url(#ct${id})">${dollBody(v, id)}</g>
+    </g></svg>`;
+}
+function eggSVG(n){
+  const e = ext(n), id = ++uid;
+  const pal = { pdf:['#c0281e','#e8b43a','#120c0a'], jpg:['#dfa933','#c0281e','#120c0a'], svg:['#c0281e','#120c0a','#e8b43a'], ai:['#c0281e','#120c0a','#e8b43a'],
+    docx:['#171010','#e8b43a','#c0281e'], xlsx:['#171010','#c0281e','#e8b43a'], csv:['#dfa933','#171010','#c0281e'], txt:['#f0dcb4','#c0281e','#120c0a'] }[e] || ['#171010','#e8b43a','#c0281e'];
+  const v = { berry: pal[1] === '#c0281e' ? '#e8b43a' : '#c0281e', leaf: pal[2], trim: pal[1] };
+  const label = e.toUpperCase();
+  return `<svg viewBox="0 0 60 80" aria-hidden="true"><defs><radialGradient id="eg${id}" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>
+    <clipPath id="ec${id}"><path d="M30 3C14 3 5 33 5 50C5 67 16 77 30 77C44 77 55 67 55 50C55 33 46 3 30 3Z"/></clipPath></defs>
+    <ellipse class="egg-glow" cx="30" cy="78" rx="26" ry="5" fill="rgba(226,173,55,.45)" opacity="0"/>
+    <ellipse cx="30" cy="78" rx="20" ry="3" fill="rgba(0,0,0,.6)"/>
+    <g class="wob"><g clip-path="url(#ec${id})"><rect width="60" height="80" fill="${pal[0]}"/>
+      <rect y="44" width="60" height="15" fill="${pal[1]}"/><path d="M0 44h60M0 59h60" stroke="${pal[2]}" stroke-width="1.2"/>
+      <text x="30" y="55.5" text-anchor="middle" font-family="Philosopher, serif" font-weight="700" font-size="${label.length > 3 ? 9.5 : 11}" fill="${pal[2]}">${label}</text>
+      ${ornament(30, 28, 0.62, v)}
+      ${[0,1,2,3,4,5].map(i => `<circle cx="${6 + i * 9.6}" cy="66" r="1.6" fill="${pal[1]}"/>`).join('')}
+      <rect width="60" height="80" fill="url(#eg${id})"/></g>
+      <path d="M30 3C14 3 5 33 5 50C5 67 16 77 30 77C44 77 55 67 55 50C55 33 46 3 30 3Z" fill="none" stroke="#050303" stroke-width="1.2"/></g></svg>`;
+}
+
+/* ---------------- background ornament ---------------- */
+function drawOrn(){
+  const svg = $('#orn'), W = innerWidth, H = innerHeight; svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let s = `<rect x="14" y="14" width="${W - 28}" height="${H - 28}" fill="none" stroke="#e2ad37" stroke-width="1.5" opacity=".7"/><rect x="20" y="20" width="${W - 40}" height="${H - 40}" fill="none" stroke="#e2ad37" stroke-width=".8" opacity=".5"/>`;
+  const v = { berry:'#b8231b', leaf:'#e2ad37', trim:'#e2ad37' };
+  // a vine of grass curls along the bottom edge
+  let d = `M24 ${H - 30}`; for (let x = 24; x < W - 24; x += 12) d += ` L${x} ${H - 30 + Math.sin(x / 40) * 6}`;
+  s += `<path d="${d}" fill="none" stroke="#e2ad37" stroke-width="1.4" opacity=".55"/>`;
+  for (let x = 60; x < W - 40; x += 90) s += `<g opacity=".55">${curl(x, H - 30 + Math.sin(x / 40) * 6, 7, x % 180 ? 1 : -1, '#e2ad37', 1.3)}</g>`;
+  [[46, H - 46, 1], [W - 46, H - 46, -1]].forEach(([x, y, sx]) => { s += `<g transform="translate(${x} ${y}) scale(${sx} 1)" opacity=".85">${ornament(0, 0, 0.9, v)}</g>`; });
+  svg.innerHTML = s;
+  // tray ring
+  let r = '';
+  for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, x = 160 + Math.cos(a) * 132, y = 160 + Math.sin(a) * 132;
+    r += `<g transform="translate(${x} ${y}) rotate(${a * 180 / Math.PI + 90})">${ornament(0, 0, 0.62, { berry:'#b8231b', leaf:'#e2ad37', trim:'#e2ad37' })}</g>`; }
+  $('#ring').innerHTML = `<circle cx="160" cy="160" r="112" fill="none" stroke="#e2ad37" stroke-width="1.5"/>${r}`;
+}
+
+/* ---------------- audio: wooden knocks ---------------- */
+let AC = null, master = null, nb = null;
+function audio(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.2; master.connect(AC.destination);
+  nb = AC.createBuffer(1, AC.sampleRate * 0.1, AC.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 4); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume(); }
+function knock(freq, vol, delay){
+  if (!AC) return; const t = AC.currentTime + (delay || 0);
+  const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(freq * 1.6, t); o.frequency.exponentialRampToValueAtTime(freq, t + 0.02);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  const s = AC.createBufferSource(), bp = AC.createBiquadFilter(), g2 = AC.createGain(); s.buffer = nb; bp.type = 'bandpass'; bp.frequency.value = freq * 3; bp.Q.value = 2; g2.gain.value = vol * 0.8;
+  o.connect(g).connect(master); s.connect(bp).connect(g2).connect(master); o.start(t); o.stop(t + 0.2); s.start(t);
+}
+function pop(){ if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(420, t + 0.06); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.connect(g).connect(master); o.start(t); o.stop(t + 0.14); knock(260, 0.4, 0); }
+
+/* ---------------- layout ---------------- */
+const shelf = $('#shelf'), crumbsEl = $('#crumbs');
+let mobile = false, area = {};
+function measure(){
+  mobile = innerWidth <= 820;
+  const W = innerWidth, H = innerHeight;
+  if (mobile) area = { x0: 12, x1: W - 12, base: H - 262, top: 196 };
+  else area = { x0: 44, x1: W - 380, base: H - 128, top: 252 };
+  $('#floor').style.top = area.base + 'px';
+}
+const dollH = n => { const c = files(n); const lo = mobile ? 110 : 168, hi = mobile ? 190 : 290; return Math.round(lo + (hi - lo) * Math.min(1, Math.sqrt(c) / Math.sqrt(13))); };
+const eggH = () => mobile ? 74 : 110;
+function layoutFor(folder){
+  const kids = folder.kids.slice().sort((a, b) => (b.folder ? 1 : 0) - (a.folder ? 1 : 0));
+  let items = kids.map(n => { const h = n.folder ? dollH(n) : eggH(); return { n, h, w: n.folder ? h * 0.68 : h * 0.75 }; });
+  const avail = area.x1 - area.x0 - 30, gap = mobile ? 18 : 42;
+  const rows = []; let row = [], wsum = 0;
+  const maxH = Math.min(area.base - area.top - 50, mobile ? 999 : 999);
+  // scale down if a single row would not fit
+  let total = items.reduce((a, it) => a + it.w, 0) + gap * (items.length - 1), sc = 1;
+  if (!mobile && total > avail) sc = avail / total;
+  if (mobile && total > avail && items.length <= 3) { sc = avail / total; rows.push(items); }
+  else if (mobile && total > avail) { // two rows on mobile
+    const half = Math.ceil(items.length / 2); rows.push(items.slice(0, half), items.slice(half));
+    const rowW = r => r.reduce((a, it) => a + it.w, 0) + gap * (r.length - 1);
+    sc = Math.min(1, avail / Math.max(...rows.map(rowW)), (area.base - area.top - 80) / (Math.max(...rows[0].map(i => i.h)) + Math.max(...rows[1].map(i => i.h)) + 50));
+  } else rows.push(items);
+  items.forEach(it => { it.h *= sc; it.w *= sc; });
+  const cx = (area.x0 + area.x1) / 2;
+  let y = area.base;
+  for (let r = rows.length - 1; r >= 0; r--) {
+    const R = rows[r], rw = R.reduce((a, it) => a + it.w, 0) + gap * sc * (R.length - 1);
+    let x = cx - rw / 2;
+    R.forEach(it => { it.x = x; it.y = y - it.h; x += it.w + gap * sc; });
+    y -= Math.max(...R.map(i => i.h)) + 46;
+  }
+  return items;
+}
+
+/* ---------------- state ---------------- */
+let path = [root], sel = null, busy = false, els = [];
+const curF = () => path[path.length - 1];
+function makeItem(it, i){
+  const d = document.createElement('div'); d.className = 'item ' + (it.n.folder ? 'doll' : 'egg'); d.setAttribute('role', 'option'); d.tabIndex = -1;
+  d.style.cssText = `left:${it.x}px;top:${it.y}px;width:${it.w}px;height:${it.h}px;--lw:${Math.max(it.w + (mobile ? 14 : 34), it.n.folder ? 80 : (mobile ? 100 : 140))}px`;
+  d.innerHTML = (it.n.folder ? dollSVG(VAR[it.n.v]) : eggSVG(it.n)) + `<div class="plq"><b>${it.n.name}</b><span>${it.n.folder ? count(it.n) : it.n.size}</span></div>`;
+  d.setAttribute('aria-label', it.n.folder ? `${it.n.name}, folder, ${count(it.n)}` : `${it.n.name}, ${KIND[ext(it.n)] || 'file'}, ${it.n.size}`);
+  d.setAttribute('aria-selected', 'false');
+  d.addEventListener('click', () => activate(it.n, d));
+  d.addEventListener('keydown', e => onKey(e, i));
+  d.addEventListener('focus', () => { roving = i; });
+  d._it = it; return d;
+}
+function count(n){ const fo = n.kids.filter(k => k.folder).length, fi = n.kids.length - fo; return [fo ? `${fo} folder${fo > 1 ? 's' : ''}` : '', fi ? `${fi} file${fi > 1 ? 's' : ''}` : ''].filter(Boolean).join(', '); }
+let roving = 0;
+function onKey(e, i){
+  let j = -1;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') j = Math.min(els.length - 1, i + 1);
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') j = Math.max(0, i - 1);
+  else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = els.length - 1;
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(els[i]._it.n, els[i]); return; }
+  else if (e.key === 'Backspace') { e.preventDefault(); if (path.length > 1) goUp(path.length - 2); return; }
+  if (j >= 0) { e.preventDefault(); focusItem(j); }
+}
+function focusItem(j){ els.forEach((el, k) => el.tabIndex = k === j ? 0 : -1); if (els[j]) els[j].focus(); roving = j; }
+
+function renderShelf(items){ shelf.innerHTML = ''; els = items.map((it, i) => { const d = makeItem(it, i); shelf.appendChild(d); return d; }); els.forEach((el, k) => el.tabIndex = k === 0 ? 0 : -1); }
+
+/* breadcrumb dolls lined up by size */
+function crumbLayout(){
+  const n = path.length, avail = (mobile ? innerWidth - 24 : innerWidth - 44 - 380) - 20;
+  let hs = path.map((p, i) => (mobile ? 74 : 92) * Math.pow(0.82, i));
+  let x = mobile ? 14 : 18; const out = [];
+  hs.forEach((h, i) => { const w = h * 0.68; out.push({ x, h, w }); x += w + (mobile ? 22 : 36); });
+  return out;
+}
+function renderCrumbs(){
+  crumbsEl.innerHTML = '';
+  const L = crumbLayout();
+  path.forEach((p, i) => {
+    const li = document.createElement('li'); const c = L[i];
+    li.style.cssText = `left:${c.x}px;width:${c.w}px;height:${c.h}px`;
+    const last = i === path.length - 1;
+    li.innerHTML = `<button class="crumb" type="button" style="width:${c.w}px;height:${c.h}px;--lw:${c.w + (mobile ? 18 : 32)}px" ${last ? 'aria-current="page"' : ''} aria-label="${last ? p.name + ' (current folder)' : 'Back to ' + p.name}">${dollSVG(VAR[p.v])}<span class="cl">${p.name}</span></button>`;
+    li.querySelector('button').addEventListener('click', () => { if (!last) goUp(i); else knock(300, 0.3); });
+    crumbsEl.appendChild(li);
+  });
+}
+function crumbRect(i){ const li = crumbsEl.children[i]; return li ? li.getBoundingClientRect() : null; }
+
+/* ---------------- preview tray ---------------- */
+function preview(n){
+  const pv = $('#pv'), info = $('#info');
+  if (!n || n.folder) {
+    const F0 = n || curF();
+    pv.innerHTML = `<svg viewBox="0 0 100 150" style="height:100%">${dollSVG(VAR[F0.v]).replace(/^<svg[^>]*>|<\/svg>$/g, '')}</svg>`;
+    info.innerHTML = `<h2>${F0.name}</h2><p class="kind">${F0 === root ? 'Shared drive' : 'Folder'} · ${count(F0)}</p><dl><dt>Inside</dt><dd>${files(F0)} files in all</dd><dt>Depth</dt><dd>${F0.depth === 0 ? 'Top of the drive' : F0.depth + ' doll' + (F0.depth > 1 ? 's' : '') + ' deep'}</dd></dl>`;
+    return;
+  }
+  const e = ext(n);
+  const art = {
+    jpg: `<svg viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#e8b43a"/><circle cx="66" cy="34" r="12" fill="#c0281e"/><path d="M0 76Q25 50 46 66T100 58V100H0Z" fill="#120c0a"/><path d="M0 86Q30 70 56 82T100 78V100H0Z" fill="#c0281e"/></svg>`,
+    pdf: `<svg viewBox="0 0 100 100"><rect x="22" y="12" width="56" height="76" fill="#f3e3c3" stroke="#e8b43a" stroke-width="2"/><path d="M30 26h40M30 34h40M30 42h28M30 54h40M30 62h40M30 70h22" stroke="#120c0a" stroke-width="2.4"/><rect x="54" y="66" width="18" height="12" fill="#c0281e"/></svg>`,
+    svg: `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" fill="none" stroke="#e8b43a" stroke-width="4"/><path d="M50 28c-12 10-12 34 0 44 12-10 12-34 0-44z" fill="#c0281e"/><circle cx="50" cy="50" r="6" fill="#e8b43a"/></svg>`,
+    xlsx: `<svg viewBox="0 0 100 100"><rect x="18" y="20" width="64" height="60" fill="#f3e3c3"/><path d="M18 35h64M18 50h64M18 65h64M40 20v60M61 20v60" stroke="#120c0a" stroke-width="1.6"/><rect x="62" y="51" width="19" height="13" fill="#c0281e"/></svg>`,
+    docx: `<svg viewBox="0 0 100 100"><rect x="22" y="12" width="56" height="76" fill="#f3e3c3"/><path d="M30 24h30M30 34h40M30 42h40M30 50h34M30 58h40M30 66h26" stroke="#120c0a" stroke-width="2.2"/></svg>`
+  };
+  pv.innerHTML = art[e] || art[e === 'ai' ? 'svg' : e === 'csv' ? 'xlsx' : 'docx'];
+  info.innerHTML = `<h2>${n.name}</h2><p class="kind">${KIND[e] || 'File'}</p><dl><dt>Size</dt><dd>${n.size}</dd><dt>Changed</dt><dd>${n.date}</dd><dt>By</dt><dd>${n.by}</dd><dt>In</dt><dd>${n.parent.name}</dd></dl>
+    <div class="acts"><button class="btn" type="button" id="openBtn">Open</button><button class="btn alt" type="button" id="shareBtn">Copy link</button></div>`;
+  $('#openBtn').addEventListener('click', () => { $('#live').textContent = `Opening ${n.name}`; knock(520, 0.3); flash('Opening ' + n.name + '…'); });
+  $('#shareBtn').addEventListener('click', () => { knock(700, 0.3); flash('Link copied'); try { navigator.clipboard && navigator.clipboard.writeText('https://drive.fernwood.studio/' + encodeURIComponent(n.name)).catch(() => {}); } catch (e) {} });
+}
+function flash(t){ const k = $('#info .kind'); if (!k) return; const old = k.textContent; k.textContent = t; setTimeout(() => { if (k.isConnected) k.textContent = old; }, 1600); }
+
+/* ---------------- activation ---------------- */
+function activate(n, el){
+  audio(); hideHint();
+  if (busy) return;
+  if (!n.folder) {
+    sel = n; els.forEach(x => { x.classList.toggle('sel', x === el); x.setAttribute('aria-selected', x === el); });
+    knock(640 - eggH() * 2, 0.35); const w = el.querySelector('.wob'); if (w && !RM) w.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-10deg)' }, { transform: 'rotate(7deg)' }, { transform: 'rotate(-3deg)' }, { transform: 'rotate(0)' }], { duration: 700, easing: 'ease-out' });
+    preview(n); $('#live').textContent = `${n.name} selected`; return;
+  }
+  openFolder(n, el);
+}
+async function openFolder(n, el){
+  busy = true; sel = null;
+  const others = els.filter(x => x !== el);
+  others.forEach(o => o.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(26px) scale(.92)' }], { duration: RM ? 0 : 260, fill: 'forwards', easing: 'ease-in' }));
+  // bring the doll to centre stage
+  const it = el._it, cx = (area.x0 + area.x1) / 2, H = Math.min(area.base - area.top - 60, mobile ? 200 : 300), sc = H / it.h;
+  const dx = cx - (it.x + it.w / 2);
+  await el.animate([{ transform: 'none' }, { transform: `translate(${dx}px,0) scale(${sc})` }], { duration: RM ? 0 : 380, easing: 'cubic-bezier(.3,1.25,.5,1)', fill: 'forwards' }).finished;
+  el.querySelector('.plq').style.opacity = 0;
+  // split at the waist
+  const top = el.querySelector('.top'), svgEl = el.querySelector('svg'); svgEl.classList.add('open');
+  top.style.transformBox = 'fill-box'; top.style.transformOrigin = '50% 100%';
+  pop();
+  top.animate([{ transform: 'none' }, { transform: 'translate(-10px,-44px) rotate(-11deg)' }], { duration: RM ? 0 : 420, easing: 'cubic-bezier(.2,1.6,.4,1)', fill: 'forwards' });
+  await wait(260);
+  // children hop out of the bottom half
+  path.push(n);
+  const items = layoutFor(n);
+  const origin = { x: cx, y: area.base - it.h * sc * 0.55 };
+  const kids = items.map((k, i) => { const d = makeItem(k, i); d.style.opacity = 0; shelf.appendChild(d); return d; });
+  kids.forEach((d, i) => {
+    const k = d._it, fx = origin.x - (k.x + k.w / 2), fy = origin.y - (k.y + k.h), s0 = 0.18;
+    d.style.opacity = 1;
+    d.animate([
+      { transform: `translate(${fx}px,${fy}px) scale(${s0})`, opacity: 0 },
+      { transform: `translate(${fx * 0.5}px,${fy - (mobile ? 90 : 160)}px) scale(${0.6})`, opacity: 1, offset: 0.45 },
+      { transform: 'translate(0,-10px) scale(1.04,.96)', offset: 0.85 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: RM ? 0 : 720, delay: RM ? 0 : 120 + i * 110, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'backwards' });
+    if (!RM) setTimeout(() => knock(900 - k.h * 2.4, 0.3), 120 + i * 110 + 620); else knock(600, 0.2);
+  });
+  // close the parent and send it to the breadcrumb row
+  await wait(200);
+  top.animate([{ transform: 'translate(-10px,-44px) rotate(-11deg)' }, { transform: 'none' }], { duration: RM ? 0 : 320, easing: 'cubic-bezier(.5,0,.6,1.4)', fill: 'forwards' });
+  await wait(300); svgEl.classList.remove('open'); knock(240, 0.35);
+  renderCrumbs();
+  const cr = crumbRect(path.length - 2), er = el.getBoundingClientRect();
+  const lastLi = crumbsEl.children[path.length - 2]; lastLi.style.opacity = 0; crumbsEl.children[path.length - 1].style.opacity = 0;
+  if (cr) {
+    await el.animate([{ transform: `translate(${dx}px,0) scale(${sc})` }, { transform: `translate(${dx + (cr.left + cr.width / 2) - (er.left + er.width / 2)}px,${(cr.top + cr.height / 2) - (er.top + er.height / 2)}px) scale(${sc * cr.height / er.height})`, opacity: 1 }],
+      { duration: RM ? 0 : 520, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).finished;
+  }
+  lastLi.style.opacity = 1;
+  const nl = crumbsEl.children[path.length - 1]; nl.style.transition = 'opacity .4s'; requestAnimationFrame(() => nl.style.opacity = 1);
+  others.forEach(o => o.remove()); el.remove();
+  els = kids; els.forEach((x, k) => x.tabIndex = k === 0 ? 0 : -1);
+  preview(n);
+  $('#live').textContent = `Opened ${n.name}: ${count(n)}`;
+  busy = false;
+  if (els[0] && document.activeElement && document.activeElement.classList.contains('item')) els[0].focus();
+}
+async function goUp(i){
+  audio(); hideHint();
+  if (busy || i >= path.length - 1) return; busy = true; sel = null;
+  // contents shrink back into the current doll (last crumb)
+  const cur = crumbRect(path.length - 1);
+  const tgt = cur ? { x: cur.left + cur.width / 2, y: cur.top + cur.height * 0.6 } : { x: 0, y: 0 };
+  await Promise.all(els.map((d, k) => { const r = d.getBoundingClientRect(); const fx = tgt.x - (r.left + r.width / 2), fy = tgt.y - (r.top + r.height);
+    if (!RM) setTimeout(() => knock(800, 0.2), k * 80 + 360);
+    return d.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${fx * 0.5}px,${fy * 0.5 - 60}px) scale(.5)`, opacity: 1, offset: 0.5 }, { transform: `translate(${fx}px,${fy}px) scale(.08)`, opacity: 0 }],
+      { duration: RM ? 0 : 520, delay: RM ? 0 : k * 80, easing: 'cubic-bezier(.5,0,.7,1)', fill: 'forwards' }).finished; }));
+  // smaller dolls slide back inside the chosen one
+  const lis = [...crumbsEl.children], dest = lis[i].getBoundingClientRect();
+  await Promise.all(lis.slice(i + 1).map((li, k) => { const r = li.getBoundingClientRect();
+    if (!RM) setTimeout(() => knock(300 + k * 60, 0.35), 380 + k * 90);
+    return li.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${(dest.left + dest.width / 2) - (r.left + r.width / 2)}px,${(dest.bottom) - (r.bottom)}px) scale(.6)`, opacity: 0 }],
+      { duration: RM ? 0 : 460, delay: RM ? 0 : (lis.length - 2 - (i + k)) * 90, easing: 'cubic-bezier(.6,0,.4,1)', fill: 'forwards' }).finished; }));
+  path.length = i + 1; renderCrumbs();
+  const w = crumbsEl.children[i].querySelector('svg'); if (w && !RM) w.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-8deg)' }, { transform: 'rotate(5deg)' }, { transform: 'rotate(0)' }], { duration: 600, easing: 'ease-out', transformOrigin: '50% 95%' });
+  // its contents spring out of the crumb onto the shelf
+  const items = layoutFor(curF()); shelf.innerHTML = '';
+  const cr = crumbRect(i), o = { x: cr.left + cr.width / 2, y: cr.top + cr.height * 0.6 };
+  els = items.map((k, j) => { const d = makeItem(k, j); shelf.appendChild(d);
+    const fx = o.x - (k.x + k.w / 2), fy = o.y - (k.y + k.h);
+    d.animate([{ transform: `translate(${fx}px,${fy}px) scale(.12)`, opacity: 0 }, { transform: `translate(${fx * 0.4}px,${Math.min(fy * 0.4, 0) - 120}px) scale(.7)`, opacity: 1, offset: 0.5 }, { transform: 'translate(0,-8px) scale(1.03,.97)', offset: 0.85 }, { transform: 'none', opacity: 1 }],
+      { duration: RM ? 0 : 680, delay: RM ? 0 : j * 90, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'backwards' });
+    if (!RM) setTimeout(() => knock(900 - k.h * 2.4, 0.28), j * 90 + 600);
+    return d; });
+  els.forEach((x, k) => x.tabIndex = k === 0 ? 0 : -1);
+  preview(curF());
+  $('#live').textContent = `Back in ${curF().name}: ${count(curF())}`;
+  await wait(RM ? 0 : 700); busy = false;
+}
+let hinted = true; function hideHint(){ if (hinted) { hinted = false; $('#hint').classList.add('hide'); } }
+document.addEventListener('keydown', e => { if (e.key === 'Backspace' && !e.target.closest('.item') && path.length > 1) { e.preventDefault(); goUp(path.length - 2); } });
+
+function full(){ measure(); drawOrn(); renderCrumbs(); renderShelf(layoutFor(curF())); preview(sel || curF()); }
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (!busy) full(); }, 80); });
+full();
+window.__mf = { open: i => { const d = els[i]; if (d) activate(d._it.n, d); }, up: goUp };
+})();
+</script>
+</body>
+</html>

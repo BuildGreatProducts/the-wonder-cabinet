@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chladni Frequency Slider</title>
+<meta name="description" content="A frequency slider drawn as a 19th-century acoustics plate: drag the vernier and sand on a bowed brass plate migrates into true Chladni figures.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Old+Standard+TT:ital@0;1&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Chladni Frequency Slider","reimagines":"Slider","category":"Sliders, Knobs & Dials","description":"Choose a focus tone on an engraved acoustics plate. As the vernier slides along the scale, sand on a bowed brass plate dances and settles into real Chladni figures at each resonance, so you can see (and hear) the frequency you pick.","hint":"Draw the vernier along the scale; the sand gathers where the plate is still"}
+</script>
+<style>
+  :root{
+    --paper:#ece0c3; --paper2:#e4d5b4; --ink:#2a1b10; --ink2:#5a4330; --ink3:rgba(42,27,16,.55);
+    --serif:'IM Fell English', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --sc:'IM Fell English SC', 'IM Fell English', Georgia, serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;}
+  body{
+    background:#d9c9a5;
+    color:var(--ink); font-family:var(--serif);
+    overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+  .sheet{
+    position:fixed; inset:0; overflow:hidden;
+    background:
+      radial-gradient(ellipse 30px 22px at 8% 14%, rgba(150,100,45,.13), transparent 70%),
+      radial-gradient(ellipse 18px 14px at 91% 72%, rgba(150,100,45,.16), transparent 70%),
+      radial-gradient(ellipse 60px 40px at 83% 9%, rgba(150,100,45,.08), transparent 70%),
+      radial-gradient(ellipse 12px 10px at 23% 88%, rgba(130,80,35,.18), transparent 70%),
+      radial-gradient(120% 90% at 50% 45%, var(--paper) 55%, #dccaa3 100%);
+  }
+  .sheet::before{ /* paper fibre */
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.55; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .33 0 0 0 0 .2 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .platemark{
+    position:absolute; inset:22px; border-radius:3px;
+    background:linear-gradient(180deg, rgba(120,90,50,.035), rgba(120,90,50,.06));
+    box-shadow: inset 0 0 0 1px rgba(90,65,35,.28), inset 2px 2px 0 rgba(255,250,235,.55), inset -1px -1px 0 rgba(90,65,35,.18), 0 0 0 1px rgba(255,250,235,.4);
+    display:grid;
+    grid-template-columns: minmax(0,1fr) 340px;
+    grid-template-rows: auto minmax(0,1fr) auto;
+    grid-template-areas: "head head" "fig text" "scale scale";
+    padding:14px 34px 10px;
+    column-gap:28px;
+  }
+  header.runhead{
+    grid-area:head; display:flex; justify-content:space-between; align-items:baseline;
+    font-family:var(--sc); font-size:13px; letter-spacing:.08em; color:var(--ink2);
+    border-bottom:1px solid var(--ink3); padding-bottom:6px; position:relative;
+  }
+  header.runhead::after{content:"";position:absolute;left:0;right:0;bottom:-4px;border-bottom:.5px solid var(--ink3)}
+  header.runhead b{font-weight:normal; color:var(--ink); font-size:15px; letter-spacing:.14em}
+  .figwrap{grid-area:fig; position:relative; min-height:0;}
+  #plate{position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:crosshair; display:block}
+  .figcap{position:absolute; left:0; right:0; bottom:2px; text-align:center; font-family:var(--sc); font-size:14px; letter-spacing:.1em; pointer-events:none}
+  .text{grid-area:text; display:flex; flex-direction:column; justify-content:center; padding:6px 0; min-height:0; overflow:hidden}
+  .text h1{font-family:var(--serif); font-weight:normal; font-style:italic; font-size:30px; margin:0 0 4px; line-height:1.05}
+  .text .lede{font-size:15px; line-height:1.36; margin:0 0 8px; text-align:justify; hyphens:auto}
+  .lede i{font-style:italic}
+  .reading{display:flex; align-items:baseline; gap:10px; margin:2px 0 0}
+  .hz{font-family:'Old Standard TT', var(--serif); font-size:70px; line-height:.95; letter-spacing:-.01em; min-width:3.2ch}
+  .hzunit{font-style:italic; font-size:17px; line-height:1.1}
+  .note{font-size:15px; margin:6px 0 2px}
+  .mode{font-size:15px; margin:0 0 12px; min-height:1.4em}
+  .mode .sc{font-family:var(--sc); letter-spacing:.06em}
+  .rule{height:7px; margin:4px 0 10px; background:
+      linear-gradient(var(--ink3),var(--ink3)) 0 1px/100% 1px no-repeat,
+      linear-gradient(var(--ink3),var(--ink3)) 0 4px/100% .6px no-repeat;}
+  .btns{display:flex; flex-wrap:wrap; gap:10px 12px; align-items:center}
+  .eng{
+    font-family:var(--sc); font-size:14px; letter-spacing:.08em; color:var(--ink);
+    background:transparent; border:1px solid var(--ink); padding:6px 12px 5px; cursor:pointer; position:relative;
+    box-shadow: 0 0 0 2px var(--paper), 0 0 0 2.6px var(--ink3);
+    transition: background-color .2s;
+  }
+  .eng:hover{background:repeating-linear-gradient(135deg, rgba(42,27,16,.13) 0 .7px, transparent .7px 3.2px)}
+  .eng:active{transform:translateY(1px)}
+  .eng[aria-pressed="true"]{background:repeating-linear-gradient(135deg, rgba(42,27,16,.32) 0 .9px, transparent .9px 2.6px)}
+  .eng:focus-visible, #slider:focus-visible, .fig:focus-visible{outline:1.5px dotted var(--ink); outline-offset:4px}
+  .eng svg{vertical-align:-2px; margin-right:6px}
+  .adopt{margin-top:4px; font-size:15px; padding:7px 16px 6px}
+  .status{font-style:italic; font-size:14px; margin:8px 0 0; min-height:1.3em}
+  .session{font-size:13px; color:var(--ink2); margin:6px 0 0; font-style:italic}
+
+  .scale{grid-area:scale; position:relative; height:186px; margin:4px 4px 0;}
+  .figs{position:absolute; left:0; right:0; top:0; bottom:0; pointer-events:none}
+  .fig{position:absolute; width:56px; transform:translateX(-50%); background:none; border:0; padding:0; cursor:pointer; pointer-events:auto; color:var(--ink); font-family:var(--serif)}
+  .fig canvas{display:block; width:46px; height:46px; margin:0 auto; border:1px solid var(--ink); box-shadow:0 0 0 2px var(--paper),0 0 0 2.5px var(--ink3); background:#efe5cc}
+  .fig span{display:block; text-align:center; font-size:12px; font-style:italic; line-height:1.15; margin-top:3px; white-space:nowrap}
+  .fig.top{top:0}
+  .fig.bot{bottom:0}
+  .fig.bot span{margin:0 0 3px}
+  .fig.unseen canvas{border-style:dotted; box-shadow:none}
+  .fig.unseen span{opacity:.6}
+  .fig.on canvas{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
+  .fig.on span{text-decoration:underline; text-underline-offset:2px}
+  .lead{position:absolute; width:0; border-left:.8px dotted var(--ink3); pointer-events:none}
+  #slider{position:absolute; left:0; right:0; top:72px; height:42px; touch-action:none; cursor:ew-resize; outline:none}
+  #slider svg.grad{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
+  .carriage{position:absolute; top:-11px; width:30px; height:64px; margin-left:-15px; pointer-events:none; transition:none}
+  .carriage svg{width:100%; height:100%; overflow:visible}
+  .hint{font-size:13.5px; font-style:italic; color:var(--ink); margin:12px 0 0; padding-top:8px; border-top:.6px solid var(--ink3); transition:opacity 1.2s; line-height:1.35}
+  .footnote{display:none}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+  @media (max-width: 760px){
+    .platemark{inset:8px; padding:8px 14px 6px; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) auto auto; grid-template-areas:"head" "fig" "text" "scale"; column-gap:0}
+    header.runhead{font-size:10.5px}
+    header.runhead b{font-size:12px}
+    header.runhead .pg{display:none}
+    .text{padding:0}
+    .text h1, .session{display:none}
+    .text .lede{font-size:12.5px; line-height:1.3; margin:0 0 4px}
+    .reading{gap:8px; justify-content:space-between}
+    .hz{font-size:44px}
+    .readrow{display:flex; justify-content:space-between; align-items:flex-end; gap:8px}
+    .note,.mode{font-size:13.5px; margin:2px 0}
+    .rule{display:none}
+    .btns{gap:8px; margin-top:6px}
+    .eng{font-size:12.5px; padding:5px 8px 4px}
+    .adopt{margin-top:0; font-size:12.5px; padding:5px 8px 4px}
+    .status{font-size:12.5px; margin-top:4px; min-height:1.2em}
+    .scale{height:140px; margin:4px 0 0}
+    .fig{width:40px}
+    .fig canvas{width:30px; height:30px}
+    .fig span{font-size:10px}
+    #slider{top:52px; height:38px}
+    .hint{font-size:11.5px; margin:4px 0 0; padding-top:3px; border:0}
+    .fig span{display:none}
+    .figcap{font-size:11px}
+  }
+  @media (max-width: 760px) and (max-height: 700px){ .scale{height:126px} #slider{top:46px} }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <main class="platemark">
+    <header class="runhead">
+      <span>Acoustics. — The Hour of Study.</span>
+      <b>Plate IV.</b>
+      <span class="pg">Tuesday, 7th Oct. 2026 — p. 247</span>
+    </header>
+
+    <div class="figwrap">
+      <canvas id="plate" aria-label="Brass plate strewn with sand. Tap to scatter the sand." role="img"></canvas>
+    </div>
+
+    <section class="text" aria-labelledby="ttl">
+      <h1 id="ttl">Of the tone for study</h1>
+      <p class="lede">A brass plate, clamped at <i>b</i> and excited by the bow <i>a</i>. The sand, thrown from the vibrating parts, rests along the nodal lines <i>c</i>. Choose the tone to sound beneath your hour of study.</p>
+      <div class="readrow">
+        <div>
+          <div class="reading"><span class="hz" id="hz">440</span><span class="hzunit">vibrations<br>per second</span></div>
+          <div class="note" id="note">the note A, in tune</div>
+        </div>
+      </div>
+      <div class="mode" id="mode" aria-live="polite"></div>
+      <div class="rule" aria-hidden="true"></div>
+      <div class="btns">
+        <button class="eng" id="sound" aria-pressed="false"><svg width="16" height="13" viewBox="0 0 16 13" aria-hidden="true"><path d="M1 4.5h3l4-3.5v11l-4-3.5H1z" fill="none" stroke="currentColor" stroke-width="1"/><path d="M10.5 3.8c1.2 1.4 1.2 4 0 5.4M12.6 2c2 2.4 2 6.6 0 9" fill="none" stroke="currentColor" stroke-width=".9"/></svg>Sound the tone</button>
+        <button class="eng" id="strew">Strew fresh sand</button>
+        <button class="eng adopt" id="adopt">Adopt this tone</button>
+      </div>
+      <p class="status" id="status" aria-live="polite"></p>
+      <p class="hint" id="hint">* Draw the vernier along the scale below; the sand gathers where the plate is still. Tap the plate to scatter it.</p>
+      <p class="session"><span id="seen">Figures observed: 0 of 15.</span> Hour of study: fifty minutes, commencing at nine o'clock.</p>
+    </section>
+
+    <div class="scale" id="scale">
+      <div class="figs" id="figs"></div>
+      <div id="slider" role="slider" tabindex="0" aria-label="Tone frequency" aria-valuemin="80" aria-valuemax="2000" aria-valuenow="440" aria-valuetext="440 vibrations per second">
+        <svg class="grad" id="grad" aria-hidden="true"></svg>
+        <div class="carriage" id="carriage" aria-hidden="true">
+          <svg viewBox="0 0 30 64">
+            <defs>
+              <pattern id="hx" width="2.4" height="2.4" patternUnits="userSpaceOnUse" patternTransform="rotate(60)"><line x1="0" y1="0" x2="0" y2="2.4" stroke="#2a1b10" stroke-width=".7"/></pattern>
+              <pattern id="hx2" width="2" height="2" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)"><line x1="0" y1="0" x2="0" y2="2" stroke="#2a1b10" stroke-width=".55"/></pattern>
+            </defs>
+            <path d="M6 4h18l3 7v42l-3 7H6l-3-7V11z" fill="#efe4c9" stroke="#2a1b10" stroke-width="1"/>
+            <path d="M20 4h4l3 7v42l-3 7h-4z" fill="url(#hx)"/>
+            <path d="M3 11h24" stroke="#2a1b10" stroke-width=".7"/><path d="M3 53h24" stroke="#2a1b10" stroke-width=".7"/>
+            <rect x="8" y="13" width="14" height="38" fill="#ece0c3" stroke="#2a1b10" stroke-width=".8"/>
+            <rect x="8" y="13" width="3" height="38" fill="url(#hx2)"/>
+            <path d="M15 11v42" stroke="#2a1b10" stroke-width="1.2"/>
+            <path d="M12 0h6l-3 4z" fill="#2a1b10"/>
+            <circle cx="15" cy="58" r="1.6" fill="none" stroke="#2a1b10" stroke-width=".7"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FMIN = 80, FMAX = 2000, SMIN = Math.sqrt(FMIN), SMAX = Math.sqrt(FMAX);
+  const fToT = f => (Math.sqrt(f) - SMIN) / (SMAX - SMIN);
+  const tToF = t => { const s = SMIN + t * (SMAX - SMIN); return s * s; };
+
+  // Resonant modes of a free square plate (approx. f ∝ n² + m²)
+  const PAIRS = [[1,2],[1,3],[2,3],[1,4],[2,4],[3,4],[2,5],[3,5],[4,5],[3,6],[2,7],[5,6],[4,7],[5,7],[6,7]];
+  const MODES = PAIRS.map(([n,m], i) => {
+    const k = n*n + m*m, hz = 22 * k;
+    return { n, m, s: (i % 2 ? 1 : -1), hz, t: fToT(hz), fig: i + 2 };
+  });
+  const PI = Math.PI;
+  const modeVal = (md, u, v) => {
+    const a = PI * md.n, b = PI * md.m;
+    return Math.cos(a*u) * Math.cos(b*v) + md.s * Math.cos(b*u) * Math.cos(a*v);
+  };
+
+  // ---------- state ----------
+  let freq = 440, t = fToT(freq), anim = null;
+  let weights = new Float32Array(MODES.length), active = [];
+  let excite = 0;   // 0..1 resonance strength
+  let interacted = false;
+
+  const $ = id => document.getElementById(id);
+  const cvs = $('plate'), ctx = cvs.getContext('2d');
+  const slider = $('slider'), carriage = $('carriage'), grad = $('grad'), figsEl = $('figs');
+
+  // ---------- particles ----------
+  let N = 0, pu, pv, ps;
+  function strew(){
+    N = innerWidth < 760 ? 3800 : 6200;
+    pu = new Float32Array(N); pv = new Float32Array(N); ps = new Float32Array(N);
+    for (let i = 0; i < N; i++){ pu[i] = .02 + Math.random()*.96; pv[i] = .02 + Math.random()*.96; ps[i] = .75 + Math.random()*.7; }
+  }
+  strew();
+
+  function updateWeights(){
+    let sum = 0, mx = 0; active = [];
+    for (let i = 0; i < MODES.length; i++){
+      const d = (t - MODES[i].t) / 0.0105;
+      const w = 1 / (1 + d*d);
+      weights[i] = w; sum += w; if (w > mx) mx = w;
+      if (w > 0.02) active.push(i);
+    }
+    excite = Math.min(1, mx);
+    // normalise active weights
+    for (const i of active) weights[i] /= sum;
+  }
+  function amp(u, v){
+    let s = 0;
+    for (let j = 0; j < active.length; j++){ const i = active[j]; s += weights[i] * modeVal(MODES[i], u, v); }
+    return s;
+  }
+
+  function stepSand(dt){
+    const E = excite, rate = (0.012 + 0.11 * E * E) * dt, jit = (0.0007 + 0.010 * E) * dt;
+    const e = 0.0025;
+    for (let i = 0; i < N; i++){
+      let u = pu[i], v = pv[i];
+      const A = amp(u, v);
+      const gx = (amp(u + e, v) - A) / e, gy = (amp(u, v + e) - A) / e;
+      const g2 = gx*gx + gy*gy + 1e-4;
+      let du = -A * gx / g2, dv = -A * gy / g2;
+      const L = Math.hypot(du, dv); if (L > 0.03){ du *= 0.03/L; dv *= 0.03/L; }
+      const a = Math.min(1, Math.abs(A));
+      u += du * rate + (Math.random() - .5) * jit * (0.15 + a * 1.6);
+      v += dv * rate + (Math.random() - .5) * jit * (0.15 + a * 1.6);
+      if (u < .012) u = .024 - u; else if (u > .988) u = 1.976 - u;
+      if (v < .012) v = .024 - v; else if (v > .988) v = 1.976 - v;
+      pu[i] = u; pv[i] = v;
+    }
+  }
+
+  // ---------- projection ----------
+  const YAW = 9 * PI/180, PITCH = 41 * PI/180, D = 3.6;
+  let SC = 200, OX = 0, OY = 0, W = 0, H = 0, dpr = 1;
+  function proj3(X, Y, Z){
+    const cy = Math.cos(YAW), sy = Math.sin(YAW), cp = Math.cos(PITCH), sp = Math.sin(PITCH);
+    const x1 = X*cy - Z*sy, z1 = X*sy + Z*cy;
+    const y2 = Y*cp - z1*sp, z2 = Y*sp + z1*cp;
+    const s = D / (D - z2);
+    return [OX + x1 * s * SC, OY - y2 * s * SC, s];
+  }
+  // plate coords (u,v)∈[0,1]² → world X=u-.5, Z=v-.5 (v=1 is front edge)
+  const pp = (u, v, y = 0) => proj3(u - .5, y, v - .5);
+  const THICK = 0.035, COLH = 0.92, BASER = 0.27, BASEH = 0.07;
+  const BOWV = 0.68; // where bow touches right edge
+
+  let staticLayer = document.createElement('canvas'), sctx = staticLayer.getContext('2d');
+
+  function layout(){
+    dpr = Math.min(2, devicePixelRatio || 1);
+    const r = cvs.getBoundingClientRect();
+    W = Math.max(10, r.width); H = Math.max(10, r.height);
+    cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+    // fit drawing bbox
+    SC = 1; OX = 0; OY = 0;
+    const pts = [pp(0,0), pp(1,0), pp(0,1), pp(1,1), proj3(-BASER, -COLH-BASEH, BASER), proj3(BASER, -COLH-BASEH, BASER), proj3(0,-COLH-BASEH, BASER), proj3(.62, .72, BOWV-.5+.08), proj3(.5, -.7, BOWV-.5-.08), proj3(-.56,0,0)];
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    for (const p of pts){ x0=Math.min(x0,p[0]); x1=Math.max(x1,p[0]); y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); }
+    const padB = W < 500 ? 22 : 30;
+    SC = Math.min((W - 16) / (x1 - x0), (H - 10 - padB) / (y1 - y0));
+    OX = W/2 - (x0 + x1)/2 * SC; OY = (H - padB)/2 - (y0 + y1)/2 * SC + 4;
+    renderStatic();
+  }
+
+  const INK = 'rgba(42,27,16,';
+  function line(c, a, b, w, al){ c.strokeStyle = INK + al + ')'; c.lineWidth = w; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
+  function lerp2(a, b, k){ return [a[0] + (b[0]-a[0])*k, a[1] + (b[1]-a[1])*k]; }
+  // hatch a projected quad by interpolating between edges
+  function hatchQuad(c, A, B, C, Dd, count, w, al, cross){
+    for (let i = 0; i <= count; i++){
+      const k = i / count;
+      line(c, lerp2(A, Dd, k), lerp2(B, C, k), w, al);
+    }
+    if (cross) for (let i = 0; i <= cross; i++){
+      const k = i / cross;
+      line(c, lerp2(A, B, k), lerp2(Dd, C, k), w*.8, al*.8);
+    }
+  }
+  // seeded wobble for engraved line irregularity
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  function renderStatic(){
+    staticLayer.width = cvs.width; staticLayer.height = cvs.height;
+    const c = sctx; c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H); c.lineCap = 'round';
+    seed = 7;
+    const L = Math.max(.6, SC / 380); // line scale
+
+    // ground strokes (table)
+    const gb = proj3(0, -COLH - BASEH, 0);
+    for (let i = 0; i < 9; i++){
+      const yy = gb[1] + (i - 2) * 3.2 * L + 6*L;
+      const half = (BASER * SC * 1.9) * (1 - Math.abs(i-3)/7);
+      const x0 = gb[0] - half*0.9 + i*3, x1 = gb[0] + half*1.5 + i*4;
+      line(c, [x0, yy], [x1, yy], .55*L, .5 - i*.04);
+    }
+    // cast shadow to the right of the base (dense horizontal hatch in an ellipse)
+    c.save(); c.beginPath(); c.ellipse(gb[0] + BASER*SC*0.55, gb[1] + 3*L, BASER*SC*1.25, BASER*SC*0.32, 0, 0, PI*2); c.clip();
+    for (let yy = gb[1] - BASER*SC*.4; yy < gb[1] + BASER*SC*.6; yy += 1.6*L) line(c, [gb[0]-BASER*SC, yy], [gb[0] + BASER*SC*2.2, yy], .7*L, .55);
+    c.restore();
+
+    // base: short cylinder
+    const bt = proj3(0, -COLH, 0), bb = gb;
+    const rx = BASER * SC * bt[2], ry = rx * Math.sin(PITCH);
+    // side band
+    c.save(); c.beginPath(); c.ellipse(bb[0], bb[1], rx, ry, 0, 0, PI); c.lineTo(bt[0]-rx, bt[1]); c.ellipse(bt[0], bt[1], rx, ry, 0, PI, 0, true); c.closePath(); c.clip();
+    for (let x = -rx; x <= rx; x += 1.7*L){
+      const k = x / rx; const dark = .25 + .75 * Math.pow(Math.max(0, k*.5 + .45), 1.6) + (k < -.85 ? .3 : 0);
+      line(c, [bt[0] + x, bt[1] - ry], [bt[0] + x, bb[1] + ry + 2], (.35 + dark*.9)*L, Math.min(.95,.3 + dark*.6));
+    }
+    c.restore();
+    c.strokeStyle = INK + '.95)'; c.lineWidth = 1*L;
+    c.beginPath(); c.ellipse(bb[0], bb[1], rx, ry, 0, 0, PI); c.stroke();
+    // top of base (light concentric rings)
+    c.fillStyle = '#ece0c3'; c.beginPath(); c.ellipse(bt[0], bt[1], rx, ry, 0, 0, PI*2); c.fill();
+    for (let k = 1; k > .2; k -= .14){ c.strokeStyle = INK + (.18 + (1-k)*.2) + ')'; c.lineWidth = .5*L; c.beginPath(); c.ellipse(bt[0] + rx*(1-k)*.18, bt[1], rx*k, ry*k, 0, PI*.05, PI*1.15); c.stroke(); }
+    c.strokeStyle = INK + '.95)'; c.lineWidth = 1*L; c.beginPath(); c.ellipse(bt[0], bt[1], rx, ry, 0, 0, PI*2); c.stroke();
+
+    // column (turned brass) from base up to plate underside
+    const ct = proj3(0, -THICK, 0); const cr = 0.05 * SC * ct[2];
+    const colTop = ct[1], colBot = bt[1];
+    function column(x0, rad, yA, yB){
+      c.fillStyle = '#ece0c3'; c.fillRect(x0 - rad, yA, rad*2, yB - yA);
+      for (let x = -rad; x <= rad; x += 1.25*L){
+        const k = x / rad; const dark = .18 + .82 * Math.pow(Math.max(0, k*.55 + .45), 2) + (k < -.8 ? .35 : 0);
+        line(c, [x0 + x, yA], [x0 + x, yB], (.3 + dark*.8)*L, Math.min(.95, .25 + dark*.65));
+      }
+      line(c, [x0 - rad, yA], [x0 - rad, yB], .9*L, .95); line(c, [x0 + rad, yA], [x0 + rad, yB], .9*L, .95);
+    }
+    column(ct[0], cr, colTop, colBot - ry*.2);
+    // collars
+    for (const fy of [.18, .52, .88]){
+      const yy = colTop + (colBot - colTop) * fy, rr = cr * (fy > .8 ? 1.9 : 1.45);
+      c.fillStyle = '#ece0c3'; c.beginPath(); c.ellipse(ct[0], yy, rr, rr*.35, 0, 0, PI*2); c.fill();
+      c.save(); c.beginPath(); c.ellipse(ct[0], yy + 3*L, rr, rr*.35, 0, 0, PI); c.lineTo(ct[0]-rr, yy); c.ellipse(ct[0], yy, rr, rr*.35, 0, PI, 0, true); c.clip();
+      for (let x = -rr; x <= rr; x += 1.3*L){ const k = x/rr; line(c, [ct[0]+x, yy - rr], [ct[0]+x, yy + rr], (.35 + .7*Math.max(0,k*.6+.4))*L, .4 + .5*Math.max(0, k*.6+.4)); }
+      c.restore();
+      c.strokeStyle = INK + '.9)'; c.lineWidth = .8*L; c.beginPath(); c.ellipse(ct[0], yy, rr, rr*.35, 0, 0, PI*2); c.stroke();
+      c.beginPath(); c.ellipse(ct[0], yy + 3*L, rr, rr*.35, 0, 0, PI); c.stroke();
+    }
+
+    // plate side faces
+    const fl = pp(0,1), fr = pp(1,1), flb = pp(0,1,-THICK), frb = pp(1,1,-THICK);
+    const br = pp(1,0), brb = pp(1,0,-THICK);
+    c.fillStyle = '#e9dcbd';
+    c.beginPath(); c.moveTo(...fl); c.lineTo(...fr); c.lineTo(...frb); c.lineTo(...flb); c.closePath(); c.fill();
+    hatchQuad(c, fl, fr, frb, flb, 5, .7*L, .75, 70);
+    c.beginPath(); c.moveTo(...fr); c.lineTo(...br); c.lineTo(...brb); c.lineTo(...frb); c.closePath(); c.fill();
+    hatchQuad(c, fr, br, brb, frb, 4, .8*L, .9, 50);
+    // plate top face: fill + horizontal engraving (parallel to u)
+    const tl = pp(0,0), tr = br;
+    c.fillStyle = '#efe5cc';
+    c.beginPath(); c.moveTo(...tl); c.lineTo(...tr); c.lineTo(...fr); c.lineTo(...fl); c.closePath(); c.fill();
+    const rows = Math.round(SC * 0.16);
+    for (let i = 0; i <= rows; i++){
+      const v = i / rows;
+      const segs = 24;
+      for (let j = 0; j < segs; j++){
+        const u0 = j/segs, u1 = (j+1)/segs, um = (u0+u1)/2;
+        // lighting: darker toward back-left, highlight band along a diagonal
+        const hl = Math.exp(-Math.pow((um*.8 + v*.6 - .95)/.16, 2));
+        const dark = .55 - .3*v + .15*(1-um) - hl*.65;
+        if (dark < .08) continue;
+        const a = pp(u0, v), b = pp(u1, v);
+        line(c, a, b, (.25 + dark*.6)*L, Math.min(.7, .12 + dark*.55));
+      }
+    }
+    // plate outline
+    c.strokeStyle = INK + '1)'; c.lineWidth = 1.1*L; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(...tl); c.lineTo(...tr); c.lineTo(...fr); c.lineTo(...fl); c.closePath(); c.stroke();
+    c.beginPath(); c.moveTo(...flb); c.lineTo(...frb); c.lineTo(...brb); c.lineTo(...br); c.stroke();
+    line(c, fl, flb, 1.1*L, 1); line(c, fr, frb, 1*L, 1);
+    // figure letters
+    c.fillStyle = INK + '1)'; c.font = `italic ${Math.round(15*L+3)}px 'IM Fell English', Georgia, serif`;
+    const bl = proj3(.67, .32, BOWV - .5); c.fillText('a', bl[0] + 6, bl[1]);
+    const cl = proj3(-0.02, -COLH*.55, 0); c.fillText('b', cl[0] - cr - 16*L, cl[1]);
+    const dl = pp(0, .55); c.fillText('c', dl[0] - 16*L, dl[1] + 4);
+    c.font = `${Math.round(11*L+5)}px 'IM Fell English SC', 'IM Fell English', Georgia, serif`; c.textAlign = 'center';
+    c.fillText('Fig. 1.', gb[0], Math.min(H - 4, gb[1] + BASER*SC*.45 + 18*L)); c.textAlign = 'left';
+  }
+
+  function drawNut(c){
+    const L = Math.max(.6, SC / 380);
+    const p = pp(.5, .5, 0.012), r = 0.045 * SC * p[2], ry = r * Math.sin(PITCH);
+    c.fillStyle = '#ece0c3'; c.beginPath(); c.ellipse(p[0], p[1] + 2*L, r, ry, 0, 0, PI*2); c.fill();
+    c.save(); c.beginPath(); c.ellipse(p[0], p[1] + 3*L, r, ry, 0, 0, PI); c.lineTo(p[0]-r, p[1]); c.ellipse(p[0], p[1], r, ry, 0, PI, 0, true); c.clip();
+    for (let x = -r; x <= r; x += 1.2*L) line(c, [p[0]+x, p[1]-ry], [p[0]+x, p[1]+ry+4*L], .6*L, .3 + .5*Math.max(0, x/r*.5+.5));
+    c.restore();
+    c.strokeStyle = INK + '1)'; c.lineWidth = .9*L; c.beginPath(); c.ellipse(p[0], p[1], r, ry, 0, 0, PI*2); c.stroke();
+    c.beginPath(); c.ellipse(p[0], p[1] + 3*L, r, ry, 0, 0, PI); c.stroke();
+    c.beginPath(); c.ellipse(p[0], p[1], r*.35, ry*.35, 0, 0, PI*2); c.stroke();
+  }
+
+  let bowPhase = 0, bowAmp = 0;
+  function drawBow(c){
+    const L = Math.max(.6, SC / 380);
+    const off = reduce ? 0 : Math.sin(bowPhase) * 0.09 * bowAmp;
+    const Y0 = -0.6 + off, Y1 = 0.6 + off;
+    const hairW = k => { const Y = Y0 + (Y1 - Y0) * k; return [.5 + .007, Y, BOWV - .5 + .09 * Y]; };
+    const gap = k => 0.018 + 0.05 * Math.pow(1 - k, 3) + 0.03 * Math.pow(k, 5);
+    const P = (w, dx = 0, dy = 0) => proj3(w[0] + dx, w[1] + dy, w[2]);
+    // hair
+    const hA = P(hairW(0.04)), hB = P(hairW(0.985));
+    line(c, hA, hB, .8*L, .85);
+    line(c, P(hairW(0.04), .004), P(hairW(0.985), .004), .4*L, .5);
+    // stick — tapered, cambered toward the hair
+    for (let i = 0; i < 28; i++){
+      const k0 = i / 28, k1 = (i + 1) / 28;
+      const a = P(hairW(k0), gap(k0)), b = P(hairW(k1), gap(k1));
+      line(c, a, b, (2.6 - 1.5 * k0) * L, 1);
+    }
+    for (let i = 0; i < 28; i += 2){ // highlight line along the stick
+      const k0 = i / 28, k1 = (i + 1) / 28;
+      c.strokeStyle = 'rgba(236,224,195,.9)'; c.lineWidth = .5*L; c.beginPath();
+      const a = P(hairW(k0), gap(k0) - .002), b = P(hairW(k1), gap(k1) - .002); c.moveTo(a[0]-.4, a[1]); c.lineTo(b[0]-.4, b[1]); c.stroke();
+    }
+    // head (hatchet) at the tip
+    const t0 = P(hairW(.985)), t1 = P(hairW(1), gap(1) + .006, .012), t2 = P(hairW(.94), gap(.94));
+    c.fillStyle = '#ece0c3'; c.beginPath(); c.moveTo(...t0); c.lineTo(...t1); c.lineTo(...t2); c.closePath(); c.fill();
+    c.save(); c.clip(); for (let k = -20; k < 20; k += 1.6) line(c, [t0[0] + k*L, t0[1] - 20*L], [t0[0] + (k + 12)*L, t0[1] + 4*L], .6*L, .8); c.restore();
+    c.strokeStyle = INK + '1)'; c.lineWidth = 1*L; c.beginPath(); c.moveTo(...t0); c.lineTo(...t1); c.lineTo(...t2); c.closePath(); c.stroke();
+    // frog: hatched block between hair and stick + button
+    const f0 = P(hairW(0.03)), f1 = P(hairW(0.03), gap(0.03)), f2 = P(hairW(0.12), gap(0.12)), f3 = P(hairW(0.12));
+    c.fillStyle = '#ece0c3'; c.beginPath(); c.moveTo(...f0); c.lineTo(...f1); c.lineTo(...f2); c.lineTo(...f3); c.closePath(); c.fill();
+    c.save(); c.clip(); for (let k = -30; k < 40; k += 1.8) line(c, [f0[0] - 10*L + k*L, f0[1] + 10*L], [f0[0] + 10*L + k*L, f0[1] - 40*L], .7*L, .85); c.restore();
+    c.strokeStyle = INK + '1)'; c.lineWidth = 1*L; c.beginPath(); c.moveTo(...f0); c.lineTo(...f1); c.lineTo(...f2); c.lineTo(...f3); c.closePath(); c.stroke();
+    const b0 = P(hairW(0), gap(0) * .6), b1 = P(hairW(0.04), gap(0.04) * .6);
+    line(c, b0, b1, 4*L, 1); line(c, b0, b1, 2*L, .0);
+    c.fillStyle = '#ece0c3'; c.beginPath(); c.arc(b0[0], b0[1], 1.6*L, 0, PI*2); c.fill();
+  }
+
+  function drawWaves(c){
+    if (excite < .25) return;
+    const L = Math.max(.6, SC / 380);
+    const p = pp(0, .5), q = pp(.5, 0);
+    c.save(); c.setLineDash([1.2*L, 2.6*L]);
+    for (let i = 0; i < 3; i++){
+      const r = (22 + i*12 + (performance.now()/60 % 12)) * L;
+      const a = Math.max(0, (excite - .25)) * (1 - i*.28) * (1 - ((performance.now()/60 % 12)/12)*.5);
+      c.strokeStyle = INK + (a*.7) + ')'; c.lineWidth = .8*L;
+      c.beginPath(); c.arc(p[0] - 4*L, p[1], r, PI*.78, PI*1.22); c.stroke();
+      c.beginPath(); c.arc(q[0], q[1] - 2*L, r*.8, PI*1.3, PI*1.7); c.stroke();
+    }
+    c.restore();
+  }
+
+  function render(){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    ctx.drawImage(staticLayer, 0, 0);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    // sand: stipple
+    const cyw = Math.cos(YAW), syw = Math.sin(YAW), cp = Math.cos(PITCH), sp = Math.sin(PITCH);
+    const base = Math.max(1, SC / 330);
+    ctx.fillStyle = 'rgba(38,24,14,.92)';
+    const shake = excite > .3 && !reduce ? excite * .5 : 0;
+    for (let i = 0; i < N; i++){
+      const X = pu[i] - .5, Z = pv[i] - .5;
+      const x1 = X*cyw - Z*syw, z1 = X*syw + Z*cyw;
+      const y2 = -z1*sp, z2 = z1*cp, s = D/(D - z2);
+      const sz = base * ps[i] * s;
+      ctx.fillRect(OX + x1*s*SC - sz/2 + (shake ? (Math.random()-.5)*shake : 0), OY - y2*s*SC - sz/2, sz, sz);
+    }
+    drawNut(ctx);
+    drawWaves(ctx);
+    drawBow(ctx);
+  }
+
+  // ---------- figures (thumbnails) ----------
+  const figEls = [], figCanvases = [], seen = new Set();
+  function paintFig(i){
+    const cv = figCanvases[i], md = MODES[i]; if (!cv) return;
+    const px = cv.width, g = cv.getContext('2d'), img = g.createImageData(px, px), vis = seen.has(i);
+    for (let y = 0; y < px; y++) for (let x = 0; x < px; x++){
+      const u = (x + .5)/px, v = (y + .5)/px, a = Math.abs(modeVal(md, u, v));
+      let ink = Math.pow(Math.max(0, 1 - a / (0.16 + 0.02*md.n)), .8);
+      if (!vis) ink = ((x + y) % 3 === 0) ? ink * .45 : 0; // unproved: faint stipple only
+      const o = (y*px + x) * 4;
+      img.data[o] = 42; img.data[o+1] = 27; img.data[o+2] = 16; img.data[o+3] = Math.min(255, ink * 255);
+    }
+    g.putImageData(img, 0, 0);
+    figEls[i] && figEls[i].classList.toggle('unseen', !vis);
+  }
+  let dwell = 0;
+  function markSeen(i){
+    if (seen.has(i)) return;
+    seen.add(i); paintFig(i);
+    const n = seen.size;
+    $('seen').textContent = n === MODES.length ? 'All fifteen figures observed — as Chladni did in 1787.' : `Figures observed: ${n} of ${MODES.length}.`;
+    if (n === MODES.length) chime();
+  }
+  function buildFigs(){
+    figsEl.innerHTML = '';
+    figEls.length = 0;
+    const mob = innerWidth < 760;
+    MODES.forEach((md, i) => {
+      const b = document.createElement('button');
+      b.className = 'fig ' + (i % 2 ? 'bot' : 'top');
+      b.style.left = (md.t * 100) + '%';
+      b.setAttribute('aria-label', `Fig. ${md.fig}: mode ${md.n} by ${md.m}, ${md.hz} vibrations per second`);
+      const cv = document.createElement('canvas');
+      const sz = (mob ? 30 : 46), px = Math.round(sz * Math.min(2, devicePixelRatio || 1));
+      cv.width = px; cv.height = px; figCanvases[i] = cv;
+      paintFig(i);
+      const lab = document.createElement('span');
+      lab.innerHTML = `Fig. ${md.fig}` + (mob ? '' : ` · <span style="display:inline;font-style:normal">${md.hz}</span>`);
+      if (i % 2) { b.appendChild(lab); b.appendChild(cv); } else { b.appendChild(cv); b.appendChild(lab); }
+      b.addEventListener('click', () => { touched(); glideTo(md.hz); });
+      figsEl.appendChild(b);
+      figEls.push(b);
+      b.classList.toggle('unseen', !seen.has(i));
+    });
+  }
+
+  function buildGrad(){
+    const w = slider.clientWidth, h = slider.clientHeight;
+    grad.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    let s = '';
+    s += `<line x1="0" y1="${h*.18}" x2="${w}" y2="${h*.18}" stroke="#2a1b10" stroke-width="1.1"/>`;
+    s += `<line x1="0" y1="${h*.18+3}" x2="${w}" y2="${h*.18+3}" stroke="#2a1b10" stroke-width=".5"/>`;
+    s += `<line x1="0" y1="${h*.86}" x2="${w}" y2="${h*.86}" stroke="#2a1b10" stroke-width=".5"/>`;
+    s += `<line x1="0" y1="${h*.86+3}" x2="${w}" y2="${h*.86+3}" stroke="#2a1b10" stroke-width="1.1"/>`;
+    const top = h*.18 + 3;
+    const mob = w < 500;
+    for (let f = 80; f <= 2000; ){
+      const step = f < 500 ? 10 : f < 1000 ? 20 : 50;
+      const x = fToT(f) * w;
+      const major = [100,200,300,400,500,700,1000,1500,2000].includes(f);
+      const mid = !major && (f % (f < 500 ? 50 : f < 1000 ? 100 : 250) === 0);
+      const len = major ? 13 : mid ? 8 : 4.5;
+      s += `<line x1="${x.toFixed(1)}" y1="${top}" x2="${x.toFixed(1)}" y2="${top+len}" stroke="#2a1b10" stroke-width="${major?1:.6}"/>`;
+      if (major && !(mob && (f===300 || f===1500))) s += `<text x="${x.toFixed(1)}" y="${h*.86-3}" font-family="Old Standard TT, Georgia, serif" font-size="${mob?10:12}" text-anchor="middle" fill="#2a1b10">${f}</text>`;
+      f += step;
+    }
+    // resonance marks: small hollow diamonds on the lower rule + leader lines
+    MODES.forEach((md, i) => {
+      const x = md.t * w;
+      s += `<path d="M${x-3} ${h*.86+1.5}l3 -3l3 3l-3 3z" fill="#ece0c3" stroke="#2a1b10" stroke-width=".7"/>`;
+    });
+    grad.innerHTML = s;
+    // dotted leaders from figures to the scale
+    document.querySelectorAll('.lead').forEach(e => e.remove());
+    const sc = $('scale'), sTop = slider.offsetTop;
+    MODES.forEach((md, i) => {
+      const fe = figEls[i]; if (!fe) return;
+      const d = document.createElement('div'); d.className = 'lead';
+      d.style.left = (md.t*100) + '%';
+      if (i % 2 === 0){ const y0 = fe.offsetTop + fe.offsetHeight; d.style.top = y0 + 'px'; d.style.height = Math.max(0, sTop + h*.18 - y0) + 'px'; }
+      else { const y0 = sTop + h*.86 + 4; d.style.top = y0 + 'px'; d.style.height = Math.max(0, fe.offsetTop - y0) + 'px'; }
+      sc.appendChild(d);
+    });
+  }
+
+  // ---------- value / UI ----------
+  const NOTES = ['C','C sharp','D','E flat','E','F','F sharp','G','G sharp','A','B flat','B'];
+  function noteName(f){
+    const midi = 69 + 12 * Math.log2(f / 440), r = Math.round(midi), cents = Math.round((midi - r) * 100);
+    const name = NOTES[((r % 12) + 12) % 12], oct = Math.floor(r/12) - 1;
+    const tune = Math.abs(cents) < 4 ? 'in tune' : (cents > 0 ? `${cents} cents sharp` : `${-cents} cents flat`);
+    return `the note ${name}${'′'.repeat(Math.max(0, oct - 3))}, ${tune}`;
+  }
+  let lastMode = -1;
+  function setT(nt, opts = {}){
+    t = Math.min(1, Math.max(0, nt));
+    freq = tToF(t);
+    updateWeights();
+    const hzR = Math.round(freq);
+    $('hz').textContent = hzR;
+    $('note').textContent = noteName(freq);
+    carriage.style.left = (t * 100) + '%';
+    let on = -1; for (let i = 0; i < MODES.length; i++) if (weights[i] * 1 > .0 && Math.abs(t - MODES[i].t) < 0.006) on = i;
+    figEls.forEach((e, i) => e.classList.toggle('on', i === on));
+    const md = on >= 0 ? MODES[on] : null;
+    $('mode').innerHTML = md ? `<span class="sc">Mode of division</span> ${md.n} · ${md.m} — the figure is formed (Fig. ${md.fig}).`
+                             : `<i>Between resonances — the sand wanders.</i>`;
+    slider.setAttribute('aria-valuenow', hzR);
+    slider.setAttribute('aria-valuetext', `${hzR} vibrations per second` + (md ? `, resonance, mode ${md.n} by ${md.m}` : ', between resonances'));
+    if (on !== lastMode){ if (on >= 0 && !opts.silent) tick(); lastMode = on; dwell = 0; }
+    toneUpdate();
+    $('status').textContent = adopted && Math.abs(adopted - hzR) > 0 ? `Adopted tone: ${adopted} vib. per sec. (unchanged until you adopt anew).` : $('status').textContent;
+  }
+
+  // magnet near resonances while dragging
+  function magnet(nt){
+    let best = null, bd = 1;
+    for (const md of MODES){ const d = nt - md.t; if (Math.abs(d) < Math.abs(bd)){ bd = d; best = md; } }
+    const R = 0.014;
+    if (best && Math.abs(bd) < R){ const k = bd / R; return best.t + bd * k * k * Math.abs(k); }
+    return nt;
+  }
+
+  function glideTo(hz){
+    const t0 = t, t1 = fToT(hz), dur = reduce ? 1 : 900 + Math.abs(t1 - t0) * 1400, st = performance.now();
+    anim = now => {
+      const k = Math.min(1, (now - st) / dur), e = k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3)/2;
+      setT(t0 + (t1 - t0) * e, { silent: k < 1 });
+      if (k >= 1) anim = null;
+    };
+  }
+
+  // pointer on scale
+  let dragging = false;
+  function tFromEvent(e){ const r = slider.getBoundingClientRect(); return (e.clientX - r.left) / r.width; }
+  slider.addEventListener('pointerdown', e => {
+    touched(); dragging = true; anim = null; slider.setPointerCapture(e.pointerId); slider.focus({preventScroll:true});
+    setT(e.shiftKey ? tFromEvent(e) : magnet(tFromEvent(e)));
+  });
+  slider.addEventListener('pointermove', e => { if (dragging) setT(e.shiftKey ? tFromEvent(e) : magnet(tFromEvent(e))); });
+  const end = () => { dragging = false; };
+  slider.addEventListener('pointerup', end); slider.addEventListener('pointercancel', end);
+  slider.addEventListener('keydown', e => {
+    let hz = Math.round(freq), handled = true;
+    const step = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') hz += step;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') hz -= step;
+    else if (e.key === 'PageUp'){ const nx = MODES.find(m => m.hz > Math.round(freq) + .5); if (nx){ touched(); glideTo(nx.hz); } e.preventDefault(); return; }
+    else if (e.key === 'PageDown'){ const pv_ = [...MODES].reverse().find(m => m.hz < Math.round(freq) - .5); if (pv_){ touched(); glideTo(pv_.hz); } e.preventDefault(); return; }
+    else if (e.key === 'Home') hz = FMIN; else if (e.key === 'End') hz = FMAX;
+    else handled = false;
+    if (handled){ e.preventDefault(); touched(); anim = null; setT(fToT(Math.min(FMAX, Math.max(FMIN, hz)))); }
+  });
+
+  // tap the plate: scatter sand around the point
+  cvs.addEventListener('pointerdown', e => {
+    touched();
+    const r = cvs.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    // find nearest plate point by brute-force inverse (coarse grid)
+    let bu = .5, bv = .5, bd = 1e9;
+    for (let i = 0; i <= 40; i++) for (let j = 0; j <= 40; j++){ const p = pp(i/40, j/40), d = (p[0]-x)**2 + (p[1]-y)**2; if (d < bd){ bd = d; bu = i/40; bv = j/40; } }
+    if (bd > (SC*.08)**2) { bowAmp = 1; return; }
+    for (let i = 0; i < N; i++){
+      const du = pu[i] - bu, dv = pv[i] - bv, d = Math.hypot(du, dv);
+      if (d < .22){ const f = (.22 - d) / .22, a = Math.random() * PI * 2; pu[i] = Math.min(.985, Math.max(.015, pu[i] + du * f * .9 + Math.cos(a) * f * .12)); pv[i] = Math.min(.985, Math.max(.015, pv[i] + dv * f * .9 + Math.sin(a) * f * .12)); }
+    }
+    thud();
+  });
+
+  function touched(){ if (!interacted){ interacted = true; $('hint').style.opacity = .45; } ensureAudio(); }
+
+  $('strew').addEventListener('click', () => { touched(); strew(); });
+  let adopted = null;
+  $('adopt').addEventListener('click', () => {
+    touched(); adopted = Math.round(freq);
+    const md = MODES.find(m => Math.abs(t - m.t) < .006);
+    $('status').textContent = `Adopted. ${adopted} vibrations per second shall sound beneath your next hour of study` + (md ? ` — after the manner of Fig. ${md.fig}.` : '.');
+    chime();
+  });
+
+  // ---------- audio ----------
+  let ac = null, master, oscs = [], toneGain, soundOn = false;
+  function ensureAudio(){
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = 0.18; master.connect(ac.destination);
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.connect(master);
+      toneGain = ac.createGain(); toneGain.gain.value = 0; toneGain.connect(lp);
+      [[1, .8], [2, .22], [3, .08]].forEach(([h, g]) => {
+        const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = freq * h;
+        const gg = ac.createGain(); gg.gain.value = g; o.connect(gg); gg.connect(toneGain); o.start(); oscs.push([o, h]);
+      });
+      // slow vibrato (bowing)
+      const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 4.6; lg.gain.value = 1.2; lfo.connect(lg);
+      oscs.forEach(([o]) => lg.connect(o.detune)); lfo.start();
+    } catch(_) { ac = null; }
+  }
+  function toneUpdate(){
+    if (!ac) return;
+    const now = ac.currentTime;
+    oscs.forEach(([o, h]) => o.frequency.setTargetAtTime(freq * h, now, 0.03));
+    toneGain.gain.setTargetAtTime(soundOn ? 0.18 + 0.32 * excite : 0, now, 0.08);
+  }
+  function tick(){
+    if (!ac || !soundOn) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'triangle'; o.frequency.value = 1900; g.gain.setValueAtTime(0.0001, n); g.gain.exponentialRampToValueAtTime(0.12, n + .003); g.gain.exponentialRampToValueAtTime(0.0001, n + .06);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .08);
+  }
+  function thud(){
+    if (!ac) return;
+    const n = ac.currentTime, len = Math.floor(ac.sampleRate * .25), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 3);
+    const s = ac.createBufferSource(); s.buffer = buf; const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3200; bp.Q.value = .8;
+    const g = ac.createGain(); g.gain.value = .35; s.connect(bp); bp.connect(g); g.connect(master); s.start(n);
+  }
+  function chime(){
+    if (!ac) return;
+    const n = ac.currentTime;
+    [1, 1.5, 2].forEach((m, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = Math.min(3000, Math.max(220, freq)) * m; g.gain.setValueAtTime(0.0001, n + i*.08); g.gain.exponentialRampToValueAtTime(.12, n + i*.08 + .01); g.gain.exponentialRampToValueAtTime(.0001, n + i*.08 + 1.2); o.connect(g); g.connect(master); o.start(n + i*.08); o.stop(n + i*.08 + 1.3); });
+  }
+  $('sound').addEventListener('click', () => {
+    touched(); soundOn = !soundOn; $('sound').setAttribute('aria-pressed', soundOn);
+    $('sound').lastChild.textContent = soundOn ? 'Silence the tone' : 'Sound the tone';
+    toneUpdate();
+  });
+
+  // ---------- loop ----------
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(2.5, (now - last) / 16.67); last = now;
+    if (anim) anim(now);
+    if (lastMode >= 0 && excite > .8){ dwell += dt; if (dwell > 40) markSeen(lastMode); } else dwell = 0;
+    if (reduce){ for (let k = 0; k < 2; k++) stepSand(dt); } else stepSand(dt);
+    // bow saws while the plate resonates
+    const target = reduce ? 0 : Math.max(0, excite - .12) * 1.15;
+    bowAmp += (target - bowAmp) * .05;
+    bowPhase += dt * 0.07 * (0.4 + bowAmp);
+    render();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){ running = false; if (ac) ac.suspend(); }
+    else { running = true; last = performance.now(); if (ac && soundOn) ac.resume(); requestAnimationFrame(frame); }
+  });
+
+  function relayout(){ buildFigs(); layout(); buildGrad(); setT(t, { silent: true }); }
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(relayout, 80); });
+  relayout();
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => { layout(); buildGrad(); });
+  requestAnimationFrame(frame);
+
+  window.__chladni = { set: hz => { touched(); anim = null; setT(fToT(hz)); }, glide: glideTo };
+})();
+</script>
+</body>
+</html>

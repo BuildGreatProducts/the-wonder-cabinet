@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Door Hanger Status</title>
+<meta name="description" content="A presence selector as a 1960s Palm Springs hotel door hanger with a swinging card and a back-in clock.">
+<script type="application/json" id="component-meta">
+{"name":"Door Hanger Status","reimagines":"Presence / status selector","category":"Toggles & Switches","description":"Your chat presence is a mid-century motel door hanger swinging from a brass knob. Flip it to Do not disturb and a sleeping owl takes over; turn the little clock hand to say when you'll be back. The team register beside the door updates as it settles.","hint":"Tap or spin the hanger; drag the clock hand to set your return"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Yellowtail&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#f2e4c6;--stucco:#ecdcbc;--coral:#ec7a59;--teal:#1f5560;--turq:#2f9e95;--mustard:#e3a73a;--olive:#7d8738;--brown:#5a3a2a;--ink:#2a2320;--red:#c7402e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--stucco)}
+body{font-family:"Jost",Futura,"Century Gothic",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.scene{position:fixed;inset:0}
+.wall{position:absolute;inset:0;background:var(--stucco)}
+.dusk{position:absolute;inset:0;pointer-events:none;z-index:4;mix-blend-mode:multiply;opacity:0;transition:opacity 1.4s ease;background:radial-gradient(120% 90% at 70% 10%, #8fb3b0, #3d6e74)}
+.dusk.on{opacity:.38}
+.grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.5;z-index:20;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .35 0 0 0 0 .25 0 0 0 .25 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)'/%3E%3C/svg%3E")}
+svg.bgart{position:absolute;inset:0;width:100%;height:100%}
+.hanger-wrap{position:absolute;perspective:900px;z-index:6}
+.hanger{position:absolute;left:0;top:0;transform-style:preserve-3d;cursor:grab;touch-action:none;outline:none}
+.hanger:active{cursor:grabbing}
+.face{position:absolute;left:0;top:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.back{transform:rotateY(180deg)}
+.face svg{display:block;width:100%;height:100%;overflow:visible}
+.edge{position:absolute;top:0;width:4px;background:linear-gradient(#efe0bf,#d8c39b);transform-origin:center}
+.shade{position:absolute;inset:0;pointer-events:none;border-radius:8%;opacity:0}
+.hanger:focus-visible .face svg .cardline{stroke:var(--ink);stroke-width:3;stroke-dasharray:6 6}
+.hshadow{position:absolute;z-index:5;pointer-events:none;opacity:.32}
+.knob{position:absolute;z-index:7;pointer-events:none}
+.register{position:absolute;z-index:8;background:var(--cream);color:var(--ink);padding:22px 24px 18px;box-shadow:10px 10px 0 rgba(90,58,42,.22)}
+.register::before{content:"";position:absolute;inset:7px;border:2px solid var(--brown);opacity:.85;pointer-events:none}
+.register h2{margin:4px 0 0;font-family:"Yellowtail",cursive;font-weight:400;font-size:40px;line-height:1;color:var(--red)}
+.register .eyebrow{font-weight:600;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--brown)}
+.register .rule{height:2px;background:var(--brown);margin:12px 0 6px;position:relative}
+.register .rule::after{content:"";position:absolute;left:50%;top:-5px;width:12px;height:12px;margin-left:-6px;background:var(--mustard);transform:rotate(45deg)}
+.register ul{list-style:none;margin:0;padding:0}
+.register li{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1.5px dashed rgba(90,58,42,.35)}
+.register li:last-child{border-bottom:0}
+.register .nm{font-weight:600;font-size:16px;letter-spacing:.02em}
+.register .st{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--brown);display:flex;align-items:center;gap:7px;margin-top:2px}
+.register .dot{width:11px;height:11px;border-radius:50%;flex:none}
+.register li.you{background:linear-gradient(90deg,rgba(227,167,58,.22),rgba(227,167,58,0));margin:0 -10px;padding-left:10px;padding-right:10px}
+.register li.you .st{transition:color .4s}
+.register .foot{margin-top:10px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--brown);opacity:.8}
+.hint{position:absolute;z-index:9;font-weight:600;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--brown);transition:opacity .8s;pointer-events:none}
+.hint b{font-family:"Yellowtail",cursive;font-weight:400;font-size:22px;letter-spacing:0;text-transform:none;color:var(--red);margin-right:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#dial{cursor:grab;outline:none}
+#dial:focus-visible .dialring{stroke:var(--mustard);stroke-width:5}
+@media (max-width:700px){
+  .register{padding:14px 16px 12px;box-shadow:6px 6px 0 rgba(90,58,42,.22)}
+  .register h2{font-size:30px}
+  .register li{grid-template-columns:30px 1fr;gap:10px;padding:6px 0}
+  .register li:not(.you):nth-child(n+3){display:none}
+  .register .nm{font-size:14px}
+  .register .st{font-size:11px}
+  .register .foot{display:none}
+  .register .rule{margin:8px 0 2px}
+}
+</style>
+</head>
+<body>
+<div class="scene" id="scene">
+  <div class="wall"></div>
+  <svg class="bgart" id="bgart" aria-hidden="true"></svg>
+  <svg class="hshadow" id="hshadow" aria-hidden="true" viewBox="0 0 200 420"><defs><mask id="mS"><rect width="200" height="420" rx="20" fill="#fff"/><circle cx="100" cy="54" r="27" fill="#000"/><path d="M84 36 L34 -2 L26 6 L78 44 Z" fill="#000"/></mask></defs><rect width="200" height="420" rx="20" fill="#5a3a2a" mask="url(#mS)"/></svg>
+  <div class="hanger-wrap" id="wrap">
+    <div class="hanger" id="hanger" role="switch" aria-checked="false" tabindex="0" aria-label="Do not disturb">
+      <div class="face front" id="faceA">
+        <svg viewBox="0 0 200 420" aria-hidden="true">
+          <defs>
+            <mask id="mA"><rect width="200" height="420" rx="20" fill="#fff"/><circle cx="100" cy="54" r="27" fill="#000"/><path d="M84 36 L34 -2 L26 6 L78 44 Z" fill="#000"/></mask>
+          </defs>
+          <g mask="url(#mA)">
+            <rect width="200" height="420" fill="#ec7a59"/>
+            <rect width="200" height="96" fill="#f2e4c6"/>
+            <path d="M0 96 Q100 122 200 96 V112 Q100 138 0 112 Z" fill="#e3a73a"/>
+            <!-- sun with triangle rays -->
+            <g transform="translate(100 196)">
+              <g fill="#f2e4c6">
+                <path d="M-5 -78 L5 -78 L0 -60 Z"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(30)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(60)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(90)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(120)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(150)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(180)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(210)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(240)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(270)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(300)"/><path d="M-5 -78 L5 -78 L0 -60 Z" transform="rotate(330)"/>
+              </g>
+              <circle r="52" fill="#e3a73a"/>
+              <path d="M-52 0 A52 52 0 0 0 52 0 Z" fill="#d8962c"/>
+            </g>
+            <!-- boomerang branch -->
+            <path d="M18 238 Q100 206 186 230 L184 238 Q100 216 20 246 Z" fill="#2f9e95"/>
+            <!-- Harper-style cardinal -->
+            <g transform="translate(112 196)">
+              <path d="M-30 30 L-62 52 L-36 22 Z" fill="#8e2a1f"/>
+              <path d="M-36 24 Q-34 -12 0 -16 Q22 -16 26 4 Q22 30 -6 36 Q-26 38 -36 24 Z" fill="#c7402e"/>
+              <path d="M-4 -14 L6 -40 L14 -12 Z" fill="#c7402e"/>
+              <path d="M8 -10 L26 4 L10 10 Z" fill="#2a2320"/>
+              <path d="M24 -2 L38 4 L24 10 Z" fill="#e3a73a"/>
+              <circle cx="15" cy="-1" r="2.6" fill="#f2e4c6"/>
+              <path d="M-30 18 Q-14 6 6 16 Q-10 30 -30 18 Z" fill="#8e2a1f"/>
+              <path d="M-6 36 L-8 44 M2 35 L2 43" stroke="#2a2320" stroke-width="2.5"/>
+            </g>
+            <text x="100" y="312" text-anchor="middle" font-family="Yellowtail, cursive" font-size="46" fill="#f2e4c6">Come on in</text>
+            <text x="100" y="342" text-anchor="middle" font-family="Jost, sans-serif" font-weight="600" font-size="9.5" letter-spacing="1.6" fill="#2a2320">THE DOOR'S OPEN · SAY HI</text>
+            <rect x="0" y="366" width="200" height="54" fill="#2a2320"/>
+            <path d="M24 393 l4 -9 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4 Z" fill="#e3a73a"/>
+            <path d="M168 393 l4 -9 l4 9 l9 4 l-9 4 l-4 9 l-4 -9 l-9 -4 Z" fill="#e3a73a"/>
+            <text x="100" y="401" text-anchor="middle" font-family="Jost, sans-serif" font-weight="600" font-size="10.5" letter-spacing="2.6" fill="#f2e4c6">BUNGALOW 214</text>
+          </g>
+          <rect class="cardline" x="1" y="1" width="198" height="418" rx="19" fill="none" stroke="none" mask="url(#mA)"/>
+        </svg>
+        <div class="shade" id="shadeA"></div>
+      </div>
+      <div class="face back" id="faceB">
+        <svg viewBox="0 0 200 420" aria-hidden="false">
+          <defs>
+            <mask id="mB"><rect width="200" height="420" rx="20" fill="#fff"/><circle cx="100" cy="54" r="27" fill="#000"/><path d="M116 36 L166 -2 L174 6 L122 44 Z" fill="#000"/></mask>
+          </defs>
+          <g mask="url(#mB)">
+            <rect width="200" height="420" fill="#1f5560"/>
+            <rect width="200" height="96" fill="#f2e4c6"/>
+            <path d="M0 96 Q100 122 200 96 V112 Q100 138 0 112 Z" fill="#2f9e95"/>
+            <!-- moon and stars -->
+            <path d="M44 146 A26 26 0 1 0 70 178 A20 20 0 1 1 44 146 Z" fill="#e3a73a"/>
+            <g fill="#f2e4c6"><path d="M156 140 l2.5 -6 l2.5 6 l6 2.5 l-6 2.5 l-2.5 6 l-2.5 -6 l-6 -2.5 Z"/><path d="M134 168 l1.6 -4 l1.6 4 l4 1.6 l-4 1.6 l-1.6 4 l-1.6 -4 l-4 -1.6 Z"/><path d="M28 214 l1.6 -4 l1.6 4 l4 1.6 l-4 1.6 l-1.6 4 l-1.6 -4 l-4 -1.6 Z"/><circle cx="170" cy="198" r="2"/><circle cx="60" cy="128" r="1.6"/></g>
+            <!-- branch -->
+            <path d="M10 238 Q100 222 192 234 L192 241 Q100 230 10 246 Z" fill="#5a3a2a"/>
+            <path d="M150 236 l18 -14 l4 4 l-16 12 Z" fill="#7d8738"/>
+            <!-- sleeping owl -->
+            <g transform="translate(104 186)" id="owl">
+              <path d="M-30 -36 L-20 -54 L-10 -38 Z M30 -36 L20 -54 L10 -38 Z" fill="#a8752e"/>
+              <ellipse cx="0" cy="4" rx="36" ry="44" fill="#a8752e"/>
+              <path d="M-36 4 A36 44 0 0 0 36 4 Z" fill="#8a5c25"/>
+              <path d="M-34 -6 Q-46 26 -22 44 Q-30 18 -34 -6 Z M34 -6 Q46 26 22 44 Q30 18 34 -6 Z" fill="#5a3a2a"/>
+              <path d="M-14 14 l6 8 l6 -8 M2 26 l6 8 l6 -8 M-12 34 l5 6 l5 -6" stroke="#f2e4c6" stroke-width="2" fill="none" opacity=".55"/>
+              <circle cx="-15" cy="-14" r="15" fill="#f2e4c6"/><circle cx="15" cy="-14" r="15" fill="#f2e4c6"/>
+              <path id="eyeL" d="M-24 -13 Q-15 -6 -6 -13" stroke="#2a2320" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path id="eyeR" d="M6 -13 Q15 -6 24 -13" stroke="#2a2320" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M-5 -4 L5 -4 L0 6 Z" fill="#e3a73a"/>
+              <path d="M-12 46 l-4 6 M-6 46 l0 7 M6 46 l0 7 M12 46 l4 6" stroke="#e3a73a" stroke-width="3" stroke-linecap="round"/>
+            </g>
+            <g id="zzz" fill="#f2e4c6" font-family="Jost, sans-serif" font-weight="700">
+              <text x="140" y="134" font-size="13" opacity=".9">z</text><text x="150" y="118" font-size="10" opacity=".7">z</text>
+            </g>
+            <text x="100" y="278" text-anchor="middle" font-family="Yellowtail, cursive" font-size="38" fill="#f2e4c6">Do not disturb</text>
+            <!-- back-in clock -->
+            <g id="dial" role="slider" tabindex="-1" aria-label="Back in" aria-valuemin="5" aria-valuemax="60" aria-valuenow="30" aria-valuetext="Back in 30 minutes">
+              <circle cx="100" cy="330" r="40" fill="#f2e4c6"/>
+              <circle class="dialring" cx="100" cy="330" r="40" fill="none" stroke="#e3a73a" stroke-width="3"/>
+              <g id="ticks" stroke="#2a2320" stroke-width="1.6"></g>
+              <g font-family="Jost, sans-serif" font-weight="600" font-size="9.5" fill="#2a2320" text-anchor="middle">
+                <text x="100" y="303">60</text><text x="128" y="333.5">15</text><text x="100" y="364">30</text><text x="72" y="333.5">45</text>
+              </g>
+              <path id="wedge" d="" fill="#ec7a59" opacity=".55"/>
+              <g id="hand"><path d="M97.5 330 L100 296 L102.5 330 Z" fill="#c7402e"/><circle cx="100" cy="330" r="4.5" fill="#e3a73a"/><circle cx="99" cy="329" r="1.6" fill="#f6d68a"/></g>
+              <circle cx="100" cy="330" r="46" fill="transparent"/>
+            </g>
+            <rect x="0" y="380" width="200" height="40" fill="#2a2320"/>
+            <text id="backTxt" x="100" y="405" text-anchor="middle" font-family="Jost, sans-serif" font-weight="600" font-size="12" letter-spacing="2.6" fill="#e3a73a">BACK IN 30 MIN</text>
+          </g>
+          <rect class="cardline" x="1" y="1" width="198" height="418" rx="19" fill="none" stroke="none" mask="url(#mB)"/>
+        </svg>
+        <div class="shade" id="shadeB"></div>
+      </div>
+      <div class="edge" id="edge"></div>
+    </div>
+  </div>
+  <svg class="knob" id="knob" viewBox="-40 -40 80 80" aria-hidden="true">
+    <circle r="34" fill="#5a3a2a" opacity=".25" transform="translate(5 6)"/>
+    <circle r="34" fill="#b88a3c"/><circle r="34" fill="none" stroke="#8e6626" stroke-width="3"/>
+    <circle r="24" fill="#d9a94e"/><circle r="12" fill="#efc871"/>
+    <path d="M-24 -6 A24 24 0 0 1 -6 -24" stroke="#f6dc98" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>
+  <aside class="register" id="register" aria-label="Team presence">
+    <div class="eyebrow">Poolside · front desk</div>
+    <h2>Who's in today</h2>
+    <div class="rule"></div>
+    <ul>
+      <li class="you"><svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#e3a73a"/><circle cx="20" cy="16" r="8" fill="#2a2320"/><path d="M6 36 Q20 20 34 36 Z" fill="#2a2320"/></svg><div><div class="nm">You · Mara Lindqvist</div><div class="st" id="youSt"><span class="dot" id="youDot" style="background:#2f9e95"></span><span id="youTxt">Door's open</span></div></div></li>
+      <li><svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#2f9e95"/><path d="M12 12 h16 v12 h-16 Z" fill="#f2e4c6"/><path d="M6 38 Q20 24 34 38 Z" fill="#f2e4c6"/></svg><div><div class="nm">Theo Okafor</div><div class="st"><span class="dot" style="background:#2f9e95"></span>By the pool</div></div></li>
+      <li><svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#ec7a59"/><path d="M20 6 L30 22 H10 Z" fill="#2a2320"/><path d="M6 38 Q20 24 34 38 Z" fill="#2a2320"/></svg><div><div class="nm">June Park</div><div class="st"><span class="dot" style="background:#e3a73a"></span>Out to lunch · 1:30</div></div></li>
+      <li><svg viewBox="0 0 40 40" width="40" height="40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#7d8738"/><circle cx="20" cy="16" r="9" fill="#f2e4c6"/><path d="M6 38 Q20 22 34 38 Z" fill="#f2e4c6"/></svg><div><div class="nm">Ravi Menon</div><div class="st"><span class="dot" style="background:#c7402e"></span>Do not disturb · 4:00</div></div></li>
+    </ul>
+    <div class="foot">Your status follows the hanger on your door</div>
+  </aside>
+  <div class="hint" id="hint"><b>psst</b>tap or spin the hanger</div>
+  <div class="dusk" id="dusk"></div>
+  <div class="grain"></div>
+</div>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const wrap = $('wrap'), hanger = $('hanger'), faceA = $('faceA'), faceB = $('faceB'), edge = $('edge');
+const shadeA = $('shadeA'), shadeB = $('shadeB'), shadow = $('hshadow'), knob = $('knob'), bgart = $('bgart');
+const register = $('register'), hint = $('hint'), live = $('live');
+const dial = $('dial'), hand = $('hand'), wedge = $('wedge'), backTxt = $('backTxt');
+const youDot = $('youDot'), youTxt = $('youTxt');
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* ---------- clock ticks ---------- */
+const ticks = $('ticks');
+for (let i = 0; i < 12; i++) {
+  const a = i / 12 * Math.PI * 2, r1 = i % 3 ? 35 : 32, r2 = 38;
+  const l = document.createElementNS(NS, 'line');
+  l.setAttribute('x1', 100 + Math.sin(a) * r1); l.setAttribute('y1', 330 - Math.cos(a) * r1);
+  l.setAttribute('x2', 100 + Math.sin(a) * r2); l.setAttribute('y2', 330 - Math.cos(a) * r2);
+  if (i % 3) l.setAttribute('stroke-width', '1');
+  ticks.appendChild(l);
+}
+
+/* ---------- audio ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function noise(dur, type, f0, f1, q, gain){
+  if (!ac) return; const t = ac.currentTime;
+  const n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n);
+  const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = type; f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const g = ac.createGain(); g.gain.value = gain; s.connect(f); f.connect(g); g.connect(master); s.start(t);
+}
+function tick(freq = 2400, gain = .25){
+  if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'square'; o.frequency.value = freq; g.gain.setValueAtTime(gain * .3, t); g.gain.exponentialRampToValueAtTime(.0001, t + .025);
+  const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + .03);
+}
+const sWhoosh = (v) => noise(.28, 'bandpass', 900, 2600, 1.2, Math.min(.9, .35 + v));
+const sKnock = () => { if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(140, t + .08); g.gain.setValueAtTime(.4, t); g.gain.exponentialRampToValueAtTime(.0001, t + .12); o.connect(g); g.connect(master); o.start(t); o.stop(t + .13); };
+
+/* ---------- background illustration ---------- */
+let G = {};
+function el(tag, a, p){ const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; }
+function drawBg(){
+  const W = innerWidth, H = innerHeight, mob = W < 700;
+  bgart.setAttribute('viewBox', `0 0 ${W} ${H}`); bgart.innerHTML = '';
+  const doorX = mob ? 26 : Math.round(W * .29), doorW = mob ? W - 70 : Math.min(420, W * .33), doorY = mob ? 30 : 46;
+  const knobX = doorX + doorW - (mob ? 62 : 74), knobY = mob ? Math.round(H * .3) : Math.round(H * .42);
+  G = {W, H, mob, doorX, doorW, doorY, knobX, knobY};
+  // breeze-block screen to the left of the door
+  const bx0 = mob ? -40 : Math.max(20, doorX - 260), bx1 = doorX - 34, s = mob ? 46 : 58;
+  if (bx1 - bx0 > 40) {
+    const g = el('g', {}, bgart);
+    for (let y = 40; y < H + s; y += s) for (let x = bx0; x < bx1 - s * .5; x += s) {
+      el('rect', {x: x + 3, y: y + 3, width: s - 4, height: s - 4, fill: '#e2cfa8'}, g);
+      el('circle', {cx: x + s / 2 + 2, cy: y + s / 2 + 2, r: s * .3, fill: '#5a3a2a', opacity: .35}, g);
+      el('circle', {cx: x + s / 2, cy: y + s / 2, r: s * .3, fill: '#b9a27a'}, g);
+      el('path', {d: `M${x + s / 2} ${y + 6} L${x + s - 6} ${y + s / 2} L${x + s / 2} ${y + s - 6} L${x + 6} ${y + s / 2} Z`, fill: 'none', stroke: '#ecdcbc', 'stroke-width': 3}, g);
+    }
+  }
+  // geometric palm shadow on the stucco (right)
+  if (!mob) {
+    const px = Math.min(W - 70, doorX + doorW + 330), cy = H * .2, g = el('g', {opacity: .14, fill: '#5a3a2a'}, bgart);
+    el('path', {d: `M${px - 30} ${H} Q${px - 34} ${H * .6} ${px - 4} ${cy} L${px + 6} ${cy} Q${px - 18} ${H * .6} ${px - 10} ${H} Z`}, g);
+    const fr = [[-2.9, 230], [-2.5, 210], [-2.05, 150], [-1.15, 150], [-.65, 220], [-.25, 240], [.35, 190], [2.75, 190]];
+    fr.forEach(([a, L]) => {
+      const ex = px + Math.cos(a) * L, ey = cy + Math.sin(a) * L * .7 + L * .45;
+      const mx = px + Math.cos(a) * L * .5, my = cy + Math.sin(a) * L * .45 - 30;
+      const nx = -Math.sin(a) * 16, ny = Math.cos(a) * 16;
+      el('path', {d: `M${px} ${cy} Q${mx + nx} ${my + ny} ${ex} ${ey} Q${mx - nx} ${my - ny} ${px} ${cy} Z`}, g);
+    });
+  }
+  // door frame + door
+  el('rect', {x: doorX - 22, y: doorY - 22, width: doorW + 44, height: H, fill: '#5a3a2a'}, bgart);
+  el('rect', {x: doorX - 10, y: doorY - 10, width: doorW + 20, height: H, fill: '#7a5038'}, bgart);
+  el('rect', {x: doorX, y: doorY, width: doorW, height: H, fill: '#e3a73a'}, bgart);
+  // door's flat shadow side + grooves
+  el('rect', {x: doorX, y: doorY, width: 14, height: H, fill: '#c98f2b'}, bgart);
+  const gy = doorY + (mob ? 120 : 150);
+  for (let i = 0; i < 3; i++) {
+    const cx = doorX + doorW / 2 - (mob ? 20 : 30), cy = gy + i * (mob ? 34 : 42), w = mob ? 44 : 60;
+    el('path', {d: `M${cx - w} ${cy} L${cx} ${cy - 14} L${cx + w} ${cy} L${cx} ${cy + 14} Z`, fill: '#c98f2b'}, bgart);
+    el('path', {d: `M${cx - w + 8} ${cy} L${cx} ${cy - 9} L${cx + w - 8} ${cy} L${cx} ${cy + 9} Z`, fill: i === 1 ? '#ec7a59' : '#2f9e95'}, bgart);
+  }
+  // room number plaque
+  const nx = doorX + doorW / 2 - (mob ? 20 : 30), ny = doorY + (mob ? 56 : 70);
+  el('circle', {cx: nx + 4, cy: ny + 5, r: mob ? 30 : 38, fill: '#5a3a2a', opacity: .25}, bgart);
+  el('circle', {cx: nx, cy: ny, r: mob ? 30 : 38, fill: '#2a2320'}, bgart);
+  el('circle', {cx: nx, cy: ny, r: mob ? 25 : 32, fill: 'none', stroke: '#e3a73a', 'stroke-width': 2}, bgart);
+  const t = el('text', {x: nx, y: ny + (mob ? 8 : 10), 'text-anchor': 'middle', 'font-family': 'Jost, sans-serif', 'font-weight': 600, 'font-size': mob ? 22 : 28, fill: '#f2e4c6', 'letter-spacing': 1}, bgart); t.textContent = '214';
+  // escutcheon plate behind the knob
+  el('rect', {x: knobX - 18, y: knobY - 70, width: 36, height: 150, rx: 18, fill: '#5a3a2a', opacity: .25, transform: 'translate(5 6)'}, bgart);
+  el('rect', {x: knobX - 18, y: knobY - 70, width: 36, height: 150, rx: 18, fill: '#b88a3c'}, bgart);
+  el('circle', {cx: knobX, cy: knobY + 46, r: 5, fill: '#5a3a2a'}, bgart);
+  // floor strip
+  el('rect', {x: 0, y: H - (mob ? 0 : 26), width: W, height: 26, fill: '#7d8738'}, bgart);
+}
+
+/* ---------- geometry ---------- */
+let HW = 210, HH = 441, pivotLocal = {x: 105, y: 56.7}; // hanger size and pivot (hole centre)
+function layout(){
+  drawBg();
+  const mob = G.mob;
+  HW = mob ? Math.min(170, G.W * .44) : Math.min(212, G.H * .27); HH = HW * 2.1;
+  pivotLocal = {x: HW / 2, y: HW * (40 / 200)};
+  wrap.style.left = (G.knobX - pivotLocal.x) + 'px'; wrap.style.top = (G.knobY - pivotLocal.y) + 'px';
+  wrap.style.width = HW + 'px'; wrap.style.height = HH + 'px';
+  [hanger, faceA, faceB].forEach(e => { e.style.width = HW + 'px'; e.style.height = HH + 'px'; });
+  hanger.style.transformOrigin = `${pivotLocal.x}px ${pivotLocal.y}px`;
+  edge.style.left = (HW / 2 - 2) + 'px'; edge.style.height = HH + 'px';
+  shadow.style.width = HW + 'px'; shadow.style.height = HH + 'px';
+  const kr = mob ? 30 : 36; knob.style.width = knob.style.height = kr * 2 + 'px';
+  knob.style.left = (G.knobX - kr) + 'px'; knob.style.top = (G.knobY - kr) + 'px';
+  if (mob) {
+    register.style.left = '14px'; register.style.right = '14px'; register.style.top = 'auto'; register.style.bottom = '14px'; register.style.width = 'auto';
+    hint.style.left = '24px'; hint.style.top = (G.knobY - pivotLocal.y + HH + 14) + 'px';
+  } else {
+    const rx = G.doorX + G.doorW + 70;
+    register.style.left = rx + 'px'; register.style.top = Math.round(G.H * .16) + 'px'; register.style.width = Math.min(360, G.W - rx - 40) + 'px'; register.style.bottom = 'auto'; register.style.right = 'auto';
+    hint.style.left = rx + 'px'; hint.style.top = (register.offsetTop + register.offsetHeight + 34) + 'px';
+  }
+}
+
+/* ---------- physics state ---------- */
+let th = .06, om = 0;          // swing about the knob (rad)
+let ph = 0, pv = 0;            // yaw (deg); 0 = "Come on in", 180 = "Do not disturb"
+let targetPh = 0, dnd = false, minutes = 30;
+let drag = null, dialDrag = null, settled = true, interacted = false;
+
+function setState(newDnd, announce = true){
+  if (newDnd === dnd) return;
+  dnd = newDnd;
+  hanger.setAttribute('aria-checked', String(dnd));
+  document.getElementById('dusk').classList.toggle('on', dnd);
+  dial.setAttribute('tabindex', dnd ? '0' : '-1');
+  if (announce) live.textContent = dnd ? `Do not disturb. Back in ${minutes} minutes.` : 'Status: door is open.';
+  updateRegister();
+}
+function backTime(){
+  const d = new Date(Date.now() + minutes * 60000);
+  let h = d.getHours(), m = d.getMinutes(); m = Math.ceil(m / 5) * 5; if (m === 60) { m = 0; h = (h + 1) % 24; }
+  const ap = h >= 12 ? 'pm' : 'am'; const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+}
+function updateRegister(){
+  if (dnd) { youDot.style.background = '#c7402e'; youTxt.textContent = `Do not disturb · back ${backTime()}`; }
+  else { youDot.style.background = '#2f9e95'; youTxt.textContent = "Door's open"; }
+}
+function flip(dir = 1, strength = 1){
+  audio();
+  targetPh = Math.round((ph + 180 * dir) / 180) * 180;
+  if (reduced) { ph = targetPh; pv = 0; }
+  else { pv += dir * 420 * strength; om += dir * 1.6 * strength; }
+  sWhoosh(.2 * strength);
+  const newDnd = (((Math.round(targetPh / 180) % 2) + 2) % 2) === 1;
+  setState(newDnd);
+  if (!interacted) { interacted = true; hint.style.opacity = 0; }
+}
+
+/* ---------- dial ---------- */
+function setMinutes(m, sound = true){
+  m = clamp(Math.round(m / 5) * 5, 5, 60);
+  if (m !== minutes) { minutes = m; if (sound) tick(2600 + m * 10); }
+  const a = minutes / 60 * Math.PI * 2;
+  hand.setAttribute('transform', `rotate(${minutes * 6} 100 330)`);
+  const x = 100 + Math.sin(a) * 34, y = 330 - Math.cos(a) * 34;
+  wedge.setAttribute('d', minutes >= 60 ? 'M100 296 A34 34 0 1 1 99.9 296 Z' : `M100 330 L100 296 A34 34 0 ${a > Math.PI ? 1 : 0} 1 ${x} ${y} Z`);
+  backTxt.textContent = `BACK IN ${minutes} MIN`;
+  dial.setAttribute('aria-valuenow', minutes); dial.setAttribute('aria-valuetext', `Back in ${minutes} minutes`);
+  if (dnd) updateRegister();
+}
+setMinutes(30, false);
+function dialAngle(e){
+  const c = dial.querySelector('circle').getBoundingClientRect();
+  const cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+  let a = Math.atan2(e.clientX - cx, -(e.clientY - cy)) - th;  // remove swing
+  if (a < 0) a += Math.PI * 2;
+  return a;
+}
+dial.addEventListener('pointerdown', e => {
+  if (!dnd) return;
+  e.stopPropagation(); audio();
+  dialDrag = {id: e.pointerId, lastM: minutes, turns: 0, lastA: dialAngle(e)};
+  try { dial.setPointerCapture(e.pointerId); } catch (_) {}
+});
+dial.addEventListener('pointermove', e => {
+  if (!dialDrag || e.pointerId !== dialDrag.id) return;
+  const a = dialAngle(e);
+  let m = a / (Math.PI * 2) * 60; if (m < 2.5) m = 60;
+  // avoid wrapping from 60 to 5 by a jump across the top
+  if (Math.abs(m - minutes) > 30) m = minutes > 30 ? 60 : 5;
+  setMinutes(m);
+  om += (Math.random() - .5) * .02;
+});
+const endDial = () => { if (dialDrag) { live.textContent = `Back in ${minutes} minutes.`; } dialDrag = null; };
+dial.addEventListener('pointerup', endDial); dial.addEventListener('pointercancel', endDial);
+dial.addEventListener('keydown', e => {
+  if (['ArrowRight', 'ArrowUp'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); audio(); setMinutes(minutes + 5); om += .03; }
+  if (['ArrowLeft', 'ArrowDown'].includes(e.key)) { e.preventDefault(); e.stopPropagation(); audio(); setMinutes(minutes - 5); om -= .03; }
+  if (e.key === ' ' || e.key === 'Enter') e.stopPropagation();
+});
+
+/* ---------- hanger input ---------- */
+hanger.addEventListener('pointerdown', e => {
+  if (dialDrag) return;
+  audio();
+  drag = {id: e.pointerId, x0: e.clientX, y0: e.clientY, ph0: ph, lastX: e.clientX, lastT: performance.now(), vx: 0, moved: false};
+  try { hanger.setPointerCapture(e.pointerId); } catch (_) {}
+});
+hanger.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x0, now = performance.now();
+  if (Math.abs(dx) > 6 || Math.abs(e.clientY - drag.y0) > 6) drag.moved = true;
+  const dt = Math.max(1, now - drag.lastT);
+  drag.vx = drag.vx * .6 + (e.clientX - drag.lastX) / dt * .4; drag.lastX = e.clientX; drag.lastT = now;
+  if (drag.moved) { ph = drag.ph0 + dx * .9; pv = 0; om += (e.clientX - drag.lastX) * .0; }
+});
+const endDrag = e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.moved) { flip(Math.random() < .5 ? 1 : -1, 1); }
+  else {
+    const v = drag.vx * 900; // deg/s
+    pv = v; om += clamp(drag.vx * .8, -2.5, 2.5);
+    // land on the face the spin carries it to
+    const proj = ph + v * .28;
+    targetPh = Math.round(proj / 180) * 180;
+    if (Math.abs(v) > 200) sWhoosh(Math.min(.5, Math.abs(v) / 3000));
+    setState((((Math.round(targetPh / 180) % 2) + 2) % 2) === 1);
+    if (!interacted) { interacted = true; hint.style.opacity = 0; }
+  }
+  drag = null;
+};
+hanger.addEventListener('pointerup', endDrag);
+hanger.addEventListener('pointercancel', endDrag);
+hanger.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(1, 1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); audio(); om -= .5; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); audio(); om += .5; }
+});
+
+/* ---------- loop ---------- */
+let last = performance.now(), raf = 0, zt = 0, lastSign = 1;
+function frame(now){
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  const steps = 4, h = dt / steps;
+  for (let i = 0; i < steps; i++) {
+    // yaw spring toward target face, with a little air drag
+    if (!drag) {
+      if (reduced) { ph = targetPh; pv = 0; }
+      else { pv += ((targetPh - ph) * 60 - pv * 7.5) * h; ph += pv * h; }
+    }
+    // swing pendulum; yaw spin feeds a little energy (air)
+    if (reduced) { th += (0 - th) * .2; om = 0; }
+    else { om += (-(9.8 / .9) * Math.sin(th) - om * .9 + pv * .00012) * h; th += om * h; }
+    th = clamp(th, -1.1, 1.1);
+  }
+  const rad = ph * Math.PI / 180, c = Math.cos(rad);
+  // settle knock when it nearly stops
+  const moving = Math.abs(pv) > 8 || Math.abs(om) > .08;
+  if (!moving && !settled) { settled = true; }
+  if (moving) settled = false;
+  if (Math.sign(c) !== lastSign && Math.abs(pv) > 30) { lastSign = Math.sign(c); }
+  hanger.style.transform = `rotateZ(${th}rad) rotateY(${ph}deg)`;
+  // edge-on shading: faces darken as they turn away
+  const turn = 1 - Math.abs(c);
+  shadeA.style.background = `linear-gradient(${c > 0 ? 90 : 270}deg, rgba(42,35,32,0), rgba(42,35,32,${.55 * turn}))`; shadeA.style.opacity = 1;
+  shadeB.style.background = `linear-gradient(${c > 0 ? 270 : 90}deg, rgba(42,35,32,0), rgba(42,35,32,${.55 * turn}))`; shadeB.style.opacity = 1;
+  edge.style.transform = `rotateY(90deg)`; edge.style.opacity = turn > .6 ? 1 : 0;
+  // flat print shadow on the door, narrowing as the card turns
+  const sx = Math.max(.04, Math.abs(c));
+  shadow.style.left = (G.knobX - pivotLocal.x + 12) + 'px'; shadow.style.top = (G.knobY - pivotLocal.y + 10) + 'px';
+  shadow.style.transformOrigin = `${pivotLocal.x}px ${pivotLocal.y}px`;
+  shadow.style.transform = `rotate(${th * .92}rad) scaleX(${sx})`;
+  // sleeping owl breathes; z's drift
+  if (dnd && !reduced) {
+    zt += dt;
+    const b = 1 + Math.sin(zt * 2.2) * .025;
+    $('owl').setAttribute('transform', `translate(104 ${186 - (b - 1) * 40}) scale(${b} ${2 - b})`);
+    const z = $('zzz').children;
+    z[0].setAttribute('y', 134 - (zt * 6 % 18)); z[0].setAttribute('opacity', .9 - (zt * 6 % 18) / 20);
+    z[1].setAttribute('y', 118 - ((zt * 6 + 9) % 18)); z[1].setAttribute('opacity', .7 - ((zt * 6 + 9) % 18) / 26);
+  }
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frame); } });
+let rt = 0; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+layout();
+document.fonts && document.fonts.ready.then(layout);
+raf = requestAnimationFrame(frame);
+window.__hanger = {flip: () => flip(1, 1), setMinutes, state: () => ({dnd, minutes, ph})};
+})();
+</script>
+</body>
+</html>

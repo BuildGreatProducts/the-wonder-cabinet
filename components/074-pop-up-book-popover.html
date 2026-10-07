@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pop-up Book Popover</title>
+<meta name="description" content="Info popovers for a trail guide printed as a children's pop-up book: gouache-painted paper pieces already stand off the page, and pulling a printed tab makes a new spread of paper layers unfold on real parallel folds.">
+<script type="application/json" id="component-meta">
+{"name":"Pop-up Book Popover","reimagines":"Popover / info tooltip","category":"Overlays & Reveals","description":"The trail guide is an offset-printed pop-up book on uncoated paper: the peak, forest and signpost already stand off the left page, and every info marker is a printed PULL tab. Pull one and a little paper spread rises from the gutter, its layers standing on real parallel folds and flexing as they settle. Drag the page back down to fold it shut; Escape works too.","hint":"Pull a red tab to pop up more about the walk"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Grandstander:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#283350; --red:#e2492f; --sun:#f7c534; --teal:#1f9e9a; --leaf:#6db552; --dleaf:#2f7d3b; --sky:#a9dcef; --plum:#7a4a9a; --cream:#f6edd6;
+    --paper:none; --tilt:30deg;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;font-family:'Andika',system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(60% 55% at 50% 45%,#2f8f88,#1b625d 65%,#103f3c)}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:3px dashed var(--red);outline-offset:4px;border-radius:6px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* —— the book lying open on the table, seen from the reader's seat —— */
+  .stage{position:fixed;inset:0;overflow:hidden;perspective:2400px;perspective-origin:50% 40%}
+  .rug{position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;background:
+    repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 3px,transparent 3px 9px),repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 3px,transparent 3px 9px)}
+  .book{position:absolute;left:50%;top:50%;width:var(--bw);height:var(--bh);margin:calc(var(--bh) / -2) 0 0 calc(var(--bw) / -2);
+    transform-style:preserve-3d;transform:rotateX(var(--tilt)) rotateY(var(--ry,0deg));display:grid;grid-template-columns:1fr 1fr}
+  .cover{position:absolute;inset:-12px -14px;border-radius:12px;transform:translateZ(-14px);background:#d2413a;
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.12)}
+  .cover::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--paper);mix-blend-mode:multiply;opacity:.6}
+  .floorshadow{position:absolute;inset:-6% -5% -8%;transform:translateZ(-16px);background:radial-gradient(closest-side,rgba(0,15,15,.55),transparent);filter:blur(14px)}
+  .thick{position:absolute;left:0;right:0;bottom:0;height:13px;transform-origin:50% 100%;transform:rotateX(90deg);
+    background:repeating-linear-gradient(0deg,#efe5cc 0 1px,#d9cdb0 1px 2px)}
+  .pg{position:relative;background-color:#f3ead3;background-image:var(--paper)}
+  .pg.l{transform-style:preserve-3d;border-radius:10px 0 0 10px}
+  .pg.r{border-radius:0 10px 10px 0;padding:30px 36px 22px 40px;display:flex;flex-direction:column}
+  .pg.r::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:linear-gradient(90deg,rgba(80,60,30,.22),rgba(80,60,30,0) 9%)}
+  .print{position:absolute;inset:0;overflow:hidden;border-radius:inherit}
+  .print svg{display:block;width:100%;height:100%}
+  .print::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(270deg,rgba(80,60,30,.28),rgba(80,60,30,0) 10%)}
+  .pieces{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
+  .piece{position:absolute;transform-origin:50% 100%;backface-visibility:hidden}
+  .piece svg{display:block;width:100%;height:100%;overflow:visible}
+  .hinge{position:absolute;height:9px;transform:translateZ(.6px);background:linear-gradient(#e7dcc0,#d8cba9);box-shadow:0 1px 0 rgba(0,0,0,.12)}
+  .hinge::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:rgba(60,40,20,.35)}
+  .cast{position:absolute;transform-origin:50% 100%;transform:scaleY(-.36) skewX(-34deg);filter:brightness(0) blur(2.5px);opacity:.3;pointer-events:none}
+  .cast svg{display:block;width:100%;height:100%;overflow:visible}
+  .pg.l .tapzone{position:absolute;inset:0;cursor:pointer;transform:translateZ(1px)}
+
+  /* —— printed text —— */
+  .kicker{font:700 13px 'Grandstander',cursive;letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
+  h1{font:900 50px/.95 'Grandstander',cursive;letter-spacing:-.01em;margin:6px 0 6px;color:var(--ink);
+    text-shadow:2px 1px 0 rgba(31,158,154,.5),-1px -1px 0 rgba(226,73,47,.35)}
+  .sub{font-size:18px;line-height:1.3;color:#3c4766}
+  h2{font:700 19px 'Grandstander',cursive;margin:16px 0 4px;color:var(--teal)}
+  .rows{list-style:none;display:flex;flex-direction:column}
+  .row{position:relative;display:grid;grid-template-columns:66px 1fr auto;align-items:center;gap:14px;padding:9px 0;border-bottom:2px dotted rgba(40,51,80,.28)}
+  .row:last-child{border-bottom:0}
+  .row svg.spot{width:66px;height:52px;overflow:visible}
+  .row b{display:inline-block;font:700 28px/1 'Grandstander',cursive;text-shadow:1.5px 1px 0 rgba(31,158,154,.4)}
+  .row span.t{display:block;font-size:17px;line-height:1.25;color:#3c4766;margin-top:3px}
+  .row.on b{background:linear-gradient(transparent 55%,rgba(247,197,52,.75) 55% 90%,transparent 90%)}
+  /* pull-tab poking out of a slit cut in the page */
+  .slot{position:relative;width:96px;height:36px;justify-self:end}
+  .slot::before{content:"";position:absolute;left:0;top:7px;width:8px;height:22px;border-radius:4px;background:#2b2418;box-shadow:inset 1px 0 2px rgba(0,0,0,.8),1px 0 0 rgba(255,255,255,.6)}
+  .tab{position:absolute;left:4px;top:4px;height:28px;width:86px;padding-left:10px;display:flex;align-items:center;gap:5px;
+    font:900 13px 'Grandstander',cursive;letter-spacing:.08em;color:#fff6e0;touch-action:none;
+    background:linear-gradient(180deg,#ea5a3e,#cf3d25);border-radius:0 14px 14px 0;
+    clip-path:inset(-10px -10px -10px 0);box-shadow:2px 2px 0 rgba(40,30,20,.25);transform:translateX(var(--pull,0px));transition:filter .2s}
+  .tab::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--paper);mix-blend-mode:multiply;opacity:.55;pointer-events:none}
+  .tab svg{width:14px;height:12px}
+  .tab:hover{filter:brightness(1.08)}
+  .slot .lip{position:absolute;left:0;top:7px;width:6px;height:22px;border-radius:3px 0 0 3px;background:#f3ead3;background-image:var(--paper);box-shadow:-1px 0 0 rgba(0,0,0,.15)}
+  .go{display:flex;align-items:center;gap:22px;margin-top:auto;padding-top:14px}
+  .badge{position:relative;padding:12px 24px;font:900 21px 'Grandstander',cursive;color:#fff6e0;isolation:isolate;text-shadow:1px 1px 0 rgba(0,0,0,.2)}
+  .badge::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--red);border-radius:6px 14px 8px 16px/14px 6px 16px 8px;filter:url(#edge);box-shadow:3px 3px 0 rgba(40,30,20,.3)}
+  .badge::after{content:"";position:absolute;inset:0;z-index:-1;background:var(--paper);mix-blend-mode:multiply;opacity:.6;border-radius:6px 14px 8px 16px/14px 6px 16px 8px}
+  .badge:active{transform:translate(2px,2px)}
+  .link{font:700 18px 'Grandstander',cursive;color:var(--teal);text-decoration:underline wavy rgba(31,158,154,.6);text-underline-offset:5px;padding:6px 2px}
+  .hint{position:absolute;right:28px;top:26px;font:700 16px/1.05 'Grandstander',cursive;color:var(--red);transform:rotate(5deg);text-align:right;transition:opacity .5s}
+  .hint svg{display:block;width:40px;height:44px;margin:2px 0 0 auto}
+  .hint.gone{opacity:0}
+  .folio{position:absolute;bottom:12px;font:700 14px 'Grandstander',cursive;color:#a39a86}
+  .pg.r .folio{right:30px}
+  .live{font-size:14px;color:var(--teal);min-height:18px}
+
+  /* —— the pop-up popover that rises from the gutter —— */
+  .pop{position:fixed;z-index:10;width:var(--pw);height:var(--ph);perspective:1100px;perspective-origin:50% 10%;pointer-events:none;visibility:hidden}
+  .pop.on{visibility:visible}
+  .pop:focus{outline:none}
+  .rig{position:absolute;left:0;top:0;width:100%;height:100%;transform-style:preserve-3d;transform-origin:50% 100%}
+  .base{position:absolute;left:0;bottom:0;width:var(--pw);height:var(--fd);transform-style:preserve-3d;transform-origin:50% 100%;transform:rotateX(var(--tilt))}
+  .floor{position:absolute;inset:0;border-radius:4px;background-color:#efe4c8;background-image:var(--paper);box-shadow:0 0 0 1px rgba(40,51,80,.15),0 18px 26px rgba(0,0,0,.3);pointer-events:auto}
+  .floor::before{content:"";position:absolute;left:0;right:0;top:0;height:46%;background:linear-gradient(rgba(109,181,82,.55),rgba(109,181,82,.15));mix-blend-mode:multiply}
+  .floor::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,rgba(40,51,80,.3),transparent)}
+  .shadow{position:absolute;left:6%;right:6%;height:30px;border-radius:50%;background:radial-gradient(closest-side,rgba(35,30,40,.45),transparent);pointer-events:none}
+  .leaf{position:absolute;left:50%;bottom:var(--fd);transform-origin:50% 100%;transform-style:preserve-3d}
+  .leaf svg{display:block;width:100%;height:100%;overflow:visible}
+  #layers,#shadows{position:absolute;inset:0;transform-style:preserve-3d}
+  .leaf .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .leaf .rev{position:absolute;inset:0;transform:rotateY(180deg);backface-visibility:hidden;-webkit-backface-visibility:hidden;filter:brightness(0) invert(.92) sepia(.4)}
+  .back{width:var(--pw);height:var(--bh);margin-left:calc(var(--pw) / -2);border-radius:4px 4px 1px 1px;pointer-events:auto;cursor:grab;touch-action:none;overflow:hidden;
+    background-color:var(--sky);background-image:var(--paper);background-blend-mode:multiply;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .back.grab{cursor:grabbing}
+  .backrev{position:absolute;left:50%;bottom:var(--fd);width:var(--pw);height:var(--bh);margin-left:calc(var(--pw) / -2);transform-origin:50% 100%;border-radius:4px;background-color:#efe4c8;background-image:var(--paper);backface-visibility:hidden;-webkit-backface-visibility:hidden}
+  .label{position:absolute;left:14px;right:14px;top:12px;padding:11px 44px 12px 16px;background-color:#f6edd6;background-image:var(--paper);
+    clip-path:polygon(0 4%,3% 0,12% 3%,22% 0,34% 2%,47% 0,58% 3%,70% 0,83% 2%,94% 0,100% 5%,99% 30%,100% 58%,99% 85%,100% 97%,90% 100%,78% 97%,64% 100%,50% 97%,37% 100%,24% 97%,11% 100%,1% 96%,0 70%,1% 40%)}
+  .label h3{font:900 23px/1 'Grandstander',cursive;text-shadow:1.5px 1px 0 rgba(31,158,154,.45)}
+  .label p{font-size:15px;line-height:1.3;margin-top:5px;color:#3c4766}
+  .close{position:absolute;right:20px;top:18px;width:30px;height:30px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;pointer-events:auto;box-shadow:2px 2px 0 rgba(40,30,20,.25)}
+  .close svg{width:12px;height:12px}
+  .foldtab{position:absolute;right:-2px;bottom:26%;font:900 11px 'Grandstander',cursive;letter-spacing:.1em;background:var(--red);color:#fff6e0;padding:4px 10px 4px 8px;border-radius:0 8px 8px 0;transform:rotate(-90deg);transform-origin:100% 0}
+
+  @media (max-width:760px){
+    .book{grid-template-columns:1fr;grid-template-rows:44fr 56fr}
+    .pg.l{border-radius:10px 10px 0 0}
+    .pg.r{border-radius:0 0 10px 10px;padding:16px 16px 14px}
+    .pg.r::before{background:linear-gradient(180deg,rgba(80,60,30,.22),rgba(80,60,30,0) 6%)}
+    .print::after{background:linear-gradient(0deg,rgba(80,60,30,.26),rgba(80,60,30,0) 10%)}
+    .kicker{font-size:11px}
+    h1{font-size:33px;margin:3px 0 2px}
+    .sub{font-size:14px}
+    h2{display:none}
+    .row{grid-template-columns:44px 1fr auto;gap:9px;padding:6px 0}
+    .row svg.spot{width:44px;height:36px}
+    .row b{font-size:20px}.row span.t{font-size:13px}
+    .slot{width:80px}.tab{width:72px;font-size:12px}
+    .hint{display:none}
+    .badge{font-size:17px;padding:9px 16px}.link{font-size:15px}
+    .go{gap:12px;padding-top:8px}
+    .folio{display:none}
+  }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <!-- gouache on uncoated stock: rough die-cut edges, brush streaks, paper showing through -->
+      <filter id="gouache" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="3" seed="3" result="warp"/>
+        <feDisplacementMap in="SourceGraphic" in2="warp" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="rough"/>
+        <feTurbulence type="fractalNoise" baseFrequency=".014 .045" numOctaves="3" seed="7" result="streak"/>
+        <feColorMatrix in="streak" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .7 0 0 0 -.3" result="streakA"/>
+        <feComposite in="streakA" in2="rough" operator="in" result="streakIn"/>
+        <feComposite in="streakIn" in2="rough" operator="over" result="painted"/>
+        <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="1" seed="11" result="pores"/>
+        <feColorMatrix in="pores" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -18 0 0 0 12.7" result="poresA"/>
+        <feComposite in="painted" in2="poresA" operator="in"/>
+      </filter>
+      <filter id="gouacheS" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="4" result="warp"/>
+        <feDisplacementMap in="SourceGraphic" in2="warp" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="rough"/>
+        <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="1" seed="12" result="pores"/>
+        <feColorMatrix in="pores" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -14 0 0 0 9.8" result="poresA"/>
+        <feComposite in="rough" in2="poresA" operator="in"/>
+      </filter>
+      <filter id="edge"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="3" xChannelSelector="R" yChannelSelector="G"/></filter>
+      <!-- offset-print halftone screens -->
+      <pattern id="htInk" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(22)"><circle cx="2.5" cy="2.5" r="1.3" fill="#283350"/></pattern>
+      <pattern id="htInkS" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(22)"><circle cx="2" cy="2" r=".8" fill="#283350"/></pattern>
+      <pattern id="htWhite" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-15)"><circle cx="3" cy="3" r="1.4" fill="#fff6e0"/></pattern>
+      <pattern id="htRed" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2.5" cy="2.5" r="1.2" fill="#e2492f"/></pattern>
+      <pattern id="htYel" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(8)"><circle cx="2.5" cy="2.5" r="1.4" fill="#f7c534"/></pattern>
+      <!-- older names used by the pop-up scenes -->
+      <pattern id="dots" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(22)"><circle cx="2.5" cy="2.5" r="1.3" fill="#283350"/></pattern>
+      <pattern id="dotsW" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-15)"><circle cx="3" cy="3" r="1.4" fill="#fff6e0"/></pattern>
+      <pattern id="stripes" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(22)"><circle cx="2.5" cy="2.5" r="1.3" fill="#283350"/></pattern>
+    </defs>
+  </svg>
+
+  <main class="stage" id="stage">
+    <div class="rug" aria-hidden="true"></div>
+    <div class="book" id="book">
+      <div class="floorshadow" aria-hidden="true"></div>
+      <div class="cover" aria-hidden="true"></div>
+      <div class="thick" aria-hidden="true"></div>
+      <section class="pg l" id="pgL" aria-label="Pop-up picture of the Harrow Peak loop">
+        <div class="print" id="leftPrint" aria-hidden="true"></div>
+        <div class="pieces" id="pieces" aria-hidden="true"></div>
+        <div class="tapzone" id="tapzone" aria-hidden="true"></div>
+      </section>
+      <section class="pg r" id="pgR" aria-labelledby="title">
+        <p class="kicker">Little Trails · Saturday 17 October 2026</p>
+        <h1 id="title">Harrow Peak loop</h1>
+        <p class="sub">Up through Coldwell woods, along the ridge, back by the lake.</p>
+        <p class="hint" id="hint">pull a tab!<svg viewBox="0 0 40 44" aria-hidden="true"><path d="M8 4c10 2 22 10 24 30" fill="none" stroke="#e2492f" stroke-width="3" stroke-linecap="round"/><path d="M24 30l8 8 4-11" fill="none" stroke="#e2492f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></p>
+        <h2>Before you go</h2>
+        <ul class="rows" id="rows"></ul>
+        <p class="live" id="live" role="status" aria-live="polite"></p>
+        <div class="go"><button class="badge" id="start">Start the walk!</button><button class="link" id="save">Save for later</button></div>
+        <span class="folio">13</span>
+      </section>
+    </div>
+  </main>
+
+  <div class="pop" id="pop" role="dialog" aria-labelledby="popTitle" aria-describedby="popText" tabindex="-1">
+    <div class="rig" id="rig">
+      <div class="base" id="base">
+        <div class="floor" aria-hidden="true"></div>
+        <div id="shadows" aria-hidden="true"></div>
+        <div class="backrev" id="backrev" aria-hidden="true"></div>
+        <div class="leaf back" id="back">
+          <div id="backArt" aria-hidden="true"></div>
+          <div class="label"><h3 id="popTitle">640 m of climbing</h3><p id="popText">…</p></div>
+          <button class="close" id="close" aria-label="Fold it shut"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+          <span class="foldtab" aria-hidden="true">PUSH DOWN</span>
+        </div>
+        <div id="layers" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rng = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+
+  /* ————— uncoated paper stock: tooth, fibres, the odd coloured thread ————— */
+  (function paper() {
+    const S = 320, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), R = rng(5);
+    x.fillStyle = '#f3ead3'; x.fillRect(0, 0, S, S);
+    const id = x.getImageData(0, 0, S, S), d = id.data;
+    for (let i = 0; i < d.length; i += 4) { const n = (R() - .5) * 14; d[i] += n; d[i + 1] += n; d[i + 2] += n * .8; }
+    x.putImageData(id, 0, 0);
+    for (let i = 0; i < 420; i++) {
+      const px = R() * S, py = R() * S, L = 5 + R() * 24, a = R() * Math.PI, k = (R() - .5) * .6;
+      const col = R() < .5 ? 'rgba(255,253,245,.55)' : 'rgba(120,96,60,.16)';
+      x.strokeStyle = col; x.lineWidth = .5 + R() * .7; x.beginPath(); x.moveTo(px, py);
+      x.quadraticCurveTo(px + Math.cos(a + k) * L * .5, py + Math.sin(a + k) * L * .5, px + Math.cos(a) * L, py + Math.sin(a) * L); x.stroke();
+    }
+    for (let i = 0; i < 14; i++) { const px = R() * S, py = R() * S, a = R() * 6.28; x.strokeStyle = R() < .5 ? 'rgba(70,110,190,.35)' : 'rgba(200,70,70,.3)'; x.lineWidth = .6; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 6, py - 4, px + Math.cos(a) * 14, py + Math.sin(a) * 14); x.stroke(); }
+    document.documentElement.style.setProperty('--paper', `url(${c.toDataURL()})`);
+  })();
+
+  const C = { ink: '#283350', red: '#e2492f', sun: '#f7c534', teal: '#1f9e9a', leaf: '#6db552', dleaf: '#2f7d3b', sky: '#a9dcef', plum: '#7a4a9a', pink: '#f07aa0', cream: '#f6edd6', rock: '#9aa3b5', drock: '#6c768c', water: '#4fb0de', brown: '#8a5a33' };
+
+  /* ————— the left page: printed diorama floor + gouache pop-up pieces ————— */
+  const pine = (x, y, h, col) => { const w = h * .42; return `<path d="M${x} ${y - h}L${x + w * .5} ${y - h * .55}H${x + w * .22}L${x + w * .7} ${y - h * .12}H${x - w * .7}L${x - w * .22} ${y - h * .55}H${x - w * .5}Z" fill="${col}"/><rect x="${x - h * .04}" y="${y - h * .13}" width="${h * .08}" height="${h * .14}" fill="${C.brown}"/>`; };
+  const blobTree = (x, y, r, col) => `<circle cx="${x}" cy="${y - r * 1.3}" r="${r}" fill="${col}"/><circle cx="${x - r * .55}" cy="${y - r * .9}" r="${r * .7}" fill="${col}"/><circle cx="${x + r * .6}" cy="${y - r}" r="${r * .75}" fill="${col}"/><rect x="${x - r * .12}" y="${y - r * .6}" width="${r * .24}" height="${r * .6}" fill="${C.brown}"/><circle cx="${x + r * .35}" cy="${y - r * 1.5}" r="${r * .55}" fill="url(#htInk)" opacity=".25"/>`;
+  function leftPrint(W, H) {
+    const R = rng(21), hz = H * .58;
+    let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><g filter="url(#gouache)">`;
+    s += `<defs><linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fcde6"/><stop offset=".75" stop-color="#cfeaf0"/><stop offset="1" stop-color="#f8e7bd"/></linearGradient></defs>`;
+    s += `<rect width="${W}" height="${hz + 4}" fill="url(#skyG)"/>`;
+    s += `<circle cx="${W * .16}" cy="${H * .14}" r="${Math.min(W, H) * .07}" fill="${C.sun}"/><circle cx="${W * .16}" cy="${H * .14}" r="${Math.min(W, H) * .07}" fill="url(#htRed)" opacity=".35"/>`;
+    for (let k = 0; k < 3; k++) { const cx = W * (.4 + k * .22), cy = H * (.1 + (k % 2) * .07), r = Math.min(W, H) * .035; s += `<g fill="#fff8e8"><circle cx="${cx}" cy="${cy}" r="${r}"/><circle cx="${cx + r * 1.1}" cy="${cy - r * .4}" r="${r * 1.2}"/><circle cx="${cx + r * 2.2}" cy="${cy}" r="${r * .9}"/><rect x="${cx}" y="${cy}" width="${r * 2.2}" height="${r * .9}"/></g>`; }
+    // distant printed hills on the back of the page
+    s += `<path d="M0 ${hz} C${W * .15} ${hz - H * .12} ${W * .3} ${hz - H * .05} ${W * .45} ${hz - H * .1} S${W * .8} ${hz - H * .16} ${W} ${hz - H * .06} V${hz + 6} H0Z" fill="#8bb6c9"/>`;
+    s += `<path d="M0 ${hz} C${W * .25} ${hz - H * .06} ${W * .5} ${hz - H * .02} ${W * .7} ${hz - H * .07} S${W * .9} ${hz - H * .03} ${W} ${hz - H * .04} V${hz + 6} H0Z" fill="#5f9fa7"/>`;
+    // the meadow floor
+    s += `<rect y="${hz}" width="${W}" height="${H - hz}" fill="${C.leaf}"/>`;
+    s += `<path d="M0 ${hz + H * .1} C${W * .3} ${hz + H * .06} ${W * .6} ${hz + H * .14} ${W} ${hz + H * .09} V${H} H0Z" fill="#5ea548"/>`;
+    s += `<rect y="${hz}" width="${W}" height="${H - hz}" fill="url(#htInkS)" opacity=".08"/>`;
+    // the tarn
+    const lx = W * .3, ly = H * .86, lrx = W * .22, lry = H * .065;
+    s += `<ellipse cx="${lx}" cy="${ly}" rx="${lrx}" ry="${lry}" fill="${C.water}"/><ellipse cx="${lx}" cy="${ly}" rx="${lrx}" ry="${lry}" fill="url(#htWhite)" opacity=".45"/>`;
+    for (let k = 0; k < 5; k++) s += `<path d="M${lx - lrx * .6 + k * lrx * .3} ${ly - lry * .2 + (k % 2) * lry * .4} h${lrx * .18}" stroke="#fff6e0" stroke-width="2.4" stroke-linecap="round"/>`;
+    // the dotted route from the car park to the foot of the peak
+    const px = W * .86, py = H * .95;
+    s += `<path d="M${px} ${py} C${W * .7} ${H * .97} ${W * .58} ${H * .9} ${W * .58} ${H * .82} S${W * .44} ${H * .72} ${W * .5} ${H * .62}" fill="none" stroke="${C.red}" stroke-width="4" stroke-dasharray="1 9" stroke-linecap="round"/>`;
+    s += `<circle cx="${px}" cy="${py}" r="11" fill="${C.red}"/><text x="${px}" y="${py + 5}" text-anchor="middle" font-family="Grandstander" font-weight="900" font-size="14" fill="#fff6e0">P</text>`;
+    s += `<circle cx="${W * .56}" cy="${H * .78}" r="7" fill="${C.water}" stroke="${C.ink}" stroke-width="2"/>`;
+    // flowers and tufts
+    for (let i = 0; i < 46; i++) { const x = R() * W, y = hz + H * .1 + R() * (H - hz - H * .12); if (Math.hypot((x - lx) / lrx, (y - ly) / lry) < 1.15) continue; s += `<circle cx="${x}" cy="${y}" r="${1.6 + R() * 1.8}" fill="${[C.cream, C.sun, C.pink, '#fff'][i % 4]}"/>`; }
+    s += `</g>`;
+    // hand-lettered map labels, printed in the key plate with a hair of misregistration
+    const lbl = (x, y, t, sz, col = C.ink, a = 'middle') => `<text x="${x + 1.2}" y="${y + .8}" text-anchor="${a}" font-family="Grandstander" font-weight="700" font-size="${sz}" fill="${C.teal}" opacity=".45">${t}</text><text x="${x}" y="${y}" text-anchor="${a}" font-family="Grandstander" font-weight="700" font-size="${sz}" fill="${col}">${t}</text>`;
+    const fs = clamp(W / 32, 11, 17);
+    s += lbl(lx, ly + 5, 'Harrow Tarn', fs);
+    s += lbl(px - 18, py - 12, 'Start', fs, C.ink, 'end');
+    s += lbl(W * .56 - 12, H * .78 + 5, 'Coldwell spring', fs * .85, C.ink, 'end');
+    // compass rose
+    const cx = W * .9, cy = H * .74, cr = Math.min(W, H) * .045;
+    s += `<g filter="url(#gouacheS)"><circle cx="${cx}" cy="${cy}" r="${cr}" fill="${C.cream}" stroke="${C.ink}" stroke-width="2"/><path d="M${cx} ${cy - cr * .85}L${cx + cr * .25} ${cy}L${cx} ${cy + cr * .85}L${cx - cr * .25} ${cy}Z" fill="${C.red}"/><path d="M${cx} ${cy}L${cx + cr * .25} ${cy}L${cx} ${cy + cr * .85}L${cx - cr * .25} ${cy}Z" fill="${C.ink}"/></g>`;
+    s += lbl(cx, cy - cr - 4, 'N', fs * .85);
+    s += `</svg>`;
+    return s;
+  }
+  // die-cut pop-up pieces, sized in real page pixels so the route lines up underneath
+  function peakSVG(w, h) {
+    const p1 = `M0 ${h} L${w * .12} ${h * .62} L${w * .2} ${h * .7} L${w * .4} ${h * .06} L${w * .55} ${h * .44} L${w * .66} ${h * .3} L${w * .86} ${h * .66} L${w * .93} ${h * .6} L${w} ${h} Z`;
+    let s = `<svg viewBox="0 0 ${w} ${h}"><g filter="url(#gouache)">`;
+    s += `<path d="${p1}" fill="#e3d6b6" transform="translate(2.5 3)"/>`;
+    s += `<path d="M0 ${h} L${w * .12} ${h * .62} L${w * .2} ${h * .7} L${w * .4} ${h * .06} L${w * .55} ${h * .44} L${w * .62} ${h} Z" fill="${C.plum}"/>`;
+    s += `<path d="M${w * .4} ${h * .06} L${w * .55} ${h * .44} L${w * .5} ${h} L${w * .43} ${h}Z" fill="url(#htInk)" opacity=".35"/>`;
+    s += `<path d="M${w * .5} ${h} L${w * .66} ${h * .3} L${w * .86} ${h * .66} L${w * .93} ${h * .6} L${w} ${h} Z" fill="${C.teal}"/>`;
+    s += `<path d="M${w * .66} ${h * .3} L${w * .86} ${h * .66} L${w * .8} ${h} L${w * .7} ${h}Z" fill="url(#htInk)" opacity=".3"/>`;
+    s += `<path d="M${w * .4} ${h * .06} L${w * .455} ${h * .19} L${w * .43} ${h * .17} L${w * .405} ${h * .22} L${w * .38} ${h * .17} L${w * .355} ${h * .19}Z" fill="#fff8ec"/>`;
+    s += `<path d="M${w * .66} ${h * .3} L${w * .705} ${h * .38} L${w * .685} ${h * .37} L${w * .662} ${h * .41} L${w * .64} ${h * .37} L${w * .62} ${h * .38}Z" fill="#fff8ec"/>`;
+    s += `<path d="M${w * .3} ${h} C${w * .34} ${h * .8} ${w * .28} ${h * .62} ${w * .35} ${h * .48} S${w * .38} ${h * .22} ${w * .4} ${h * .08}" fill="none" stroke="#fff6e0" stroke-width="3" stroke-dasharray="1 7" stroke-linecap="round"/>`;
+    s += `</g>`;
+    s += `<path d="M${w * .4} ${h * .06} v${-h * .1}" stroke="${C.ink}" stroke-width="2.5"/><path d="M${w * .4} ${-h * .04} l${h * .09} ${h * .03} l${-h * .09} ${h * .03}z" fill="${C.red}"/>`;
+    const fs = clamp(w / 22, 11, 17);
+    s += `<g transform="translate(${w * .58} ${h * .14}) rotate(-4)"><rect x="-4" y="${-fs}" width="${fs * 6.6}" height="${fs * 1.5}" fill="${C.cream}"/><text x="${fs * .1}" y="${fs * .22}" font-family="Grandstander" font-weight="900" font-size="${fs}" fill="${C.ink}">Harrow Peak 702 m</text></g>`;
+    return s + `</svg>`;
+  }
+  function forestSVG(w, h) {
+    let s = `<svg viewBox="0 0 ${w} ${h}"><g filter="url(#gouache)"><path d="M0 ${h} C${w * .2} ${h * .55} ${w * .5} ${h * .62} ${w * .7} ${h * .5} S${w * .95} ${h * .6} ${w} ${h * .55} V${h}Z" fill="#4f9a3f"/>`;
+    const R = rng(8);
+    for (let i = 0; i < 13; i++) { const x = (i + .5) / 13 * w + (R() - .5) * 10, th = h * (.62 + R() * .4); if (i === 4 || i === 9) s += blobTree(x, h * .98, th * .28, i % 2 ? '#5ea548' : '#3f8a3a'); else s += pine(x, h * .98, th, i % 3 ? C.dleaf : '#24603a'); }
+    s += `<rect y="${h * .55}" width="${w}" height="${h * .45}" fill="url(#htInk)" opacity=".1"/>`;
+    // a red hut tucked into the trees
+    const hx = w * .63, hy = h * .98;
+    s += `<rect x="${hx - h * .16}" y="${hy - h * .26}" width="${h * .32}" height="${h * .26}" fill="${C.cream}"/><path d="M${hx - h * .22} ${hy - h * .24} L${hx} ${hy - h * .46} L${hx + h * .22} ${hy - h * .24}Z" fill="${C.red}"/><rect x="${hx - h * .04}" y="${hy - h * .14}" width="${h * .08}" height="${h * .14}" fill="${C.brown}"/>`;
+    return s + `</g></svg>`;
+  }
+  function signSVG(w, h) {
+    const fs = clamp(w / 9.5, 9, 13);
+    return `<svg viewBox="0 0 ${w} ${h}"><g filter="url(#gouacheS)">
+      <rect x="${w * .3 - 3}" y="${h * .2}" width="6" height="${h * .8}" fill="${C.brown}"/>
+      <path d="M${w * .3} ${h * .14} h${w * .62} l${w * .08} ${h * .11} l${-w * .08} ${h * .11} h${-w * .62}z" fill="${C.sun}"/>
+      <path d="M${w * .3} ${h * .42} h${-w * .26} l${-w * .04} ${h * .1} l${w * .04} ${h * .1} h${w * .26}z" fill="${C.red}"/>
+      <g transform="translate(${w * .72} ${h})"><circle cx="0" cy="${-h * .62}" r="${h * .07}" fill="${C.ink}"/><rect x="${-h * .06}" y="${-h * .54}" width="${h * .12}" height="${h * .26}" rx="3" fill="${C.teal}"/><rect x="${-h * .13}" y="${-h * .52}" width="${h * .09}" height="${h * .2}" rx="3" fill="${C.red}"/><path d="M${-h * .03} ${-h * .28} l${-h * .05} ${h * .28} M${h * .03} ${-h * .28} l${h * .06} ${h * .28}" stroke="${C.ink}" stroke-width="3.5" stroke-linecap="round"/><path d="M${h * .1} ${-h * .5} l${h * .06} ${h * .5}" stroke="${C.brown}" stroke-width="2"/></g></g>
+      <text x="${w * .34}" y="${h * .25 + fs * .35}" font-family="Grandstander" font-weight="900" font-size="${fs}" fill="${C.ink}">Peak 5.2 km</text>
+      <text x="${w * .02}" y="${h * .52 + fs * .35}" font-family="Grandstander" font-weight="900" font-size="${fs * .9}" fill="#fff6e0">Lake</text></svg>`;
+  }
+  const PIECES = [
+    { make: peakSVG, x: .45, base: .57, w: .76, h: .43, rel: -76, ph: 0 },
+    { make: forestSVG, x: .5, base: .68, w: .9, h: .17, rel: -80, ph: 1.7 },
+    { make: signSVG, x: .74, base: .87, w: .24, h: .19, rel: -84, ph: 3.1 },
+  ];
+  const pgL = $('#pgL'), piecesEl = $('#pieces');
+  function buildLeft() {
+    const W = pgL.clientWidth, H = pgL.clientHeight;
+    $('#leftPrint').innerHTML = leftPrint(W, H);
+    piecesEl.innerHTML = '';
+    PIECES.forEach(P => {
+      const w = P.w * W, h = P.h * H, x = P.x * W - w / 2, y = P.base * H;
+      const cast = document.createElement('div'); cast.className = 'cast';
+      Object.assign(cast.style, { left: x + 'px', top: (y - h) + 'px', width: w + 'px', height: h + 'px' });
+      cast.innerHTML = P.make(w, h);
+      const hinge = document.createElement('div'); hinge.className = 'hinge';
+      Object.assign(hinge.style, { left: (x + w * .1) + 'px', top: y + 'px', width: (w * .8) + 'px' });
+      const el = document.createElement('div'); el.className = 'piece';
+      Object.assign(el.style, { left: x + 'px', top: (y - h) + 'px', width: w + 'px', height: h + 'px' });
+      el.innerHTML = P.make(w, h);
+      $('#leftPrint').appendChild(cast); piecesEl.append(hinge, el);
+      P.el = el; P.cast = cast; P.a = P.a ?? (reduce ? P.rel : -2); P.v = 0;
+    });
+  }
+
+  /* ————— the right page: printed rows with pull-tabs ————— */
+  const ROWS = [
+    { k: 'distance', b: '11.4 km', t: 'Round loop, about four hours', spot: `<path d="M6 40 C16 24 26 34 34 22 S50 12 56 10" fill="none" stroke="${C.red}" stroke-width="4" stroke-dasharray="1 7" stroke-linecap="round"/><circle cx="6" cy="40" r="6" fill="${C.teal}"/><path d="M56 10 v-9" stroke="${C.ink}" stroke-width="2.5"/><path d="M56 1 l10 3.5 -10 3.5z" fill="${C.sun}"/>` },
+    { k: 'climb', b: '640 m up', t: 'Steepest in the last 3 km', spot: `<path d="M2 50 L26 8 L50 50z" fill="${C.plum}"/><path d="M26 8 L50 50 L40 50 L33 26z" fill="url(#htInk)" opacity=".4"/><path d="M26 8 L32 19 L26 16 L20 19z" fill="#fff8ec"/><path d="M34 50 L48 26 L64 50z" fill="${C.teal}"/>` },
+    { k: 'difficulty', b: 'Moderate', t: 'Some loose scree, no scrambling', spot: `<path d="M6 46 A26 26 0 0 1 58 46z" fill="${C.cream}"/><path d="M6 46 A26 26 0 0 1 22 24 L32 46z" fill="${C.leaf}"/><path d="M22 24 A26 26 0 0 1 42 24 L32 46z" fill="${C.sun}"/><path d="M42 24 A26 26 0 0 1 58 46 L32 46z" fill="${C.red}"/><path d="M32 46 L42 26" stroke="${C.ink}" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="46" r="4.5" fill="${C.ink}"/>` },
+    { k: 'water', b: '2 refill points', t: 'Coldwell spring and the café', spot: `<path d="M30 4 C40 20 48 28 48 36 a18 18 0 0 1 -36 0 C12 28 20 20 30 4z" fill="${C.water}"/><path d="M30 4 C40 20 48 28 48 36 a18 18 0 0 1 -12 17 C44 40 40 22 30 4z" fill="url(#htInk)" opacity=".25"/><path d="M21 37 a9 9 0 0 0 8 9" fill="none" stroke="#fff8ec" stroke-width="3.5" stroke-linecap="round"/>` },
+  ];
+  const rowsEl = $('#rows'), tabs = [];
+  ROWS.forEach(r => {
+    const li = document.createElement('li'); li.className = 'row';
+    li.innerHTML = `<svg class="spot" viewBox="0 0 66 54" aria-hidden="true"><g filter="url(#gouacheS)">${r.spot}</g></svg>
+      <div><b>${r.b}</b><span class="t">${r.t}</span></div>
+      <span class="slot"><button class="tab" data-scene="${r.k}" aria-expanded="false" aria-controls="pop" aria-label="Pull to pop up more about ${r.b}">PULL<svg viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6h10M7 2l4 4-4 4" fill="none" stroke="#fff6e0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="lip" aria-hidden="true"></span></span>`;
+    rowsEl.appendChild(li);
+    const t = li.querySelector('.tab'); t._row = li; t._pull = 0; t._pv = 0; tabs.push(t);
+  });
+
+  /* ————— pop-up scenes (painted, halftoned) ————— */
+  const tree = (x, y, s, col = C.dleaf) => `<path d="M${x} ${y - 60 * s} l${22 * s} ${40 * s} h${-9 * s} l${16 * s} ${24 * s} h${-58 * s} l${16 * s} ${-24 * s} h${-9 * s}z" fill="${col}"/><rect x="${x - 4 * s}" y="${y + 4 * s}" width="${8 * s}" height="${10 * s}" fill="#8a5a33"/>`;
+  const SCENES = {
+    climb: {
+      title: '640 m of climbing', text: 'Like walking up 210 flights of stairs. Most of it comes in the last 3 km before the summit, so save your snacks.',
+      sky: C.sky, art: `<svg viewBox="0 0 340 220"><circle cx="290" cy="150" r="26" fill="${C.sun}"/><circle cx="290" cy="150" r="26" fill="url(#dots)" opacity=".12"/></svg>`,
+      layers: [
+        { d: .16, w: 320, h: 150, svg: `<svg viewBox="0 0 320 150"><path d="M0 150 L120 18 L190 92 L230 52 L320 150z" fill="${C.plum}"/><path d="M120 18 L190 92 L170 150 L140 150z" fill="url(#dots)" opacity=".3"/><path d="M120 18 L142 42 L128 38 L118 48 L106 38 L98 42z" fill="#fff"/><path d="M230 52 L320 150 L250 150z" fill="${C.teal}"/><path d="M230 52 L244 68 L232 64 L222 70z" fill="#fff"/><path d="M120 18 v-18" stroke="${C.ink}" stroke-width="2.5"/><path d="M120 0 l18 6 -18 6z" fill="${C.red}"/><path id="trail" d="M30 150 C70 130 60 110 90 92 S110 50 120 22" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="2 6" stroke-linecap="round"/><g class="hiker"><circle cx="0" cy="-17" r="4.5" fill="${C.ink}"/><rect x="-4" y="-12" width="8" height="12" rx="2" fill="${C.red}"/><rect x="-8" y="-12" width="5" height="9" rx="1.5" fill="${C.sun}"/><path d="M-2 0 l-3 7 M2 0 l3 7" stroke="${C.ink}" stroke-width="2.4" stroke-linecap="round"/><path d="M6 -10 l4 17" stroke="#8a5a33" stroke-width="1.6"/></g></svg>` },
+        { d: .5, w: 330, h: 74, svg: `<svg viewBox="0 0 330 74"><path d="M0 74 C40 40 90 50 130 30 S220 40 330 20 V74z" fill="${C.leaf}"/><path d="M0 74 C40 40 90 50 130 30 S220 40 330 20 V74z" fill="url(#dots)" opacity=".12"/>${tree(40, 60, .7)}${tree(80, 56, .85)}${tree(260, 44, .75)}${tree(300, 40, .9)}</svg>` },
+        { d: .82, w: 300, h: 46, svg: `<svg viewBox="0 0 300 46"><path d="M0 46 C30 26 60 30 90 34 S160 22 200 30 S270 26 300 34 V46z" fill="${C.dleaf}"/><g transform="translate(230 4)"><rect x="-3" y="10" width="6" height="34" fill="#8a5a33"/><path d="M-30 0 h52 l10 9 -10 9 h-52z" fill="${C.sun}"/><text x="-4" y="13.5" text-anchor="middle" font-family="Grandstander" font-weight="700" font-size="11" fill="${C.ink}">640 m up</text></g><circle cx="40" cy="30" r="4" fill="${C.pink}"/><circle cx="52" cy="34" r="3.5" fill="#fff"/><circle cx="120" cy="32" r="4" fill="${C.sun}"/></svg>` },
+      ],
+    },
+    distance: {
+      title: '11.4 km round loop', text: 'About 4 hours at a steady walk, plus stops. Signposts at every junction — follow the red arrows clockwise.',
+      sky: '#bfe6f5', art: `<svg viewBox="0 0 340 220"><g fill="#fff"><circle cx="60" cy="150" r="14"/><circle cx="78" cy="144" r="18"/><circle cx="98" cy="152" r="12"/></g></svg>`,
+      layers: [
+        { d: .16, w: 330, h: 110, svg: `<svg viewBox="0 0 330 110"><path d="M0 110 C40 60 90 70 140 40 S250 30 330 60 V110z" fill="${C.teal}"/><path d="M0 110 C60 80 120 90 180 70 S280 70 330 90 V110z" fill="${C.leaf}"/><path d="M150 110 C160 90 200 84 210 70 S240 50 250 46" fill="none" stroke="${C.cream}" stroke-width="9" stroke-linecap="round"/><path d="M150 110 C160 90 200 84 210 70 S240 50 250 46" fill="none" stroke="${C.red}" stroke-width="2" stroke-dasharray="3 6"/></svg>` },
+        { d: .5, w: 150, h: 92, x: -70, svg: `<svg viewBox="0 0 150 92"><rect x="70" y="16" width="8" height="76" fill="#8a5a33"/><g class="armA"><path d="M74 14 h66 l10 11 -10 11 h-66z" fill="${C.red}"/><text x="108" y="29.5" text-anchor="middle" font-family="Grandstander" font-weight="700" font-size="11" fill="#fff">Peak 5.2 km</text></g><g class="armB"><path d="M74 42 h-62 l-10 11 10 11 h62z" fill="${C.sun}"/><text x="42" y="57.5" text-anchor="middle" font-family="Grandstander" font-weight="700" font-size="11" fill="${C.ink}">Car park 6.2</text></g></svg>` },
+        { d: .82, w: 310, h: 44, svg: `<svg viewBox="0 0 310 44"><path d="M0 44 C40 26 80 32 120 30 S220 24 310 32 V44z" fill="${C.dleaf}"/><g transform="translate(230 18)"><path d="M0 0 h14 v12 h10 v8 h-24z" fill="${C.plum}"/><path d="M30 2 h14 v12 h10 v8 h-24z" fill="${C.plum}"/></g><circle cx="30" cy="30" r="4" fill="${C.pink}"/><circle cx="70" cy="28" r="4" fill="${C.sun}"/><circle cx="160" cy="28" r="4" fill="#fff"/></svg>` },
+      ],
+    },
+    difficulty: {
+      title: 'Moderate', text: 'Steep in places with some loose scree near the top. No scrambling. Walking poles help a lot on the way down.',
+      sky: '#ffd9a8', art: `<svg viewBox="0 0 340 220"><circle cx="60" cy="140" r="24" fill="${C.sun}"/></svg>`,
+      layers: [
+        { d: .16, w: 320, h: 130, svg: `<svg viewBox="0 0 320 130"><path d="M20 130 L90 40 L130 70 L170 20 L240 90 L300 130z" fill="${C.rock}"/><path d="M170 20 L240 90 L210 130 L180 130z" fill="url(#stripes)" opacity=".18"/><path d="M90 40 L130 70 L110 130 L95 130z" fill="url(#dots)" opacity=".25"/><circle cx="200" cy="112" r="6" fill="${C.drock}"/><circle cx="214" cy="120" r="4" fill="${C.drock}"/><circle cx="225" cy="110" r="5" fill="${C.drock}"/></svg>` },
+        { d: .5, w: 130, h: 92, x: 70, svg: `<svg viewBox="0 0 130 92"><rect x="61" y="56" width="8" height="36" fill="${C.ink}"/><path d="M10 64 A55 55 0 0 1 120 64z" fill="${C.cream}"/><path d="M10 64 A55 55 0 0 1 46 13 L65 64z" fill="${C.leaf}"/><path d="M46 13 A55 55 0 0 1 84 13 L65 64z" fill="${C.sun}"/><path d="M84 13 A55 55 0 0 1 120 64 L65 64z" fill="${C.red}"/><g class="needle" style="transform-origin:65px 64px"><path d="M62 64 L65 18 L68 64z" fill="${C.ink}"/></g><circle cx="65" cy="64" r="6" fill="${C.ink}"/></svg>` },
+        { d: .82, w: 310, h: 50, svg: `<svg viewBox="0 0 310 50"><path d="M0 50 C40 30 100 36 150 34 S260 30 310 38 V50z" fill="${C.dleaf}"/><path d="M40 48 L70 4 M76 48 L50 6" stroke="${C.red}" stroke-width="4" stroke-linecap="round"/><circle cx="70" cy="4" r="3.5" fill="${C.ink}"/><circle cx="50" cy="6" r="3.5" fill="${C.ink}"/><ellipse cx="200" cy="40" rx="18" ry="9" fill="${C.drock}"/><ellipse cx="240" cy="42" rx="12" ry="7" fill="${C.rock}"/></svg>` },
+      ],
+    },
+    water: {
+      title: 'Two refill points', text: 'Coldwell spring at km 3 and the café by the car park. Carry 1.5 litres each — there’s nothing on the ridge.',
+      sky: '#c9ecf7', art: `<svg viewBox="0 0 340 220"><circle cx="290" cy="150" r="22" fill="${C.sun}"/></svg>`,
+      layers: [
+        { d: .16, w: 320, h: 130, svg: `<svg viewBox="0 0 320 130"><path d="M0 130 L60 30 L140 10 L220 40 L320 130z" fill="${C.leaf}"/><path d="M0 130 L60 30 L140 10 L220 40 L320 130z" fill="url(#dots)" opacity=".12"/><path d="M130 14 C140 50 120 80 132 130 L156 130 C146 80 160 50 150 12z" fill="${C.water}"/><path d="M138 30 v20 M146 60 v24 M140 96 v20" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>${tree(60, 70, .6)}${tree(250, 92, .7)}</svg>` },
+        { d: .5, w: 330, h: 60, svg: `<svg viewBox="0 0 330 60"><path d="M0 60 C60 34 120 50 170 36 S280 30 330 44 V60z" fill="${C.water}"/><path d="M20 52 h30 M90 46 h40 M200 44 h36 M270 50 h30" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><g class="fish"><path d="M0 0 c8 -8 20 -8 26 0 c-6 8 -18 8 -26 0z" fill="${C.red}"/><path d="M26 0 l8 -6 v12z" fill="${C.red}"/><circle cx="7" cy="-1.5" r="1.6" fill="${C.ink}"/></g><ellipse cx="60" cy="56" rx="14" ry="6" fill="${C.rock}"/><ellipse cx="250" cy="56" rx="18" ry="6" fill="${C.drock}"/></svg>` },
+        { d: .82, w: 300, h: 70, svg: `<svg viewBox="0 0 300 70"><path d="M0 70 C40 52 100 56 150 56 S260 50 300 58 V70z" fill="${C.dleaf}"/><path d="M30 68 v-40 M40 68 v-48 M50 68 v-36" stroke="${C.dleaf}" stroke-width="3"/><ellipse cx="40" cy="20" rx="3.5" ry="9" fill="#8a5a33"/><g transform="translate(205 8)"><rect x="0" y="10" width="36" height="52" rx="10" fill="${C.teal}"/><rect x="8" y="0" width="20" height="12" rx="3" fill="${C.ink}"/><rect x="4" y="26" width="28" height="18" rx="4" fill="${C.cream}"/><text x="18" y="39" text-anchor="middle" font-family="Grandstander" font-weight="700" font-size="11" fill="${C.ink}">1.5 L</text></g></svg>` },
+      ],
+    },
+  };
+
+
+
+  /* ————— the popover rig ————— */
+  const pop = $('#pop'), rig = $('#rig'), back = $('#back'), backrev = $('#backrev'), layersEl = $('#layers'), shadowsEl = $('#shadows');
+  let dims = {}, layers = [], scene = null, trigger = null, TILT = 30, STAND = 125;
+  function setDims() {
+    const mobile = innerWidth < 760;
+    const pw = mobile ? Math.min(340, innerWidth - 24) : 410, bh = Math.round(pw * (mobile ? .7 : .66)), fd = Math.round(pw * .34);
+    dims = { pw, bh, fd, ph: bh + fd * .9 + 10, s: pw / 340 };
+    pop.style.setProperty('--pw', pw + 'px'); pop.style.setProperty('--bh', bh + 'px'); pop.style.setProperty('--fd', fd + 'px'); pop.style.setProperty('--ph', dims.ph + 'px');
+    pop.style.setProperty('--tilt', TILT + 'deg');
+    STAND = 180 - (TILT + 25);   // the back page leans just past upright, facing you
+  }
+  function paint(svg, f = 'gouacheS') { return svg.replace(/<svg([^>]*)>/, `<svg$1><g filter="url(#${f})">`).replace(/<\/svg>$/, '</g></svg>').replace(/font-family="Fredoka"/g, 'font-family="Grandstander"'); }
+  function build(key) {
+    scene = SCENES[key];
+    $('#popTitle').textContent = scene.title; $('#popText').textContent = scene.text;
+    back.style.backgroundColor = scene.sky;
+    $('#backArt').innerHTML = paint(scene.art).replace('<svg', '<svg style="position:absolute;inset:0;width:100%;height:100%"');
+    layersEl.innerHTML = ''; shadowsEl.innerHTML = ''; layers = [];
+    scene.layers.forEach((L, i) => {
+      const el = document.createElement('div'); el.className = 'leaf';
+      const k = Math.min(1, (dims.bh - 118 + L.d * dims.fd * .8) / (L.h * dims.s));
+      const w = L.w * dims.s * k, h = L.h * dims.s * k;
+      el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.marginLeft = (-w / 2 + (L.x || 0) * dims.s) + 'px';
+      el.style.bottom = (dims.fd * (1 - L.d)) + 'px';
+      const art = paint(L.svg);
+      el.innerHTML = `<div class="face">${art}</div><div class="rev">${art}</div>`;
+      layersEl.appendChild(el);
+      const sh = document.createElement('div'); sh.className = 'shadow';
+      sh.style.top = (dims.fd * L.d - 22) + 'px'; shadowsEl.appendChild(sh);
+      layers.push({ el, sh, flex: 0, fv: 0, svg: el.querySelector('.face svg') });
+    });
+  }
+  const F = { a: 0, v: 0, target: 0, show: 0, sv: 0, showT: 0, drag: false };
+  function place() {
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect(), pr = $('#pgR').getBoundingClientRect(), { pw, ph } = dims;
+    let x, y;
+    if (innerWidth < 760) { x = (innerWidth - pw) / 2; y = r.top - ph + 10; if (y < 8) y = r.bottom + 6; }
+    else { x = pr.left - pw * .62; y = r.top + r.height / 2 - ph * .62; }   // it rises out of the gutter, beside its row
+    x = clamp(x, 10, innerWidth - pw - 10); y = clamp(y, 8, innerHeight - ph - 8);
+    pop.style.left = x + 'px'; pop.style.top = y + 'px';
+    rig.style.transformOrigin = `${clamp(r.left - x, 0, pw)}px ${clamp(r.top + r.height / 2 - y, 0, ph)}px`;
+  }
+
+  /* ————— sound: paper pops, folds and tab slides ————— */
+  let AC = null;
+  function audio() { try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) { AC = null; } return AC; }
+  function paper(dur, f, vol) {
+    if (!audio()) return;
+    const t = AC.currentTime, n = AC.createBuffer(1, Math.max(1, AC.sampleRate * dur | 0), AC.sampleRate), d = n.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2) * (Math.random() < .3 ? 1 : .3);
+    const s = AC.createBufferSource(); s.buffer = n; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = .9;
+    const g = AC.createGain(); g.gain.value = vol; s.connect(bp).connect(g).connect(AC.destination); s.start(t);
+  }
+  function pop1() { paper(.18, 2400, .12); if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(140, t + .1); g.gain.setValueAtTime(.08, t); g.gain.exponentialRampToValueAtTime(.001, t + .14); o.connect(g).connect(AC.destination); o.start(t); o.stop(t + .15); }
+
+  /* ————— open / close ————— */
+  let pending = null;
+  function openPop(btn, viaDrag) {
+    audio();
+    if (trigger === btn && F.showT && !viaDrag) { closePop(); return; }
+    if (trigger && F.showT && trigger !== btn) { pending = btn; closePop(true); return; }
+    if (trigger === btn && F.showT) return;
+    trigger = btn; setDims(); build(btn.dataset.scene); place();
+    tabs.forEach(b => { const on = b === btn; b.setAttribute('aria-expanded', String(on)); b._row.classList.toggle('on', on); });
+    pop.classList.add('on'); F.showT = 1; F.target = 1;
+    if (reduce) { F.show = 1; F.a = 1; }
+    $('#hint').classList.add('gone');
+    setTimeout(() => pop.focus({ preventScroll: true }), 30);
+    setTimeout(pop1, reduce ? 0 : 160);
+    wake();
+  }
+  function closePop(keepFocus) {
+    if (!F.showT) return;
+    F.target = 0; F.closing = true; paper(.12, 1500, .08);
+    tabs.forEach(b => { b.setAttribute('aria-expanded', 'false'); b._row.classList.remove('on'); });
+    if (!keepFocus && trigger && (pop.contains(document.activeElement) || document.activeElement === pop)) trigger.focus({ preventScroll: true });
+    wake();
+  }
+  // pull-tabs: click to toggle, or pull them out by hand to raise the pop-up
+  tabs.forEach(b => {
+    let down = null;
+    b.addEventListener('pointerdown', e => { down = { x: e.clientX, drag: false }; try { b.setPointerCapture(e.pointerId); } catch (_) {} });
+    b.addEventListener('pointermove', e => {
+      if (!down) return; const dx = e.clientX - down.x;
+      if (!down.drag && dx > 8) { down.drag = true; openPop(b, true); F.drag = true; F.show = Math.max(F.show, .9); }
+      if (down.drag) { F.a = clamp(dx / 70, 0, 1.1); b._pull = clamp(dx * .3, 0, 22); wake(); }
+    });
+    const up = () => {
+      if (!down) return; const was = down.drag; down = null;
+      if (was) { F.drag = false; if (F.a < .4) closePop(); else F.target = 1; b._dragEnd = performance.now(); wake(); }
+    };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+    b.addEventListener('click', e => { e.stopPropagation(); if (b._dragEnd && performance.now() - b._dragEnd < 300) return; openPop(b); });
+  });
+  $('#close').addEventListener('click', e => { e.stopPropagation(); closePop(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && F.showT) { e.preventDefault(); closePop(); trigger && trigger.focus(); } });
+  document.addEventListener('pointerdown', e => { if (F.showT && !pop.contains(e.target) && !e.target.closest('.tab')) closePop(true); });
+  pop.addEventListener('focusout', e => { if (F.showT && !F.drag && e.relatedTarget && !pop.contains(e.relatedTarget) && !e.relatedTarget.closest('.tab')) closePop(true); });
+  $('#start').addEventListener('click', () => { $('#live').textContent = 'Walk started. Have fun on Harrow Peak!'; boing(); });
+  $('#save').addEventListener('click', () => { $('#live').textContent = 'Saved to your trips for Saturday 17 October.'; });
+
+  // grab the pop-up's back page and fold it down by hand
+  let dragY = 0, dragA = 0;
+  back.addEventListener('pointerdown', e => {
+    if (e.target.closest('.close')) return;
+    F.drag = true; dragY = e.clientY; dragA = F.a; back.classList.add('grab');
+    try { back.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault(); wake();
+  });
+  back.addEventListener('pointermove', e => { if (!F.drag) return; const na = clamp(dragA - (e.clientY - dragY) / (dims.bh * .9), -.05, 1.15); F.v = (na - F.a) * 60; F.a = na; wake(); });
+  const endDrag = () => { if (!F.drag) return; F.drag = false; back.classList.remove('grab'); if (F.a < .45) closePop(); else { F.target = 1; paper(.1, 2600, .06); } wake(); };
+  back.addEventListener('pointerup', endDrag); back.addEventListener('pointercancel', endDrag);
+
+  // tap the left page: the pieces fold flat and spring back up
+  function boing() { if (reduce) return; PIECES.forEach((P, i) => setTimeout(() => { P.v -= 0; P.a = -6; P.v = 0; }, i * 90)); paper(.2, 1800, .1); setTimeout(() => pop1(), 260); wake(); }
+  $('#tapzone').addEventListener('click', () => { audio(); boing(); });
+
+  /* ————— loop ————— */
+  const book = $('#book'), tilt = { x: 0, y: 0, tx: 0, ty: 0 };
+  addEventListener('pointermove', e => { if (reduce || innerWidth < 760) return; tilt.tx = (e.clientX / innerWidth - .5) * 4; tilt.ty = (e.clientY / innerHeight - .5) * -3; wake(); });
+  let raf = 0, last = 0, still = 0;
+  function wake() { still = 0; if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0; const dt = Math.min(.033, (now - last) / 1000); last = now;
+    // the book follows your gaze a touch
+    tilt.x += (tilt.tx - tilt.x) * Math.min(1, dt * 4); tilt.y += (tilt.ty - tilt.y) * Math.min(1, dt * 4);
+    book.style.transform = `rotateX(${(TILT + tilt.y).toFixed(2)}deg) rotateY(${tilt.x.toFixed(2)}deg)`;
+    // standing pieces: springy paper, with a gentle breath
+    PIECES.forEach(P => {
+      if (!P.el) return;
+      const target = P.rel + (reduce ? 0 : Math.sin(now / 1400 + P.ph) * 1.4);
+      P.v += (120 * (target - P.a) - 7 * P.v) * dt; P.a += P.v * dt; if (reduce) P.a = P.rel;
+      P.el.style.transform = `rotateX(${P.a.toFixed(2)}deg)`;
+      P.cast.style.opacity = (clamp(-P.a / 80, 0, 1) * .3).toFixed(3);
+    });
+    // pull-tabs slide out while their pop-up is up
+    tabs.forEach(b => { const tg = b.getAttribute('aria-expanded') === 'true' ? 18 : 0; if (!b._dragging) { b._pv += (300 * (tg - b._pull) - 22 * b._pv) * dt; b._pull += b._pv * dt; } b.style.setProperty('--pull', b._pull.toFixed(1) + 'px'); });
+    // the pop-up: grow from the tab, then unfold; fold first, then shrink away
+    const showT = F.target ? 1 : (F.a < .12 ? 0 : 1);
+    F.sv += (260 * (showT - F.show) - 26 * F.sv) * dt; F.show += F.sv * dt;
+    if (!F.drag) {
+      const gate = F.target && F.show < .7 ? 0 : F.target, k = F.target ? 70 : 110, c = F.target ? 7.5 : 16;
+      F.v += (k * (gate - F.a) - c * F.v) * dt; F.a += F.v * dt;
+    }
+    if (reduce) { F.show = showT; if (!F.drag) F.a = F.target; }
+    if (F.closing && F.show < .02 && F.a < .02) { F.closing = false; F.showT = 0; pop.classList.remove('on'); if (pending) { const p = pending; pending = null; trigger = null; openPop(p); } }
+    if (F.showT || F.show > .01) {
+      rig.style.transform = `scale(${(.25 + .75 * clamp(F.show, 0, 1.1)).toFixed(3)})`;
+      pop.style.opacity = clamp(F.show * 2, 0, 1).toFixed(3);
+      const standing = -180 + F.a * STAND;
+      back.style.transform = `rotateX(${standing.toFixed(2)}deg)`;
+      backrev.style.transform = `rotateX(${standing.toFixed(2)}deg) rotateY(180deg)`;
+      layers.forEach(L => {
+        L.fv += (180 * (F.a - L.flex) - 10 * L.fv) * dt; L.flex += L.fv * dt; if (reduce) L.flex = F.a;
+        L.el.style.transform = `rotateX(${(-180 + clamp(L.flex, -.1, 1.15) * STAND).toFixed(2)}deg)`;
+        L.el.style.filter = `brightness(${(.86 + .14 * Math.sin(clamp(L.flex, 0, 1) * Math.PI / 2)).toFixed(3)})`;
+        L.sh.style.opacity = (clamp(F.a, 0, 1) * .8).toFixed(3); L.sh.style.transform = `scaleY(${(.4 + .6 * clamp(F.a, 0, 1)).toFixed(3)})`;
+        const s = L.svg;
+        if (s) {
+          const hk = s.querySelector('.hiker'), tr = s.querySelector('#trail');
+          if (hk && tr) { const len = tr.getTotalLength(), p = tr.getPointAtLength(len * clamp((F.a - .3) / .7, 0, 1) * .96); hk.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`); }
+          const nd = s.querySelector('.needle'); if (nd) nd.style.transform = `rotate(${(-80 + 80 * clamp(L.flex, 0, 1.2) + Math.sin(now / 300) * 2 * clamp(F.a, 0, 1)).toFixed(1)}deg)`;
+          const fish = s.querySelector('.fish'); if (fish) { const t = ((now / 1600) % 1); fish.setAttribute('transform', `translate(${(110 + t * 90).toFixed(1)} ${(46 - Math.sin(t * Math.PI) * 40 * clamp(F.a, 0, 1)).toFixed(1)}) rotate(${(-40 + t * 80).toFixed(0)})`); }
+          const arm = s.querySelector('.armA'); if (arm) arm.setAttribute('transform', `rotate(${(-(1 - clamp(L.flex, 0, 1.1)) * 30).toFixed(1)} 74 25)`);
+        }
+      });
+    }
+    const moving = Math.abs(F.v) > .002 || Math.abs(F.a - F.target) > .002 || Math.abs(F.show - showT) > .002 || F.drag || PIECES.some(P => Math.abs(P.v) > .05) || tabs.some(b => Math.abs(b._pv) > .05) || Math.abs(tilt.x - tilt.tx) > .01 || Math.abs(tilt.y - tilt.ty) > .01;
+    still = moving || !reduce ? 0 : still + 1;
+    if (still < 4) raf = requestAnimationFrame(frame);
+  }
+
+  /* ————— layout ————— */
+  function layout() {
+    const mobile = innerWidth < 760;
+    TILT = mobile ? 28 : 36;
+    const bw = mobile ? innerWidth - 20 : Math.min(1080, innerWidth - 90);
+    const bh = mobile ? innerHeight - 40 : Math.min(700, (innerHeight - 30) / Math.cos(TILT * Math.PI / 180) * .92);
+    book.style.setProperty('--bw', bw + 'px'); book.style.setProperty('--bh', bh + 'px');
+    document.documentElement.style.setProperty('--tilt', TILT + 'deg');
+    buildLeft();
+    if (trigger && F.showT) { setDims(); build(trigger.dataset.scene); place(); }
+    wake();
+  }
+  addEventListener('resize', layout);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  layout();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  window.__pop = { open: i => openPop(tabs[i]), close: () => closePop() };
+})();
+</script>
+</body>
+</html>

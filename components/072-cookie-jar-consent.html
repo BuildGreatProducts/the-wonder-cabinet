@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cookie Jar Consent</title>
+<meta name="description" content="Cookie consent drawn in wax crayon: each kind of cookie is a real cookie you drop into a jar or leave on the plate. Only the baked-in one starts in the jar. Put the lid on to save.">
+<script type="application/json" id="component-meta">
+{"name":"Cookie Jar Consent","reimagines":"Cookie consent banner","category":"Overlays & Reveals","description":"A crayon-drawn consent sheet where every cookie category is a physical cookie. Optional ones start on the plate (privacy first), the essential one is baked into the bottom of the jar, and you drop the others in to allow them. Cookies tumble, clink on the glass and leave crumbs; screwing the lid on saves your choice.","hint":"Drag cookies into the jar to allow them, then put the lid on"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Schoolbell&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#fbf7ec; --ink:#2d2a6e; --red:#e2423a; --orange:#f39a2b; --yellow:#f6cf3f; --green:#4aa34a; --blue:#3a7bd5; --brown:#8a5a33; --pink:#ef7fae;
+    --tooth:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;background:var(--tooth),#f4efe0;color:var(--ink);font-family:'Gaegu','Comic Sans MS',cursive;font-size:19px}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:3px dashed var(--blue);outline-offset:4px;border-radius:12px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* ——— the crayon website behind ——— */
+  .page{position:absolute;inset:0;overflow:hidden}
+  #bg{position:absolute;inset:0;width:100%;height:100%}
+  .site-head{position:relative;display:flex;align-items:center;justify-content:space-between;padding:18px 34px}
+  .logo{font-family:'Schoolbell',cursive;font-size:34px;color:var(--red);transform:rotate(-2deg)}
+  .nav{display:flex;gap:26px;font-size:22px;font-weight:700}
+  .hero{position:relative;padding:22px 34px 0;max-width:620px}
+  .hero h1{font-family:'Schoolbell',cursive;font-size:44px;line-height:1.05;color:var(--ink)}
+  .hero p{font-size:22px;margin-top:8px;color:#4a4785}
+  .recipes{position:absolute;left:34px;right:34px;bottom:104px;display:grid;grid-template-columns:repeat(3,1fr);gap:30px}
+  .recipes div{height:150px;padding:110px 14px 0;font-size:22px;font-weight:700;text-align:center}
+
+  .scrim{position:absolute;inset:0;background:rgba(250,246,235,.55);backdrop-filter:blur(1.5px);transition:opacity .6s}
+  body.saved .scrim{opacity:0;pointer-events:none}
+
+  /* ——— the consent sheet ——— */
+  .sheet{
+    position:absolute;left:50%;top:50%;width:min(1040px,calc(100% - 48px));height:min(600px,calc(100% - 60px));
+    transform:translate(-50%,-50%) rotate(-.5deg);
+    display:grid;grid-template-columns:1.05fr 1fr;
+    background:var(--tooth),var(--paper);
+    box-shadow:0 2px 0 rgba(0,0,0,.04),0 22px 40px -18px rgba(60,50,20,.45),0 2px 6px rgba(60,50,20,.15);
+    transition:transform .75s cubic-bezier(.5,-.3,.3,1.2), opacity .5s;
+  }
+  .sheet:focus{outline:none}
+  .tape{position:absolute;width:120px;height:34px;background:rgba(240,225,170,.75);box-shadow:0 1px 2px rgba(0,0,0,.08);
+    clip-path:polygon(2% 10%,8% 0,15% 12%,22% 2%,30% 8%,40% 0,52% 10%,63% 1%,75% 9%,86% 0,94% 8%,100% 4%,98% 90%,92% 100%,84% 90%,74% 100%,62% 92%,50% 100%,38% 91%,27% 100%,16% 92%,6% 100%,0 92%)}
+  .tape.a{left:-30px;top:-12px;transform:rotate(-28deg)}
+  .tape.b{right:-30px;top:-10px;transform:rotate(24deg)}
+  body.saved .sheet{transform:translate(calc(-50vw + 60px),calc(50vh - 60px)) translate(-50%,-50%) scale(.06) rotate(-30deg);opacity:0;pointer-events:none}
+
+  .scene{position:relative;min-height:0;touch-action:none}
+  #jar{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+  #jar.grabbing{cursor:grabbing}
+  .bubble{position:absolute;left:50%;top:40%;pointer-events:none;padding:6px 12px 7px;font-size:18px;font-weight:700;line-height:1.1;white-space:nowrap;
+    background:#fff;border:2.5px solid var(--ink);border-radius:18px 22px 20px 16px/20px 16px 22px 18px;transform:translate(-50%,-100%);opacity:0;transition:opacity .15s}
+  .bubble.on{opacity:1}
+  .hint{position:absolute;left:30px;top:26px;max-width:58%;font-size:20px;line-height:1.1;color:#6b678f;transform:rotate(-1.5deg);transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  .panel{position:relative;display:flex;flex-direction:column;padding:34px 34px 24px 12px;min-height:0}
+  .panel h2{font-family:'Schoolbell',cursive;font-size:38px;line-height:1;color:var(--red);font-weight:400}
+  .panel h2 span{color:var(--ink)}
+  .panel .lead{font-size:20px;line-height:1.2;margin-top:8px;color:#45417c}
+  .kinds{list-style:none;margin-top:12px;display:flex;flex-direction:column;gap:3px;overflow:auto;padding:4px}
+  .kind{display:grid;grid-template-columns:34px 40px 1fr auto;align-items:center;gap:8px;width:100%;text-align:left;padding:4px 8px;border-radius:14px}
+  .kind:hover:not([aria-disabled="true"]){background:rgba(246,207,63,.22)}
+  .kind[aria-disabled="true"]{cursor:default}
+  .box{width:30px;height:30px}
+  .box .tick{stroke-dasharray:60;stroke-dashoffset:60;transition:stroke-dashoffset .35s ease}
+  .kind[aria-checked="true"] .box .tick{stroke-dashoffset:0}
+  .kind canvas{width:40px;height:40px}
+  .kind b{display:block;font-size:22px;line-height:1}
+  .kind small{display:block;font-size:17px;line-height:1.05;color:#5f5b93}
+  .where{font-size:17px;color:#8b87ad;white-space:nowrap}
+  .kind[aria-checked="true"] .where{color:var(--green);font-weight:700}
+  .acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:auto;padding-top:12px;align-items:center}
+  .cbtn{position:relative;padding:9px 18px 10px;font-size:22px;font-weight:700;line-height:1;isolation:isolate}
+  .cbtn::before{content:"";position:absolute;inset:0;z-index:-1;border:3px solid currentColor;border-radius:255px 18px 225px 18px/18px 225px 18px 255px;filter:url(#crayon)}
+  .cbtn.lid{color:#fff;text-shadow:0 1px 0 #8f1d17}
+  .cbtn.lid::before{border-color:#9e211b;background:repeating-linear-gradient(-28deg,#d0322a 0 5px,#dc4339 5px 7px,#c52d26 7px 11px)}
+  .cbtn:hover::before{transform:rotate(-1deg) scale(1.03)}
+  .cbtn:active{transform:translateY(2px)}
+  .status{font-size:19px;color:var(--green);min-height:24px;margin-top:6px}
+
+  .minijar{position:absolute;left:18px;bottom:18px;width:64px;height:72px;opacity:0;pointer-events:none;transform:scale(.6);transition:opacity .4s .5s, transform .5s .5s cubic-bezier(.3,1.6,.5,1)}
+  .minijar svg{width:100%;height:100%;overflow:visible}
+  body.saved .minijar{opacity:1;pointer-events:auto;transform:none}
+  .minijar span{position:absolute;left:70px;bottom:12px;font-size:18px;white-space:nowrap;font-weight:700}
+  .mute{position:absolute;right:14px;top:12px;width:36px;height:36px;z-index:2}
+  .mute svg{width:100%;height:100%}
+  .mute[aria-pressed="true"] .w{display:none}
+  .mute:not([aria-pressed="true"]) .x{display:none}
+
+  @media (max-width:760px){
+    body{font-size:17px}
+    .site-head{padding:12px 16px}.logo{font-size:26px}.nav{display:none}
+    .hero{padding:10px 16px}.hero h1{font-size:30px}.recipes{display:none}
+    .sheet{grid-template-columns:1fr;grid-template-rows:300px 1fr;width:calc(100% - 20px);height:calc(100% - 28px);transform:translate(-50%,-50%) rotate(-.4deg)}
+    .panel{padding:4px 16px 16px}
+    .panel h2{font-size:29px}
+    .panel .lead{font-size:17px;margin-top:4px}
+    .kinds{margin-top:6px;gap:0}
+    .kind{grid-template-columns:28px 32px 1fr auto;padding:3px 4px;gap:6px}
+    .box{width:26px;height:26px}.kind canvas{width:32px;height:32px}
+    .kind b{font-size:19px}.kind small{font-size:15px}.where{font-size:15px}
+    .cbtn{font-size:19px;padding:8px 13px 9px}
+    .hint{left:16px;top:12px;font-size:16px;max-width:80%}
+    .tape{width:70px;height:24px}.tape.a{left:6px;top:-8px}.tape.b{right:6px;top:-8px}
+  }
+  @media (prefers-reduced-motion:reduce){ .sheet{transition:opacity .3s} }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="crayon" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="3" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.6 1.9" result="m"/>
+      <feComposite in="SourceGraphic" in2="m" operator="in" result="t"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".04" numOctaves="2" seed="8" result="w"/>
+      <feDisplacementMap in="t" in2="w" scale="3.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <div class="page" id="page">
+    <canvas id="bg" aria-hidden="true"></canvas>
+    <header class="site-head"><span class="logo">Little Bakers</span><nav class="nav" aria-label="Site"><span>Recipes</span><span>For grown-ups</span><span>Our kitchen</span></nav></header>
+    <section class="hero"><h1>Banana pancakes in ten minutes</h1><p>Three ingredients, one bowl, and a very proud little chef.</p></section>
+    <div class="recipes" id="recipes" aria-hidden="true"><div>Pancakes</div><div>Blueberry muffins</div><div>Pizza faces</div></div>
+  </div>
+  <div class="scrim" id="scrim"></div>
+
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="title" aria-describedby="lead" tabindex="-1">
+    <span class="tape a" aria-hidden="true"></span><span class="tape b" aria-hidden="true"></span>
+    <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sounds">
+      <svg viewBox="0 0 36 36" aria-hidden="true" style="filter:url(#crayon)"><path d="M7 14h6l7-6v20l-7-6H7z" fill="#f6cf3f" stroke="#2d2a6e" stroke-width="2.5" stroke-linejoin="round"/><path class="w" d="M24 13c3 2 3 8 0 10M27 9c6 4 6 14 0 18" fill="none" stroke="#2d2a6e" stroke-width="2.5" stroke-linecap="round"/><path class="x" d="M24 13l8 9M32 13l-8 9" stroke="#e2423a" stroke-width="3" stroke-linecap="round"/></svg>
+    </button>
+    <div class="scene" id="scene">
+      <canvas id="jar" aria-hidden="true"></canvas>
+      <div class="bubble" id="bubble" aria-hidden="true"></div>
+      <p class="hint" id="hint">Drag a cookie into the jar to say yes. Put the lid on when you’re done.</p>
+    </div>
+    <div class="panel">
+      <h2 id="title">Can we keep <span>some cookies?</span></h2>
+      <p class="lead" id="lead">Cookies in the jar are allowed. Cookies on the plate are a no. Only the baked-in one starts in the jar — the site needs it to work.</p>
+      <ul class="kinds" id="kinds"></ul>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div class="acts">
+        <button class="cbtn" id="none">Only the baked-in one</button>
+        <button class="cbtn" id="all">All of them</button>
+        <button class="cbtn lid" id="lidBtn">Put the lid on</button>
+      </div>
+    </div>
+  </section>
+
+  <button class="minijar" id="minijar" aria-label="Change cookie choices">
+    <svg viewBox="0 0 64 72" aria-hidden="true" style="filter:url(#crayon)">
+      <rect x="14" y="4" width="36" height="10" rx="4" fill="#e2423a" stroke="#2d2a6e" stroke-width="2.5"/>
+      <path d="M12 16h40v40c0 8-6 12-12 12H24c-6 0-12-4-12-12z" fill="#e8f2fb" stroke="#3a7bd5" stroke-width="3"/>
+      <circle cx="26" cy="54" r="9" fill="#d9a35a" stroke="#8a5a33" stroke-width="2"/><circle cx="40" cy="50" r="8" fill="#e8b46a" stroke="#8a5a33" stroke-width="2"/>
+      <path d="M17 24v22" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <span>Cookies</span>
+  </button>
+  <p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  let seed = 11; const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  /* ——————————— sound ——————————— */
+  let AC = null, master = null, muted = false;
+  function audio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : .17; master.connect(AC.destination); } catch (e) { AC = null; } }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  let lastSnd = 0;
+  function tone(f, dur, type = 'sine', vol = .2, f2) {
+    if (!AC || muted) return;
+    const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + .02);
+  }
+  function hit(kind, power) {
+    const now = performance.now(); if (now - lastSnd < 35) return; lastSnd = now;
+    const v = clamp(power / 900, .04, .35);
+    if (kind === 'glass') { tone(2100 + Math.random() * 500, .22, 'sine', v * .7); tone(3400 + Math.random() * 300, .12, 'sine', v * .3); }
+    else if (kind === 'cookie') tone(240 + Math.random() * 60, .07, 'triangle', v);
+    else tone(160 + Math.random() * 40, .08, 'triangle', v * 1.2, 90);
+  }
+  function lidSound() { if (!audio() || muted) return; for (let i = 0; i < 6; i++) setTimeout(() => tone(700 + i * 40, .03, 'square', .03), i * 45); setTimeout(() => { tone(1500, .35, 'sine', .14); tone(2250, .25, 'sine', .06); }, 300); }
+  $('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Turn sounds on' : 'Mute sounds'); if (master) master.gain.value = muted ? 0 : .17; });
+
+  /* ——————————— crayon toolkit ——————————— */
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const tooth = mk(96, 96);
+  { const t = tooth.getContext('2d'), id = t.createImageData(96, 96);
+    for (let i = 0; i < id.data.length; i += 4) { const on = Math.random() < .2; id.data[i] = id.data[i + 1] = id.data[i + 2] = 255; id.data[i + 3] = on ? 120 + Math.random() * 135 : 0; }
+    t.putImageData(id, 0, 0); }
+  function crayon(c, pts, col, w = 3, o = {}) {
+    const passes = o.passes || 3, jit = o.jit == null ? 1 : o.jit;
+    c.save(); c.strokeStyle = col; c.lineCap = 'round'; c.lineJoin = 'round';
+    for (let p = 0; p < passes; p++) {
+      c.globalAlpha = (o.alpha || .6) * (p ? .7 : 1); c.lineWidth = w * (.75 + Math.random() * .45);
+      const ox = (Math.random() - .5) * jit, oy = (Math.random() - .5) * jit;
+      c.beginPath();
+      pts.forEach((q, i) => { const x = q[0] + ox + (Math.random() - .5) * jit * .6, y = q[1] + oy + (Math.random() - .5) * jit * .6; i ? c.lineTo(x, y) : c.moveTo(x, y); });
+      if (o.closed) c.closePath();
+      c.stroke();
+    }
+    c.restore();
+  }
+  function circlePts(cx, cy, rx, ry = rx, wob = .04, turns = 1.08, n = 44) {
+    const a0 = Math.random() * 6.28, f1 = Math.random() * 6, pts = [];
+    for (let i = 0; i <= n * turns; i++) { const a = a0 + i / n * Math.PI * 2, k = 1 + wob * Math.sin(a * 3 + f1) + wob * .5 * Math.sin(a * 5 + f1 * 2); pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); }
+    return pts;
+  }
+  function scribble(c, clip, box, col, w, ang = -.5, gap) {
+    gap = gap || w * 1.25;
+    const [x, y, bw, bh] = box, R = Math.hypot(bw, bh) / 2 + 4, pts = [];
+    for (let d = -R, s = 0; d <= R; d += gap, s++) { pts.push([(s % 2 ? R : -R) * (.9 + Math.random() * .1), d]); }
+    c.save(); if (clip) c.clip(clip); c.translate(x + bw / 2, y + bh / 2); c.rotate(ang);
+    crayon(c, pts, col, w, { passes: 2, jit: 1.5, alpha: .55 });
+    c.restore();
+  }
+  function grain(c, amt = .55) { c.save(); c.globalCompositeOperation = 'destination-out'; c.globalAlpha = amt; c.fillStyle = c.createPattern(tooth, 'repeat'); c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore(); }
+  function blob(c, x, y, r, col, w = 2) { const p = new Path2D(); circlePts(x, y, r, r, .12, 1, 14).forEach((q, i) => i ? p.lineTo(q[0], q[1]) : p.moveTo(q[0], q[1])); p.closePath(); c.save(); c.globalAlpha = .9; c.fillStyle = col; c.fill(p); c.restore(); crayon(c, circlePts(x, y, r, r, .12, 1.05, 14), col, w, { passes: 2, jit: .6 }); }
+
+  /* ——————————— cookie kinds ——————————— */
+  const KINDS = [
+    { id: 'essential', name: 'Baked in', desc: 'Keeps you signed in and your basket safe', fixed: true },
+    { id: 'prefs', name: 'Remembering', desc: 'Your oven in °C or °F, your text size' },
+    { id: 'stats', name: 'Counting', desc: 'Which recipes get read — no names' },
+    { id: 'personal', name: 'Picking for you', desc: 'Ideas based on what you’ve cooked' },
+    { id: 'ads', name: 'Adverts', desc: 'Our recipes shown on other sites' },
+  ];
+  function drawCookie(c, kind, cx, cy, r) {
+    const shape = new Path2D(); circlePts(cx, cy, r * .95, r * .92, .05, 1, 40).forEach((q, i) => i ? shape.lineTo(q[0], q[1]) : shape.moveTo(q[0], q[1])); shape.closePath();
+    const box = [cx - r, cy - r, r * 2, r * 2];
+    const base = { essential: '#f4d78a', prefs: '#e0a960', stats: '#d9984c', personal: '#d8b27a', ads: '#e8b46a' }[kind];
+    c.save(); c.globalAlpha = .55; c.fillStyle = base; c.fill(shape); c.restore();
+    scribble(c, shape, box, base, r * .16, -.6);
+    scribble(c, shape, box, { essential: '#e8b04a', prefs: '#c47d34', stats: '#b97330', personal: '#b98a4c', ads: '#d39a48' }[kind], r * .1, .9, r * .3);
+    if (kind === 'essential') {
+      const h = []; for (let t = 0; t <= 1.02; t += .04) { const a = t * Math.PI * 2; h.push([cx + r * .028 * 16 * Math.pow(Math.sin(a), 3) * .9, cy - r * .028 * (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) * .9]); }
+      const hp = new Path2D(); h.forEach((q, i) => i ? hp.lineTo(q[0], q[1]) : hp.moveTo(q[0], q[1]));
+      c.save(); c.fillStyle = '#e2423a'; c.globalAlpha = .85; c.fill(hp); c.restore(); crayon(c, h, '#b52a24', r * .07);
+    } else if (kind === 'prefs') {
+      blob(c, cx, cy, r * .36, '#d4232e', r * .08);
+      crayon(c, [[cx - r * .12, cy - r * .16], [cx - r * .02, cy - r * .2]], '#fff', r * .07, { passes: 1 });
+    } else if (kind === 'stats') {
+      for (let i = 0; i < 9; i++) { const a = i * 2.39 + .4, d = r * (.2 + .55 * ((i * .37) % 1)); blob(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * (.1 + (i % 3) * .025), '#4a2a14', r * .05); }
+    } else if (kind === 'personal') {
+      for (let i = 0; i < 7; i++) { const a = i * 2.1 + 1, d = r * (.25 + .5 * ((i * .53) % 1)); blob(c, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * .11, '#5b2a5e', r * .05); }
+      for (let i = 0; i < 10; i++) { const a = i * 1.7, d = r * .7 * ((i * .41) % 1); crayon(c, [[cx + Math.cos(a) * d, cy + Math.sin(a) * d], [cx + Math.cos(a) * d + r * .12, cy + Math.sin(a) * d + r * .04]], '#f3e3b0', r * .07, { passes: 1 }); }
+    } else if (kind === 'ads') {
+      const ic = new Path2D(); circlePts(cx, cy, r * .7, r * .68, .1, 1, 30).forEach((q, i) => i ? ic.lineTo(q[0], q[1]) : ic.moveTo(q[0], q[1])); ic.closePath();
+      c.save(); c.globalAlpha = .8; c.fillStyle = '#f7a6c8'; c.fill(ic); c.restore();
+      scribble(c, ic, box, '#ef7fae', r * .12, .3);
+      const cols = ['#3a7bd5', '#4aa34a', '#f6cf3f', '#e2423a', '#fff', '#f39a2b'];
+      for (let i = 0; i < 12; i++) { const a = i * 2.6, d = r * .5 * Math.sqrt((i * .61) % 1), x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d, ang = i * 1.3; crayon(c, [[x - Math.cos(ang) * r * .08, y - Math.sin(ang) * r * .08], [x + Math.cos(ang) * r * .08, y + Math.sin(ang) * r * .08]], cols[i % cols.length], r * .07, { passes: 1, jit: .3 }); }
+    }
+    crayon(c, circlePts(cx, cy, r * .95, r * .92, .05, 1.12, 40), '#7a4a26', Math.max(2, r * .09), { passes: 2, jit: 1 });
+  }
+  function cookieSprite(kind, r) {
+    const pad = 6, s = Math.ceil((r + pad) * 2 * DPR), cv = mk(s, s), c = cv.getContext('2d');
+    c.scale(DPR, DPR); drawCookie(c, kind, r + pad, r + pad, r); grain(c, .45);
+    return cv;
+  }
+
+  /* ——————————— scene ——————————— */
+  const scene = $('#scene'), cv = $('#jar'), ctx = cv.getContext('2d'), bubble = $('#bubble');
+  let W = 0, H = 0, DPR = 1, G = {}, backCv, frontCv, segs = [];
+  const cookies = [], crumbs = [];
+  let lid = { x: 0, y: 0, vx: 0, vy: 0, rot: 0, on: false, drag: false, anim: null };
+
+  function layout() {
+    const r = scene.getBoundingClientRect(); if (!r.width) return;
+    const firstTime = !W;
+    const oldG = G;
+    W = r.width; H = r.height; DPR = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    const tableY = H * (W < 500 ? .8 : .79);
+    const jh = (tableY - H * (W < 500 ? .2 : .2)) * .8, jw = Math.min(jh * .74, W * .4), jx = W * .47, jb = tableY - 6, jt = jb - jh;
+    const cr = Math.min(jw / 4.5, 40);
+    const R0 = jx + jw / 2, plateW = Math.min(cr * 4.4, W - R0 - 34);
+    G = { cr, tableY, jw, jh, jx, jb, jt, L: jx - jw / 2, R: R0, plateX: R0 + (W - R0) / 2 + 4, plateW, lidW: jw + 24 };
+    G.lidH = G.lidW * .3;
+    G.lidRestX = G.L - 8 - G.lidH * .55; G.lidRestY = tableY - G.lidW / 2 + 2; G.lidRestRot = -1.42;
+    G.mouthY = jt - 4;
+    buildSegs(); buildBack(); buildFront();
+    KINDS.forEach(k => k.sprite = cookieSprite(k.id, cr));
+    if (firstTime) spawn();
+    else if (oldG.W !== W) cookies.forEach(ck => {   // keep cookies on the same side after a resize
+      ck.r = cr; ck.x = ck.inJar ? jx + (Math.random() - .5) * jw * .5 : G.plateX + (Math.random() - .5) * G.plateW * .5; ck.y = ck.inJar ? jt + cr : tableY - cr * 3; ck.vx = ck.vy = 0;
+      if (ck.fixed) { ck.x = jx; ck.y = jb - cr * .8; }
+    });
+    G.W = W;
+    if (lid.on) { lid.x = jx; lid.y = G.mouthY - 8; lid.rot = 0; } else if (!lid.drag) { lid.x = G.lidRestX; lid.y = G.lidRestY; lid.rot = G.lidRestRot; }
+    lidImg = null;
+  }
+  function buildSegs() {
+    const { L, R, jt, jb, cr, tableY, plateX, plateW } = G, k = cr * .9;
+    segs = [];
+    const jarPts = [[L - 8, jt - 8], [L, jt + 4]];
+    for (let i = 0; i <= 6; i++) { const a = Math.PI - i / 6 * Math.PI / 2; jarPts.push([L + k + Math.cos(a) * k, jb - k + Math.sin(a) * k]); }
+    for (let i = 0; i <= 6; i++) { const a = Math.PI / 2 - i / 6 * Math.PI / 2; jarPts.push([R - k + Math.cos(a) * k, jb - k + Math.sin(a) * k]); }
+    jarPts.push([R, jt + 4], [R + 8, jt - 8]);
+    for (let i = 0; i < jarPts.length - 1; i++) segs.push({ a: jarPts[i], b: jarPts[i + 1], t: 5, kind: 'glass' });
+    G.jarPts = jarPts;
+    segs.push({ a: [-500, tableY], b: [W + 500, tableY], t: 0, kind: 'table' });
+    segs.push({ a: [0, -400], b: [0, tableY], t: 0, kind: 'wall' }, { a: [W, -400], b: [W, tableY], t: 0, kind: 'wall' });
+    const py = tableY - 8, pl = plateX - plateW / 2, pr = plateX + plateW / 2;
+    segs.push({ a: [pl, py], b: [pr, py], t: 2, kind: 'plate' }, { a: [pl - 12, py - 9], b: [pl, py], t: 2, kind: 'plate' }, { a: [pr, py], b: [pr + 12, py - 9], t: 2, kind: 'plate' });
+  }
+  function buildBack() {
+    backCv = mk(cv.width, cv.height); const c = backCv.getContext('2d'); c.scale(DPR, DPR);
+    const { tableY, jx, jb, jt, jw, L, R, plateX, plateW } = G;
+    // window and sun scribbled on the wall
+    const sx = W * .86, sy = H * .12, sr = Math.min(W, H) * .06;
+    if (W > 500) {
+    const sun = new Path2D(); sun.arc(sx, sy, sr, 0, 7);
+    scribble(c, sun, [sx - sr, sy - sr, sr * 2, sr * 2], '#f6cf3f', 5, .4);
+    crayon(c, circlePts(sx, sy, sr, sr, .05, 1.1), '#f39a2b', 3);
+    for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .2; crayon(c, [[sx + Math.cos(a) * sr * 1.25, sy + Math.sin(a) * sr * 1.25], [sx + Math.cos(a) * sr * 1.6, sy + Math.sin(a) * sr * 1.6]], '#f39a2b', 3, { passes: 2 }); }
+    crayon(c, [[sx - sr * .35, sy - sr * .15], [sx - sr * .3, sy - sr * .05]], '#2d2a6e', 3, { passes: 1 });
+    crayon(c, [[sx + sr * .3, sy - sr * .15], [sx + sr * .35, sy - sr * .05]], '#2d2a6e', 3, { passes: 1 });
+    const sm = []; for (let a = .3; a <= Math.PI - .3; a += .2) sm.push([sx + Math.cos(a) * sr * .45, sy + sr * .1 + Math.sin(a) * sr * .35]); crayon(c, sm, '#2d2a6e', 2.5, { passes: 1 });
+    }
+    // gingham tablecloth
+    const cloth = new Path2D(); cloth.rect(-5, tableY - 2, W + 10, H - tableY + 4);
+    c.save(); c.globalAlpha = .9; c.fillStyle = '#fff'; c.fill(cloth); c.restore();
+    const gs = 26;
+    c.save(); c.globalAlpha = .55;
+    for (let x = -gs; x < W + gs; x += gs * 2) { const p = new Path2D(); p.rect(x, tableY, gs, H - tableY); scribble(c, p, [x, tableY, gs, H - tableY], '#ef7a72', 5, 1.52, 6); }
+    for (let y = tableY + gs * .6; y < H; y += gs * 2) { const p = new Path2D(); p.rect(0, y, W, gs); scribble(c, p, [0, y, W, gs], '#ef7a72', 4, .04, 7); }
+    c.restore();
+    const edge = []; for (let x = -5; x <= W + 5; x += 12) edge.push([x, tableY + Math.sin(x * .05) * 1.2]);
+    crayon(c, edge, '#b52a24', 3.5);
+    // plate
+    const py = tableY - 7, pl = plateX - plateW / 2 - 10, pw = plateW + 20;
+    const plate = new Path2D(); plate.ellipse(plateX, py + 2, pw / 2, 11, 0, 0, 7);
+    c.save(); c.fillStyle = '#fff'; c.fill(plate); c.restore();
+    scribble(c, plate, [pl, py - 10, pw, 24], '#bcd8f5', 3, .1);
+    crayon(c, circlePts(plateX, py + 2, pw / 2, 11, .02, 1.05), '#3a7bd5', 3);
+    crayon(c, circlePts(plateX, py + 1, pw / 2 - 12, 6, .02, 1.02), '#7fb0ea', 2);
+    // jar: back wall of the glass and its shadow
+    const k = G.cr * .9, jarShape = new Path2D();
+    G.jarPts.forEach((q, i) => i ? jarShape.lineTo(q[0], q[1]) : jarShape.moveTo(q[0], q[1])); jarShape.closePath();
+    c.save(); c.globalAlpha = .35; c.fillStyle = '#d7eafb'; c.fill(jarShape); c.restore();
+    scribble(c, jarShape, [L - 10, jt - 10, jw + 20, jb - jt + 20], 'rgba(150,195,240,.6)', 3, -.9, 9);
+    crayon(c, circlePts(jx, jt + 2, jw / 2 + 4, 9, .02, 1.04), '#86b6ec', 3);
+    crayon(c, [[L - 10, tableY + 3], [R + 10, tableY + 3]], 'rgba(60,60,110,.35)', 6, { passes: 2 });
+    grain(c, .35);
+  }
+  function buildFront() {
+    frontCv = mk(cv.width, cv.height); const c = frontCv.getContext('2d'); c.scale(DPR, DPR);
+    const { L, R, jt, jb, jx, jw, jh } = G;
+    crayon(c, G.jarPts, '#3a7bd5', 4.5, { passes: 3, jit: 1.6 });
+    crayon(c, [[L - 8, jt - 8], [R + 8, jt - 8]], '#3a7bd5', 3, { passes: 2 });
+    // glints
+    crayon(c, [[L + 10, jt + 22], [L + 9, jb - 40]], '#ffffff', 6, { passes: 2, alpha: .85 });
+    crayon(c, [[L + 22, jt + 30], [L + 21, jt + 70]], '#ffffff', 4, { passes: 1, alpha: .8 });
+    crayon(c, [[R - 12, jb - 30], [R - 12, jb - 60]], '#ffffff', 4, { passes: 1, alpha: .7 });
+    // paper label tied round the neck
+    const small = W < 500, tx = jx + jw * (small ? .05 : .18), ty = small ? jt + jh * .42 : jt + 26, tw = small ? 58 : Math.max(70, jw * .5), th = small ? 24 : 30;
+    crayon(c, [[jx - jw / 2, jt + 10], [tx, ty]], '#8a5a33', 2, { passes: 1 });
+    const tag = new Path2D(); tag.moveTo(tx, ty); tag.lineTo(tx + 12, ty - th / 2); tag.lineTo(tx + tw, ty - th / 2); tag.lineTo(tx + tw, ty + th / 2); tag.lineTo(tx + 12, ty + th / 2); tag.closePath();
+    c.save(); c.fillStyle = '#fff7d6'; c.fill(tag); c.restore();
+    crayon(c, [[tx, ty], [tx + 12, ty - th / 2], [tx + tw, ty - th / 2], [tx + tw, ty + th / 2], [tx + 12, ty + th / 2], [tx, ty]], '#c48a3a', 2.5, { passes: 2 });
+    c.save(); c.font = `700 ${Math.round(th * .72)}px Gaegu, cursive`; c.fillStyle = '#e2423a'; c.textBaseline = 'middle'; c.translate(tx + 16, ty + 1); c.rotate(-.04); c.fillText('YES jar', 0, 0); c.restore();
+    // "no thanks" plate label
+    const ly = G.tableY - G.cr * 4.9, fs = Math.round(clamp(G.cr * .72, 16, 26));
+    c.save(); c.font = `700 ${fs}px Gaegu, cursive`; c.fillStyle = '#6b678f'; c.textAlign = 'center'; c.translate(G.plateX, ly); c.rotate(.05);
+    c.fillText('no thanks', 0, 0); c.restore();
+    crayon(c, [[G.plateX + fs * .2, ly + 8], [G.plateX + fs * .5, ly + fs * 1.2], [G.plateX + fs * .3, ly + fs * 2]], '#8b87ad', 2.5, { passes: 2 });
+    crayon(c, [[G.plateX + fs * .1, ly + fs * 1.7], [G.plateX + fs * .3, ly + fs * 2.05], [G.plateX + fs * .6, ly + fs * 1.75]], '#8b87ad', 2.5, { passes: 2 });
+    grain(c, .3);
+  }
+  function lidSprite() {
+    const w = G.lidW, h = w * .3, pad = 8, cvs = mk(Math.ceil((w + pad * 2) * DPR), Math.ceil((h + pad * 2) * DPR)), c = cvs.getContext('2d');
+    c.scale(DPR, DPR);
+    const x = pad, y = pad + h * .32, body = new Path2D(); body.roundRect(x, y, w, h * .62, 8);
+    c.save(); c.fillStyle = '#f07a6e'; c.fill(body); c.restore();
+    scribble(c, body, [x, y, w, h * .62], '#e2423a', 5, -.4);
+    crayon(c, [[x + 2, y + 2], [x + w - 2, y + 2], [x + w, y + h * .6], [x, y + h * .6], [x + 2, y + 2]], '#a8231d', 3);
+    const knob = new Path2D(); knob.ellipse(x + w / 2, y - 2, w * .14, h * .26, 0, 0, 7);
+    c.save(); c.fillStyle = '#f6cf3f'; c.fill(knob); c.restore(); crayon(c, circlePts(x + w / 2, y - 2, w * .14, h * .26, .03, 1.1, 24), '#c78a14', 2.5);
+    for (let i = 1; i < 8; i++) crayon(c, [[x + w * i / 8, y + h * .12], [x + w * i / 8, y + h * .5]], '#b52a24', 1.5, { passes: 1 });
+    grain(c, .4);
+    return cvs;
+  }
+
+  function spawn() {
+    const { cr, jx, jb, plateX, tableY } = G;
+    KINDS.forEach((k, i) => {
+      const ck = { kind: k, r: cr, x: 0, y: 0, vx: 0, vy: 0, a: rand() * 6, va: 0, fixed: !!k.fixed, drag: false, auto: null, inJar: !!k.fixed, wiggle: 0 };
+      if (k.fixed) { ck.x = jx; ck.y = jb - cr * .8; }
+      else { ck.x = plateX + (i - 2.5) * cr * 1.15; ck.y = tableY - cr * 2 - i * cr * 1.7; }
+      cookies.push(ck);
+    });
+    for (let i = 0; i < 400; i++) step(1 / 120, true);
+    cookies.forEach(c => c.inJar = c.fixed || isInJar(c));
+  }
+
+  /* ——————————— physics ——————————— */
+  const GRAV = 1900;
+  function isInJar(c) { return c.x > G.L && c.x < G.R && c.y > G.jt - c.r * .2; }
+  function collideSeg(c, s, silent) {
+    const [ax, ay] = s.a, [bx, by] = s.b, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    let t = l2 ? ((c.x - ax) * dx + (c.y - ay) * dy) / l2 : 0; t = clamp(t, 0, 1);
+    const px = ax + dx * t, py = ay + dy * t; let nx = c.x - px, ny = c.y - py; const d = Math.hypot(nx, ny), min = c.r + s.t;
+    if (d >= min || d === 0) return;
+    nx /= d; ny /= d; c.x = px + nx * min; c.y = py + ny * min;
+    const vn = c.vx * nx + c.vy * ny;
+    if (vn < 0) {
+      if (!silent && vn < -140) { hit(s.kind === 'glass' ? 'glass' : 'table', -vn); if (vn < -520) crumble(c, px, py); }
+      c.vx -= 1.28 * vn * nx; c.vy -= 1.28 * vn * ny;
+      const tx = -ny, ty = nx, vt = c.vx * tx + c.vy * ty; c.vx -= vt * .12 * tx; c.vy -= vt * .12 * ty;
+      c.va = lerp(c.va, vt / c.r, .3); c.ground = true;
+    }
+  }
+  function collidePair(a, b, silent) {
+    let dx = b.x - a.x, dy = b.y - a.y; const d = Math.hypot(dx, dy), min = a.r + b.r - 1;
+    if (d >= min || d === 0) return;
+    dx /= d; dy /= d; const o = min - d;
+    const ma = a.fixed || a.drag || a.auto ? 0 : 1, mb = b.fixed || b.drag || b.auto ? 0 : 1, sum = ma + mb || 1;
+    a.x -= dx * o * ma / sum; a.y -= dy * o * ma / sum; b.x += dx * o * mb / sum; b.y += dy * o * mb / sum;
+    const rv = (b.vx - a.vx) * dx + (b.vy - a.vy) * dy;
+    if (rv < 0) {
+      if (!silent && rv < -200) hit('cookie', -rv);
+      const j = -1.25 * rv / sum;
+      a.vx -= j * dx * ma; a.vy -= j * dy * ma; b.vx += j * dx * mb; b.vy += j * dy * mb;
+    }
+  }
+  function step(dt, silent) {
+    for (const c of cookies) {
+      if (c.fixed) continue;
+      c.ground = false;
+      if (c.drag) {
+        let tx = pointer.x, ty = pointer.y;
+        const inside = isInJar(c), ptrInside = pointer.x > G.L && pointer.x < G.R && pointer.y > G.jt;
+        if (inside !== ptrInside && c.y > G.jt - c.r) { tx = clamp(inside ? c.x : pointer.x, G.L + c.r + 6, G.R - c.r - 6); ty = G.jt - c.r * 1.8; }
+        c.vx = clamp((tx - c.x) * 18, -2400, 2400); c.vy = clamp((ty - c.y) * 18, -2400, 2400);
+      } else if (c.auto) {
+        const A = c.auto; A.t += dt / A.dur; const t = Math.min(1, A.t), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const nx = lerp(A.x0, A.x1, e), ny = lerp(A.y0, A.y1, e) - Math.sin(t * Math.PI) * A.lift;
+        c.vx = (nx - c.x) / dt; c.vy = (ny - c.y) / dt;
+        if (t >= 1) { c.auto = null; c.vx *= .2; c.vy = 0; }
+      } else { c.vy += GRAV * dt; c.vx *= .999; }
+      c.x += c.vx * dt; c.y += c.vy * dt;
+    }
+    for (let it = 0; it < 3; it++) {
+      for (let i = 0; i < cookies.length; i++) for (let j = i + 1; j < cookies.length; j++) collidePair(cookies[i], cookies[j], silent);
+      for (const c of cookies) if (!c.fixed) for (const s of segs) collideSeg(c, s, silent);
+    }
+    for (const c of cookies) {
+      if (c.fixed) continue;
+      if (c.ground) { c.va = lerp(c.va, c.vx / c.r, .15); c.vx *= .985; }
+      c.a += c.va * dt; c.va *= .995;
+    }
+  }
+  function crumble(c, x, y) {
+    if (reduce) return;
+    for (let i = 0; i < 4; i++) crumbs.push({ x, y, vx: (Math.random() - .5) * 220, vy: -Math.random() * 260, s: 1.5 + Math.random() * 2.2, col: c.kind.id === 'ads' ? '#ef7fae' : '#b97330', rest: false });
+    if (crumbs.length > 90) crumbs.splice(0, crumbs.length - 90);
+  }
+  function crumbStep(dt) {
+    for (const k of crumbs) {
+      if (k.rest) continue;
+      k.vy += GRAV * dt; k.x += k.vx * dt; k.y += k.vy * dt;
+      const inside = k.x > G.L + 4 && k.x < G.R - 4 && k.y > G.jt;
+      const floor = inside ? G.jb - 2 : G.tableY - 1;
+      if (k.y > floor) { k.y = floor; k.rest = true; }
+      if (inside && (k.x < G.L + 6 || k.x > G.R - 6)) k.vx *= -.4;
+    }
+  }
+
+  /* ——————————— pointer ——————————— */
+  const pointer = { x: 0, y: 0, id: null };
+  let dragging = null, hovered = null;
+  function local(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function onLid(p) { const dx = p.x - lid.x, dy = p.y - lid.y, a = -(lid.rot || 0); const lx = dx * Math.cos(a) - dy * Math.sin(a), ly = dx * Math.sin(a) + dy * Math.cos(a); return Math.abs(lx) < G.lidW / 2 + 8 && ly > -G.lidW * .2 - 10 && ly < G.lidW * .12 + 8; }
+  function pick(p) {
+    if (onLid(p)) return lid;
+    let best = null, bd = 1e9;
+    for (const c of cookies) { const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < c.r + 6 && d < bd) { bd = d; best = c; } }
+    return best;
+  }
+  cv.addEventListener('pointerdown', e => {
+    audio(); const p = local(e); Object.assign(pointer, p);
+    const o = pick(p); if (!o) return;
+    e.preventDefault(); hovered = null; showBubble(null);
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    if (o === lid) {
+      if (lid.on) { takeLidOff(); }
+      lid.drag = true; lid.anim = null; dragging = lid; lid.offX = lid.x - p.x; lid.offY = lid.y - p.y;
+    } else if (lid.on) { nudgeLid(); return; }
+    else if (o.fixed) { o.wiggle = 1; say('This one’s baked in — the site can’t work without it.'); hit('glass', 300); return; }
+    else { o.drag = true; o.auto = null; dragging = o; }
+    cv.classList.add('grabbing'); $('#hint').classList.add('gone'); wake();
+  });
+  cv.addEventListener('pointermove', e => {
+    const p = local(e); Object.assign(pointer, p);
+    if (dragging === lid) { lid.x = p.x + lid.offX; lid.y = p.y + lid.offY; wake(); return; }
+    if (!dragging) {
+      const o = pick(p); const c = o && o !== lid ? o : null;
+      if (c !== hovered) { hovered = c; showBubble(c); }
+      cv.style.cursor = o ? (lid.on && o !== lid ? 'not-allowed' : 'grab') : 'default';
+    }
+  });
+  function endDrag() {
+    if (!dragging) return;
+    if (dragging === lid) {
+      lid.drag = false;
+      if (Math.hypot(lid.x - G.jx, lid.y - G.mouthY) < G.cr * 2.6) closeLid(); else dropLidToTable();
+    } else { dragging.drag = false; dragging.vy = clamp(dragging.vy, -1400, 1400); }
+    dragging = null; cv.classList.remove('grabbing'); wake();
+  }
+  cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('pointerleave', () => { if (!dragging) { hovered = null; showBubble(null); } });
+  function showBubble(c) {
+    if (!c) { bubble.classList.remove('on'); return; }
+    bubble.textContent = c.kind.name + (c.fixed ? ' — always on' : c.inJar ? ' — allowed' : ' — not allowed');
+    bubble.classList.add('on');
+  }
+
+  /* ——————————— lid ——————————— */
+  let lidImg = null;
+  function closeLid() {
+    lid.anim = { x0: lid.x, y0: lid.y, x1: G.jx, y1: G.mouthY - 8, r0: lid.rot || 0, r1: 0, t: 0, dur: reduce ? .01 : .45, twist: true };
+    lid.on = true; lidSound();
+    cookies.forEach(c => { c.drag = false; });
+    setTimeout(save, reduce ? 50 : 750);
+  }
+  function dropLidToTable() { lid.anim = { x0: lid.x, y0: lid.y, x1: G.lidRestX, y1: G.lidRestY, r0: lid.rot || 0, r1: G.lidRestRot, t: 0, dur: reduce ? .01 : .45 }; hit('table', 400); }
+  function takeLidOff() { lid.on = false; hit('glass', 500); tone(900, .08, 'triangle', .08, 1400); $('#status').textContent = 'Lid off — change whatever you like.'; $('#lidBtn').textContent = 'Put the lid on'; }
+  function nudgeLid() { lid.rattle = 1; hit('glass', 400); say('Take the lid off first.'); wake(); }
+  let sayT = 0;
+  function say(t) { const s = $('#status'); s.textContent = t; clearTimeout(sayT); sayT = setTimeout(() => { if (s.textContent === t) s.textContent = ''; }, 2600); }
+
+  /* ——————————— list of switches ——————————— */
+  const kindsEl = $('#kinds');
+  KINDS.forEach(k => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.className = 'kind'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', k.fixed ? 'true' : 'false');
+    if (k.fixed) b.setAttribute('aria-disabled', 'true');
+    b.innerHTML = `<svg class="box" viewBox="0 0 30 30" aria-hidden="true" style="filter:url(#crayon)"><path d="M4 5c7-1 15-1 22 0 1 7 1 14 0 21-7 1-15 1-22 0-1-7-1-14 0-21z" fill="#fff" stroke="#2d2a6e" stroke-width="2.6" stroke-linejoin="round"/><path class="tick" d="M7 15l6 7 12-17" fill="none" stroke="${k.fixed ? '#8b87ad' : '#4aa34a'}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><canvas width="80" height="80" aria-hidden="true"></canvas><span><b>${k.name}</b><small>${k.desc}</small></span><span class="where">${k.fixed ? 'always' : 'on plate'}</span>`;
+    b.setAttribute('aria-label', `${k.name}: ${k.desc}`);
+    b.addEventListener('click', () => {
+      audio();
+      if (k.fixed) { const ck = cookies.find(c => c.kind === k); ck.wiggle = 1; say('This one’s baked in — the site can’t work without it.'); wake(); return; }
+      if (lid.on) { nudgeLid(); return; }
+      const ck = cookies.find(c => c.kind === k); toss(ck, !ck.inJar); $('#hint').classList.add('gone');
+    });
+    k.btn = b; li.appendChild(b); kindsEl.appendChild(li);
+    const ic = b.querySelector('canvas').getContext('2d'); const save = DPR; DPR = 1; ic.scale(1, 1); drawCookie(ic, k.id, 40, 40, 34); grain(ic, .4); DPR = save;
+  });
+  function toss(ck, intoJar) {
+    if (!ck || ck.fixed) return;
+    const { jx, jt, cr, plateX, tableY } = G;
+    const x1 = intoJar ? jx + (Math.random() - .5) * cr * 1.4 : plateX + (Math.random() - .5) * G.plateW * .5;
+    const y1 = intoJar ? jt - cr * 1.6 : tableY - cr * 4;
+    ck.auto = { x0: ck.x, y0: ck.y, x1, y1, t: 0, dur: reduce ? .05 : .55, lift: reduce ? 0 : cr * 2.5 };
+    ck.drag = false; wake();
+  }
+  $('#all').addEventListener('click', () => { audio(); if (lid.on) return nudgeLid(); cookies.forEach((c, i) => { if (!c.fixed && !c.inJar) setTimeout(() => toss(c, true), i * 140); }); });
+  $('#none').addEventListener('click', () => { audio(); if (lid.on) return nudgeLid(); cookies.forEach((c, i) => { if (!c.fixed && c.inJar) setTimeout(() => toss(c, false), i * 140); }); });
+  $('#lidBtn').addEventListener('click', () => {
+    audio();
+    if (lid.on) { save(); return; }
+    lid.anim = { x0: lid.x, y0: lid.y, x1: G.jx, y1: G.mouthY - 8, r0: lid.rot || 0, r1: 0, t: 0, dur: reduce ? .01 : .65, lift: G.cr * 3, twist: true };
+    lid.on = true; lidSound(); setTimeout(save, reduce ? 50 : 900); wake();
+  });
+
+  function syncSwitches() {
+    cookies.forEach(c => {
+      const was = c.inJar, now = c.fixed || (!c.drag && !c.auto ? isInJar(c) : was);
+      if (now !== was) { c.inJar = now; $('#live').textContent = `${c.kind.name} ${now ? 'allowed' : 'not allowed'}`; }
+      if (!c.kind.btn) return;
+      c.kind.btn.setAttribute('aria-checked', String(c.inJar));
+      c.kind.btn.querySelector('.where').textContent = c.fixed ? 'always' : c.inJar ? 'in the jar' : 'on plate';
+    });
+  }
+
+  /* ——————————— save & reopen ——————————— */
+  const sheet = $('#sheet'), page = $('#page'), minijar = $('#minijar');
+  let opener = null;
+  function save() {
+    if (!lid.on) return;
+    const yes = cookies.filter(c => c.inJar && !c.fixed).map(c => c.kind.name.toLowerCase());
+    const msg = yes.length ? `Saved: baked-in plus ${yes.join(', ')}.` : 'Saved: only the baked-in cookie.';
+    $('#status').textContent = msg; $('#live').textContent = msg;
+    try { localStorage.setItem('cookie-jar-demo', JSON.stringify(yes)); } catch (e) {}
+    setTimeout(() => {
+      document.body.classList.add('saved'); page.inert = false; sheet.inert = true;
+      (opener && opener.isConnected ? opener : minijar).focus({ preventScroll: true });
+    }, reduce ? 200 : 900);
+  }
+  function reopen() {
+    opener = minijar;
+    document.body.classList.remove('saved'); sheet.inert = false; page.inert = true;
+    $('#status').textContent = 'Drag the lid off to change your mind.';
+    setTimeout(() => sheet.focus({ preventScroll: true }), 50);
+    wake();
+  }
+  minijar.addEventListener('click', reopen);
+  document.addEventListener('keydown', e => {
+    if (document.body.classList.contains('saved')) return;
+    if (e.key === 'Escape') { e.preventDefault(); if (!lid.on) $('#lidBtn').click(); else save(); }
+    if (e.key === 'Tab') {
+      const f = [...sheet.querySelectorAll('button:not([aria-disabled="true"])')].filter(b => b.offsetParent);
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  /* ——————————— the crayon website behind ——————————— */
+  function drawSite() {
+    const bg = $('#bg'), w = innerWidth, h = innerHeight, d = Math.min(2, devicePixelRatio || 1);
+    bg.width = w * d; bg.height = h * d; const c = bg.getContext('2d'); c.scale(d, d);
+    crayon(c, [[16, 74], [w * .3, 70], [w * .6, 76], [w - 16, 72]], '#3a7bd5', 4, { passes: 3, jit: 2 });
+    if (w > 760) {
+      const hx = w * .74, hy = h * .36, s = Math.min(w, h) / 800;
+      const plate = new Path2D(); plate.ellipse(hx, hy + 90 * s, 170 * s, 30 * s, 0, 0, 7);
+      scribble(c, plate, [hx - 170 * s, hy + 60 * s, 340 * s, 60 * s], '#bcd8f5', 5); crayon(c, circlePts(hx, hy + 90 * s, 170 * s, 30 * s, .02), '#3a7bd5', 4);
+      for (let k = 0; k < 5; k++) { const y = hy + 70 * s - k * 30 * s, p = new Path2D(); p.ellipse(hx, y, 120 * s, 24 * s, 0, 0, 7); scribble(c, p, [hx - 122 * s, y - 26 * s, 244 * s, 52 * s], '#eab460', 6); crayon(c, circlePts(hx, y, 120 * s, 24 * s, .03), '#9a6431', 3.5); }
+      const syr = new Path2D(); syr.moveTo(hx - 80 * s, hy - 52 * s); syr.bezierCurveTo(hx - 40 * s, hy - 80 * s, hx + 60 * s, hy - 80 * s, hx + 90 * s, hy - 52 * s); syr.lineTo(hx + 92 * s, hy - 10 * s); syr.lineTo(hx + 78 * s, hy - 20 * s); syr.lineTo(hx + 70 * s, hy - 45 * s); syr.lineTo(hx - 60 * s, hy - 40 * s); syr.lineTo(hx - 66 * s, hy + 10 * s); syr.lineTo(hx - 78 * s, hy - 40 * s); syr.closePath();
+      scribble(c, syr, [hx - 90 * s, hy - 80 * s, 190 * s, 90 * s], '#b8661f', 5);
+      for (let k = 0; k < 4; k++) { const bx = hx - 50 * s + k * 34 * s, by = hy - 66 * s - (k % 2) * 8 * s, p = new Path2D(); p.arc(bx, by, 16 * s, 0, 7); scribble(c, p, [bx - 16 * s, by - 16 * s, 32 * s, 32 * s], '#f8e58c', 5); crayon(c, circlePts(bx, by, 16 * s, 16 * s, .05), '#d6b52a', 3); blob(c, bx, by, 2.5 * s, '#8a5a33'); }
+      crayon(c, [[hx + 150 * s, hy - 120 * s], [hx + 158 * s, hy - 150 * s]], '#e2423a', 4); crayon(c, [[hx + 170 * s, hy - 110 * s], [hx + 190 * s, hy - 132 * s]], '#e2423a', 4); crayon(c, [[hx + 176 * s, hy - 88 * s], [hx + 204 * s, hy - 96 * s]], '#e2423a', 4);
+    }
+    const rec = $('#recipes'); if (getComputedStyle(rec).display === 'none') return grain(c, .3);
+    [...rec.children].forEach((el, i) => {
+      const r = el.getBoundingClientRect(), x = r.left, y = r.top, cw = r.width;
+      crayon(c, [[x, y], [x + cw, y + 2], [x + cw - 2, y + r.height], [x + 2, y + r.height - 2], [x, y]], ['#e2423a', '#4aa34a', '#f39a2b'][i], 3.5, { passes: 2, jit: 2 });
+      const cx = x + cw / 2, cy = y + 56;
+      if (i === 0) for (let k = 0; k < 3; k++) { const p = new Path2D(); p.ellipse(cx, cy + 22 - k * 13, 44, 10, 0, 0, 7); scribble(c, p, [cx - 46, cy + 10 - k * 13, 92, 24], '#e9b25c', 4); crayon(c, circlePts(cx, cy + 22 - k * 13, 44, 10, .03), '#8a5a33', 2.5); }
+      if (i === 1) { const p = new Path2D(); p.moveTo(cx - 30, cy); p.lineTo(cx + 30, cy); p.lineTo(cx + 22, cy + 34); p.lineTo(cx - 22, cy + 34); p.closePath(); scribble(c, p, [cx - 30, cy, 60, 34], '#7fb0ea', 4); const t = new Path2D(); t.ellipse(cx, cy - 4, 36, 20, 0, Math.PI, 0); scribble(c, t, [cx - 36, cy - 26, 72, 24], '#c9894a', 4); for (let k = 0; k < 6; k++) blob(c, cx - 22 + k * 9, cy - 12 + (k % 2) * 6, 3.5, '#3b3a8a'); }
+      if (i === 2) { const p = new Path2D(); p.arc(cx, cy + 10, 36, 0, 7); scribble(c, p, [cx - 36, cy - 26, 72, 72], '#f6cf3f', 4); scribble(c, p, [cx - 30, cy - 20, 60, 60], '#e2423a', 3, .5, 9); blob(c, cx - 12, cy, 5, '#2d2a6e'); blob(c, cx + 12, cy, 5, '#2d2a6e'); const sm = []; for (let a = .3; a < 2.9; a += .2) sm.push([cx + Math.cos(a) * 16, cy + 12 + Math.sin(a) * 10]); crayon(c, sm, '#2d2a6e', 3); }
+    });
+    grain(c, .3);
+  }
+
+  /* ——————————— render loop ——————————— */
+  let raf = 0, last = 0, acc = 0, still = 0;
+  function wake() { still = 0; if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0;
+    const dt = Math.min(.05, (now - last) / 1000); last = now; acc += dt;
+    while (acc > 1 / 120) { step(1 / 120); crumbStep(1 / 120); acc -= 1 / 120; }
+    // lid animation
+    if (lid.anim) {
+      const A = lid.anim; A.t += dt / A.dur; const t = Math.min(1, A.t), e = 1 - Math.pow(1 - t, 3);
+      lid.x = lerp(A.x0, A.x1, e); lid.y = lerp(A.y0, A.y1, e) - Math.sin(t * Math.PI) * (A.lift || 0);
+      lid.rot = lerp(A.r0 || 0, A.r1 || 0, e) + (A.twist ? Math.sin(t * Math.PI * 3) * .12 * (1 - t) : 0);
+      if (t >= 1) lid.anim = null;
+    }
+    if (lid.drag) lid.rot = lerp(lid.rot || 0, 0, Math.min(1, dt * 12));
+    if (lid.rattle > 0) { lid.rattle = Math.max(0, lid.rattle - dt * 2.5); lid.rot = Math.sin(now / 25) * .08 * lid.rattle; }
+    cookies.forEach(c => { if (c.wiggle > 0) c.wiggle = Math.max(0, c.wiggle - dt * 2); });
+    syncSwitches();
+    draw(now);
+    const energy = cookies.reduce((a, c) => a + (c.fixed ? 0 : Math.abs(c.vx) + Math.abs(c.vy)), 0) + (lid.anim ? 1e3 : 0) + (dragging ? 1e3 : 0) + (lid.rattle > 0 ? 1e3 : 0) + cookies.reduce((a, c) => a + c.wiggle * 1e3 + (c.auto ? 1e3 : 0), 0) + crumbs.filter(k => !k.rest).length * 100;
+    still = energy < 25 ? still + 1 : 0;
+    if (still < 30) raf = requestAnimationFrame(frame);
+  }
+  function draw(now) {
+    const c = ctx;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    c.drawImage(backCv, 0, 0);
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (const k of crumbs) { c.fillStyle = k.col; c.globalAlpha = .85; c.beginPath(); c.arc(k.x, k.y, k.s, 0, 7); c.fill(); }
+    c.globalAlpha = 1;
+    const inside = cookies.filter(ck => isInJar(ck) && !ck.drag), outside = cookies.filter(ck => !inside.includes(ck));
+    const drawCk = ck => {
+      const s = ck.kind.sprite, sz = s.width / DPR, wig = ck.wiggle ? Math.sin(now / 28) * .25 * ck.wiggle : 0;
+      if (ck.drag || ck.auto) { c.save(); c.globalAlpha = .18; c.fillStyle = '#2d2a6e'; c.beginPath(); c.ellipse(ck.x + 6, ck.y + ck.r * .9 + 10, ck.r * .9, ck.r * .25, 0, 0, 7); c.fill(); c.restore(); }
+      c.save(); c.translate(ck.x, ck.y); c.rotate(ck.a + wig); const lift = ck.drag ? 1.08 : 1; c.scale(lift, lift);
+      c.drawImage(s, -sz / 2, -sz / 2, sz, sz); c.restore();
+    };
+    inside.forEach(drawCk);
+    c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(frontCv, 0, 0); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    outside.forEach(drawCk);
+    if (!lidImg || lidImg._w !== G.lidW) { lidImg = lidSprite(); lidImg._w = G.lidW; }
+    const lw = lidImg.width / DPR, lh = lidImg.height / DPR;
+    c.save(); c.translate(lid.x, lid.y); c.rotate(lid.rot || 0); c.drawImage(lidImg, -lw / 2, -lh * .62, lw, lh); c.restore();
+    if (hovered && !dragging) { bubble.style.left = hovered.x + 'px'; bubble.style.top = (hovered.y - hovered.r - 8) + 'px'; }
+  }
+
+  addEventListener('resize', () => { layout(); drawSite(); wake(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  function init() { layout(); drawSite(); wake(); page.inert = true; sheet.focus({ preventScroll: true }); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { lidImg = null; init(); }); else init();
+  window.__jar = { toss: (i, inn) => toss(cookies[i], inn), cookies };
+})();
+</script>
+</body>
+</html>

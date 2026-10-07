@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floppy Disk Save</title>
+<meta name="description" content="A save button and unsaved-changes indicator as a 1-bit, Atkinson-dithered classic Macintosh floppy drive: unsaved work leaves the disk half-ejected; saving slides it home, spins it and pencils a timestamp on its label.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Pixelify+Sans:wght@400;600&family=VT323&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Floppy Disk Save","reimagines":"Save button + unsaved-changes state","category":"Buttons & Actions","description":"A 1-bit System 7 document editor where unsaved changes leave a floppy disk sticking half out of an external drive. Click or push the disk in (or press ⌘/Ctrl+S): it slides home, the shutter opens, the drive whirrs and blinks, and a pencilled timestamp is added to the disk's label — which doubles as a version history.","hint":"Type to make changes, then push the disk into the drive or press Cmd/Ctrl+S"}
+</script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Pixelify Sans",Monaco,monospace;color:#000;background:#fff;-webkit-font-smoothing:none;font-smooth:never;user-select:none;-webkit-user-select:none}
+.desk{position:fixed;inset:22px 0 0 0;background:conic-gradient(#000 25%,#fff 0 50%,#000 0 75%,#fff 0) 0 0/4px 4px}
+.menubar{position:fixed;left:0;right:0;top:0;height:22px;background:#fff;border-bottom:2px solid #000;display:flex;align-items:center;gap:2px;padding:0 10px;font-size:15px;z-index:20}
+.menubar .m{padding:0 10px;height:20px;line-height:20px;background:none;border:0;font:inherit;color:#000;cursor:default}
+.menubar .m.on,.menubar .m:focus-visible{background:#000;color:#fff;outline:none}
+.menubar .logo{width:18px;height:18px;margin-right:6px;image-rendering:pixelated}
+.menubar .clock{margin-left:auto;padding:0 8px}
+.dd{position:fixed;top:21px;left:40px;background:#fff;border:2px solid #000;box-shadow:2px 2px 0 #000;z-index:30;min-width:200px;padding:2px 0;font-size:15px;display:none}
+.dd.on{display:block}
+.dd button{display:flex;justify-content:space-between;width:100%;padding:3px 14px 3px 18px;background:none;border:0;font:inherit;color:#000;cursor:default;text-align:left}
+.dd button:hover,.dd button:focus-visible{background:#000;color:#fff;outline:none}
+.dd button[disabled]{color:#000;opacity:1;background:none;
+  background-image:none}
+.dd button[disabled] span:first-child{background:repeating-linear-gradient(90deg,#000 0 1px,transparent 1px 2px);-webkit-background-clip:text;background-clip:text;color:transparent}
+.dd hr{border:0;border-top:2px dotted #000;margin:3px 0}
+.win{position:fixed;background:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;display:flex;flex-direction:column;z-index:5}
+.tbar{height:26px;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:2px solid #000;
+  background:repeating-linear-gradient(#fff 0 3px,#000 3px 5px);background-size:auto 5px;background-position:0 3px;background-clip:content-box;padding:4px 4px}
+.tbar .ttl{background:#fff;padding:0 10px;font-size:15px;font-weight:600;line-height:18px}
+.tbar .box{position:absolute;left:12px;top:5px;width:16px;height:16px;border:2px solid #000;background:#fff;box-shadow:0 0 0 3px #fff}
+.tbar .zbox{left:auto;right:12px}
+.tbar .zbox::after{content:"";position:absolute;left:0;top:0;width:7px;height:7px;border-right:2px solid #000;border-bottom:2px solid #000}
+.body{flex:1;display:flex;min-height:0}
+#doc{flex:1;border:0;resize:none;outline:none;padding:14px 18px;font:23px/1.12 VT323,monospace;color:#000;background:#fff;caret-color:#000;user-select:text;-webkit-user-select:text}
+#doc::selection{background:#000;color:#fff}
+.sbar{width:20px;border-left:2px solid #000;display:flex;flex-direction:column}
+.sbar .ar{height:20px;border-bottom:2px solid #000;display:grid;place-items:center}
+.sbar .ar.dn{border-bottom:0;border-top:2px solid #000}
+.sbar .tr{flex:1;background:conic-gradient(#000 25%,#fff 0 50%,#000 0 75%,#fff 0) 0 0/4px 4px;position:relative}
+.sbar .th{position:absolute;left:0;right:0;top:14%;height:20px;background:#fff;border-top:2px solid #000;border-bottom:2px solid #000}
+.info{border-top:2px solid #000;padding:5px 12px;font-size:14px;display:flex;justify-content:space-between;gap:12px;white-space:nowrap;overflow:hidden}
+.info .dirty::before{content:"";display:inline-block;width:8px;height:8px;background:#000;margin-right:6px;vertical-align:1px}
+.drive{position:fixed;z-index:4}
+#cv{display:block;width:100%;height:100%;image-rendering:pixelated;cursor:pointer;touch-action:none;outline:none}
+.drive:has(#cv:focus-visible)::after{content:"";position:absolute;inset:-8px;border:2px dashed #000;pointer-events:none}
+.plate{position:absolute;left:50%;transform:translateX(-50%);bottom:-34px;background:#fff;border:2px solid #000;box-shadow:2px 2px 0 #000;padding:2px 10px;font-size:14px;white-space:nowrap}
+.balloon{position:fixed;z-index:12;background:#fff;border:2px solid #000;border-radius:14px;padding:10px 14px;font-size:14px;line-height:1.3;max-width:230px;box-shadow:2px 2px 0 #000;transition:opacity .15s;pointer-events:none}
+.balloon::after{content:"";position:absolute;left:34px;top:-20px;width:22px;height:20px;background:#fff;border:2px solid #000;border-bottom:0;border-right:0;clip-path:polygon(0 0,100% 100%,0 100%)}
+.balloon.off{opacity:0}
+.balloon b{font-weight:600}
+.icons{position:fixed;right:18px;top:44px;bottom:18px;display:flex;flex-direction:column;gap:22px;align-items:center;z-index:3}
+.icon{width:86px;text-align:center;font-size:13px}
+.icon svg{width:36px;height:36px;display:block;margin:0 auto 4px;shape-rendering:crispEdges}
+.icon span{background:#fff;padding:0 4px;display:inline-block}
+.icon.trash{margin-top:auto}
+.icon.disk{transition:opacity .2s}
+.icon.disk.gone{opacity:0}
+.icon.disk.sel svg{filter:invert(1)}
+.icon.disk.sel span{background:#000;color:#fff}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  .icons{display:none}
+  .menubar .m.x{display:none}
+  .balloon{max-width:190px;font-size:12.5px;padding:8px 10px}
+  #doc{font-size:20px;padding:10px 12px}
+  .balloon::after{left:auto;right:60px}
+  .info{font-size:12px;padding:4px 8px}
+  .plate{display:none}
+}
+</style>
+</head>
+<body>
+<div class="menubar" role="menubar">
+  <svg class="logo" viewBox="0 0 9 9" aria-hidden="true" shape-rendering="crispEdges"><path d="M4 0h1v2h-1zM1 2h7v1h-7zM0 3h9v3h-9zM1 6h7v1h-7zM2 7h2v1h-2zM5 7h2v1h-2z"/><path d="M2 4h1v1h-1zM6 4h1v1h-1z" fill="#fff"/></svg>
+  <button class="m" id="mFile" type="button" aria-haspopup="true" aria-expanded="false">File</button>
+  <span class="m">Edit</span><span class="m x">View</span><span class="m x">Special</span>
+  <span class="clock" id="clock">00:00</span>
+</div>
+<div class="dd" id="dd" role="menu">
+  <button type="button" role="menuitem" id="ddSave"><span>Save</span><span>⌘S</span></button>
+  <button type="button" role="menuitem" id="ddEject"><span>Eject disk</span><span>⌘E</span></button>
+  <hr>
+  <button type="button" role="menuitem" id="ddRevert"><span>Revert to saved</span><span></span></button>
+</div>
+<div class="desk"></div>
+
+<section class="win" id="win" aria-label="Field notes document">
+  <header class="tbar"><span class="box"></span><span class="ttl" id="ttl">Field notes</span><span class="box zbox"></span></header>
+  <div class="body">
+    <label class="sr" for="doc">Document text</label>
+    <textarea id="doc" spellcheck="false"></textarea>
+    <div class="sbar" aria-hidden="true"><div class="ar"><svg width="10" height="8" viewBox="0 0 10 8"><path d="M5 0L10 6H0z"/></svg></div><div class="tr"><div class="th"></div></div><div class="ar dn"><svg width="10" height="8" viewBox="0 0 10 8"><path d="M5 8L10 2H0z"/></svg></div></div>
+  </div>
+  <footer class="info"><span id="st" class="dirty">Unsaved changes</span><span id="bytes">0 bytes</span></footer>
+</section>
+
+<div class="drive" id="drive">
+  <canvas id="cv" role="button" tabindex="0" aria-label="Floppy disk. Press Enter to save the document to disk."></canvas>
+</div>
+<div class="balloon" id="balloon"><b>Unsaved changes.</b> Push the disk into the drive — or press ⌘S — to save.</div>
+
+<div class="icons" aria-hidden="true">
+  <div class="icon"><svg viewBox="0 0 18 18"><path d="M1 4h16v10h-16z" fill="#fff" stroke="#000"/><path d="M1 11h16" stroke="#000"/><path d="M3 12h2v1h-2z"/></svg><span>Hard disk</span></div>
+  <div class="icon disk" id="dIcon"><svg viewBox="0 0 18 18"><path d="M2 2h12l2 2v12h-14z" fill="#fff" stroke="#000"/><path d="M5 2h7v5h-7z" fill="#000"/><path d="M9 3h2v3h-2z" fill="#fff"/><path d="M4 10h10v6h-10z" fill="#fff" stroke="#000"/></svg><span>Field notes</span></div>
+  <div class="icon trash"><svg viewBox="0 0 18 18"><path d="M3 4h12M7 2h4v2M4 4l1 12h8l1-12" fill="#fff" stroke="#000"/><path d="M7 6v8M9 6v8M11 6v8" stroke="#000"/></svg><span>Trash</span></div>
+</div>
+<div class="sr" role="status" aria-live="polite" id="live"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const LW = 270, LH = 272; // logical (screen) pixels of the drive illustration
+const cv = $('#cv'), cx = cv.getContext('2d');
+cv.width = LW; cv.height = LH;
+const off = document.createElement('canvas'); off.width = LW; off.height = LH;
+const g = off.getContext('2d', {willReadFrequently:true});
+const doc = $('#doc'), ttl = $('#ttl'), st = $('#st'), bytes = $('#bytes'), balloon = $('#balloon'), live = $('#live');
+
+/* ---------- document ---------- */
+const savedText = `Field notes — Wed 7 Oct 2026
+
+Walked the river path at 07:10. Mist sitting low on the weir; four herons back on the far bank, one with a fish.
+
+The alders by the footbridge have started to turn. Leaves on the path: mostly hazel.
+
+To do:
+- send the bird count to Priya
+- new batteries for the trail camera
+- check the otter holt on Friday
+`;
+doc.value = savedText + `- bring the long lens`;
+let saved = savedText, dirty = true;
+const fmt = d => d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short'}) + ' · ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+const history = [ {txt:'Mon 5 Oct · 21:14', p:1}, {txt:'Tue 6 Oct · 08:02', p:1} ];
+let labelVol = 1;
+function say(t){ live.textContent=''; setTimeout(() => live.textContent = t, 30); }
+function updateInfo(){
+  const n = new Blob([doc.value]).size;
+  bytes.textContent = n.toLocaleString('en-GB') + ' bytes';
+  if (dirty){ st.className = 'dirty'; st.textContent = 'Unsaved changes'; ttl.textContent = 'Field notes •'; }
+  else { st.className = ''; st.textContent = 'Saved to “Field notes” disk'; ttl.textContent = 'Field notes'; }
+}
+doc.addEventListener('input', () => {
+  const wasDirty = dirty; dirty = doc.value !== saved;
+  if (dirty && !wasDirty){ eject(true); }
+  if (!dirty && wasDirty && D.inserted) { /* typed back to saved text */ }
+  updateInfo(); placeBalloon();
+});
+setInterval(() => { const d = new Date(); $('#clock').textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }, 1000);
+
+/* ---------- audio ---------- */
+let ac = null, master = null;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination); } catch(e){} } if (ac && ac.state==='suspended') ac.resume(); return ac; }
+function click(f=900, d=.03, v=.4, type='square'){ if (!audio()) return; const t = ac.currentTime; const o = ac.createOscillator(), gg = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f*.5, t+d); gg.gain.setValueAtTime(v, t); gg.gain.exponentialRampToValueAtTime(.001, t+d); o.connect(gg).connect(master); o.start(t); o.stop(t+d+.01); }
+function chunk(){ click(140,.09,.6,'triangle'); setTimeout(() => click(700,.025,.25), 40); }
+function whirr(dur){ if (!audio()) return; const t = ac.currentTime;
+  const o = ac.createOscillator(), o2 = ac.createOscillator(), gg = ac.createGain(), am = ac.createGain(), lfo = ac.createOscillator();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(96, t+.4);
+  o2.type = 'square'; o2.frequency.value = 300; lfo.type = 'square'; lfo.frequency.value = 9; lfo.connect(am.gain); am.gain.value = 0;
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+  gg.gain.setValueAtTime(0, t); gg.gain.linearRampToValueAtTime(.18, t+.08); gg.gain.setValueAtTime(.18, t+dur-.15); gg.gain.linearRampToValueAtTime(0, t+dur);
+  o.connect(f); o2.connect(am).connect(f); f.connect(gg).connect(master);
+  const ag = ac.createGain(); ag.gain.value = .06; lfo.connect(ag);
+  o.start(t); o2.start(t); lfo.start(t); o.stop(t+dur); o2.stop(t+dur); lfo.stop(t+dur);
+  // stepper seeks
+  for (let i=0;i<6;i++) setTimeout(() => click(1600 + Math.random()*500, .015, .12), 120 + i*(dur*1000-240)/6);
+}
+function boing(){ if (!audio()) return; const t = ac.currentTime; const o = ac.createOscillator(), gg = ac.createGain(); o.type='triangle';
+  o.frequency.setValueAtTime(420,t); o.frequency.exponentialRampToValueAtTime(160,t+.18); gg.gain.setValueAtTime(.35,t); gg.gain.exponentialRampToValueAtTime(.001,t+.22); o.connect(gg).connect(master); o.start(t); o.stop(t+.24); click(200,.06,.5,'triangle'); }
+
+/* ---------- drive state ---------- */
+const OUT = 112; // logical px the disk travels
+const D = { y: OUT, v: 0, target: OUT, inserted:false, shutter:0, spin:0, spinV:0, led:0, busy:false, drag:null, write:null, sticker:0 };
+const DISK = { x: 81, y: 40, w: 108, h: 112 };
+
+function eject(fromEdit){
+  if (!D.inserted && D.target === OUT) return;
+  D.inserted = false; D.target = OUT; D.v = reduce ? 0 : -260; if (reduce) D.y = OUT;
+  boing(); $('#dIcon').classList.add('gone');
+  if (fromEdit) say('Unsaved changes. The disk has popped out of the drive.');
+  else say('Disk ejected.');
+}
+function save(){
+  if (D.busy) return;
+  audio();
+  const changed = dirty;
+  D.busy = true; D.target = 0;
+  if (reduce) D.y = 0;
+  $('#ddSave').blur();
+  // the rest happens when the disk seats (see frame)
+  D.pending = changed;
+}
+function seated(){
+  chunk(); D.inserted = true; $('#dIcon').classList.remove('gone');
+  const changed = D.pending;
+  const dur = changed ? 1.5 : .7;
+  D.spinV = 26; D.ledT = dur; whirr(dur);
+  if (changed){
+    const now = new Date();
+    if (history.length >= 4){ D.sticker = 1; labelVol++; history.length = 0; }
+    history.push({txt: fmt(now), p: reduce ? 1 : 0});
+    D.write = history[history.length-1];
+  }
+  setTimeout(() => {
+    D.busy = false; D.spinV = 0;
+    if (changed){ saved = doc.value; dirty = false; updateInfo(); say('Saved to the Field notes disk at ' + history[history.length-1].txt + '.'); }
+    else say('Nothing new to save. Disk inserted.');
+    placeBalloon(); dirtyFrames = 2;
+  }, dur*1000);
+}
+$('#ddSave').addEventListener('click', () => { closeMenu(); save(); });
+$('#ddEject').addEventListener('click', () => { closeMenu(); if (!D.busy) eject(false); placeBalloon(); });
+$('#ddRevert').addEventListener('click', () => { closeMenu(); doc.value = saved; const was = dirty; dirty = false; updateInfo(); if (was) save(); say('Reverted to the last saved version.'); });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ((e.metaKey || e.ctrlKey) && k === 's'){ e.preventDefault(); save(); }
+  else if ((e.metaKey || e.ctrlKey) && k === 'e'){ e.preventDefault(); if (!D.busy) eject(false); placeBalloon(); }
+  else if (e.key === 'Escape') closeMenu();
+});
+cv.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); if (D.inserted && !dirty && !D.busy) { eject(false); placeBalloon(); } else save(); } });
+
+/* menu */
+const mFile = $('#mFile'), dd = $('#dd');
+function closeMenu(){ dd.classList.remove('on'); mFile.classList.remove('on'); mFile.setAttribute('aria-expanded','false'); }
+mFile.addEventListener('pointerdown', e => { e.preventDefault(); const on = !dd.classList.contains('on'); dd.classList.toggle('on', on); mFile.classList.toggle('on', on); mFile.setAttribute('aria-expanded', on); const r = mFile.getBoundingClientRect(); dd.style.left = r.left + 'px'; if (on) $('#ddSave').focus(); });
+mFile.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown'){ e.preventDefault(); mFile.dispatchEvent(new PointerEvent('pointerdown')); } });
+addEventListener('pointerdown', e => { if (!e.target.closest('.dd') && e.target !== mFile) closeMenu(); });
+
+/* ---------- pointer: push the disk in by hand ---------- */
+let scale = 2;
+function toLogical(e){ const r = cv.getBoundingClientRect(); return {x:(e.clientX - r.left)*LW/r.width, y:(e.clientY - r.top)*LH/r.height}; }
+function onDisk(p){ return p.x > DISK.x && p.x < DISK.x + DISK.w && p.y > DISK.y + D.y && p.y < DISK.y + D.y + DISK.h; }
+cv.addEventListener('pointerdown', e => {
+  audio(); const p = toLogical(e);
+  if (!onDisk(p) || D.busy) { if (p.y > 196 && p.y < 224 && p.x < 70 && !D.busy){ eject(false); placeBalloon(); } return; }
+  try { cv.setPointerCapture(e.pointerId); } catch(_){}
+  D.drag = {y0: p.y, d0: D.y, moved:0, id:e.pointerId};
+});
+cv.addEventListener('pointermove', e => {
+  const p = toLogical(e);
+  cv.style.cursor = (onDisk(p) || (p.y > 196 && p.y < 224 && p.x < 70)) ? 'pointer' : 'default';
+  if (!D.drag || e.pointerId !== D.drag.id) return;
+  const ny = clamp(D.drag.d0 + (p.y - D.drag.y0), -2, OUT + 8);
+  D.drag.moved = Math.max(D.drag.moved, Math.abs(p.y - D.drag.y0));
+  D.y = ny; D.v = 0; D.target = ny;
+});
+function endDrag(e){
+  if (!D.drag) return; const d = D.drag; D.drag = null;
+  if (d.moved < 4){ if (D.inserted && !dirty) { eject(false); placeBalloon(); } else save(); return; }
+  if (D.y < OUT*.55) save(); else { D.target = D.inserted ? 0 : OUT; }
+}
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+
+/* ---------- rendering ---------- */
+const G = v => `rgb(${v*255|0},${v*255|0},${v*255|0})`;
+function rr(x, y, w, h, r){ g.beginPath(); g.roundRect(x, y, w, h, r); }
+function drawScene(t){
+  g.setTransform(1,0,0,1,0,0);
+  g.clearRect(0,0,LW,LH);
+  // hard 1-bit drop shadow, like a System 7 window
+  g.fillStyle = '#000'; rr(16, 14, 240, 214, 12); g.fill();
+  // drive body (platinum): top surface + front face
+  let gr = g.createLinearGradient(0, 10, 0, 200); gr.addColorStop(0, G(.93)); gr.addColorStop(1, G(.8));
+  g.fillStyle = gr; rr(12, 10, 240, 196, 12); g.fill();
+  g.strokeStyle = '#000'; g.lineWidth = 2; rr(12, 10, 240, 214, 12); g.stroke();
+  gr = g.createLinearGradient(0, 196, 0, 224); gr.addColorStop(0, G(.72)); gr.addColorStop(1, G(.5));
+  g.fillStyle = gr; g.fillRect(13, 196, 238, 27); g.fillStyle = '#000'; g.fillRect(13, 195, 238, 2);
+  // vent ridges on the cover
+  g.fillStyle = G(.6); for (let i=0;i<7;i++) g.fillRect(28 + i*7, 22, 3, 22);
+  // cutaway window into the mechanism
+  g.fillStyle = G(.34); rr(42, 30, 186, 152, 6); g.fill();
+  g.strokeStyle = '#000'; g.lineWidth = 2; rr(42, 30, 186, 152, 6); g.stroke();
+  // mechanism: spindle hub, head carriage on rails, stepper motor
+  const hx = 135, hy = 96;
+  g.strokeStyle = '#000'; g.lineWidth = 1.5;
+  g.fillStyle = G(.62); g.beginPath(); g.arc(hx, hy, 24, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = G(.9); g.beginPath(); g.arc(hx, hy, 11, 0, 7); g.fill(); g.stroke();
+  g.save(); g.translate(hx, hy); g.rotate(D.spin); g.fillStyle = G(.12); g.fillRect(-2, -10, 4, 8); g.fillRect(4, 2, 6, 3); g.restore();
+  g.fillStyle = '#000'; g.fillRect(176, 40, 3, 132); g.fillRect(208, 40, 3, 132); g.fillStyle = G(.85); g.fillRect(177, 40, 1, 132); g.fillRect(209, 40, 1, 132);
+  const headY = 56 + (D.inserted && D.spinV > 0 ? (Math.sin(t*7)*.5 + .5)*60 : 18);
+  g.fillStyle = G(.85); g.fillRect(172, headY, 44, 20); g.strokeRect(172, headY, 44, 20); g.fillStyle = '#000'; g.fillRect(176, headY + 8, 12, 4);
+  g.fillStyle = G(.66); rr(56, 40, 30, 30, 3); g.fill(); g.stroke(); g.fillStyle = G(.9); g.beginPath(); g.arc(71, 55, 7, 0, 7); g.fill(); g.stroke();
+  // ribbon cable
+  g.fillStyle = G(.42); g.fillRect(56, 150, 70, 10); g.fillStyle = G(.3); for (let i=0;i<10;i++) g.fillRect(58 + i*7, 150, 2, 10);
+  // the disk (clipped: inside the cavity or out through the slot)
+  drawDisk(t);
+  // slot lip and front details drawn over the disk where it passes behind
+  g.fillStyle = G(.08); g.fillRect(70, 205, 130, 5);
+  // eject button
+  g.fillStyle = G(.82); rr(24, 202, 30, 13, 4); g.fill(); g.strokeStyle = '#000'; g.lineWidth = 1.5; rr(24, 202, 30, 13, 4); g.stroke();
+  g.fillStyle = '#000'; g.beginPath(); g.moveTo(39, 204.5); g.lineTo(44, 209); g.lineTo(34, 209); g.fill(); g.fillRect(34, 210.5, 10, 2);
+  // activity LED with a dithered glow
+  const on = D.led > 0 && (Math.sin(t*38) > -.2);
+  if (on){ const lg = g.createRadialGradient(228, 209, 0, 228, 209, 16); lg.addColorStop(0, G(1)); lg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = lg; g.fillRect(208, 193, 40, 32); }
+  g.fillStyle = on ? '#fff' : '#000'; g.fillRect(222, 206, 12, 6); g.strokeStyle = '#000'; g.lineWidth = 1.2; g.strokeRect(222, 206, 12, 6);
+  // embossed lettering
+  g.fillStyle = G(.42); g.font = '600 9px "Pixelify Sans", monospace'; g.fillText('800K', 214, 22 + 8);
+}
+function drawDisk(t){
+  const x = DISK.x, y = DISK.y + D.y, w = DISK.w, h = DISK.h;
+  g.save();
+  // clip so the disk only shows inside the cutaway or outside below the slot
+  g.beginPath(); g.roundRect(43, 31, 184, 150, 5); g.rect(0, 196, LW, LH); g.clip();
+  // body
+  g.fillStyle = G(.0); g.fillRect(x+3, y+4, w, h); // shadow
+  const gr = g.createLinearGradient(x, y, x + w, y + h); gr.addColorStop(0, G(.2)); gr.addColorStop(1, G(.06));
+  g.fillStyle = gr; g.beginPath(); g.moveTo(x, y); g.lineTo(x+w-8, y); g.lineTo(x+w, y+8); g.lineTo(x+w, y+h); g.lineTo(x, y+h); g.closePath(); g.fill();
+  g.strokeStyle = '#000'; g.lineWidth = 2; g.stroke();
+  g.fillStyle = '#fff'; g.fillRect(x+1, y+1, w-10, 1); g.fillRect(x+1, y+1, 1, h-2);
+  // insertion arrow
+  g.fillStyle = G(.75); g.beginPath(); g.moveTo(x+8, y+10); g.lineTo(x+13, y+4); g.lineTo(x+18, y+10); g.fill();
+  // metal shutter + media window
+  const sx0 = x + w*.3, sw = w*.42, sh = h*.38;
+  const open = D.shutter;
+  g.fillStyle = G(.08); g.fillRect(x + w*.42, y, w*.18, sh*.86); // window into the media
+  if (open > .05){
+    g.save(); g.beginPath(); g.rect(x + w*.42, y, w*.18, sh*.86); g.clip();
+    g.fillStyle = G(.3); for (let i=0;i<6;i++){ const a = D.spin + i*1.05; g.fillRect(x + w*.5 + Math.cos(a)*10 - 1, y + sh*.45 + Math.sin(a)*14 - 6, 2, 12); }
+    g.restore();
+  }
+  const shx = sx0 - open*w*.26;
+  const sgr = g.createLinearGradient(shx, 0, shx + sw, 0); sgr.addColorStop(0, G(.78)); sgr.addColorStop(.5, G(.95)); sgr.addColorStop(1, G(.7));
+  g.fillStyle = sgr; g.fillRect(shx, y, sw, sh); g.strokeStyle = '#000'; g.lineWidth = 1.5; g.strokeRect(shx, y, sw, sh);
+  g.fillStyle = G(.08); g.fillRect(shx + sw*.36, y + sh*.12, sw*.28, sh*.66);
+  // write-protect notch and hole
+  g.fillStyle = G(.1); g.fillRect(x + 6, y + h - 14, 7, 7);
+  // label with ruled lines and pencilled history
+  const lx = x + w*.08, ly = y + h*.47 - D.sticker*40, lw = w*.84, lh = h*.48;
+  g.fillStyle = '#fff'; g.fillRect(lx, ly, lw, lh); g.strokeStyle = '#000'; g.lineWidth = 1.2; g.strokeRect(lx, ly, lw, lh);
+  g.fillStyle = G(.7); for (let i=0;i<4;i++) for (let k=0;k<lw-8;k+=3) g.fillRect(lx + 4 + k, ly + 22 + i*10.4, 1, 1);
+  g.fillStyle = '#000'; g.font = '600 7px "Pixelify Sans", monospace'; g.fillText(labelVol > 1 ? `FIELD NOTES ${labelVol}` : 'FIELD NOTES', lx + 4, ly + 8);
+  g.font = '600 11.5px Caveat, cursive';
+  history.forEach((hh, i) => {
+    const ty = ly + 20 + i*10.4;
+    g.save(); g.beginPath(); g.rect(lx + 2, ty - 10, (lw - 4)*hh.p, 13); g.clip();
+    g.fillStyle = '#000'; g.fillText(hh.txt, lx + 6, ty);
+    g.restore();
+    if (i === history.length - 1 && hh.p >= 1 && !dirty){ g.fillStyle = '#000'; g.beginPath(); g.moveTo(lx + lw - 14, ty - 4); g.lineTo(lx + lw - 11, ty - 1); g.lineTo(lx + lw - 5, ty - 9); g.lineWidth = 1.6; g.strokeStyle = '#000'; g.stroke(); }
+  });
+  // pencil tip while writing
+  if (D.write && D.write.p < 1){ const i = history.indexOf(D.write); const px = lx + 6 + (lw - 12)*D.write.p, py = ly + 20 + i*10.4;
+    g.fillStyle = '#000'; g.beginPath(); g.moveTo(px, py); g.lineTo(px + 22, py - 30); g.lineTo(px + 27, py - 26); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.moveTo(px + 6, py - 8); g.lineTo(px + 20, py - 27); g.lineTo(px + 23, py - 25); g.lineTo(px + 9, py - 6); g.fill(); }
+  // fresh sticker slapped over a full label
+  g.restore();
+}
+function dither(){
+  const img = g.getImageData(0, 0, LW, LH), d = img.data, n = LW*LH;
+  const L = new Float32Array(n), A = new Uint8Array(n);
+  for (let i=0;i<n;i++){ A[i] = d[i*4+3] > 127 ? 1 : 0; L[i] = A[i] ? d[i*4]/255 : 1; }
+  for (let y=0;y<LH;y++) for (let x=0;x<LW;x++){
+    const i = y*LW + x; if (!A[i]) continue; const o = L[i], v = o < .5 ? 0 : 1, e = (o - v)/8; L[i] = v;
+    if (x+1 < LW) L[i+1] += e; if (x+2 < LW) L[i+2] += e;
+    if (y+1 < LH){ if (x > 0) L[i+LW-1] += e; L[i+LW] += e; if (x+1 < LW) L[i+LW+1] += e; }
+    if (y+2 < LH) L[i+2*LW] += e;
+  }
+  for (let i=0;i<n;i++){ const v = L[i] > .5 ? 255 : 0; d[i*4] = d[i*4+1] = d[i*4+2] = v; d[i*4+3] = A[i] ? 255 : 0; }
+  cx.putImageData(img, 0, 0);
+}
+
+/* ---------- layout ---------- */
+const win = $('#win'), drive = $('#drive');
+function layout(){
+  const W = innerWidth, H = innerHeight, mobile = W < 760;
+  if (!mobile){
+    scale = H < 700 ? 1.6 : 2;
+    const dw = LW*scale, dh = LH*scale;
+    const ww = Math.min(560, W - dw - 220);
+    const total = ww + 60 + dw, left = Math.max(30, (W - 120 - total)/2);
+    Object.assign(win.style, {left: left+'px', top: '62px', width: ww+'px', height: (H - 110)+'px'});
+    Object.assign(drive.style, {left: (left + ww + 60)+'px', top: Math.max(50, (H - dh)/2 - 6)+'px', width: dw+'px', height: dh+'px'});
+  } else {
+    scale = Math.min(1.25, (W - 40)/LW);
+    const dw = LW*scale, dh = LH*scale;
+    Object.assign(drive.style, {left: ((W - dw)/2)+'px', top: '34px', width: dw+'px', height: dh+'px'});
+    const top = 34 + dh + 14;
+    Object.assign(win.style, {left: '12px', top: top+'px', width: (W - 28)+'px', height: (H - top - 16)+'px'});
+  }
+  placeBalloon();
+}
+function placeBalloon(){
+  const show = dirty && !D.busy;
+  balloon.classList.toggle('off', !show);
+  const r = drive.getBoundingClientRect(), k = r.width/LW;
+  const bottom = r.top + (DISK.y + OUT + DISK.h)*k;
+  if (innerWidth >= 760){ balloon.style.left = (r.left + (DISK.x + DISK.w*.5 - 30)*k) + 'px'; balloon.style.top = (bottom + 24) + 'px'; balloon.style.right = ''; }
+  else { balloon.style.left = ''; balloon.style.right = '16px'; balloon.style.top = (bottom + 22) + 'px'; }
+}
+
+/* ---------- loop ---------- */
+let last = performance.now(), T = 0; var dirtyFrames = 2;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden){ last = now; return; }
+  const dt = Math.min(.033, (now - last)/1000); last = now; T += dt;
+  const prevY = D.y;
+  if (!D.drag){
+    if (reduce){ D.y = D.target; }
+    else { const k = 260, c = 2*Math.sqrt(k)*.55; D.v += (k*(D.target - D.y) - c*D.v)*dt; D.y += D.v*dt; }
+    if (D.target === 0 && D.y < 1.5 && !D.inserted && D.busy){ D.y = 0; D.v = 0; seated(); }
+    if (D.target === 0 && D.y < 1.5 && D.inserted){ D.y = Math.max(0, D.y); }
+  }
+  D.shutter += ((D.y < 14 ? 1 : 0) - D.shutter)*Math.min(1, dt*10);
+  D.spin += D.spinV*dt*.2 + (D.spinV > 0 ? dt*4 : 0);
+  if (D.ledT > 0){ D.ledT -= dt; D.led = 1; } else D.led = 0;
+  if (D.sticker > 0) D.sticker = Math.max(0, D.sticker - dt*3);
+  if (D.write && D.write.p < 1 && D.sticker === 0){ D.write.p = Math.min(1, D.write.p + dt/1.1); }
+  const anim = Math.abs(D.y - prevY) > .01 || D.sticker > 0 || D.led || (D.write && D.write.p < 1) || D.shutter > .02 && D.shutter < .98 || dirtyFrames > 0;
+  if (anim){ drawScene(T); dither(); dirtyFrames = Math.max(0, dirtyFrames - 1); }
+}
+addEventListener('resize', () => { layout(); dirtyFrames = 2; });
+layout(); updateInfo();
+const go = () => { dirtyFrames = 3; };
+if (document.fonts){ document.fonts.load('10px Caveat'); document.fonts.load('9px "Pixelify Sans"'); document.fonts.ready.then(go); }
+requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>

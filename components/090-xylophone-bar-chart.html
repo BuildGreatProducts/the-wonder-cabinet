@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xylophone Bar Chart</title>
+<meta name="description" content="A bar chart built as a painted wooden Montessori xylophone: each key's height is a month's value, striking it plays a pitch that rises with the number, and sweeping the mallet at a height plays only the months above it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Andika:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Xylophone Bar Chart","reimagines":"Bar chart","category":"Data & Visualization","description":"A year of library borrowing as a painted wooden xylophone: every key is a bar whose height is that month's books, and its pitch rises with the number, so the chart can be heard as well as seen. Sweep the mallet across at any height and only the months above that line ring out.","hint":"Drag the mallet across the keys, or press Play the year; sweep higher to hear only the busier months"}
+</script>
+<style>
+  :root{ --felt:#e9e4da; --ink:#2b2622; --beech:#e2c08f; --red:#d8432e; --yellow:#f2b632; --blue:#2c6bb5; --green:#3f9b5a; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--felt)}
+  body{font-family:Andika, "Trebuchet MS", sans-serif;color:var(--ink)}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .sign{position:absolute;padding:14px 20px 12px;border-radius:14px;
+    background:
+      repeating-linear-gradient(92deg, rgba(150,100,40,.0) 0 7px, rgba(150,100,40,.09) 7px 8px, rgba(150,100,40,0) 8px 19px),
+      linear-gradient(170deg, #f0d4a6, #ddb47c);
+    box-shadow: inset 0 2px 0 rgba(255,245,225,.7), inset 0 -3px 0 rgba(140,90,40,.35), 0 8px 18px rgba(80,55,30,.22), 0 2px 3px rgba(80,55,30,.25)}
+  .sign h1{font:600 30px/1.05 Fredoka, sans-serif;margin:0;color:#3b2a1a}
+  .sign p{font:400 15px/1.35 Andika;margin:6px 0 0;color:#5a4330}
+  .readout{position:absolute;left:50%;transform:translateX(-50%);min-width:280px;text-align:center;padding:10px 18px 9px;border-radius:999px;
+    background:#fbf7ef;box-shadow:inset 0 -3px 0 rgba(0,0,0,.08), 0 6px 14px rgba(80,55,30,.16);font:500 17px/1.25 Fredoka;color:#3b2a1a;white-space:nowrap}
+  .readout b{font-weight:700}
+  .readout .dot{display:inline-block;width:13px;height:13px;border-radius:50%;vertical-align:-1px;margin-right:8px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.2)}
+  .tools{position:absolute;display:flex;gap:12px;align-items:center}
+  .block{all:unset;box-sizing:border-box;cursor:pointer;font:600 16px/1 Fredoka;color:#fff;padding:13px 18px 12px;border-radius:12px;
+    background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(0,0,0,.06)), var(--c, var(--red));
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -4px 0 rgba(0,0,0,.18), 0 6px 0 -1px var(--shade, #9c2a1c), 0 9px 14px rgba(80,55,30,.25);
+    transition:transform .08s, box-shadow .08s;display:inline-flex;align-items:center;gap:8px}
+  .block:hover{transform:translateY(-1px)}
+  .block:active,.block[aria-pressed="true"].toggle{transform:translateY(4px);box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -2px 0 rgba(0,0,0,.18), 0 2px 0 -1px var(--shade, #9c2a1c), 0 4px 8px rgba(80,55,30,.25)}
+  .block:focus-visible{outline:3px solid #2b2622;outline-offset:4px}
+  .block.y{--c:var(--yellow);--shade:#a87412;color:#3b2a1a}
+  .block.b{--c:var(--blue);--shade:#1b4478}
+  .block.n{--c:#efe2c8;--shade:#b99d6f;color:#3b2a1a}
+  .block svg{width:16px;height:16px}
+  .hint{position:absolute;font:500 15px/1.3 Fredoka;color:#6a5a4b;margin:0;transition:opacity .6s;pointer-events:none;text-align:center}
+  .hint.gone{opacity:0}
+  @media (max-width:760px){
+    .sign{padding:9px 13px 8px;border-radius:11px}
+    .sign h1{font-size:19px}
+    .sign p{font-size:12px;margin-top:3px}
+    .readout{font-size:13px;min-width:0;padding:7px 13px 6px;white-space:normal;line-height:1.3;border-radius:16px}
+    .block{font-size:13px;padding:10px 12px 9px;border-radius:10px}
+    .tools{gap:8px}
+    .hint{font-size:12.5px}
+  }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="cv" tabindex="0" role="application" aria-roledescription="playable bar chart" aria-describedby="summary"></canvas>
+  <div class="sign" id="sign"><h1>Books borrowed each month</h1><p>Green Hill Primary library · September 2025 to August 2026</p></div>
+  <p class="readout" id="readout" aria-live="polite"></p>
+  <div class="tools" id="tools">
+    <button class="block" id="play" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg><span>Play the year</span></button>
+    <button class="block y toggle" id="tune" type="button" aria-pressed="true">In tune</button>
+    <button class="block n" id="mute" type="button" aria-pressed="false" aria-label="Sound on"></button>
+  </div>
+  <p class="hint" id="hint">Drag the red mallet across the keys. Sweep higher to hear only the busier months.</p>
+  <p class="sr" id="summary"></p>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+
+/* ---------------- the data ---------------- */
+const MONTHS = [
+  ['September', 2025, 312, 'Back to school: every class gets a library slot.'],
+  ['October', 2025, 388, 'Autumn reading challenge begins.'],
+  ['November', 2025, 402, 'Book fair week brings 60 new titles.'],
+  ['December', 2025, 241, 'Two weeks of holiday close the library early.'],
+  ['January', 2026, 356, 'Back to a full timetable.'],
+  ['February', 2026, 298, 'Half-term week off.'],
+  ['March', 2026, 467, 'World Book Day: the busiest month of the year.'],
+  ['April', 2026, 274, 'Easter holidays.'],
+  ['May', 2026, 391, 'Exam season sends readers back to the shelves.'],
+  ['June', 2026, 348, 'Summer reading lists go home.'],
+  ['July', 2026, 186, 'Term ends on 17 July.'],
+  ['August', 2026, 64, 'Summer opening on Tuesdays only.'],
+];
+const N = MONTHS.length, MAXV = 500, TOTAL = MONTHS.reduce((a,m)=>a+m[2],0);
+const PAINT = ['#d8432e','#ec7a2d','#f2b632','#8fbf3c','#3f9b5a','#2b9aa0','#2c6bb5','#5b4fa8','#a1478f','#d8432e','#ec7a2d','#f2b632'];
+const fmt = n => n.toLocaleString('en-GB');
+
+/* ---------------- pitch: rises with the value ---------------- */
+let inTune = true, muted = false;
+const PENTA = [0, 2, 4, 7, 9];
+function freqOf(v){
+  const semis = v/MAXV*24;                       // 0 … 500 books → two octaves above C4
+  if (!inTune) return 261.63*Math.pow(2, semis/12);
+  const oct = Math.floor(semis/12), within = semis - oct*12;
+  let best = PENTA[0], bd = 99; for (const p of PENTA.concat([12])) if (Math.abs(p - within) < bd){ bd = Math.abs(p - within); best = p; }
+  return 261.63*Math.pow(2, (oct*12 + best)/12);
+}
+const NOTE = ['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+function noteName(f){ const n = Math.round(12*Math.log2(f/261.63)); return NOTE[((n%12)+12)%12] + (4 + Math.floor(n/12)); }
+
+/* ---------------- layout ---------------- */
+let W=0,H=0,DPR=1, mob=false, G={};
+const bg = document.createElement('canvas'), bx = bg.getContext('2d');
+function layout(){
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height; mob = W < 760;
+  DPR = Math.min(2, devicePixelRatio||1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR); bg.width = cv.width; bg.height = cv.height;
+  if (!mob){
+    const kw = Math.min(64, (W - 260)/N*0.8), gap = kw*0.24;
+    const span = N*kw + (N-1)*gap;
+    G = {kw, gap, x0: (W - span)/2 + 30, base: H - 150, top: 170};
+    G.ruler = {x: G.x0 - 92, w: 46};
+    Object.assign($('sign').style, {left:'40px', top:'32px', right:'auto'});
+    Object.assign($('readout').style, {top:'44px', left:'auto', right:'40px', transform:'none'});
+    Object.assign($('tools').style, {left:'50%', bottom:'34px', top:'auto', transform:'translateX(-50%)'});
+    Object.assign($('hint').style, {left:'0', right:'0', bottom:'96px', top:'auto'});
+  } else {
+    const kw = (W - 60)/N*0.8, gap = kw*0.25;
+    G = {kw, gap, x0: 46, base: H - 200, top: 182};
+    G.ruler = {x: 6, w: 32};
+    Object.assign($('sign').style, {left:'12px', top:'12px', right:'12px'});
+    Object.assign($('readout').style, {top:'84px', left:'12px', right:'12px', transform:'none'});
+    Object.assign($('tools').style, {left:'12px', bottom:'18px', top:'auto', transform:'none'});
+    Object.assign($('hint').style, {left:'12px', right:'12px', bottom:'76px', top:'auto'});
+  }
+  G.h = G.base - G.top;
+  keys.forEach((k, i) => { k.x = G.x0 + i*(G.kw + G.gap); k.h = MONTHS[i][2]/MAXV*G.h; });
+  mallet.rx = W - (mob ? 34 : 70); mallet.ry = G.base + (mob ? 46 : 64);
+  if (!mallet.held && !auto){ mallet.x = mallet.rx; mallet.y = mallet.ry; }
+  paintBg();
+}
+const keyTop = i => G.base - keys[i].h;
+const yOfV = v => G.base - v/MAXV*G.h;
+const vOfY = y => (G.base - y)/G.h*MAXV;
+
+/* ---------------- painting: felt mat, beech rails, ruler ---------------- */
+function paintBg(){
+  const g = bx; g.setTransform(DPR,0,0,DPR,0,0);
+  // wool felt
+  g.fillStyle = '#e9e4da'; g.fillRect(0,0,W,H);
+  const r = mulberry32(90);
+  for (let i=0;i<W*H/60;i++){ g.strokeStyle = r()<0.5 ? 'rgba(120,105,85,.07)' : 'rgba(255,255,255,.28)'; g.lineWidth = 0.6; const x = r()*W, y = r()*H, a = r()*TAU, l = 2 + r()*5; g.beginPath(); g.moveTo(x,y); g.lineTo(x + Math.cos(a)*l, y + Math.sin(a)*l); g.stroke(); }
+  const v = g.createRadialGradient(W*0.4, H*0.2, 0, W*0.5, H*0.5, Math.max(W,H)*0.8);
+  v.addColorStop(0,'rgba(255,250,240,.35)'); v.addColorStop(1,'rgba(120,100,80,.18)');
+  g.fillStyle = v; g.fillRect(0,0,W,H);
+  // stitched guide lines every 100 books (running stitch in grey thread)
+  g.save(); g.strokeStyle = 'rgba(110,100,92,.5)'; g.lineWidth = 1.6; g.lineCap = 'round'; g.setLineDash([7,6]);
+  for (let v2 = 100; v2 <= MAXV; v2 += 100){ const y = Math.round(yOfV(v2)) + 0.5; g.beginPath(); g.moveTo(G.ruler.x + G.ruler.w + 8, y); g.lineTo(G.x0 + N*(G.kw + G.gap) + 6, y); g.stroke(); }
+  g.restore();
+  // beech base rail, and the wooden ruler (the y-axis)
+  wood(g, G.x0 - 22, G.base, N*(G.kw + G.gap) + 22, mob ? 20 : 28, 10, 1);
+  wood(g, G.ruler.x, G.top - 22, G.ruler.w, G.h + 22 + (mob ? 20 : 28), 8, 2);
+  g.fillStyle = '#3b2a1a'; g.strokeStyle = '#3b2a1a'; g.lineCap = 'round';
+  for (let v2 = 0; v2 <= MAXV; v2 += 25){
+    const y = yOfV(v2), major = v2 % 100 === 0, mid = v2 % 50 === 0;
+    g.lineWidth = major ? 2.2 : 1.4;
+    g.beginPath(); g.moveTo(G.ruler.x + G.ruler.w, y); g.lineTo(G.ruler.x + G.ruler.w - (major ? G.ruler.w*0.42 : mid ? G.ruler.w*0.28 : G.ruler.w*0.16), y); g.stroke();
+    if (major){ g.font = `600 ${mob?10:13}px Fredoka`; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(String(v2), G.ruler.x + (mob?3:6), y + (v2 === 0 ? -8 : 0)); }
+  }
+  g.save(); g.translate(G.ruler.x + G.ruler.w*0.36, G.top - 4); g.rotate(-Math.PI/2);
+  g.restore();
+  g.font = `600 ${mob?10:12}px Fredoka`; g.fillStyle = '#6a5a4b'; g.textAlign = 'left'; g.textBaseline = 'bottom';
+  g.fillText('books', G.ruler.x, G.top - 28);
+}
+function wood(g, x, y, w, h, rad, seed){
+  const r = mulberry32(seed*13);
+  g.save();
+  g.shadowColor = 'rgba(90,60,30,.28)'; g.shadowBlur = 14; g.shadowOffsetY = 6;
+  rr(g, x, y, w, h, rad); g.fillStyle = '#ddb880'; g.fill();
+  g.restore();
+  g.save(); rr(g, x, y, w, h, rad); g.clip();
+  const lg = g.createLinearGradient(0, y, 0, y + h); lg.addColorStop(0, '#f0d3a3'); lg.addColorStop(0.5, '#e2bd86'); lg.addColorStop(1, '#c99b62');
+  g.fillStyle = lg; g.fillRect(x, y, w, h);
+  // grain
+  const along = w > h;
+  for (let k=0;k<(along ? h : w)/2.2;k++){
+    g.strokeStyle = `rgba(150,95,45,${0.06 + r()*0.12})`; g.lineWidth = 0.6 + r();
+    g.beginPath();
+    if (along){ const yy = y + r()*h; g.moveTo(x, yy); g.bezierCurveTo(x + w*0.3, yy + (r()-0.5)*4, x + w*0.6, yy + (r()-0.5)*4, x + w, yy + (r()-0.5)*3); }
+    else { const xx = x + r()*w; g.moveTo(xx, y); g.bezierCurveTo(xx + (r()-0.5)*4, y + h*0.3, xx + (r()-0.5)*4, y + h*0.7, xx + (r()-0.5)*3, y + h); }
+    g.stroke();
+  }
+  g.strokeStyle = 'rgba(255,245,225,.6)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + rad, y + 1.5); g.lineTo(x + w - rad, y + 1.5); g.stroke();
+  g.restore();
+}
+function rr(g, x, y, w, h, r){ r = Math.min(r, w/2, h/2); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function shade(hex, k){ const n = parseInt(hex.slice(1),16); const f = v => Math.max(0, Math.min(255, Math.round(k > 1 ? v + (255-v)*(k-1) : v*k))); return `rgb(${f(n>>16)},${f(n>>8&255)},${f(n&255)})`; }
+
+/* ---------------- keys ---------------- */
+const keys = MONTHS.map(() => ({x:0, h:0, ring:0, dip:0, t:0}));
+function drawKey(g, i){
+  const k = keys[i], m = MONTHS[i], col = PAINT[i];
+  const wob = k.ring > 0.01 && !reduce ? Math.sin(k.t*48)*k.ring*1.6 : 0;
+  const x = k.x + wob, y = keyTop(i) + k.dip, w = G.kw, h = k.h - k.dip + (mob ? 6 : 8);
+  // contact shadow
+  g.save(); g.shadowColor = 'rgba(70,45,20,.3)'; g.shadowBlur = 10 - k.dip*2; g.shadowOffsetX = 3; g.shadowOffsetY = 6 - k.dip;
+  rr(g, x, y, w, h, Math.min(10, w*0.22)); g.fillStyle = col; g.fill(); g.restore();
+  // painted body with rounded edges catching the light
+  g.save(); rr(g, x, y, w, h, Math.min(10, w*0.22)); g.clip();
+  const lg = g.createLinearGradient(x, 0, x + w, 0);
+  lg.addColorStop(0, shade(col, 1.18)); lg.addColorStop(0.18, col); lg.addColorStop(0.82, col); lg.addColorStop(1, shade(col, 0.8));
+  g.fillStyle = lg; g.fillRect(x, y, w, h);
+  // grain showing through the paint
+  const r = mulberry32(i*7 + 3);
+  for (let n=0;n<w/2.4;n++){ g.strokeStyle = `rgba(80,40,10,${0.04 + r()*0.06})`; g.lineWidth = 0.7; const xx = x + r()*w; g.beginPath(); g.moveTo(xx, y); g.bezierCurveTo(xx + (r()-0.5)*3, y + h*0.4, xx + (r()-0.5)*3, y + h*0.7, xx + (r()-0.5)*2, y + h); g.stroke(); }
+  // top bevel highlight, worn edge where the mallet lands
+  const tg = g.createLinearGradient(0, y, 0, y + 14); tg.addColorStop(0, 'rgba(255,255,255,.45)'); tg.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = tg; g.fillRect(x, y, w, 14);
+  // glow when ringing
+  if (k.ring > 0.02){ g.fillStyle = `rgba(255,252,235,${k.ring*0.45})`; g.fillRect(x, y, w, h); }
+  g.restore();
+  // brass pins that hold the key to the rail
+  for (const py of [G.base + (mob ? 2 : 4)]){
+    for (const px of [x + w*0.3, x + w*0.7]){ const pg = g.createRadialGradient(px - 1, py - 1, 0, px, py, 3.4); pg.addColorStop(0, '#fff1c0'); pg.addColorStop(1, '#8a6a2a'); g.fillStyle = pg; g.beginPath(); g.arc(px, py, mob ? 2.2 : 3, 0, TAU); g.fill(); }
+  }
+  // painted value disc near the top of the key
+  const big = !mob || w > 22;
+  const rad = Math.min(w*0.42, mob ? 11 : 19);
+  const short = k.h < (mob ? 50 : 76);
+  const cy = short ? y - rad - 5 : y + (mob ? 14 : 22);
+  g.fillStyle = 'rgba(255,250,238,.95)'; g.beginPath(); g.arc(x + w/2, cy, rad, 0, TAU); g.fill();
+  g.fillStyle = '#3b2a1a'; g.font = `700 ${mob ? 8.5 : 13}px Fredoka`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(String(m[2]), x + w/2, cy + 0.5);
+  // month stencilled near the bottom
+  g.save(); g.translate(x + w/2, G.base - (mob ? 10 : 16));
+  g.fillStyle = 'rgba(255,250,238,.92)'; g.font = `600 ${mob ? 10 : 14}px Fredoka`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(mob ? m[0][0] : m[0].slice(0,3), 0, 0);
+  g.restore();
+  // focus ring (keyboard)
+  if (focusKey === i && kbFocus){ g.strokeStyle = '#2b2622'; g.lineWidth = 2.5; g.setLineDash([5,4]); rr(g, x - 5, y - 5, w + 10, h + 10, 12); g.stroke(); g.setLineDash([]); }
+}
+
+/* ---------------- the mallet ---------------- */
+const mallet = {x:0, y:0, rx:0, ry:0, vx:0, vy:0, ang:2.85, held:false};
+function malletHead(){ return [mallet.x, mallet.y]; }
+function drawMallet(g){
+  const [hx, hy] = malletHead(), a = mallet.ang, L = mob ? 95 : 140, hr = mob ? 13 : 17;
+  const ex = hx + Math.cos(a)*L, ey = hy + Math.sin(a)*L;
+  g.save();
+  // shadow
+  g.strokeStyle = 'rgba(70,45,20,.25)'; g.lineWidth = mob ? 7 : 9; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(hx + 8, hy + 12); g.lineTo(ex + 8, ey + 12); g.stroke();
+  g.fillStyle = 'rgba(70,45,20,.25)'; g.beginPath(); g.arc(hx + 8, hy + 12, hr, 0, TAU); g.fill();
+  // beech handle
+  const hg = g.createLinearGradient(hx, hy - 4, hx, hy + 4);
+  g.strokeStyle = '#d9b47c'; g.lineWidth = mob ? 7 : 9; g.beginPath(); g.moveTo(hx, hy); g.lineTo(ex, ey); g.stroke();
+  g.strokeStyle = 'rgba(255,245,225,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(hx + Math.cos(a)*hr, hy + Math.sin(a)*hr - 2); g.lineTo(ex, ey - 2); g.stroke();
+  g.fillStyle = '#c99b62'; g.beginPath(); g.arc(ex, ey, mob ? 5 : 6, 0, TAU); g.fill();
+  // red painted ball head
+  const bg2 = g.createRadialGradient(hx - hr*0.35, hy - hr*0.4, hr*0.1, hx, hy, hr);
+  bg2.addColorStop(0, '#ff8a6c'); bg2.addColorStop(0.5, '#d8432e'); bg2.addColorStop(1, '#8e2414');
+  g.fillStyle = bg2; g.beginPath(); g.arc(hx, hy, hr, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(hx - hr*0.35, hy - hr*0.42, hr*0.28, hr*0.16, -0.5, 0, TAU); g.fill();
+  g.restore();
+  // the sweep line: which months are above this height?
+  if (mallet.held && hy < G.base && hy > G.top - 30){
+    const v = Math.max(0, Math.round(vOfY(hy)));
+    g.save(); g.strokeStyle = 'rgba(43,38,34,.45)'; g.lineWidth = 1.5; g.setLineDash([3,5]);
+    g.beginPath(); g.moveTo(G.ruler.x + G.ruler.w, hy); g.lineTo(G.x0 + N*(G.kw + G.gap), hy); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#2b2622'; g.font = `600 ${mob?10:12}px Fredoka`; g.textAlign = 'left'; g.textBaseline = 'bottom';
+    const n = MONTHS.filter(m => m[2] >= v).length;
+    g.fillText(`${n} month${n===1?'':'s'} at ${v}+`, G.ruler.x + G.ruler.w + 10, hy - 4);
+    g.restore();
+  }
+}
+
+/* ---------------- sound: wooden bar synthesis ---------------- */
+let AC = null, master = null, rev = null;
+function audio(){
+  if (AC){ if (AC.state==='suspended') AC.resume(); return; }
+  try{
+    AC = new (window.AudioContext||window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0.18;
+    // small room: a short feedback delay for warmth
+    const d = AC.createDelay(); d.delayTime.value = 0.09; const fb = AC.createGain(); fb.gain.value = 0.22; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
+    master.connect(AC.destination); master.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(AC.destination);
+  }catch(e){ AC = null; }
+}
+function strikeSound(f, vel){
+  if (!AC || muted) return;
+  const t0 = AC.currentTime, v = Math.max(0.15, Math.min(1, vel));
+  // wooden bar partials: 1, 3.93, 9.7 (tuned bar) with fast decay of the upper modes
+  [[1, 1, 1.1], [3.93, 0.28, 0.28], [9.7, 0.08, 0.09]].forEach(([m, a, dec]) => {
+    const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f*m;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5*a*v, t0 + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dec);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dec + 0.05);
+  });
+  // felt-ball knock
+  const len = 0.03, b = AC.createBuffer(1, Math.ceil(AC.sampleRate*len), AC.sampleRate), dd = b.getChannelData(0);
+  for (let i=0;i<dd.length;i++) dd[i] = (Math.random()*2-1)*Math.pow(1 - i/dd.length, 3);
+  const s = AC.createBufferSource(); s.buffer = b; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f*2; bp.Q.value = 1.5;
+  const ng = AC.createGain(); ng.gain.value = 0.25*v; s.connect(bp); bp.connect(ng); ng.connect(master); s.start(t0);
+}
+function strike(i, vel=0.7){
+  const k = keys[i]; k.ring = 1; k.t = 0; k.dip = mob ? 2 : 3;
+  const f = freqOf(MONTHS[i][2]);
+  strikeSound(f, vel);
+  focusKey = i; showKey(i, f);
+  $('hint').classList.add('gone');
+}
+function showKey(i, f){
+  const m = MONTHS[i], prev = MONTHS[i-1];
+  const ch = prev ? Math.round((m[2] - prev[2])/prev[2]*100) : null;
+  const rank = [...MONTHS].sort((a,b)=>b[2]-a[2]).findIndex(x => x === m) + 1;
+  $('readout').innerHTML = `<span class="dot" style="background:${PAINT[i]}"></span><b>${m[0]} ${m[1]}</b> · ${m[2]} books${mob ? '' : ` · ${rank === 1 ? 'busiest' : rank === N ? 'quietest' : '#' + rank + ' of 12'}`} · <span style="opacity:.7">${noteName(f || freqOf(m[2]))}</span>`;
+  $('live').textContent = `${m[0]} ${m[1]}: ${m[2]} books${ch === null ? '' : ', ' + (ch >= 0 ? 'up ' : 'down ') + Math.abs(ch) + '% on ' + prev[0]}. ${m[3]}`;
+}
+function showSummary(){
+  const top = MONTHS.reduce((a,m)=> m[2] > a[2] ? m : a), low = MONTHS.reduce((a,m)=> m[2] < a[2] ? m : a);
+  $('readout').innerHTML = `<b>${fmt(TOTAL)}</b> books this year · busiest <b>${top[0]}</b> (${top[2]}) · quietest <b>${low[0]}</b> (${low[2]})`;
+  $('summary').textContent = `Books borrowed each month at Green Hill Primary, September 2025 to August 2026: ` + MONTHS.map(m => `${m[0]} ${m[2]}`).join(', ') + `. Total ${fmt(TOTAL)}. Pitch rises with the number of books.`;
+  cv.setAttribute('aria-label', 'Xylophone bar chart. Left and Right arrows choose a month, Space strikes it, P plays the whole year.');
+}
+
+/* ---------------- interaction ---------------- */
+let focusKey = -1, kbFocus = false, auto = null;
+function keyAt(x, y){
+  for (let i=0;i<N;i++){ const k = keys[i]; if (x >= k.x - 1 && x <= k.x + G.kw + 1 && y >= keyTop(i) && y <= G.base + 10) return i; }
+  return -1;
+}
+let inside = -1, lastP = null;
+cv.addEventListener('pointerdown', e => {
+  audio(); kbFocus = false;
+  const x = e.clientX, y = e.clientY;
+  const [hx, hy] = malletHead();
+  const onMallet = Math.hypot(x - hx, y - hy) < (mob ? 30 : 34) || distToHandle(x, y) < 14;
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  stopAuto();
+  mallet.held = true; mallet.grab = onMallet ? [x - hx, y - hy] : [0, 0];
+  if (!onMallet){ mallet.x = x; mallet.y = y; }
+  lastP = {x, y, t: performance.now()};
+  inside = keyAt(mallet.x, mallet.y);
+  if (inside >= 0) strike(inside, 0.75);
+});
+function distToHandle(x, y){
+  const [hx, hy] = malletHead(), L = mob ? 95 : 140, ex = hx + Math.cos(mallet.ang)*L, ey = hy + Math.sin(mallet.ang)*L;
+  const vx = ex - hx, vy = ey - hy, t = Math.max(0, Math.min(1, ((x-hx)*vx + (y-hy)*vy)/(vx*vx + vy*vy)));
+  return Math.hypot(x - (hx + vx*t), y - (hy + vy*t));
+}
+cv.addEventListener('pointermove', e => {
+  const x = e.clientX, y = e.clientY;
+  if (!mallet.held){
+    const [hx, hy] = malletHead();
+    cv.style.cursor = (Math.hypot(x - hx, y - hy) < 34 || distToHandle(x, y) < 14) ? 'grab' : keyAt(x, y) >= 0 ? 'pointer' : 'default';
+    return;
+  }
+  const now = performance.now(), dt = Math.max(8, now - lastP.t);
+  const nx = x - mallet.grab[0], ny = y - mallet.grab[1];
+  const speed = Math.hypot(nx - mallet.x, ny - mallet.y)/dt;
+  // sweep: every key the head passes through rings, in order
+  const steps = Math.max(1, Math.ceil(Math.abs(nx - mallet.x)/(G.kw*0.3)));
+  for (let s=1;s<=steps;s++){
+    const px = mallet.x + (nx - mallet.x)*s/steps, py = mallet.y + (ny - mallet.y)*s/steps;
+    const k = keyAt(px, py);
+    if (k !== inside){ inside = k; if (k >= 0) strike(k, Math.min(1, 0.35 + speed*0.6)); }
+  }
+  mallet.vx = (nx - mallet.x)/dt*16; mallet.vy = (ny - mallet.y)/dt*16;
+  mallet.x = nx; mallet.y = ny; lastP = {x, y, t: now};
+});
+const endP = () => { if (!mallet.held) return; mallet.held = false; inside = -1; };
+cv.addEventListener('pointerup', endP); cv.addEventListener('pointercancel', endP);
+cv.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); audio(); kbFocus = true; focusKey = focusKey < 0 ? 0 : (focusKey + (e.key === 'ArrowRight' ? 1 : -1) + N) % N; showKey(focusKey); moveMalletTo(focusKey, false); }
+  else if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); audio(); kbFocus = true; if (focusKey < 0) focusKey = 0; moveMalletTo(focusKey, true); }
+  else if (e.key === 'p' || e.key === 'P'){ playYear(); }
+  else if (e.key === 'Home'){ kbFocus = true; focusKey = 0; showKey(0); } else if (e.key === 'End'){ kbFocus = true; focusKey = N-1; showKey(N-1); }
+});
+cv.addEventListener('blur', () => { kbFocus = false; });
+function moveMalletTo(i, hit){ mallet.x = keys[i].x + G.kw/2; mallet.y = keyTop(i) + (mob ? 16 : 26); if (hit) strike(i, 0.7); }
+
+/* play the year: the mallet walks the melody */
+function playYear(){
+  audio(); stopAuto();
+  const order = MONTHS.map((_, i) => i);
+  let step = 0;
+  $('play').querySelector('span').textContent = 'Playing…';
+  auto = {i: 0, t: 0, from: [mallet.x, mallet.y]};
+  const tick = () => {
+    if (!auto) return;
+    const i = order[step];
+    auto.from = [mallet.x, mallet.y]; auto.to = [keys[i].x + G.kw/2, keyTop(i) + (mob ? 16 : 26)]; auto.t = 0; auto.i = i;
+    step++;
+    auto.timer = setTimeout(() => { if (!auto) return; strike(i, 0.75); if (step < order.length) auto.timer = setTimeout(tick, reduce ? 260 : 150); else setTimeout(() => { stopAuto(); showSummary(); }, 600); }, reduce ? 0 : 170);
+  };
+  tick();
+}
+function stopAuto(){ if (auto){ clearTimeout(auto.timer); auto = null; } $('play').querySelector('span').textContent = 'Play the year'; }
+$('play').addEventListener('click', playYear);
+$('tune').addEventListener('click', () => {
+  inTune = !inTune; $('tune').setAttribute('aria-pressed', String(inTune)); $('tune').textContent = inTune ? 'In tune' : 'Exact pitch';
+  audio(); if (focusKey >= 0) strike(focusKey, 0.6);
+  $('live').textContent = inTune ? 'Pitches rounded to the nearest pentatonic note.' : 'Exact pitch: every book raises the note by the same amount.';
+});
+function setMute(){
+  $('mute').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px;height:20px"><path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="#3b2a1a"/>${muted ? '<path d="M16 9l5 6M21 9l-5 6" stroke="#d8432e" stroke-width="2.2" stroke-linecap="round"/>' : '<path d="M16.5 9c1.4 1.6 1.4 4.4 0 6M19 6.5c2.8 3 2.8 8 0 11" fill="none" stroke="#3b2a1a" stroke-width="2" stroke-linecap="round"/>'}</svg>`;
+  $('mute').setAttribute('aria-pressed', String(muted)); $('mute').setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
+}
+$('mute').addEventListener('click', () => { muted = !muted; setMute(); });
+
+/* ---------------- loop ---------------- */
+let last = performance.now();
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  for (const k of keys){ k.t += dt; k.ring *= Math.exp(-dt*3.2); k.dip += (0 - k.dip)*Math.min(1, dt*14); }
+  if (auto && auto.to){ auto.t = Math.min(1, auto.t + dt/(reduce ? 0.01 : 0.17)); const u = auto.t, e = u*u*(3-2*u); mallet.x = auto.from[0] + (auto.to[0] - auto.from[0])*e; mallet.y = auto.from[1] + (auto.to[1] - auto.from[1])*e - Math.sin(u*Math.PI)*(mob ? 16 : 26); }
+  else if (!mallet.held && !kbFocus){ mallet.x += (mallet.rx - mallet.x)*Math.min(1, dt*(reduce ? 60 : 2.2)); mallet.y += (mallet.ry - mallet.y)*Math.min(1, dt*(reduce ? 60 : 2.2)); }
+  const targetAng = mallet.held || auto ? 0.55 + Math.max(-0.5, Math.min(0.5, -mallet.vx*0.01)) : (kbFocus ? 0.55 : 2.85);
+  mallet.ang += (targetAng - mallet.ang)*Math.min(1, dt*8);
+  mallet.vx *= 0.85;
+  ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(bg, 0, 0);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  for (let i=0;i<N;i++) drawKey(ctx, i);
+  drawMallet(ctx);
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', layout);
+setMute(); showSummary();
+layout();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(paintBg);
+requestAnimationFrame(frame);
+window.__xylo = { play: playYear, sweep: (y) => { const ev = (t, x) => cv.dispatchEvent(new PointerEvent(t, {clientX:x, clientY:y, pointerId:1, bubbles:true})); ev('pointerdown', G.x0 - 30); for (let x = G.x0 - 30; x < G.x0 + N*(G.kw+G.gap); x += 12) ev('pointermove', x); }, yOf: yOfV };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moon Phase Date Picker</title>
+<meta name="description" content="A date picker printed as a cyanotype: every night shows its true computed moon phase as a white sun-print silhouette, and the big moon can be spun to scrub through the nights.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Homemade+Apple&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Moon Phase Date Picker","reimagines":"Date picker","category":"Pickers & Selection","description":"Planning a night hike, each day of the calendar is a cyanotype sun-print of that night's real moon phase (computed with Meeus' lunar terms). Spin the big moon to scrub through nights; the chosen date prints as a negative and the details develop like a blueprint in the wash.","hint":"Pick a night, or spin the big moon to scrub through the month"}
+</script>
+<style>
+:root{--prus:#173f73;--prus2:#0f2f5a;--prus3:#245690;--white:#f3f6f4;--wash:rgba(236,244,247,.82);--paper:#efece1}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--paper);color:var(--white);font-family:"Special Elite","Courier New",monospace;overflow:hidden}
+.sheet{position:fixed;inset:14px;filter:url(#brush)}
+.sheet .coat{position:absolute;inset:0;background:radial-gradient(ellipse at 30% 25%,#22558f,#173f73 45%,#10305c 85%)}
+.sheet .mottle{position:absolute;inset:0;filter:url(#mottle);opacity:.55;mix-blend-mode:screen}
+.sheet .mottle2{position:absolute;inset:0;filter:url(#mottle2);opacity:.5;mix-blend-mode:multiply}
+.flora{position:fixed;left:14px;top:14px;width:calc(100% - 28px);height:calc(100% - 28px);pointer-events:none;filter:url(#soft)}
+.ui{position:fixed;inset:14px;display:grid;grid-template-columns:minmax(300px,1fr) minmax(470px,600px);gap:40px;padding:42px 56px 36px;align-items:center}
+.left{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;min-width:0}
+.title{font-family:"Homemade Apple",cursive;font-size:28px;line-height:1.5;color:var(--white);opacity:.95;margin-bottom:6px}
+.sub{font-size:14px;letter-spacing:.04em;opacity:.85}
+.bigmoon{width:min(270px,34vh);height:min(270px,34vh);margin:18px 0 10px;touch-action:none;cursor:grab;outline:none;position:relative}
+.bigmoon:active{cursor:grabbing}
+.bigmoon svg{width:100%;height:100%;overflow:visible}
+.bigmoon:focus-visible::after{content:"";position:absolute;inset:-12px;border:1.5px dashed var(--white);border-radius:50%}
+.info{min-height:122px;position:relative}
+.info .date{font-size:24px;letter-spacing:.02em}
+.info .pct{font-size:15px;margin-top:6px;opacity:.9}
+.info .verdict{font-size:14px;margin-top:8px;max-width:330px;line-height:1.45;opacity:.9}
+.info.dev{animation:develop 1.6s ease-out}
+@keyframes develop{0%{opacity:0;filter:blur(3px) sepia(1) hue-rotate(20deg) saturate(3)}35%{opacity:.6;filter:blur(1px) sepia(.6) hue-rotate(10deg)}100%{opacity:1;filter:none}}
+.spinhint{font-size:12px;opacity:.65;letter-spacing:.06em;transition:opacity 1s}
+.spinhint.gone{opacity:0}
+.cal{min-width:0}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.calhead h2{font-weight:400;font-size:30px;letter-spacing:.06em}
+.nav{appearance:none;border:1.5px solid rgba(243,246,244,.7);background:none;color:var(--white);font-family:inherit;font-size:18px;width:42px;height:42px;cursor:pointer;border-radius:2px}
+.nav:hover{background:rgba(243,246,244,.12)}.nav:disabled{opacity:.25;cursor:not-allowed}
+.nav:focus-visible,.day:focus-visible,.reserve:focus-visible{outline:2px dashed var(--white);outline-offset:3px}
+.dow,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.dow span{font-size:12px;text-align:center;letter-spacing:.12em;opacity:.7;padding-bottom:8px;border-bottom:1px solid rgba(243,246,244,.35)}
+.grid{border-left:1px solid rgba(243,246,244,.2);transition:opacity .35s,transform .45s cubic-bezier(.3,1.4,.5,1)}
+.grid.swap{opacity:0;transform:translateY(10px) rotate(-.6deg)}
+.day{appearance:none;background:none;border:0;border-right:1px solid rgba(243,246,244,.2);border-bottom:1px solid rgba(243,246,244,.2);color:var(--white);font-family:inherit;height:68px;position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px;transition:background .25s}
+.day .n{position:absolute;left:6px;top:4px;font-size:13px}
+.day svg{width:30px;height:30px;margin-bottom:2px;overflow:visible}
+.day .tag{font-size:8.5px;letter-spacing:.06em;opacity:.8;height:10px;line-height:10px}
+.day:hover{background:rgba(243,246,244,.1)}
+.day.out{visibility:hidden}
+.day.past{cursor:not-allowed;opacity:.38}
+.day.past .n{text-decoration:line-through}
+.day.today .n::after{content:"";position:absolute;left:-3px;right:-3px;bottom:-2px;height:1.5px;background:var(--white)}
+.day.sel{background:var(--white);color:var(--prus)}
+.day.sel .lit{fill:var(--prus)}.day.sel .rim{stroke:var(--prus)}
+.day.sel::after{content:"";position:absolute;inset:3px;border:1px solid var(--prus);pointer-events:none}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:16px}
+.legend{font-size:12px;opacity:.75;line-height:1.5}
+.reserve{appearance:none;border:0;background:var(--white);color:var(--prus);font-family:inherit;font-size:16px;padding:13px 20px 12px;cursor:pointer;clip-path:polygon(0 6%,4% 0,96% 3%,100% 0,99% 96%,95% 100%,3% 97%,0 100%);transition:transform .2s}
+.reserve:hover{transform:rotate(-1deg)}
+.reserve:disabled{opacity:.45;cursor:not-allowed}
+.reserve.done{background:#cfe0ea}
+.mute{position:fixed;right:34px;top:30px;width:36px;height:36px;border:1.5px solid rgba(243,246,244,.7);background:none;border-radius:50%;cursor:pointer;display:grid;place-items:center;z-index:5}
+.mute:focus-visible{outline:2px dashed var(--white);outline-offset:3px}
+.label{position:fixed;left:44px;bottom:30px;font-size:11px;letter-spacing:.1em;opacity:.55}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:820px){
+  .sheet{inset:8px}.flora{left:8px;top:8px;width:calc(100% - 16px);height:calc(100% - 16px)}
+  .ui{inset:8px;grid-template-columns:1fr;grid-template-rows:auto 1fr;gap:6px;padding:16px 14px 14px;align-items:start}
+  .left{display:grid;grid-template-columns:120px 1fr;grid-template-rows:auto auto auto;text-align:left;align-items:center;column-gap:14px;row-gap:2px}
+  .title{grid-column:1/-1;font-size:19px;margin-bottom:2px;text-align:center}
+  .sub{grid-column:1/-1;font-size:11.5px;text-align:center;margin-bottom:6px}
+  .bigmoon{width:116px;height:116px;margin:0;grid-row:3}
+  .info{grid-row:3;min-height:0}
+  .info .date{font-size:17px}.info .pct{font-size:12.5px;margin-top:3px}.info .verdict{font-size:11.5px;margin-top:4px;line-height:1.35}
+  .spinhint{display:none}
+  .calhead{margin-bottom:8px}.calhead h2{font-size:21px}.nav{width:36px;height:36px}
+  .day{height:58px;padding-bottom:3px}.day svg{width:24px;height:24px}.day .n{font-size:11px;left:4px;top:2px}.day .tag{font-size:7px}
+  .foot{margin-top:10px;flex-direction:column;align-items:stretch;gap:8px}.legend{font-size:10.5px;text-align:center}
+  .reserve{font-size:15px}
+  .mute{right:16px;top:16px;width:30px;height:30px}
+  .label{display:none}
+}
+@media (prefers-reduced-motion:reduce){.info.dev{animation:none}.grid{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="brush" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency=".022 .06" numOctaves="3" seed="8" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="26" xChannelSelector="R" yChannelSelector="G"/></filter>
+  <filter id="mottle"><feTurbulence type="fractalNoise" baseFrequency=".008 .018" numOctaves="4" seed="3"/><feColorMatrix values="0 0 0 0 .2  0 0 0 0 .42  0 0 0 0 .7  0 0 0 1.6 -.75"/></filter>
+  <filter id="mottle2"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="12"/><feColorMatrix values="0 0 0 0 .04  0 0 0 0 .14  0 0 0 0 .3  0 0 0 1.1 -.35"/></filter>
+  <filter id="soft"><feGaussianBlur stdDeviation=".7"/></filter>
+</svg>
+<div class="sheet" aria-hidden="true"><div class="coat"></div><div class="mottle"></div><div class="mottle2"></div></div>
+<svg class="flora" id="flora" aria-hidden="true"></svg>
+
+<main class="ui">
+  <section class="left">
+    <p class="title">Night hike, Pen y Fan</p>
+    <p class="sub">Brecon Beacons · from Storey Arms at 19:30</p>
+    <div class="bigmoon" id="big" tabindex="0" role="slider" aria-label="Scrub through nights" aria-valuetext="">
+      <svg viewBox="-110 -110 220 220" id="bigsvg" aria-hidden="true"></svg>
+    </div>
+    <div class="info" id="info" aria-live="polite">
+      <p class="date" id="idate">—</p>
+      <p class="pct" id="ipct">—</p>
+      <p class="verdict" id="iverd">—</p>
+    </div>
+    <p class="spinhint" id="spinhint">spin the moon to move through the nights</p>
+  </section>
+  <section class="cal" aria-label="Choose a night">
+    <div class="calhead">
+      <button class="nav" id="prev" aria-label="Previous month">‹</button>
+      <h2 id="month" aria-live="polite">October 2026</h2>
+      <button class="nav" id="next" aria-label="Next month">›</button>
+    </div>
+    <div class="dow" aria-hidden="true"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
+    <div class="grid" id="grid" role="grid" aria-labelledby="month"></div>
+    <div class="foot">
+      <p class="legend">Phases computed for 21:00 UTC each night.<br>Brighter moon, easier walking; darker sky, more stars.</p>
+      <button class="reserve" id="reserve" disabled>Choose a night</button>
+    </div>
+  </section>
+</main>
+<button class="mute" id="mute" aria-pressed="false" aria-label="Mute sound"><svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6.5h3l4-3.5v12l-4-3.5H2z" fill="#f3f6f4"/><path id="mw" d="M12 5.5c1.8 1.8 1.8 5.2 0 7" stroke="#f3f6f4" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></button>
+<p class="label" aria-hidden="true">CYANOTYPE · EXPOSED 14 MIN · OCT 2026</p>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOWS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const TODAY=new Date(Date.UTC(2026,9,7));
+const MIN_M={y:2026,m:9},MAX_M={y:2027,m:2};
+
+/* ---------- moon (Meeus, ch. 48 low-precision terms) ---------- */
+const rad=d=>d*Math.PI/180;
+function moon(y,m,d){
+  const jd=Date.UTC(y,m,d,21)/86400000+2440587.5,T=(jd-2451545)/36525;
+  const D=297.8501921+445267.1114034*T,M=357.5291092+35999.0502909*T,Mp=134.9633964+477198.8675055*T;
+  const i=180-D-6.289*Math.sin(rad(Mp))+2.1*Math.sin(rad(M))-1.274*Math.sin(rad(2*D-Mp))-.658*Math.sin(rad(2*D))-.214*Math.sin(rad(2*Mp))-.11*Math.sin(rad(D));
+  const k=(1+Math.cos(rad(i)))/2;const dn=((D%360)+360)%360;const waxing=dn<180;const age=dn/360*29.530588853;
+  return{k,waxing,age};
+}
+function phaseName(k,w){if(k<.03)return'New moon';if(k>.97)return'Full moon';if(Math.abs(k-.5)<.06)return w?'First quarter':'Last quarter';if(k<.5)return w?'Waxing crescent':'Waning crescent';return w?'Waxing gibbous':'Waning gibbous';}
+function moonPath(r,k,w){
+  const rx=r*Math.abs(1-2*k);
+  if(w){const s=k<.5?0:1;return `M0 ${-r}A${r} ${r} 0 0 1 0 ${r}A${rx} ${r} 0 0 ${s} 0 ${-r}Z`;}
+  const s=k<.5?1:0;return `M0 ${-r}A${r} ${r} 0 0 0 0 ${r}A${rx} ${r} 0 0 ${s} 0 ${-r}Z`;
+}
+function moonSVG(r,mo){return `<circle class="rim" r="${r}" fill="none" stroke="#f3f6f4" stroke-opacity=".45" stroke-width="1"/>${mo.k>.015?`<path class="lit" fill="#f3f6f4" d="${moonPath(r,mo.k,mo.waxing)}"/>`:''}`;}
+const fmtTime=min=>{min=((Math.round(min/5)*5)%1440+1440)%1440;return String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0')};
+
+/* ---------- flora: cyanotype photogram silhouettes ---------- */
+let seed=3;const rnd=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646};
+function fern(x,y,len,ang,scale,curl){
+  let d='';const n=22;let px=x,py=y,a=ang;
+  const pts=[];for(let i=0;i<=n;i++){pts.push([px,py,a]);const st=len/n;px+=Math.cos(a)*st;py+=Math.sin(a)*st;a+=curl*(i/n)*.08;}
+  d+=`M${pts[0][0]} ${pts[0][1]}`;for(const p of pts)d+=`L${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
+  let leaves='';
+  for(let i=2;i<n;i++){const [lx,ly,la]=pts[i];const L=scale*(1-Math.abs(i-n*.35)/(n*.8))*(i<4?.6:1);if(L<=2)continue;
+    for(const side of [-1,1]){const pa=la+side*1.15;const ex=lx+Math.cos(pa)*L,ey=ly+Math.sin(pa)*L;const nx=Math.cos(pa+side*1.57)*L*.16,ny=Math.sin(pa+side*1.57)*L*.16;
+      leaves+=`M${lx.toFixed(1)} ${ly.toFixed(1)}Q${(lx+ex)/2+nx} ${(ly+ey)/2+ny} ${ex.toFixed(1)} ${ey.toFixed(1)}Q${(lx+ex)/2-nx*.3} ${(ly+ey)/2-ny*.3} ${lx.toFixed(1)} ${ly.toFixed(1)}Z`;}}
+  return `<path d="${d}" stroke="#eef4f6" stroke-width="2" fill="none" opacity=".88"/><path d="${leaves}" fill="#eef4f6" opacity=".82"/>`;
+}
+function grass(x,y,h,lean){let s='';for(let i=0;i<7;i++){const bx=x+i*4-12,tip=bx+lean*h*(.3+rnd()*.5)+(rnd()-.5)*20,hh=h*(.6+rnd()*.5);s+=`<path d="M${bx-1.4} ${y}Q${bx+lean*hh*.2} ${y-hh*.6} ${tip} ${y-hh}Q${bx+lean*hh*.2+1} ${y-hh*.55} ${bx+1.4} ${y}Z" fill="#eef4f6" opacity=".7"/>`;}return s;}
+function buildFlora(){
+  const W=innerWidth-28,H=innerHeight-28,f=$('flora'),mob=innerWidth<=820;seed=11;
+  let s='';
+  if(!mob){s+=fern(-10,H+10,H*.62,-1.25,46,1.2);s+=fern(40,H+20,H*.42,-1.0,30,-1.4);s+=fern(W+12,H+12,H*.2,-2.3,24,-1);
+    s+=grass(W*.45,H+4,90,.4)+grass(W*.47,H+4,70,-.3);
+    for(let i=0;i<14;i++){const x=W*.02+rnd()*W*.3,y=H*.05+rnd()*H*.35;s+=`<circle cx="${x}" cy="${y}" r="${.6+rnd()*1.4}" fill="#eef4f6" opacity="${.3+rnd()*.5}"/>`;}}
+  else{s+=fern(W+10,H+10,H*.3,-2.1,24,-1);s+=grass(30,H+4,50,.5);}
+  f.innerHTML=s;
+}
+
+/* ---------- sound ---------- */
+let AC=null,master=null,muted=false;
+function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}master=AC.createGain();master.gain.value=muted?0:.16;master.connect(AC.destination);}if(AC.state==='suspended')AC.resume();return AC}
+function drip(k){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='sine';const f=520+k*520;o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*1.6,t+.05);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.22,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+.22);o.connect(g).connect(master);o.start(t);o.stop(t+.25);}
+function wash(){const a=audio();if(!a)return;const t=a.currentTime,n=a.sampleRate*1.2,b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);let v=0;for(let i=0;i<n;i++){v=v*.97+(Math.random()*2-1)*.03;d[i]=v*6*Math.sin(Math.PI*i/n);}
+  const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=900;const g=a.createGain();g.gain.value=.5;s.connect(f).connect(g).connect(master);s.start(t);}
+$('mute').addEventListener('click',()=>{muted=!muted;$('mute').setAttribute('aria-pressed',muted);$('mute').setAttribute('aria-label',muted?'Unmute sound':'Mute sound');$('mw').style.opacity=muted?.15:1;if(master)master.gain.value=muted?0:.16;});
+
+/* ---------- calendar ---------- */
+let view={y:2026,m:9},sel=null,focusDay=null,preview=null,reserved=false;
+const key=(y,m,d)=>`${y}-${m}-${d}`;
+const isPast=(y,m,d)=>Date.UTC(y,m,d)<TODAY.getTime();
+const dim=(y,m)=>new Date(Date.UTC(y,m+1,0)).getUTCDate();
+function render(animate){
+  const g=$('grid');const {y,m}=view;$('month').textContent=`${MONTHS[m]} ${y}`;
+  $('prev').disabled=y===MIN_M.y&&m===MIN_M.m;$('next').disabled=y===MAX_M.y&&m===MAX_M.m;
+  const doit=()=>{
+    g.innerHTML='';const first=(new Date(Date.UTC(y,m,1)).getUTCDay()+6)%7,n=dim(y,m);
+    let row=null;
+    const cells=Math.ceil((first+n)/7)*7;
+    for(let c=0;c<cells;c++){if(c%7===0){row=document.createElement('div');row.setAttribute('role','row');row.style.display='contents';g.appendChild(row);}
+      const d=c-first+1;const b=document.createElement('button');b.className='day';b.type='button';
+      if(d<1||d>n){b.classList.add('out');b.tabIndex=-1;b.setAttribute('aria-hidden','true');const cell=document.createElement('div');cell.setAttribute('role','gridcell');cell.style.display='contents';cell.appendChild(b);row.appendChild(cell);continue}
+      const mo=moon(y,m,d),past=isPast(y,m,d);
+      b.dataset.d=d;b.innerHTML=`<span class="n">${d}</span><svg viewBox="-16 -16 32 32" aria-hidden="true">${moonSVG(13,mo)}</svg><span class="tag">${mo.k>.97?'FULL':mo.k<.03?'NEW':''}</span>`;
+      const name=phaseName(mo.k,mo.waxing);
+      b.setAttribute('aria-label',`${DOWS[new Date(Date.UTC(y,m,d)).getUTCDay()]} ${d} ${MONTHS[m]}, ${name}, ${Math.round(mo.k*100)} percent lit${past?', unavailable':''}`);
+      if(past){b.classList.add('past');b.setAttribute('aria-disabled','true');}
+      if(Date.UTC(y,m,d)===TODAY.getTime())b.classList.add('today');
+      if(sel&&sel.y===y&&sel.m===m&&sel.d===d){b.classList.add('sel');b.setAttribute('aria-selected','true');}
+      b.tabIndex=-1;
+      b.addEventListener('click',()=>{if(!past)choose(y,m,d);else{$('live').textContent='That night has already passed';}});
+      b.addEventListener('mouseenter',()=>{showBig(y,m,d,false);});
+      b.addEventListener('mouseleave',()=>{const s=sel||preview;if(s)showBig(s.y,s.m,s.d,false);});
+      b.addEventListener('keydown',onKey);
+      const cell=document.createElement('div');cell.setAttribute('role','gridcell');cell.style.display='contents';cell.appendChild(b);row.appendChild(cell);
+    }
+    const target=(focusDay&&focusDay.y===y&&focusDay.m===m)?focusDay.d:(sel&&sel.y===y&&sel.m===m)?sel.d:firstFree(y,m);
+    const tb=g.querySelector(`.day[data-d="${target}"]`);if(tb)tb.tabIndex=0;
+  };
+  if(animate&&!RM){g.classList.add('swap');setTimeout(()=>{doit();g.classList.remove('swap');if(animate==='focus')focusCurrent();},230);}else{doit();if(animate==='focus')focusCurrent();}
+}
+function firstFree(y,m){for(let d=1;d<=dim(y,m);d++)if(!isPast(y,m,d))return d;return 1}
+function focusCurrent(){const b=$('grid').querySelector('.day[tabindex="0"]');if(b)b.focus();}
+function onKey(e){
+  const d=+e.currentTarget.dataset.d;let dd=0;
+  if(e.key==='ArrowRight')dd=1;else if(e.key==='ArrowLeft')dd=-1;else if(e.key==='ArrowDown')dd=7;else if(e.key==='ArrowUp')dd=-7;
+  else if(e.key==='PageDown'){e.preventDefault();shiftMonth(1,true);return}else if(e.key==='PageUp'){e.preventDefault();shiftMonth(-1,true);return}
+  else if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!isPast(view.y,view.m,d))choose(view.y,view.m,d);return}else return;
+  e.preventDefault();moveFocus(view.y,view.m,d+dd);
+}
+function moveFocus(y,m,d){
+  const dt=new Date(Date.UTC(y,m,d));if(dt.getTime()<Date.UTC(MIN_M.y,MIN_M.m,1)||dt.getTime()>Date.UTC(MAX_M.y,MAX_M.m+1,0))return;
+  focusDay={y:dt.getUTCFullYear(),m:dt.getUTCMonth(),d:dt.getUTCDate()};showBig(focusDay.y,focusDay.m,focusDay.d,false);
+  if(focusDay.y!==view.y||focusDay.m!==view.m){view={y:focusDay.y,m:focusDay.m};render('focus');}
+  else{$('grid').querySelectorAll('.day').forEach(b=>b.tabIndex=-1);const b=$('grid').querySelector(`.day[data-d="${focusDay.d}"]`);b.tabIndex=0;b.focus();}
+}
+function shiftMonth(k,focus){let m=view.m+k,y=view.y;if(m<0){m=11;y--;}if(m>11){m=0;y++;}
+  if(y*12+m<MIN_M.y*12+MIN_M.m||y*12+m>MAX_M.y*12+MAX_M.m)return;view={y,m};focusDay=null;audio();wash();render(focus?'focus':true);}
+$('prev').addEventListener('click',()=>shiftMonth(-1));$('next').addEventListener('click',()=>shiftMonth(1));
+
+/* ---------- big moon & info ---------- */
+const big=$('bigsvg');
+function showBig(y,m,d,develop){
+  const mo=moon(y,m,d);
+  let s=`<g id="dial"><circle r="100" fill="none" stroke="#f3f6f4" stroke-opacity=".5" stroke-width="1.4" stroke-dasharray="2 5"/>`;
+  s+=`</g><circle r="92" fill="rgba(10,30,60,.25)"/>`;
+  if(mo.k>.015)s+=`<path fill="#f3f6f4" d="${moonPath(92,mo.k,mo.waxing)}"/>`;
+  // maria as soft blue silhouettes on the lit side
+  const mar=[[-28,-30,22],[18,-40,16],[30,10,24],[-10,30,14],[-40,14,12],[8,-8,10]];
+  s+=`<g clip-path="url(#litclip)">`+mar.map(([x,y2,r])=>`<circle cx="${x}" cy="${y2}" r="${r}" fill="#9fb9cf" opacity=".42"/>`).join('')+`</g>`;
+  s+=`<clipPath id="litclip"><path d="${mo.k>.015?moonPath(92,mo.k,mo.waxing):'M0 0Z'}"/></clipPath>`;
+  for(let i=0;i<60;i++){const a=i/60*Math.PI*2,r1=104,r2=i%5?108:114;s+=`<line x1="${Math.cos(a)*r1}" y1="${Math.sin(a)*r1}" x2="${Math.cos(a)*r2}" y2="${Math.sin(a)*r2}" stroke="#f3f6f4" stroke-opacity="${i===0?1:.55}" stroke-width="${i===0?2.4:1}"/>`;}
+  s+='</g>';
+  big.innerHTML=s;setDial();
+  const dt=new Date(Date.UTC(y,m,d));const pct=Math.round(mo.k*100),name=phaseName(mo.k,mo.waxing);
+  $('idate').textContent=`${DOWS[dt.getUTCDay()]} ${d} ${MONTHS[m]}`;
+  const rise=6*60+40+mo.age*50.5;
+  $('ipct').textContent=`${name} · ${pct}% lit · rises about ${fmtTime(rise)}`;
+  const set=fmtTime(rise+12.4*60);
+  $('iverd').textContent=pct>=78?'Bright enough to walk the ridge without a head torch. Shadows on the path.':pct<=12?'Darkest sky of the month — bring a head torch and look for the Milky Way over Corn Du.':
+    pct<40?(mo.waxing?`A thin crescent that sets around ${set} — dark ridge, big stars once it goes.`:`Rises late, about ${fmtTime(rise)} — a dark climb and a sliver of moon on the way down.`):
+    (mo.waxing?'Half-lit and high as we walk — good light by the summit, torches for the start.':'Comes up late — dark start, silver descent. Head torches on the way up.');
+  $('big').setAttribute('aria-valuetext',`${d} ${MONTHS[m]}, ${name}, ${pct} percent lit`);
+  if(develop){const inf=$('info');inf.classList.remove('dev');void inf.offsetWidth;inf.classList.add('dev');}
+}
+function choose(y,m,d){
+  audio();sel={y,m,d};reserved=false;const mo=moon(y,m,d);drip(mo.k);
+  focusDay={y,m,d};render(false);
+  const b=$('grid').querySelector(`.day[data-d="${d}"]`);if(b&&document.activeElement&&document.activeElement.classList.contains('day'))b.focus();
+  showBig(y,m,d,true);const r=$('reserve');r.disabled=false;r.classList.remove('done');r.textContent=`Join the hike on ${d} ${MONTHS[m].slice(0,3)}`;
+  $('spinhint').classList.add('gone');
+}
+$('reserve').addEventListener('click',()=>{if(!sel)return;reserved=true;const r=$('reserve');r.classList.add('done');r.textContent=`You’re on the list · ${sel.d} ${MONTHS[sel.m].slice(0,3)}`;wash();
+  $('live').textContent=`Place reserved for the night hike on ${sel.d} ${MONTHS[sel.m]}.`;});
+
+/* ---------- spin the moon to scrub days ---------- */
+function setDial(){const d=document.getElementById('dial');if(d)d.setAttribute('transform',`rotate(${spin-90})`);}
+let spin=0,dragging=false,lastA=0,acc=0;
+const bigEl=$('big');
+function centre(){const r=bigEl.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/2]}
+bigEl.addEventListener('pointerdown',e=>{audio();dragging=true;const [cx,cy]=centre();lastA=Math.atan2(e.clientY-cy,e.clientX-cx);acc=0;try{bigEl.setPointerCapture(e.pointerId)}catch(_){}});
+bigEl.addEventListener('pointermove',e=>{if(!dragging)return;const [cx,cy]=centre();const a=Math.atan2(e.clientY-cy,e.clientX-cx);let da=a-lastA;if(da>Math.PI)da-=Math.PI*2;if(da<-Math.PI)da+=Math.PI*2;lastA=a;
+  spin+=da*180/Math.PI;acc+=da*180/Math.PI;setDial();const step=24;while(acc>=step){acc-=step;stepDay(1);}while(acc<=-step){acc+=step;stepDay(-1);}});
+const up=()=>{dragging=false;};bigEl.addEventListener('pointerup',up);bigEl.addEventListener('pointercancel',up);
+bigEl.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowUp'){e.preventDefault();spin+=24;stepDay(1);}else if(e.key==='ArrowLeft'||e.key==='ArrowDown'){e.preventDefault();spin-=24;stepDay(-1);}});
+function stepDay(k){
+  const base=sel||{y:TODAY.getUTCFullYear(),m:TODAY.getUTCMonth(),d:TODAY.getUTCDate()};
+  const dt=new Date(Date.UTC(base.y,base.m,base.d+k));
+  if(dt.getTime()<TODAY.getTime()||dt.getTime()>Date.UTC(MAX_M.y,MAX_M.m+1,0)){return}
+  const y=dt.getUTCFullYear(),m=dt.getUTCMonth(),d=dt.getUTCDate();
+  if(y!==view.y||m!==view.m){view={y,m};}
+  sel={y,m,d};focusDay={y,m,d};render(false);showBig(y,m,d,false);drip(moon(y,m,d).k);
+  const r=$('reserve');r.disabled=false;r.classList.remove('done');r.textContent=`Join the hike on ${d} ${MONTHS[m].slice(0,3)}`;$('spinhint').classList.add('gone');
+  $('live').textContent=`${d} ${MONTHS[m]}, ${phaseName(moon(y,m,d).k,moon(y,m,d).waxing)}`;
+}
+
+/* ---------- init: preselect the brightest upcoming night this month ---------- */
+(function init(){let best=null,bk=-1;for(let d=TODAY.getUTCDate();d<=dim(2026,9);d++){const k=moon(2026,9,d).k;if(k>bk){bk=k;best=d;}}
+  preview={y:2026,m:9,d:best};sel={y:2026,m:9,d:best};focusDay={...sel};render(false);showBig(2026,9,best,false);
+  const r=$('reserve');r.disabled=false;r.textContent=`Join the hike on ${best} Oct`;})();
+buildFlora();addEventListener('resize',buildFlora);
+window.__moon={choose,stepDay,shiftMonth,moon};
+})();
+</script>
+</body>
+</html>

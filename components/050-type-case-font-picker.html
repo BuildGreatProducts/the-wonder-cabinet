@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Type Case Font Picker</title>
+<meta name="description" content="A font picker built as a letterpress type cabinet: pull out a drawer to see its metal sorts, then pull the press lever to set and print a business card proof in that face with a real ink impression.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alfa+Slab+One&family=Cormorant+Garamond:ital,wght@0,600;1,500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Type Case Font Picker","reimagines":"Font picker / dropdown","category":"Pickers & Selection","description":"Each typeface is a drawer in a letterpress cabinet. Slide one out and its compartments are full of mirrored metal sorts in that face; pull the press lever and the sorts fly to the forme, the platen thunks down and the business card comes out debossed with a slightly different ink impression every time — earlier proofs pile up so you can compare.","hint":"Pull out a drawer, then pull the press lever"}
+</script>
+<style>
+:root{--wall:#2a2622;--oak:#8a5a32;--oak2:#6b4223;--oakL:#b07a48;--brass:#c9a04f;--ink:#1c2740;--verm:#c8442c;--paper:#f3ecdc;
+  --ui:Georgia,"Times New Roman",serif;--slab:"Alfa Slab One",Rockwell,Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--wall);color:#efe4cc;font-family:var(--ui);overflow:hidden}
+.room{position:fixed;inset:0;background:radial-gradient(ellipse 70% 60% at 62% 38%,#4a4038 0%,#2e2925 55%,#1c1916 100%)}
+.room::after{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");opacity:.5;mix-blend-mode:multiply;pointer-events:none}
+.title{position:fixed;left:56px;top:34px;z-index:2}
+.title small{display:block;font-style:italic;font-size:15px;color:#cdbb98}
+.title .mbr{display:none}
+.title h1{font-family:var(--slab);font-weight:400;font-size:38px;line-height:1.05;color:#efe4cc;letter-spacing:.01em;margin-top:4px;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+/* cabinet */
+.cabinet{position:fixed;left:56px;top:196px;width:min(560px,44vw);padding:16px 16px 22px;background:linear-gradient(90deg,#4a2c16,#5e3a1e 8%,#55331a 92%,#3e2512);border-radius:4px;box-shadow:0 30px 50px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,220,170,.15);z-index:1}
+.cabinet::before{content:"";position:absolute;left:-10px;right:-10px;top:-14px;height:18px;background:linear-gradient(#6d4523,#4a2c16);border-radius:3px;box-shadow:0 4px 8px rgba(0,0,0,.4)}
+.drawers{display:flex;flex-direction:column;gap:8px;position:relative}
+.drawer{position:relative;height:78px;perspective:700px;perspective-origin:50% -60%}
+.front{position:absolute;inset:0;border-radius:3px;cursor:pointer;appearance:none;border:0;width:100%;display:flex;align-items:center;justify-content:center;gap:26px;
+  background:
+   repeating-linear-gradient(91deg,rgba(60,30,10,.0) 0 7px,rgba(60,30,10,.18) 7px 8px,rgba(60,30,10,0) 8px 19px,rgba(255,220,170,.06) 19px 21px),
+   linear-gradient(180deg,#b07a48,#9b663a 60%,#8a5a32);
+  box-shadow:inset 0 2px 0 rgba(255,225,180,.35),inset 0 -3px 0 rgba(40,20,5,.35),0 2px 0 #3a210f,0 6px 10px rgba(0,0,0,.35);transform-origin:50% 100%;will-change:transform;z-index:2}
+.front::after{content:"";position:absolute;inset:0;border-radius:3px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='80'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004 .25' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .25  0 0 0 0 .12  0 0 0 0 .03  0 0 0 1.2 -.45'/%3E%3C/filter%3E%3Crect width='600' height='80' filter='url(%23g)'/%3E%3C/svg%3E") center/cover;mix-blend-mode:multiply;opacity:.9;pointer-events:none}
+.front:focus-visible{outline:3px solid #f0c86a;outline-offset:3px}
+.holder{position:relative;width:250px;height:50px;border-radius:3px;background:linear-gradient(180deg,#f2d896,#c9a04f 45%,#8f6a25 55%,#d8b768);padding:5px 8px;box-shadow:0 2px 3px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.6);z-index:1}
+.holder::before,.holder::after{content:"";position:absolute;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3c8,#7a5820)}
+.holder::before{left:-1px;transform:translateX(-120%)}.holder::after{right:-1px;transform:translateX(120%)}
+.label{height:100%;background:#efe6d0;border-radius:1px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;color:#2a2018;box-shadow:inset 0 1px 3px rgba(0,0,0,.35)}
+.label{gap:8px}.label b{font-weight:inherit;font-size:21px;line-height:1;white-space:nowrap}
+.label i{font-family:var(--ui);font-style:italic;font-size:11px;color:#6a5440;white-space:nowrap}
+.pull{position:relative;width:70px;height:22px;border-radius:0 0 40px 40px;background:linear-gradient(180deg,#8f6a25,#e6c77c 40%,#a37a2d);box-shadow:0 4px 5px rgba(0,0,0,.45),inset 0 -6px 6px rgba(0,0,0,.25);z-index:1}
+.pull::before{content:"";position:absolute;left:4px;right:4px;top:0;height:8px;background:rgba(40,20,5,.6);border-radius:0 0 30px 30px}
+.tray{position:absolute;left:14px;right:14px;bottom:100%;height:190px;transform-origin:50% 100%;transform:rotateX(50deg);opacity:0;pointer-events:none;z-index:1;border-radius:3px 3px 0 0;overflow:hidden;box-shadow:0 -6px 18px rgba(0,0,0,.4)}
+.tray canvas{width:100%;height:100%;display:block}
+.drawer.open{z-index:5}
+.drawer .dshadow{position:absolute;left:10px;right:10px;top:100%;height:16px;background:radial-gradient(ellipse at 50% 0,rgba(0,0,0,.55),transparent 70%);opacity:0;pointer-events:none}
+/* press bed & card */
+.bed{position:fixed;left:calc(56px + min(560px,44vw) + 70px);right:56px;top:196px;bottom:40px;display:flex;flex-direction:column;align-items:center;z-index:1}
+.stage{position:relative;width:min(470px,100%);aspect-ratio:1.75/1}
+.pile{position:absolute;inset:0;pointer-events:none}
+.pile .proof{pointer-events:auto;cursor:pointer}
+.proof{position:absolute;inset:0;background:var(--paper);border-radius:2px;padding:7% 8%;display:flex;flex-direction:column;justify-content:center;color:var(--ink);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' seed='2'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .28  0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23p)'/%3E%3C/svg%3E"),radial-gradient(ellipse at 30% 20%,#faf5ea,#efe6d2);
+  box-shadow:0 1px 1px rgba(0,0,0,.2),0 14px 28px rgba(0,0,0,.45);transition:transform .5s cubic-bezier(.3,1.4,.5,1)}
+.proof .ink{filter:url(#inkTex)}
+.proof .name{white-space:nowrap;font-size:2.7em;line-height:1;letter-spacing:.005em;color:var(--verm);text-shadow:0 1px 0 rgba(255,255,255,.75),0 -1px 0 rgba(80,40,20,.35)}
+.proof .role{font-size:1.15em;margin-top:.35em;text-shadow:0 1px 0 rgba(255,255,255,.75),0 -.6px 0 rgba(0,0,0,.35)}
+.proof .rule{height:2px;background:var(--ink);width:38%;margin:.85em 0 .75em;box-shadow:0 1px 0 rgba(255,255,255,.7)}
+.proof .addr{font-size:.86em;line-height:1.5;text-shadow:0 1px 0 rgba(255,255,255,.75),0 -.5px 0 rgba(0,0,0,.3)}
+.proof .note{position:absolute;right:5%;bottom:5%;font-family:var(--ui);font-style:italic;font-size:11px;color:#8a7a62;transform:rotate(-2deg)}
+.stage .proof.main{font-size:15px}
+.pile .proof{font-size:15px;opacity:.96}
+.platen{position:absolute;left:-6%;right:-6%;top:-6%;bottom:-6%;border-radius:6px;background:linear-gradient(135deg,#55595c,#2c2f31 40%,#1c1e20);box-shadow:0 20px 40px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,255,255,.18);transform:translateY(-140%) scale(1.05);opacity:0;z-index:6;pointer-events:none}
+.platen::after{content:"";position:absolute;inset:10px;border-radius:3px;border:1px solid rgba(255,255,255,.08);background:repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 2px,transparent 2px 6px)}
+.sort{position:fixed;z-index:20;width:22px;height:28px;border-radius:2px;background:linear-gradient(90deg,#7c8286,#c8ced1 35%,#8f969a 70%,#5d6366);box-shadow:0 3px 6px rgba(0,0,0,.5);display:grid;place-items:center;color:#22262a;font-size:18px;line-height:1;pointer-events:none}
+.sort span{transform:scaleX(-1)}
+/* lever */
+.leverWrap{position:relative;margin-top:44px;display:flex;align-items:flex-start;gap:26px;width:min(470px,100%)}
+.leverGroup{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.leverGroup .leverTxt{margin-top:48px}
+.bedplate{position:absolute;left:-9%;right:-9%;top:-12%;bottom:-12%;border-radius:6px;background:linear-gradient(160deg,#4b4f52,#2b2e30 55%,#1d1f21);box-shadow:0 18px 40px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.12)}
+.bedplate::after{content:"";position:absolute;inset:0;border-radius:6px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 5px)}
+.tympan{position:absolute;left:-6%;right:-6%;top:-8%;bottom:-8%;background:
+  radial-gradient(ellipse 22% 16% at 14% 78%,rgba(120,80,30,.22),transparent 70%),radial-gradient(ellipse 18% 12% at 88% 18%,rgba(28,39,64,.16),transparent 70%),
+  linear-gradient(170deg,#e2cf9f,#d4bd86 60%,#c8ae74);box-shadow:inset 0 0 0 1px rgba(90,60,20,.25);border-radius:2px}
+.tympan .reg{position:absolute;width:18px;height:18px;border:1px solid rgba(40,30,20,.45);border-radius:50%}
+.tympan .reg::before,.tympan .reg::after{content:"";position:absolute;background:rgba(40,30,20,.45)}
+.tympan .reg::before{left:50%;top:-6px;bottom:-6px;width:1px}.tympan .reg::after{top:50%;left:-6px;right:-6px;height:1px}
+.tympan .r1{left:2%;top:3%}.tympan .r2{right:2%;bottom:3%}
+.tympan .pencil{position:absolute;right:4%;top:2.4%;font-style:italic;font-size:11px;color:rgba(50,40,30,.6);transform:rotate(-1.5deg)}
+.gauge{position:absolute;width:20px;height:7px;background:linear-gradient(#f0dca0,#a8873a);border-radius:1px;box-shadow:0 1px 2px rgba(0,0,0,.4);z-index:3}
+.gauge.g1{left:22%;bottom:-6px}.gauge.g2{left:70%;bottom:-6px}.gauge.g3{left:-6px;top:30%;width:7px;height:20px}
+.chase{position:relative;flex:none;width:250px;height:122px;border-radius:3px;background:linear-gradient(145deg,#5f6366,#2c2f31);padding:9px;box-shadow:0 10px 20px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.18)}
+.chase .furn{position:absolute;background:repeating-linear-gradient(90deg,#c9a26c 0 3px,#b88f58 3px 7px);box-shadow:inset 0 0 0 1px rgba(80,50,20,.4)}
+.chase .f1{left:9px;right:9px;top:9px;height:14px}.chase .f2{left:9px;right:9px;bottom:9px;height:14px}
+.chase .f3{left:9px;top:23px;bottom:23px;width:14px;background:repeating-linear-gradient(0deg,#c9a26c 0 3px,#b88f58 3px 7px)}.chase .f4{right:9px;top:23px;bottom:23px;width:22px;background:repeating-linear-gradient(0deg,#c9a26c 0 3px,#b88f58 3px 7px)}
+.chase .quoin{position:absolute;right:13px;width:14px;height:20px;background:linear-gradient(90deg,#9aa0a3,#5b6064);border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.5)}
+.chase .q1{top:32px}.chase .q2{bottom:32px}
+.forme{position:absolute;left:23px;right:31px;top:23px;bottom:23px;background:repeating-linear-gradient(180deg,#8a9094 0 2px,#a7adb0 2px 4px);display:flex;flex-direction:column;justify-content:center;align-items:flex-end;gap:3px;padding:4px 8px;transform:scaleX(-1);overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,.45)}
+.forme .fl{white-space:nowrap;line-height:1.05;background:linear-gradient(120deg,#0d1322 0%,#1c2740 38%,#7884a0 49%,#1c2740 58%,#0d1322 100%);-webkit-background-clip:text;background-clip:text;color:transparent;transform-origin:100% 50%}
+.forme .fn{font-size:22px}.forme .fr{font-size:10px}.forme .fa{font-size:7px}
+.forme.flash{animation:fflash .6s ease}
+@keyframes fflash{0%{filter:brightness(1.8)}100%{filter:none}}
+.lever{appearance:none;border:0;background:none;cursor:pointer;width:200px;height:120px;position:relative}
+.lever .pivot{position:absolute;left:14px;top:70px;width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#7a7e81,#2a2c2e 70%);box-shadow:0 4px 8px rgba(0,0,0,.5)}
+.lever .arm{position:absolute;left:32px;top:84px;width:140px;height:9px;border-radius:5px;background:linear-gradient(#5a5e61,#26282a);transform-origin:0 50%;transform:rotate(-24deg);box-shadow:0 4px 6px rgba(0,0,0,.4)}
+.lever .knob{position:absolute;right:-16px;top:50%;width:30px;height:30px;margin-top:-15px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#5b4a3c,#140f0b 70%);box-shadow:0 3px 5px rgba(0,0,0,.5)}
+.lever:focus-visible{outline:3px solid #f0c86a;outline-offset:4px;border-radius:8px}
+.lever[aria-disabled="true"]{cursor:not-allowed;opacity:.55}
+.leverTxt{font-style:italic;font-size:16px;color:#e7d7b4;max-width:220px;line-height:1.35}
+.leverTxt b{font-style:normal;font-family:var(--slab);font-weight:400;display:block;font-size:19px;color:#f3e7c9;letter-spacing:.02em}
+.tag{position:fixed;right:44px;top:40px;transform:rotate(3deg);background:#e9dfc6;color:#3b2c1e;font-style:italic;font-size:14px;padding:10px 14px 9px 22px;box-shadow:0 6px 12px rgba(0,0,0,.4);z-index:2;transition:opacity 1s;max-width:260px}
+.tag::before{content:"";position:absolute;left:8px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#2a2622;box-shadow:inset 0 1px 1px rgba(255,255,255,.3)}
+.tag.gone{opacity:0}
+.mute{position:fixed;right:20px;bottom:18px;width:38px;height:38px;border-radius:50%;border:0;background:#e9dfc6;cursor:pointer;display:grid;place-items:center;z-index:5}
+.mute:focus-visible{outline:3px solid #f0c86a;outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:820px){
+  .title{left:16px;top:14px}.title .mbr{display:inline}.title h1{font-size:24px}.title small{font-size:12.5px}
+  .cabinet{left:12px;right:12px;width:auto;top:418px;padding:10px 10px 14px}
+  .cabinet::before{left:-6px;right:-6px;top:-10px;height:12px}
+  .drawers{gap:6px}.drawer{height:54px}
+  .front{gap:14px}.holder{width:220px;height:40px;padding:4px 7px}.label b{font-size:16px}.label i{font-size:9.5px}.pull{width:46px;height:16px}
+  .tray{height:120px}
+  .bed{left:12px;right:12px;top:112px;bottom:auto}
+  .stage{width:min(320px,82vw)}
+  .stage .proof.main,.pile .proof{font-size:10.5px}
+  .leverWrap{width:min(320px,82vw);margin-top:32px;gap:10px;justify-content:space-between;align-items:center}
+  .chase{width:200px;height:62px;padding:5px}.chase .f1,.chase .f2{left:5px;right:5px;height:7px}.chase .f1{top:5px}.chase .f2{bottom:5px}.chase .f3{left:5px;top:12px;bottom:12px;width:7px}.chase .f4{right:5px;top:12px;bottom:12px;width:12px}
+  .chase .quoin{right:7px;width:8px;height:10px}.chase .q1{top:15px}.chase .q2{bottom:15px}
+  .forme{left:12px;right:17px;top:12px;bottom:12px;padding:2px 5px;gap:1px}.forme .fn{font-size:12px}.forme .fr{font-size:6px}.forme .fa{font-size:4.5px}
+  .tympan .pencil{font-size:8px}.gauge{width:14px;height:5px}.gauge.g3{width:5px;height:14px}
+  .lever{width:96px;height:64px}.lever .pivot{left:4px;top:36px;width:24px;height:24px}.lever .arm{left:14px;top:44px;width:80px;height:7px}.lever .knob{width:20px;height:20px;margin-top:-10px;right:-10px}
+  .leverTxt{display:none}
+  .tag{display:none}
+  .mute{right:12px;bottom:12px;width:34px;height:34px}
+}
+@media (max-width:820px) and (max-height:760px){.cabinet{top:400px}.drawer{height:46px}.holder{height:34px}.label b{font-size:15px}}
+@media (prefers-reduced-motion:reduce){.proof{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="inkTex" x="-3%" y="-10%" width="106%" height="120%" color-interpolation-filters="sRGB">
+    <feTurbulence id="inkT" type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="3" result="n"/>
+    <feColorMatrix id="inkM" in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.8 1.82" result="m"/>
+    <feTurbulence id="inkL" type="fractalNoise" baseFrequency=".009 .035" numOctaves="2" seed="7" result="low"/>
+    <feColorMatrix in="low" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1.1 0 0 0 .42" result="lowA"/>
+    <feComposite in="SourceGraphic" in2="m" operator="in" result="speck0"/>
+    <feComposite in="speck0" in2="lowA" operator="in" result="speck"/>
+    <feMorphology in="SourceAlpha" operator="erode" radius=".55" result="er"/>
+    <feComposite in="SourceAlpha" in2="er" operator="out" result="edge"/>
+    <feFlood flood-color="#0a0f1c" flood-opacity=".45"/><feComposite in2="edge" operator="in" result="rim"/>
+    <feGaussianBlur in="SourceAlpha" stdDeviation="1.1" result="ab"/>
+    <feSpecularLighting in="ab" surfaceScale="2.4" specularConstant=".42" specularExponent="26" lighting-color="#fff2df" result="sp"><feDistantLight azimuth="225" elevation="38"/></feSpecularLighting>
+    <feComposite in="sp" in2="speck" operator="in" result="sheen"/>
+    <feMerge result="mm"><feMergeNode in="speck"/><feMergeNode in="rim"/><feMergeNode in="sheen"/></feMerge>
+    <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="1" seed="9" result="w"/>
+    <feDisplacementMap in="mm" in2="w" scale="1.1" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<div class="room" aria-hidden="true"></div>
+<header class="title"><small>Okafor Ceramics · business cards, 250 on Somerset cotton</small><h1>Choose a face <br class="mbr">for your card</h1></header>
+<p class="tag" id="tag">The Fatface drawer is out. Try another face, then pull the lever for a fresh proof.</p>
+
+<section class="cabinet" aria-label="Type cabinet">
+  <div class="drawers" id="drawers" role="radiogroup" aria-label="Typefaces"></div>
+</section>
+
+<section class="bed" aria-label="Proof press">
+  <div class="stage" id="stage">
+    <div class="bedplate" aria-hidden="true"></div>
+    <div class="tympan" aria-hidden="true"><i class="reg r1"></i><i class="reg r2"></i><span class="pencil">Okafor · 250 · 2-col</span></div>
+    <div class="pile" id="pile"></div>
+    <article class="proof main" id="card" aria-live="polite"></article>
+    <i class="gauge g1" aria-hidden="true"></i><i class="gauge g2" aria-hidden="true"></i><i class="gauge g3" aria-hidden="true"></i>
+    <div class="platen" id="platen"></div>
+  </div>
+  <div class="leverWrap">
+    <figure class="chase" aria-label="The locked-up forme, in reverse" id="chase">
+      <span class="furn f1"></span><span class="furn f2"></span><span class="furn f3"></span><span class="furn f4"></span><span class="quoin q1"></span><span class="quoin q2"></span>
+      <div class="forme" id="forme"><div class="fl fn" id="fName"></div><div class="fl fr" id="fRole"></div><div class="fl fa" id="fAddr"></div></div>
+    </figure>
+    <div class="leverGroup">
+      <button class="lever" id="lever" aria-disabled="true" aria-describedby="leverTxt"><span class="pivot"></span><span class="arm" id="arm"><span class="knob"></span></span></button>
+      <p class="leverTxt" id="leverTxt"><b>Pull a proof</b><span id="leverSub">Open a drawer first</span></p>
+    </div>
+  </div>
+</section>
+<button class="mute" id="mute" aria-pressed="false" aria-label="Mute sound"><svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6.5h3l4-3.5v12l-4-3.5H2z" fill="#2a2622"/><path id="mw" d="M12 5.5c1.8 1.8 1.8 5.2 0 7" stroke="#2a2622" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></button>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const FONTS=[
+  {id:'garalde',name:'Garamond',cls:'Garalde, 1530s',stack:'"Cormorant Garamond", Garamond, "Times New Roman", serif',w:600,k:1.12,it:true},
+  {id:'didone',name:'Fatface',cls:'Didone, 1810s',stack:'"Abril Fatface", Didot, "Bodoni 72", serif',w:400,k:.92},
+  {id:'slab',name:'Wood Slab',cls:'Egyptian, 1840s',stack:'"Alfa Slab One", Rockwell, "Courier New", serif',w:400,k:.86},
+  {id:'geo',name:'Futura',cls:'Geometric, 1927',stack:'Futura, "Century Gothic", "Avenir Next", "Trebuchet MS", sans-serif',w:500,k:1},
+  {id:'human',name:'Gill Sans',cls:'Humanist, 1928',stack:'"Gill Sans", "Gill Sans MT", Calibri, "Segoe UI", sans-serif',w:400,k:1.04},
+  {id:'type',name:'Typewriter',cls:'Typewriter, 1974',stack:'"American Typewriter", "Courier New", Courier, monospace',w:400,k:.9}
+];
+const CARD={name:'Okafor Ceramics',role:'Maren Okafor, potter',addr:['Studio 4, Gasworks Lane, Leith EH6 7QB','maren@okafor.studio · +44 131 555 0192']};
+
+/* ---------- sound ---------- */
+let AC=null,master=null,muted=false;
+function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}master=AC.createGain();master.gain.value=muted?0:.18;master.connect(AC.destination);}if(AC.state==='suspended')AC.resume();return AC}
+function noise(dur,freq,q,vol,type='bandpass',decay=2){const a=audio();if(!a)return;const t=a.currentTime,n=Math.floor(a.sampleRate*dur),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,decay);
+  const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;const g=a.createGain();g.gain.value=vol;s.connect(f).connect(g).connect(master);s.start(t);}
+function woodSlide(){noise(.35,700,.8,.5,'bandpass',.6);}
+function woodClunk(){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.setValueAtTime(160,t);o.frequency.exponentialRampToValueAtTime(70,t+.09);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.45,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+.16);o.connect(g).connect(master);o.start(t);o.stop(t+.18);noise(.05,1500,1,.3);}
+function sortClick(){noise(.025,4200+Math.random()*1500,4,.35,'bandpass',3);}
+function pressThunk(){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain(),f=a.createBiquadFilter();o.type='sine';o.frequency.setValueAtTime(95,t);o.frequency.exponentialRampToValueAtTime(42,t+.2);f.type='lowpass';f.frequency.value=400;
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.9,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+.35);o.connect(f).connect(g).connect(master);o.start(t);o.stop(t+.4);noise(.12,2600,.7,.4,'bandpass',2.5);}
+function leverCreak(){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain(),f=a.createBiquadFilter();o.type='sawtooth';o.frequency.setValueAtTime(70,t);o.frequency.linearRampToValueAtTime(110,t+.3);f.type='bandpass';f.frequency.value=900;f.Q.value=6;
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.05);g.gain.exponentialRampToValueAtTime(.0001,t+.35);o.connect(f).connect(g).connect(master);o.start(t);o.stop(t+.37);}
+$('mute').addEventListener('click',()=>{muted=!muted;$('mute').setAttribute('aria-pressed',muted);$('mute').setAttribute('aria-label',muted?'Unmute sound':'Mute sound');$('mw').style.opacity=muted?.15:1;if(master)master.gain.value=muted?0:.18;});
+
+/* ---------- drawers ---------- */
+const drawersEl=$('drawers');
+const D=FONTS.map((f,i)=>{
+  const d=document.createElement('div');d.className='drawer';
+  d.innerHTML=`<div class="tray"><canvas></canvas></div><button class="front" role="radio" aria-checked="false" tabindex="${i?-1:0}" aria-label="${f.name}, ${f.cls}"><span class="holder"><span class="label"><b style="font-family:${f.stack.replace(/"/g,"'")};font-weight:${f.w}">${f.name}</b><i>${f.cls}</i></span></span><span class="pull"></span></button><div class="dshadow"></div>`;
+  drawersEl.appendChild(d);
+  const st={el:d,front:d.querySelector('.front'),tray:d.querySelector('.tray'),cv:d.querySelector('canvas'),sh:d.querySelector('.dshadow'),o:0,v:0,goal:0,hover:false,drawn:false,f,i};
+  st.front.addEventListener('click',()=>toggle(i));
+  st.front.addEventListener('pointerenter',()=>{st.hover=true;});st.front.addEventListener('pointerleave',()=>{st.hover=false;});
+  st.front.addEventListener('keydown',e=>{let k=0;if(e.key==='ArrowDown'||e.key==='ArrowRight')k=1;else if(e.key==='ArrowUp'||e.key==='ArrowLeft')k=-1;else if(e.key==='p'||e.key==='P'){pullProof();return}else return;e.preventDefault();const j=(i+k+FONTS.length)%FONTS.length;D.forEach((x,m)=>x.front.tabIndex=m===j?0:-1);D[j].front.focus();openDrawer(j);});
+  return st;});
+let openIdx=-1,proofFont=-1,proofNo=0,busy=false;
+function toggle(i){audio();if(openIdx===i){closeDrawer(i);openIdx=-1;updateLever();return}openDrawer(i);}
+function openDrawer(i,silent){if(openIdx===i)return;if(openIdx>=0)closeDrawer(openIdx);openIdx=i;const s=D[i];s.goal=1;if(silent){s.o=1;s.v=0;}else{s.v+=1.5;woodSlide();}drawTray(s);
+  D.forEach((x,m)=>{x.front.setAttribute('aria-checked',String(m===i));x.el.classList.toggle('open',m===i);x.front.tabIndex=m===i?0:-1;});
+  updateLever();if(silent)return;$('tag').classList.add('gone');$('live').textContent=`${s.f.name} drawer open. Pull the lever to print a proof.`;}
+function closeDrawer(i){const s=D[i];s.goal=0;s.el.classList.remove('open');s.front.setAttribute('aria-checked','false');}
+function updateLever(){const lv=$('lever');const ok=openIdx>=0&&!busy;lv.setAttribute('aria-disabled',String(!ok));
+  $('leverSub').textContent=openIdx<0?'Open a drawer first':busy?'Printing…':`Set the card in ${FONTS[openIdx].name}`;
+  lv.setAttribute('aria-label',openIdx<0?'Pull a proof (open a drawer first)':`Pull a proof in ${FONTS[openIdx].name}`);}
+
+/* ---------- sorts in the tray ---------- */
+const LET='etaoinshrdlucmfwypvbgkqjxz&ETAOINSHRDLMCKQ1234567890.,';
+function drawTray(s){
+  const r=s.tray.getBoundingClientRect();const DPR=Math.min(2,devicePixelRatio||1);const w=s.tray.offsetWidth,h=s.tray.offsetHeight;if(!w)return;
+  if(s.drawn===w+'x'+h)return;s.drawn=w+'x'+h;
+  const c=s.cv;c.width=w*DPR;c.height=h*DPR;const g=c.getContext('2d');g.scale(DPR,DPR);
+  // pine tray floor
+  const bg=g.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#7d5734');bg.addColorStop(1,'#c99a62');g.fillStyle=bg;g.fillRect(0,0,w,h);
+  let seed=s.i*131+7;const rnd=()=>{seed=(seed*16807)%2147483647;return(seed-1)/2147483646};
+  for(let k=0;k<40;k++){g.strokeStyle=`rgba(70,40,15,${.06+rnd()*.1})`;g.lineWidth=.6+rnd();const y=rnd()*h;g.beginPath();g.moveTo(0,y);g.bezierCurveTo(w*.3,y+rnd()*6-3,w*.6,y+rnd()*6-3,w,y+rnd()*4-2);g.stroke();}
+  const cols=w>420?10:8,rows=3,pad=10,cw=(w-pad*2)/cols,ch=(h-pad*2)/rows;
+  // compartments
+  let li=0;
+  for(let rr=0;rr<rows;rr++)for(let cc=0;cc<cols;cc++){const x=pad+cc*cw,y=pad+rr*ch;
+    g.fillStyle='rgba(60,35,15,.25)';g.fillRect(x+2,y+2,cw-4,ch-4);
+    const ltr=LET[(li++)%LET.length];const n=1+Math.floor(rnd()*3);const sh=Math.min(ch*.52,34),sw=sh*.74;
+    g.font=`${s.f.w} ${sh*.86*s.f.k}px ${s.f.stack}`;g.textAlign='center';g.textBaseline='middle';
+    for(let k=0;k<n;k++){const sx=x+6+rnd()*(cw-12-sw)+sw/2,sy=y+6+rnd()*(ch-12-sh)+sh/2,rot=(rnd()-.5)*.5;
+      g.save();g.translate(sx,sy);g.rotate(rot);
+      g.fillStyle='rgba(0,0,0,.35)';g.fillRect(-sw/2+1.5,-sh/2+2,sw,sh);
+      const mg=g.createLinearGradient(-sw/2,0,sw/2,0);mg.addColorStop(0,'#6f7579');mg.addColorStop(.35,'#c4cacd');mg.addColorStop(.7,'#8c9397');mg.addColorStop(1,'#565b5e');g.fillStyle=mg;g.fillRect(-sw/2,-sh/2,sw,sh);
+      g.fillStyle='rgba(20,24,28,.18)';g.fillRect(-sw/2,sh*.18,sw,1.2);
+      g.scale(-1,1);g.fillStyle='#1f2326';g.fillText(ltr,0,0);g.fillStyle='rgba(255,255,255,.25)';g.fillText(ltr,-.6,-.6);g.restore();}
+  }
+  // dividers (wooden slats)
+  g.fillStyle='#5a3a1d';for(let cc=0;cc<=cols;cc++){g.fillRect(pad+cc*cw-2,pad-2,4,h-pad*2+4);}for(let rr=0;rr<=rows;rr++){g.fillRect(pad-2,pad+rr*ch-2,w-pad*2+4,4);}
+  g.fillStyle='rgba(255,220,170,.25)';for(let cc=0;cc<=cols;cc++)g.fillRect(pad+cc*cw-2,pad-2,1,h-pad*2+4);
+  // rim
+  g.strokeStyle='#4a2c16';g.lineWidth=pad;g.strokeRect(pad/2,pad/2,w-pad,h-pad);
+  g.strokeStyle='rgba(255,220,170,.3)';g.lineWidth=1;g.strokeRect(pad,pad,w-pad*2,h-pad*2);
+}
+
+/* ---------- the card ---------- */
+function cardHTML(f,n,ink){return `<div class="ink" style="font-family:${f.stack.replace(/"/g,"'")};font-weight:${f.w}">
+  <div class="name" style="font-size:${(2.7*f.k).toFixed(2)}em">${CARD.name}</div>
+  <div class="role" style="${f.it?'font-style:italic;font-weight:500;':''}font-size:${(1.15*f.k).toFixed(2)}em">${CARD.role}</div>
+  <div class="rule"></div>
+  <div class="addr" style="font-size:${(.86*f.k).toFixed(2)}em">${CARD.addr.join('<br>')}</div></div>
+  <span class="note">proof ${n} · ${f.name.toLowerCase()}</span>`}
+function fitName(card){const n=card.querySelector('.name');if(!n)return;n.style.letterSpacing='';const max=card.clientWidth*.84;const w=n.scrollWidth;if(w>max){const cur=parseFloat(n.style.fontSize);n.style.fontSize=(cur*max/w).toFixed(3)+'em';}}
+function setForme(fi,flash){const f=FONTS[fi],fm=$('forme');fm.style.fontFamily=f.stack;fm.style.fontWeight=f.w;$('fName').textContent=CARD.name;$('fRole').textContent=CARD.role;$('fAddr').textContent=CARD.addr[0];
+  $('fRole').style.fontStyle=f.it?'italic':'normal';const n=$('fName');n.style.transform='';requestAnimationFrame(()=>{const max=fm.clientWidth-14;const w=n.scrollWidth;n.style.transform=w>max?`scaleX(${(max/w).toFixed(3)})`:'';});
+  if(flash){fm.classList.remove('flash');void fm.offsetWidth;fm.classList.add('flash');}}
+function blankCard(){$('card').innerHTML=`<div style="font-family:Georgia,serif;font-style:italic;color:#9a8a70;text-align:center;font-size:1.05em;line-height:1.5">A blank card on the press bed.<br>Choose a drawer of type to set it.</div>`;}
+blankCard();
+
+/* ---------- pulling a proof ---------- */
+let leverA=-24,leverV=0,leverGoal=-24;
+function pullProof(){
+  if(openIdx<0||busy){if(openIdx<0){$('live').textContent='Open a drawer of type first.';D[0].front.animate([{transform:'translateY(0)'},{transform:'translateY(4px)'},{transform:'translateY(0)'}],{duration:260});}return}
+  audio();busy=true;updateLever();const f=FONTS[openIdx];leverGoal=34;leverCreak();
+  const card=$('card'),cr=card.getBoundingClientRect(),tr=D[openIdx].tray.getBoundingClientRect();
+  const letters=CARD.name.replace(/\s/g,'').split('');
+  const flight=RM?0:900;
+  if(!RM){letters.forEach((ch,k)=>{const sEl=document.createElement('div');sEl.className='sort';sEl.innerHTML=`<span style="font-family:${f.stack.replace(/"/g,"'")};font-weight:${f.w}">${ch}</span>`;document.body.appendChild(sEl);
+    const sx=tr.left+tr.width*(.1+Math.random()*.8),sy=tr.top+tr.height*(.2+Math.random()*.6);const ex=cr.left+cr.width*.1+k*(cr.width*.8/letters.length),ey=cr.top+cr.height*.36;
+    const mx=(sx+ex)/2,my=Math.min(sy,ey)-90-Math.random()*60;
+    const kf=[];for(let t=0;t<=1.0001;t+=.1){const x=(1-t)*(1-t)*sx+2*(1-t)*t*mx+t*t*ex,y=(1-t)*(1-t)*sy+2*(1-t)*t*my+t*t*ey;kf.push({transform:`translate(${x-11}px,${y-14}px) rotate(${(1-t)*(Math.random()*120-60)}deg)`});}
+    const an=sEl.animate(kf,{duration:flight-120,delay:k*14,easing:'cubic-bezier(.4,0,.3,1)',fill:'forwards'});
+    setTimeout(()=>sortClick(),k*14+flight-130);
+    setTimeout(()=>{sEl.animate([{opacity:1},{opacity:0}],{duration:160,fill:'forwards'}).onfinish=()=>sEl.remove();},flight+260);});}
+  setTimeout(()=>setForme(openIdx,true),flight);
+  // platen
+  const pl=$('platen');
+  setTimeout(()=>{
+    pl.animate([{transform:'translateY(-140%) scale(1.05)',opacity:0},{transform:'translateY(-10%) scale(1.02)',opacity:1,offset:.55},{transform:'translateY(0) scale(1)',opacity:1,offset:.75},{transform:'translateY(0) scale(1)',opacity:1,offset:.86},{transform:'translateY(-140%) scale(1.05)',opacity:0}],{duration:RM?600:1100,easing:'cubic-bezier(.5,0,.5,1)'});
+    setTimeout(()=>{pressThunk();
+      // retire the old proof to the pile
+      if(proofFont>=0)retire();
+      proofNo++;proofFont=openIdx;
+      const seedV=Math.floor(Math.random()*90)+1;$('inkT').setAttribute('seed',seedV);
+      const dens=1.74+Math.random()*.16;$('inkM').setAttribute('values',`0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.8 ${dens.toFixed(2)}`);
+      card.innerHTML=cardHTML(f,proofNo);card.dataset.font=openIdx;fitName(card);const lowV=Math.floor(Math.random()*90)+1;$('inkL').setAttribute('seed',lowV);
+      const off=(Math.random()-.5)*1.2;card.querySelector('.ink').style.transform=`translate(${off}px,${(Math.random()-.5)*.8}px)`;
+      card.animate([{transform:'scale(.985)'},{transform:'scale(1)'}],{duration:300,easing:'cubic-bezier(.3,1.6,.5,1)'});
+      $('live').textContent=`Proof ${proofNo} printed in ${f.name}. Earlier proofs are in the pile behind it.`;
+    },(RM?600:1100)*.62);
+    setTimeout(()=>{busy=false;leverGoal=-24;updateLever();},RM?700:1200);
+  },flight);
+}
+function retire(){const card=$('card');const old=card.cloneNode(true);old.classList.remove('main');old.removeAttribute('id');old.removeAttribute('aria-live');const fi=+card.dataset.font;
+  const pile=$('pile');const n=pile.children.length;const rot=(Math.random()-.5)*10,dx=-18-Math.random()*26,dy=-14-Math.random()*20;
+  old.style.transform=`translate(${dx}px,${dy}px) rotate(${rot}deg)`;old.setAttribute('role','button');old.setAttribute('tabindex','0');old.setAttribute('aria-label',`Earlier proof in ${FONTS[fi].name}. Open that drawer.`);
+  old.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
+  const pick=()=>{audio();openDrawer(fi);D[fi].front.focus();};old.addEventListener('click',pick);old.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});
+  pile.appendChild(old);while(pile.children.length>4)pile.firstChild.remove();
+  [...pile.children].forEach((c,k,arr)=>{c.style.opacity=(.5+.5*(k+1)/arr.length).toFixed(2);});}
+const lever=$('lever');
+lever.addEventListener('click',pullProof);
+let ldrag=null;
+lever.addEventListener('pointerdown',e=>{if(openIdx<0||busy)return;ldrag={y:e.clientY,fired:false};try{lever.setPointerCapture(e.pointerId)}catch(_){}});
+lever.addEventListener('pointermove',e=>{if(!ldrag)return;const dy=e.clientY-ldrag.y;leverGoal=Math.max(-24,Math.min(34,-24+dy*.9));if(leverGoal>=28&&!ldrag.fired){ldrag.fired=true;ldrag.consumed=true;pullProof();}});
+lever.addEventListener('pointerup',()=>{if(ldrag&&ldrag.consumed){lever.addEventListener('click',stopOnce,{capture:true,once:true});}ldrag=null;if(!busy)leverGoal=-24;});
+function stopOnce(e){e.stopImmediatePropagation();}
+addEventListener('keydown',e=>{if((e.key==='p'||e.key==='P')&&document.activeElement===document.body)pullProof();});
+
+/* ---------- loop ---------- */
+let lt=performance.now();
+function frame(now){const dt=Math.min(.033,(now-lt)/1000);lt=now;
+  if(!document.hidden){
+    D.forEach(s=>{const g=s.goal>0?1:(s.hover?.06:0);const a=(g-s.o)*170-s.v*15;s.v+=a*dt;const prev=s.o;s.o+=s.v*dt;if(RM){s.o=g;s.v=0;}
+      if(s.goal>0&&prev<.98&&s.o>=.98&&Math.abs(s.v)>.4)woodClunk();
+      const o=Math.max(0,s.o),open=Math.min(1,o);
+      s.front.style.transform=`translateY(${(o*14).toFixed(2)}px) scale(${(1+o*.035).toFixed(4)})`;
+      s.tray.style.transform=`translateY(${(o*14).toFixed(2)}px) rotateX(50deg)`;s.tray.style.clipPath=`inset(${((1-open)*100).toFixed(2)}% 0 0 0)`;s.tray.style.opacity=open>.01?1:0;
+      s.sh.style.opacity=(o*.9).toFixed(3);s.sh.style.transform=`translateY(${(o*14).toFixed(1)}px)`;});
+    const la=(leverGoal-leverA)*120-leverV*14;leverV+=la*dt;leverA+=leverV*dt;if(RM)leverA=leverGoal;$('arm').style.transform=`rotate(${leverA.toFixed(2)}deg)`;
+  }
+  requestAnimationFrame(frame);}
+addEventListener('resize',()=>{D.forEach(s=>{s.drawn=false;});if(openIdx>=0)drawTray(D[openIdx]);});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{D.forEach(s=>s.drawn=false);if(openIdx>=0)drawTray(D[openIdx]);});
+/* first impression: one drawer already out and a proof already pulled */
+openDrawer(1,true);proofNo=1;proofFont=1;$('card').innerHTML=cardHTML(FONTS[1],1);$('card').dataset.font=1;setForme(1);
+updateLever();requestAnimationFrame(frame);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{fitName($('card'));setForme(proofFont<0?1:proofFont);});
+window.__type={open:openDrawer,pull:pullProof};
+})();
+</script>
+</body>
+</html>

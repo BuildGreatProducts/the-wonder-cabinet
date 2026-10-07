@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horse Race Leaderboard</title>
+<meta name="description" content="A sales leaderboard printed as an Eadweard Muybridge motion study: each rep gallops along a calibrated backdrop ruled in dollars, standings reorder as deals close, and the quarter ends with a twelve-camera photo finish.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Horse Race Leaderboard","reimagines":"Leaderboard","category":"Data & Visualization","description":"The quarter's sales race as a Muybridge motion study: every rep is a galloping silhouette whose nose sits exactly on their revenue against a backdrop ruled in thousands of dollars, the standings card reorders as deals close, and the last day is caught by a battery of twelve cameras as a photo-finish plate.","hint":"Press Run the quarter, or drag along the contact strip to scrub through the weeks"}
+</script>
+<style>
+  :root{ --card:#e6d6b5; --card2:#dccaa4; --ink:#2a1a0e; --ink2:#5a4128; --photo:#d8c29b; --rule:rgba(42,26,14,.25); }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#3a2a1c}
+  body{font-family:"Old Standard TT", Georgia, serif;color:var(--ink)}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden;padding:14px}
+  .mount{position:relative;width:100%;height:100%;
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(255,250,235,.35), transparent 70%),
+      radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(110,80,40,.28) 100%),
+      var(--card);
+    box-shadow:0 0 0 1px #b79f75 inset, 0 0 0 7px var(--card) inset, 0 0 0 8px rgba(90,60,30,.35) inset, 0 20px 40px rgba(0,0,0,.5)}
+  .mount::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .38  0 0 0 0 .22  0 0 0 .25 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>")}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  header{position:absolute;left:0;right:0;top:20px;text-align:center;z-index:2}
+  .corner{position:absolute;top:22px;font:400 13px/1.2 "Old Standard TT",serif;letter-spacing:.06em;color:var(--ink2);z-index:2}
+  .corner.l{left:34px} .corner.r{right:34px;text-align:right}
+  h1{font:700 30px/1 "Old Standard TT",serif;letter-spacing:.32em;margin:0;text-transform:uppercase;padding-left:.32em}
+  .sub{font:italic 400 15.5px/1.35 "IM Fell English",serif;margin:6px auto 0;max-width:980px;color:#3d2a17}
+  .photo{position:absolute;border-radius:2px;box-shadow:0 0 0 1px rgba(60,40,20,.5), 0 1px 0 rgba(255,255,255,.35)}
+  canvas{display:block;width:100%;height:100%}
+  #track{touch-action:none}
+  .controls{position:absolute;display:flex;align-items:center;gap:14px;z-index:3}
+  .run{all:unset;cursor:pointer;font:700 13px/1 "Old Standard TT",serif;letter-spacing:.18em;text-transform:uppercase;padding:11px 16px 10px;
+    border:1px solid var(--ink);box-shadow:0 0 0 3px var(--card), 0 0 0 4px var(--ink);background:#efe3c8;white-space:nowrap}
+  .run:hover{background:#2a1a0e;color:#efe3c8}
+  .run:focus-visible{outline:2px dashed var(--ink);outline-offset:7px}
+  .strip{position:relative;height:46px;flex:1;min-width:0;touch-action:none;cursor:ew-resize;outline:none}
+  .strip:focus-visible{outline:2px dashed var(--ink);outline-offset:4px}
+  .when{font:400 13px/1.25 "Old Standard TT",serif;min-width:150px}
+  .when b{display:block;font:700 15px/1.2 "Old Standard TT";letter-spacing:.04em}
+  .ticker{position:absolute;font:italic 400 15px/1.35 "IM Fell English",serif;color:#3d2a17;margin:0;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .board{position:absolute;z-index:2}
+  .board h2{font:700 14px/1 "Old Standard TT";letter-spacing:.3em;text-transform:uppercase;margin:0 0 4px;text-align:center}
+  .board .asof{font:italic 400 14px/1.2 "IM Fell English";text-align:center;margin:0 0 10px;color:var(--ink2)}
+  .rows{position:relative;border-top:3px double var(--ink);border-bottom:3px double var(--ink)}
+  .row{all:unset;box-sizing:border-box;position:absolute;left:0;right:0;display:grid;grid-template-columns:34px 26px 1fr auto;align-items:center;gap:8px;padding:0 4px;cursor:pointer;
+    border-bottom:1px solid var(--rule);transition:top .55s cubic-bezier(.5,0,.2,1), background .2s;background:var(--card)}
+  .row.up{z-index:2;box-shadow:0 4px 10px rgba(40,25,10,.25)}
+  .row:hover,.row.hot{background:#dccaa3}
+  .row:focus-visible{outline:2px dashed var(--ink);outline-offset:-2px}
+  .row .pos{font:700 15px/1 "Old Standard TT";font-variant-numeric:tabular-nums}
+  .row .pos small{font-size:10px;vertical-align:4px}
+  .row .no{width:24px;height:20px;border:1px solid var(--ink);display:grid;place-items:center;font:700 12px/1 "Old Standard TT";background:#f3ead6}
+  .row .nm{font:400 15px/1.15 "Old Standard TT";white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .nm i{font:italic 400 12px "IM Fell English";color:var(--ink2);margin-left:6px}
+  .row .rv{text-align:right;font:700 14px/1.1 "Old Standard TT";font-variant-numeric:tabular-nums}
+  .row .rv small{display:block;font:400 11.5px/1.2 "Old Standard TT";color:var(--ink2)}
+  .row .mv{font:400 10px/1;margin-left:4px;vertical-align:1px}
+  .legend{font:italic 400 13px/1.35 "IM Fell English";color:var(--ink2);margin:10px 0 0;text-align:center}
+  .tip{position:absolute;z-index:6;pointer-events:none;background:#f1e6cc;border:1px solid var(--ink);box-shadow:0 0 0 3px #f1e6cc, 0 0 0 4px rgba(42,26,14,.6), 0 10px 20px rgba(0,0,0,.25);
+    padding:8px 11px;font:400 13px/1.4 "Old Standard TT";white-space:nowrap}
+  .tip b{font-weight:700;letter-spacing:.04em}
+  .tip i{font:italic 400 13px "IM Fell English"}
+  .plate{position:absolute;z-index:5;background:var(--card);box-shadow:0 0 0 1px var(--ink2), 0 18px 40px rgba(30,15,5,.45);padding:16px 18px 14px;display:flex;flex-direction:column;opacity:0;transform:scale(.97);transition:opacity .5s, transform .5s}
+  .plate.on{opacity:1;transform:none}
+  .plate h3{font:700 17px/1 "Old Standard TT";letter-spacing:.3em;text-transform:uppercase;text-align:center;margin:0 0 4px}
+  .plate .cap{font:italic 400 15px/1.35 "IM Fell English";text-align:center;margin:0 0 10px}
+  .plate .pc{flex:1;min-height:0}
+  .plate .foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font:400 12px "Old Standard TT";color:var(--ink2)}
+  .flash{position:absolute;inset:0;background:#fffbea;opacity:0;pointer-events:none;z-index:7}
+  .mute{all:unset;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--ink);border-radius:50%}
+  .mute:focus-visible{outline:2px dashed var(--ink);outline-offset:3px}
+  .mute svg{width:18px;height:18px}
+  @media (max-width:760px){
+    .stage{padding:6px}
+    header{top:12px}
+    .corner{display:none}
+    h1{font-size:17px;letter-spacing:.2em}
+    .sub{font-size:12.5px;padding:0 10px;margin-top:4px}
+    .controls{gap:8px}
+    .run{font-size:11px;padding:9px 10px 8px;letter-spacing:.12em}
+    .when{display:none}
+    .ticker{font-size:12.5px}
+    .board h2{font-size:11px;margin:0}
+    .board .asof{font-size:11.5px;margin:0 0 4px}
+    .row{grid-template-columns:28px 22px 1fr auto;gap:6px}
+    .row .pos{font-size:12.5px}
+    .row .no{width:20px;height:16px;font-size:10px}
+    .row .nm{font-size:12.5px}
+    .row .nm i{display:none}
+    .row .rv{font-size:12px;display:flex;gap:8px;align-items:baseline}
+    .row .rv small{display:inline;font-size:10.5px}
+    .legend{display:none}
+    .plate{padding:10px 10px 8px}
+    .plate h3{font-size:13px}
+    .plate .cap{font-size:12.5px;margin-bottom:6px}
+  }
+</style>
+</head>
+<body>
+<main class="stage">
+  <div class="mount" id="mount">
+    <p class="corner l">Q3 · 1 July – 30 September 2026</p>
+    <p class="corner r">Plate 86<br><i style="font-family:'IM Fell English'">Lantern Labs, Sales</i></p>
+    <header>
+      <h1>The Reps in Motion</h1>
+      <p class="sub">Eight Lantern Labs representatives running for a $600,000 quota over the third quarter of 2026. Each nose stands at the revenue closed.</p>
+    </header>
+    <div class="photo" id="photo"><canvas id="track" tabindex="0" role="img" aria-label="Race track"></canvas></div>
+    <div class="controls" id="controls">
+      <button class="run" id="run" type="button">Run the quarter</button>
+      <div class="strip" id="strip" tabindex="0" role="slider" aria-label="Day of the quarter" aria-valuemin="0" aria-valuemax="91"><canvas id="stripCv"></canvas></div>
+      <p class="when" id="when"></p>
+      <button class="mute" id="mute" type="button" aria-pressed="false" aria-label="Sound on"></button>
+    </div>
+    <p class="ticker" id="ticker" aria-live="polite"></p>
+    <section class="board" id="board" aria-labelledby="bh">
+      <h2 id="bh">The Standings</h2>
+      <p class="asof" id="asof"></p>
+      <div class="rows" id="rows" role="list"></div>
+      <p class="legend">Revenue closed, and share of the $600,000 quota. Arrows show places gained or lost this week.</p>
+    </section>
+    <section class="plate" id="plate" hidden aria-labelledby="ph">
+      <h3 id="ph">Photo Finish</h3>
+      <p class="cap" id="pcap"></p>
+      <div class="pc"><canvas id="plateCv"></canvas></div>
+      <div class="foot"><span>Twelve cameras, one for each working day of the final fortnight.</span><button class="run" id="back" type="button">Back to the track</button></div>
+    </section>
+    <div class="flash" id="flash"></div>
+    <div class="tip" id="tip" hidden></div>
+  </div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+
+/* ---------------- the quarter ---------------- */
+const NDAY = 92, END = 91, QUOTA = 600000, AXIS = 700000;
+const dateOf = d => new Date(2026, 6, 1 + d);
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','July','Aug','Sept','Oct','Nov','Dec'];
+const fmtD = d => { const x = dateOf(d); return x.getDate() + ' ' + MON[x.getMonth()]; };
+const isWork = d => { const w = dateOf(d).getDay(); return w!==0 && w!==6; };
+const money = n => '$' + Math.round(n).toLocaleString('en-US');
+const kmoney = n => '$' + (n/1000).toFixed(1) + 'k';
+const CUST = ['Northwind Logistics','Bluefin Dental','Arbor & Vale','Corvid Analytics','Pemberton Foods','Quayside Hotels','Tamsin Health','Oakridge Schools','Meridian Credit Union','Larkspur Labs','Sable Mining','Fenwick Legal','Harbourline Ferries','Copperleaf Energy','Moss & Finch','Riverbend Clinics','Kestrel Insurance','Brightwater Utilities','Atlas Removals','Juniper Retail','Calloway Studios','Stonegate Housing','Pinecrest Hospitality','Orchard Lane Grocers','Wexford Tooling','Silverline Couriers','Ember Coffee','Granite Peak Outdoors'];
+const REPS = [
+  {no:1, name:'Dana Whitfield', total:618200, w:d=>1, until:84, fixed:[[90,24500,'Wexford Tooling']]},
+  {no:2, name:'Marcus Bell', total:512600, w:d=>0.3 + d/91*1.6, until:91, fixed:[]},
+  {no:3, name:'Ines Duarte', total:620610, w:d=>1, until:80, fixed:[[91,41800,'Halvorsen Freight']]},
+  {no:4, name:'Kenji Mori', total:455300, w:d=>1, until:91, fixed:[]},
+  {no:5, name:'Priya Sethi', total:571900, w:d=>1.7 - d/91*1.3, until:91, fixed:[]},
+  {no:6, name:'Tom Okafor', total:388400, w:d=> d<35 ? 1.5 : d<68 ? 0.08 : 0.9, until:91, fixed:[]},
+  {no:7, name:'Lucia Ferraro', total:544700, w:d=>1, until:91, fixed:[]},
+  {no:8, name:'Ade Bankole', total:476100, w:d=>0.5 + d/91, until:91, fixed:[]},
+];
+(function genDeals(){
+  const R = mulberry32(8606);
+  REPS.forEach(rep => {
+    const fixedSum = rep.fixed.reduce((a,f)=>a+f[1],0);
+    const n = Math.round((rep.total - fixedSum)/39000);
+    const days = [];
+    for (let d=1; d<=rep.until; d++) if (isWork(d)) days.push(d);
+    const wsum = days.reduce((a,d)=>a+rep.w(d),0);
+    const deals = [];
+    for (let k=0;k<n;k++){
+      let x = R()*wsum, day = days[0];
+      for (const d of days){ x -= rep.w(d); if (x<=0){ day = d; break; } }
+      const amt = Math.exp(Math.log(30000) + (R()-0.5)*1.4);
+      deals.push({day, amt, cust: CUST[Math.floor(R()*CUST.length)]});
+    }
+    const s = deals.reduce((a,d)=>a+d.amt,0), k = (rep.total - fixedSum)/s;
+    let acc = 0;
+    deals.forEach((d,i) => { d.amt = Math.round(d.amt*k/10)*10; acc += d.amt; });
+    deals[deals.length-1].amt += (rep.total - fixedSum) - acc;
+    rep.fixed.forEach(([day, amt, cust]) => deals.push({day, amt, cust}));
+    deals.sort((a,b)=>a.day-b.day);
+    rep.deals = deals;
+  });
+})();
+const revAt = (rep, t) => rep.deals.reduce((a,d)=> d.day <= t ? a + d.amt : a, 0);
+const dealsAt = (rep, t) => rep.deals.filter(d => d.day <= t);
+function standings(t){
+  return REPS.map(r => ({r, v: revAt(r, Math.floor(t))})).sort((a,b) => b.v - a.v || a.r.no - b.r.no);
+}
+
+/* ---------------- state ---------------- */
+const OPEN = 61;   // the page opens on Monday 31 August, week 9 of 13
+let t = OPEN, playing = false, finished = false, fresh = true;
+REPS.forEach(r => { r.x = 0; r.v = 0; r.phase = (r.no*0.37 + 0.11) % 1; r.lastRank = r.no-1; r.weekRank = r.no-1; });
+
+/* ---------------- geometry ---------------- */
+let W=0,H=0,DPR=1,mob=false, T={}, lanes=[];
+const trackCv = $('track'), tg = trackCv.getContext('2d');
+const stripCv = $('stripCv'), sg = stripCv.getContext('2d');
+const plateCv = $('plateCv'), pg = plateCv.getContext('2d');
+function layout(){
+  const m = $('mount').getBoundingClientRect(); W = m.width; H = m.height; mob = W < 740;
+  DPR = Math.min(2, devicePixelRatio||1);
+  const headH = $('mount').querySelector('header').getBoundingClientRect().bottom - m.top;
+  let px, py, pw, ph, bx, by, bw, rowH;
+  if (!mob){
+    bw = Math.min(330, W*0.27); bx = W - bw - 34;
+    px = 34; py = headH + 16; pw = bx - px - 30; ph = Math.min(H - py - 108, 8*76 + 26);
+    rowH = Math.min(46, (ph - 70)/8); by = py;
+    place('controls', {left:px+'px', top:(py+ph+16)+'px', width:pw+'px'});
+    place('ticker', {left:px+'px', top:(py+ph+70)+'px', width:pw+'px'});
+  } else {
+    px = 8; pw = W - 16; py = headH + 10; ph = Math.min(8*50 + 22, H*0.48);
+    place('controls', {left:px+'px', top:(py+ph+8)+'px', width:pw+'px'});
+    place('ticker', {left:px+'px', top:(py+ph+58)+'px', width:pw+'px'});
+    bx = 10; bw = W - 20; by = py + ph + 84; rowH = Math.min(26, (H - by - 40)/8);
+  }
+  place('photo', {left:px+'px', top:py+'px', width:pw+'px', height:ph+'px'});
+  place('board', {left:bx+'px', top:by+'px', width:bw+'px'});
+  $('rows').style.height = (rowH*8) + 'px';
+  T.rowH = rowH; T.pw = pw; T.ph = ph;
+  trackCv.width = Math.round(pw*DPR); trackCv.height = Math.round(ph*DPR);
+  const s = $('strip').getBoundingClientRect();
+  stripCv.width = Math.round(s.width*DPR); stripCv.height = Math.round(s.height*DPR);
+  T.sw = s.width; T.sh = s.height;
+  // lanes
+  const top = mob ? 18 : 24, lh = (ph - top - 4)/8;
+  T.top = top; T.lh = lh; T.scale = lh*0.93/1.2; T.x0 = 1.72*T.scale + (mob ? 4 : 6); T.x1 = pw - (mob ? 12 : 20);
+  buildBackdrop(); buildGrain();
+  placePlate();
+  renderRows(true);
+}
+function place(id, st){ Object.assign($(id).style, st); }
+const xOfRev = v => T.x0 + v/AXIS*(T.x1 - T.x0);
+
+/* ---------------- photographic textures ---------------- */
+const backdrop = document.createElement('canvas'), bdg = backdrop.getContext('2d');
+const grain = document.createElement('canvas'), gg = grain.getContext('2d');
+function buildBackdrop(){
+  backdrop.width = trackCv.width; backdrop.height = trackCv.height;
+  const g = bdg; g.setTransform(DPR,0,0,DPR,0,0);
+  const w = T.pw, h = T.ph;
+  // albumen print: warm highlights, brown shadows, uneven exposure
+  const bg = g.createLinearGradient(0,0,0,h); bg.addColorStop(0,'#e3cfa6'); bg.addColorStop(1,'#cdb084');
+  g.fillStyle = bg; g.fillRect(0,0,w,h);
+  const ex = g.createRadialGradient(w*0.45, h*0.4, 0, w*0.5, h*0.5, Math.max(w,h)*0.72);
+  ex.addColorStop(0,'rgba(255,245,220,.35)'); ex.addColorStop(0.7,'rgba(0,0,0,0)'); ex.addColorStop(1,'rgba(70,45,20,.35)');
+  g.fillStyle = ex; g.fillRect(0,0,w,h);
+  // numbered dollar scale along the top
+  g.fillStyle = '#2f1f10'; g.font = `700 ${mob?8.5:11}px "Old Standard TT", serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let v=0; v<=AXIS; v+=50000){
+    const x = xOfRev(v);
+    if (!mob || v % 100000 === 0) g.fillText(v===0 ? '$0' : v===AXIS ? (v/1000)+'k' : (v/1000)+'', Math.min(x, w - 12), T.top*0.5);
+  }
+  // the starting gate
+  { const sx = xOfRev(0);
+    g.fillStyle = 'rgba(30,18,8,.5)'; g.fillRect(sx - 1, T.top - 2, 2, h - T.top);
+  }
+  // lanes: the whitewashed shed wall with ruled lines, and the track
+  for (let i=0;i<8;i++){
+    const y = T.top + i*T.lh;
+    const lg = g.createLinearGradient(0, y, 0, y + T.lh);
+    lg.addColorStop(0, 'rgba(245,233,205,.55)'); lg.addColorStop(0.78, 'rgba(240,226,196,.35)'); lg.addColorStop(0.8, 'rgba(120,90,55,.35)'); lg.addColorStop(1, 'rgba(90,65,38,.45)');
+    g.fillStyle = lg; g.fillRect(0, y, w, T.lh);
+    // ruled lines every $10k, heavier every $50k
+    for (let v=0; v<=AXIS; v+=10000){
+      const x = Math.round(xOfRev(v)) + 0.5;
+      g.strokeStyle = v % 50000 === 0 ? 'rgba(40,25,10,.5)' : 'rgba(40,25,10,.16)';
+      g.lineWidth = v % 50000 === 0 ? 1.1 : 0.8;
+      g.beginPath(); g.moveTo(x, y + 2); g.lineTo(x, y + T.lh*0.79); g.stroke();
+    }
+    // lane division: the low rail
+    g.fillStyle = 'rgba(40,25,10,.55)'; g.fillRect(0, y + T.lh - 1.5, w, 1.5);
+    // track grit
+    const r = mulberry32(i*31+5);
+    for (let k=0;k<w/3;k++){ g.fillStyle = r()<0.5 ? 'rgba(60,40,18,.25)' : 'rgba(255,240,210,.2)'; g.fillRect(r()*w, y + T.lh*0.82 + r()*T.lh*0.16, 1.2, 1); }
+  }
+  // the quota post: the finish
+  const qx = xOfRev(QUOTA);
+  g.fillStyle = 'rgba(30,18,8,.85)'; g.fillRect(qx - 2, T.top - 2, 4, h - T.top);
+  g.fillStyle = 'rgba(245,235,210,.8)'; g.fillRect(qx - 0.5, T.top - 2, 1, h - T.top);
+  g.save(); g.translate(qx + (mob?7:9), T.top + 6); g.rotate(Math.PI/2);
+  g.fillStyle = '#2f1f10'; g.font = `700 ${mob?8:10}px "Old Standard TT", serif`; g.textAlign = 'left'; g.textBaseline='middle';
+  g.letterSpacing = '3px';
+  g.fillText('QUOTA · $600,000', 0, 0); g.restore();
+}
+function buildGrain(){
+  const gw = Math.ceil(T.pw/2), gh = Math.ceil(T.ph/2);
+  grain.width = gw; grain.height = gh;
+  const id = gg.createImageData(gw, gh), d = id.data, r = mulberry32(77);
+  for (let i=0;i<d.length;i+=4){ const v = 128 + (r()-0.5)*90; d[i]=v; d[i+1]=v*0.92; d[i+2]=v*0.8; d[i+3]=42; }
+  gg.putImageData(id,0,0);
+  // scratches and dust
+  gg.strokeStyle='rgba(255,250,235,.55)'; gg.lineWidth=0.5;
+  for (let k=0;k<14;k++){ const x = r()*gw; gg.beginPath(); gg.moveTo(x, r()*gh); gg.lineTo(x + (r()-0.5)*6, r()*gh); gg.stroke(); }
+  gg.fillStyle='rgba(30,20,10,.6)';
+  for (let k=0;k<40;k++){ gg.beginPath(); gg.arc(r()*gw, r()*gh, r()*0.9+0.2, 0, TAU); gg.fill(); }
+}
+
+/* ---------------- the horse: articulated silhouette, transverse gallop ---------------- */
+function ik(hx, hy, fx, fy, l1, l2, bend){
+  let dx = fx-hx, dy = fy-hy, d = Math.hypot(dx,dy);
+  const maxd = (l1+l2)*0.999; if (d > maxd){ dx *= maxd/d; dy *= maxd/d; d = maxd; }
+  const a = Math.atan2(dy,dx), c = Math.max(-1, Math.min(1, (l1*l1 + d*d - l2*l2)/(2*l1*d)));
+  const al = Math.acos(c), k = a + bend*al;
+  return [hx + Math.cos(k)*l1, hy + Math.sin(k)*l1, hx+dx, hy+dy];
+}
+const LEGS = [ // hip x, hip y, phase offset, fore?, bend, near side?
+  {hx:-0.33, hy:-0.62, off:0.00, fore:false, near:false},
+  {hx:0.30, hy:-0.6, off:0.38, fore:true, near:false},
+  {hx:-0.31, hy:-0.6, off:0.11, fore:false, near:true},
+  {hx:0.32, hy:-0.58, off:0.50, fore:true, near:true},
+];
+function drawHorse(g, x, gy, s, phase, sp, no, ink, silk){
+  // sp: 0 standing … 1 full gallop
+  const bob = -0.035*sp*Math.sin(TAU*(phase - 0.15));
+  const pitch = 0.04*sp*Math.sin(TAU*(phase + 0.1));
+  g.save(); g.translate(x, gy); g.scale(s, s);
+  const legsDraw = (near) => {
+    for (const L of LEGS){
+      if (L.near !== near) continue;
+      const ph = (phase + L.off) % 1, stance = 0.4;
+      const stride = 0.62*sp, lift = (L.fore ? 0.32 : 0.24)*sp;
+      let fx, fy;
+      if (ph < stance){ const u = ph/stance; fx = L.hx + stride*(0.5 - u); fy = 0; }
+      else { const u = (ph - stance)/(1-stance), e = u*u*(3-2*u); fx = L.hx + stride*(-0.5 + e) + (L.fore ? 0.08*Math.sin(Math.PI*u)*sp : -0.05*Math.sin(Math.PI*u)*sp); fy = -lift*Math.sin(Math.PI*u); }
+      const hy = L.hy + bob;
+      const [kx, ky, ex, ey] = ik(L.hx, hy, fx, fy, L.fore?0.3:0.31, L.fore?0.33:0.35, L.fore ? -1 : 1);
+      g.strokeStyle = near ? ink : shade(ink, 1.6); g.lineCap = 'round';
+      g.lineWidth = 0.1; g.beginPath(); g.moveTo(L.hx, hy - 0.02); g.lineTo(kx, ky); g.stroke();
+      g.lineWidth = 0.055; g.beginPath(); g.moveTo(kx, ky); g.lineTo(ex, ey); g.stroke();
+      g.fillStyle = near ? ink : shade(ink, 1.6);
+      g.beginPath(); g.ellipse(ex + 0.02, ey - 0.015, 0.045, 0.03, 0, 0, TAU); g.fill();
+    }
+  };
+  legsDraw(false);
+  g.save(); g.translate(0, bob); g.rotate(pitch);
+  // tail streaming
+  const fl = Math.sin(TAU*phase*2)*0.04*sp;
+  g.strokeStyle = ink; g.lineCap='round';
+  g.lineWidth = 0.07; g.beginPath(); g.moveTo(-0.44,-0.76); g.quadraticCurveTo(-0.62, -0.74 + fl - 0.08*sp, -0.74, -0.55 + fl*1.5 - 0.12*sp); g.stroke();
+  g.lineWidth = 0.035; g.beginPath(); g.moveTo(-0.44,-0.74); g.quadraticCurveTo(-0.6, -0.66 + fl, -0.7, -0.46 + fl - 0.06*sp); g.stroke();
+  // body + neck + head
+  g.fillStyle = ink;
+  g.beginPath();
+  g.moveTo(-0.45,-0.78);
+  g.bezierCurveTo(-0.22,-0.88, 0.1,-0.8, 0.3,-0.86);
+  g.bezierCurveTo(0.4,-0.92, 0.5,-1.06, 0.57,-1.13);
+  g.lineTo(0.585,-1.2); g.lineTo(0.615,-1.135);
+  g.bezierCurveTo(0.69,-1.09, 0.78,-1.0, 0.83,-0.94);
+  g.quadraticCurveTo(0.85,-0.9, 0.81,-0.89);
+  g.bezierCurveTo(0.73,-0.9, 0.66,-0.95, 0.6,-0.98);
+  g.bezierCurveTo(0.5,-0.9, 0.44,-0.72, 0.36,-0.6);
+  g.bezierCurveTo(0.28,-0.48, 0.08,-0.5, -0.1,-0.51);
+  g.bezierCurveTo(-0.3,-0.52, -0.46,-0.56, -0.48,-0.67);
+  g.closePath(); g.fill();
+  // mane flick
+  g.strokeStyle = ink; g.lineWidth = 0.03;
+  for (let k=0;k<3;k++){ const u = 0.35 + k*0.06; g.beginPath(); g.moveTo(u + 0.08, -0.92 - k*0.06); g.lineTo(u - 0.02 - 0.05*sp, -0.95 - k*0.06 - 0.02*sp); g.stroke(); }
+  // saddle cloth with number
+  g.fillStyle = '#efe4c8'; g.fillRect(-0.16, -0.82, 0.24, 0.17);
+  g.strokeStyle = ink; g.lineWidth = 0.012; g.strokeRect(-0.16, -0.82, 0.24, 0.17);
+  g.fillStyle = ink; g.font = '700 0.14px "Old Standard TT", serif'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(String(no), -0.04, -0.73);
+  // jockey: crouched forward, silks a lighter tone
+  g.fillStyle = silk;
+  g.beginPath(); g.ellipse(0.1, -0.98, 0.15, 0.065, -0.45, 0, TAU); g.fill();         // torso
+  g.beginPath(); g.arc(0.23, -1.07, 0.052, 0, TAU); g.fill();                           // head
+  g.fillStyle = ink; g.beginPath(); g.arc(0.235, -1.085, 0.052, Math.PI*1.05, Math.PI*2.05); g.fill(); // cap
+  g.fillRect(0.25, -1.1, 0.06, 0.012);
+  g.strokeStyle = silk; g.lineWidth = 0.045; g.lineCap='round';
+  g.beginPath(); g.moveTo(0.17,-1.0); g.lineTo(0.31,-0.96); g.lineTo(0.42,-0.97); g.stroke();             // arm to the reins
+  g.beginPath(); g.moveTo(0.0,-0.93); g.lineTo(0.12,-0.86); g.lineTo(0.06,-0.76); g.stroke();             // leg in stirrup
+  g.strokeStyle = shade(ink,1.1); g.lineWidth = 0.01; g.beginPath(); g.moveTo(0.42,-0.97); g.lineTo(0.62,-0.99); g.stroke(); // reins
+  g.restore();
+  legsDraw(true);
+  g.restore();
+}
+function shade(hex, k){ const n = parseInt(hex.slice(1),16); const f = v => Math.max(0, Math.min(255, Math.round(v*k))); return `rgb(${f(n>>16)},${f(n>>8&255)},${f(n&255)})`; }
+
+/* ---------------- render the track ---------------- */
+let hoverRep = null;
+function drawTrack(dt){
+  const g = tg; g.setTransform(1,0,0,1,0,0);
+  g.drawImage(backdrop, 0, 0);
+  g.setTransform(DPR,0,0,DPR,0,0);
+  const st = standings(t);
+  REPS.forEach((r, i) => {
+    const y = T.top + i*T.lh, gy = y + T.lh*0.94;
+    // target nose position
+    const target = xOfRev(revAt(r, Math.floor(t)));
+    const nose = 0.84*T.scale;
+    if (reduce){ r.x = target; r.v = 0; }
+    else { const a = (target - r.x)*18 - r.v*8.5; r.v += a*dt; r.x += r.v*dt; if (r.x < target - 400) r.x = target; }
+    const speed = Math.min(1, Math.abs(r.v)/(T.scale*3.2));
+    // racing: always in stride; paused: frozen mid-stride like a plate; at the gate: standing
+    const pose = playing ? Math.max(0.6, speed) : speed > 0.04 ? speed : (t > 0.5 ? 0.92 : 0);
+    r.sp = r.sp === undefined ? pose : r.sp + (pose - r.sp)*Math.min(1, dt*6);
+    const cadence = playing || speed > 0.04 ? 0.9 + 2.2*Math.max(speed, playing ? 0.5 : 0) : 0;
+    r.phase = (r.phase + dt*cadence) % 1;
+    if (speed > 0.2) hoof(r, dt);
+    if (hoverRep === r){ g.fillStyle = 'rgba(255,248,225,.35)'; g.fillRect(0, y, T.pw, T.lh); }
+    // motion blur ghosts: the long exposure of a fast horse
+    if (speed > 0.25 && !reduce){
+      for (let k=3;k>=1;k--){ g.globalAlpha = 0.08*speed; drawHorse(g, r.x - nose - k*r.sp*T.scale*0.12, gy, T.scale, (r.phase - k*0.03 + 1)%1, r.sp, r.no, '#2a180a', '#c9b089'); }
+      g.globalAlpha = 1;
+    }
+    drawHorse(g, r.x - nose, gy, T.scale, r.phase, r.sp, r.no, '#24150a', '#cdb38c');
+    // lane plate: the rep's name chalked on the rail
+    g.fillStyle = 'rgba(36,21,10,.82)'; g.font = `700 ${mob?9:11}px "Old Standard TT", serif`; g.textAlign='left'; g.textBaseline='top';
+    const label = mob ? `${r.no} ${r.name.split(' ')[0].toUpperCase()}` : `${r.no} · ${r.name.toUpperCase()}`;
+    const lx = Math.max(T.x0 + 2, Math.min(r.x + 8, T.pw - 120));
+    g.globalAlpha = 0.85; g.fillText(label, r.x > T.pw - 150 ? T.x0 + 4 : lx, y + 3); g.globalAlpha = 1;
+  });
+  // grain + vignette + plate edge
+  g.save(); g.globalCompositeOperation = 'overlay'; g.drawImage(grain, 0, 0, T.pw, T.ph); g.restore();
+  const vg = g.createRadialGradient(T.pw/2, T.ph/2, Math.min(T.pw,T.ph)*0.3, T.pw/2, T.ph/2, Math.max(T.pw,T.ph)*0.7);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,35,12,.38)');
+  g.fillStyle = vg; g.fillRect(0,0,T.pw,T.ph);
+}
+
+/* ---------------- contact strip scrubber ---------------- */
+function drawStrip(){
+  const g = sg; g.setTransform(DPR,0,0,DPR,0,0);
+  const w = T.sw, h = T.sh;
+  g.clearRect(0,0,w,h);
+  g.fillStyle = '#24150a'; g.fillRect(0, 0, w, h);
+  // sprocket holes
+  g.fillStyle = '#e6d6b5';
+  for (let x = 4; x < w; x += 9){ g.fillRect(x, 3, 4, 3); g.fillRect(x, h - 6, 4, 3); }
+  const fw = (w - 8)/13;
+  for (let k=0;k<13;k++){
+    const x = 4 + k*fw, y = 9, fh = h - 18;
+    const lit = t >= k*7;
+    const grd = g.createLinearGradient(x, y, x, y+fh);
+    grd.addColorStop(0, lit ? '#e2cfa7' : '#6b5338'); grd.addColorStop(1, lit ? '#c5a679' : '#4d3a25');
+    g.fillStyle = grd; g.fillRect(x + 1.5, y, fw - 3, fh);
+    // a tiny silhouette of the leader that week
+    if (lit){
+      const st = standings(Math.min(END, k*7 + 6));
+      g.save(); g.beginPath(); g.rect(x+1.5, y, fw-3, fh); g.clip();
+      const s = fh*0.55/1.2;
+      drawHorse(g, x + fw*0.32, y + fh - 2, s, (k*0.37)%1, 0.9, st[0].r.no, '#2a180a', '#bda27a');
+      g.restore();
+    }
+    g.fillStyle = lit ? '#2a180a' : '#a88d68'; g.font = `700 ${mob?7.5:9}px "Old Standard TT"`; g.textAlign='right'; g.textBaseline='top';
+    g.fillText(String(k+1), x + fw - 4, y + 2);
+  }
+  // the shutter: current position
+  const cx = 4 + (t/NDAY)*(w - 8);
+  g.fillStyle = 'rgba(255,248,225,.25)'; g.fillRect(4, 9, cx - 4, h - 18);
+  g.fillStyle = '#fff6df'; g.fillRect(cx - 1, 1, 2, h - 2);
+  g.beginPath(); g.moveTo(cx - 5, 0); g.lineTo(cx + 5, 0); g.lineTo(cx, 6); g.closePath(); g.fill();
+}
+
+/* ---------------- standings card ---------------- */
+const rowEls = new Map();
+const ord = n => n + (['th','st','nd','rd'][(n%100>10 && n%100<14) ? 0 : (n%10 < 4 ? n%10 : 0)] || 'th');
+function renderRows(force){
+  const st = standings(t), wk = Math.floor(t/7);
+  const prevWeek = standings(Math.max(0, wk*7 - 1));
+  const rows = $('rows');
+  st.forEach((e, i) => {
+    let el = rowEls.get(e.r);
+    if (!el){
+      el = document.createElement('button'); el.className = 'row'; el.type = 'button'; el.setAttribute('role','listitem');
+      el.addEventListener('mouseenter', () => { hoverRep = e.r; });
+      el.addEventListener('mouseleave', () => { if (hoverRep === e.r) hoverRep = null; });
+      el.addEventListener('focus', () => { hoverRep = e.r; showTip(e.r, true); });
+      el.addEventListener('blur', () => { hoverRep = null; $('tip').hidden = true; });
+      el.addEventListener('click', () => { hoverRep = e.r; showTip(e.r, true); });
+      rows.appendChild(el); rowEls.set(e.r, el);
+    }
+    const before = prevWeek.findIndex(p => p.r === e.r);
+    const mv = t < 7 ? 0 : before - i;
+    const pct = (e.v/QUOTA*100).toFixed(1);
+    el.innerHTML = `<span class="pos">${i+1}<small>${ord(i+1).slice(-2)}</small></span><span class="no">${e.r.no}</span>
+      <span class="nm">${e.r.name}${mv>0?`<span class="mv">▲${mv}</span>`:mv<0?`<span class="mv">▼${-mv}</span>`:''}<i>${dealsAt(e.r, Math.floor(t)).length} deals</i></span>
+      <span class="rv">${money(e.v)}<small>${pct}% of quota</small></span>`;
+    const oldTop = parseFloat(el.style.top);
+    el.classList.toggle('up', !isNaN(oldTop) && i*T.rowH < oldTop - 1);
+    el.style.top = (i*T.rowH) + 'px'; el.style.height = T.rowH + 'px';
+    el.classList.toggle('hot', hoverRep === e.r);
+    el.setAttribute('aria-label', `${ord(i+1)}: number ${e.r.no}, ${e.r.name}, ${money(e.v)}, ${pct} percent of quota${mv>0?', up '+mv:mv<0?', down '+(-mv):''}`);
+  });
+  $('asof').textContent = (t >= END ? 'Final, 30 Sept 2026' : `As of ${fmtD(Math.floor(t))}, week ${Math.min(13, wk+1)} of 13`);
+  const s = $('strip'); s.setAttribute('aria-valuenow', String(Math.floor(t))); s.setAttribute('aria-valuetext', `${fmtD(Math.floor(t))}, leader ${st[0].r.name} with ${money(st[0].v)}`);
+  $('when').innerHTML = `<b>${t >= END ? 'Quarter closed' : 'Week ' + Math.min(13, wk+1) + ' of 13'}</b>${fmtD(Math.floor(t))} 2026`;
+  $('track').setAttribute('aria-label', `Race as of ${fmtD(Math.floor(t))}: ` + st.map((e,i)=>`${ord(i+1)} ${e.r.name} ${money(e.v)}`).join('; '));
+}
+
+/* ---------------- tooltip ---------------- */
+function showTip(r, fromList){
+  const tip = $('tip'), v = revAt(r, Math.floor(t)), ds = dealsAt(r, Math.floor(t));
+  const big = ds.reduce((a,d)=> !a || d.amt > a.amt ? d : a, null);
+  const last = ds[ds.length-1];
+  const rank = standings(t).findIndex(e => e.r === r) + 1;
+  tip.innerHTML = `<b>No. ${r.no} · ${r.name}</b> — ${ord(rank)}<br>${money(v)} closed · ${(v/QUOTA*100).toFixed(1)}% of quota<br>${ds.length} deals${big ? ` · biggest <i>${big.cust}</i>, ${money(big.amt)}` : ''}${last ? `<br><i>Last: ${last.cust}, ${money(last.amt)} on ${fmtD(last.day)}</i>` : ''}`;
+  tip.hidden = false;
+  const m = $('mount').getBoundingClientRect(), p = $('photo').getBoundingClientRect();
+  const i = REPS.indexOf(r);
+  let x, y;
+  if (fromList && !mob){ const re = rowEls.get(r).getBoundingClientRect(); x = re.left - m.left - tip.offsetWidth - 14; y = re.top - m.top - 6; }
+  else { x = p.left - m.left + Math.min(r.x + 14, T.pw - tip.offsetWidth - 4); y = p.top - m.top + T.top + (i+1)*T.lh + 4; if (y + tip.offsetHeight > H - 6) y = p.top - m.top + T.top + i*T.lh - tip.offsetHeight - 6; }
+  tip.style.left = Math.max(6, Math.min(W - tip.offsetWidth - 6, x)) + 'px'; tip.style.top = Math.max(6, y) + 'px';
+}
+trackCv.addEventListener('pointermove', e => {
+  const r = trackCv.getBoundingClientRect(), y = e.clientY - r.top;
+  const i = Math.floor((y - T.top)/T.lh);
+  const rep = i >= 0 && i < 8 ? REPS[i] : null;
+  if (rep !== hoverRep){ hoverRep = rep; if (rep) showTip(rep); else $('tip').hidden = true; rowEls.forEach((el, k) => el.classList.toggle('hot', k === rep)); }
+});
+trackCv.addEventListener('pointerleave', () => { hoverRep = null; $('tip').hidden = true; rowEls.forEach(el => el.classList.remove('hot')); });
+trackCv.addEventListener('pointerdown', e => { audio(); const r = trackCv.getBoundingClientRect(); const i = Math.floor((e.clientY - r.top - T.top)/T.lh); if (i>=0 && i<8){ hoverRep = REPS[i]; showTip(REPS[i]); } });
+
+/* ---------------- time control ---------------- */
+let lastDay = 0;
+function setT(nt, fromPlay){
+  nt = Math.max(0, Math.min(END, nt));
+  const d0 = Math.floor(t), d1 = Math.floor(nt);
+  t = nt;
+  if (d1 !== d0){
+    // ticker: deals closed on the days passed
+    const fresh = [];
+    for (const r of REPS) for (const d of r.deals) if (d.day > Math.min(d0,d1) && d.day <= Math.max(d0,d1)) fresh.push({r, d});
+    if (fresh.length && d1 > d0){
+      fresh.sort((a,b) => b.d.day - a.d.day || b.d.amt - a.d.amt);
+      const f = fresh[0];
+      $('ticker').textContent = `${fmtD(f.d.day)} — ${f.r.name} closed ${f.d.cust}, ${money(f.d.amt)}.` + (fresh.length > 1 ? ` Also ${fresh.slice(1,3).map(x => x.r.name.split(' ')[0] + ' ' + kmoney(x.d.amt)).join(', ')}.` : '');
+    } else if (d1 < d0) $('ticker').textContent = `Rewound to ${fmtD(d1)}.`;
+    // leader change announcement
+    const a = standings(d0)[0].r, b = standings(d1)[0].r;
+    if (a !== b && fromPlay){ announce(`${b.name} takes the lead on ${fmtD(d1)}.`); if (!reduce) bell(0.5); }
+    renderRows();
+    if (hoverRep && !$('tip').hidden) showTip(hoverRep, document.activeElement && document.activeElement.classList.contains('row'));
+  }
+  if (t >= END && fromPlay && !finished){ finished = true; playing = false; syncRun(); photoFinish(); }
+  if (t < END) finished = false;
+  if (!fromPlay) syncRun();
+}
+function syncRun(){ $('run').textContent = playing ? 'Pause' : (fresh ? 'Run the quarter' : t >= END ? 'Run it again' : (t > 0 ? 'Resume' : 'Run the quarter')); }
+$('run').addEventListener('click', () => {
+  audio();
+  if (playing){ playing = false; syncRun(); return; }
+  if (t >= END || fresh){ fresh = false; setT(0); REPS.forEach(r => { r.x = xOfRev(0); r.v = 0; }); renderRows(); }
+  playing = true; syncRun(); hidePlate();
+  if (t < 0.5){ bell(1); $('ticker').textContent = '1 July — And they are off.'; }
+});
+const strip = $('strip');
+let scrub = null;
+strip.addEventListener('pointerdown', e => {
+  audio(); e.preventDefault(); try{ strip.setPointerCapture(e.pointerId); }catch(_){}
+  scrub = true; playing = false; fresh = false; syncRun(); hidePlate(); scrubTo(e);
+});
+strip.addEventListener('pointermove', e => { if (scrub) scrubTo(e); });
+const endScrub = () => { if (!scrub) return; scrub = null; if (t >= END) showFinishButton(); };
+strip.addEventListener('pointerup', endScrub); strip.addEventListener('pointercancel', endScrub);
+function scrubTo(e){ const r = strip.getBoundingClientRect(); setT((e.clientX - r.left - 4)/(r.width - 8)*NDAY, false); }
+strip.addEventListener('keydown', e => {
+  let nt = Math.floor(t);
+  if (e.key==='ArrowRight') nt += 1; else if (e.key==='ArrowLeft') nt -= 1;
+  else if (e.key==='PageUp'||e.key==='ArrowUp') nt += 7; else if (e.key==='PageDown'||e.key==='ArrowDown') nt -= 7;
+  else if (e.key==='Home') nt = 0; else if (e.key==='End') nt = END;
+  else if (e.key==='Enter' && t >= END){ photoFinish(); e.preventDefault(); return; }
+  else return;
+  e.preventDefault(); audio(); playing = false; fresh = false; syncRun(); hidePlate(); setT(nt, false);
+  const st = standings(t); announce(`${fmtD(Math.floor(t))}: ${st.slice(0,3).map((x,i)=>`${ord(i+1)} ${x.r.name} ${money(x.v)}`).join(', ')}.`);
+});
+function showFinishButton(){ $('run').textContent = 'Run it again'; $('ticker').innerHTML = '30 Sept — the quarter closes. Press Enter on the strip, or <u style="cursor:pointer" id="pf">develop the photo finish</u>.'; const pf = $('pf'); if (pf) pf.onclick = photoFinish; }
+
+/* ---------------- photo finish ---------------- */
+const FINAL = (() => { const a = []; for (let d = END; a.length < 12; d--) if (isWork(d)) a.unshift(d); return a; })();
+function placePlate(){
+  const p = $('photo').getBoundingClientRect(), m = $('mount').getBoundingClientRect(), pl = $('plate');
+  Object.assign(pl.style, {left:(p.left - m.left - (mob?2:10))+'px', top:(p.top - m.top - (mob?4:10))+'px', width:(p.width + (mob?4:20))+'px', height:(p.height + (mob?60:72))+'px'});
+  if (!pl.hidden) drawPlate();
+}
+function photoFinish(){
+  const st = standings(END), A = st[0], B = st[1];
+  hidePlate(true);
+  const fl = $('flash');
+  let k = 0;
+  const fire = () => {
+    shutter();
+    if (!reduce){ fl.style.transition = 'none'; fl.style.opacity = '0.75'; requestAnimationFrame(() => { fl.style.transition = 'opacity .16s'; fl.style.opacity = '0'; }); }
+    if (++k < 12) setTimeout(fire, reduce ? 0 : 85); else setTimeout(showPlate, reduce ? 0 : 380);
+  };
+  fire();
+  const lead = A.v - B.v;
+  const d29 = standings(FINAL[FINAL.length-2]);
+  const prevLeader = d29[0].r;
+  const lastDeal = A.r.deals[A.r.deals.length-1];
+  $('pcap').textContent = prevLeader !== A.r
+    ? `${A.r.name} (No. ${A.r.no}) passes ${prevLeader.name} on the final day with ${lastDeal.cust}, ${money(lastDeal.amt)}, and wins the quarter by ${money(lead)}.`
+    : `${A.r.name} (No. ${A.r.no}) holds on to win the quarter by ${money(lead)} from ${B.r.name}.`;
+  announce('Photo finish. ' + $('pcap').textContent);
+}
+function showPlate(){ const pl = $('plate'); pl.hidden = false; placePlate(); requestAnimationFrame(() => pl.classList.add('on')); $('back').focus({preventScroll:true}); }
+function hidePlate(instant){ const pl = $('plate'); pl.classList.remove('on'); if (instant) pl.hidden = true; else setTimeout(() => { if (!pl.classList.contains('on')) pl.hidden = true; }, 500); }
+$('back').addEventListener('click', () => { hidePlate(); $('run').focus({preventScroll:true}); });
+function drawPlate(){
+  const box = plateCv.parentElement.getBoundingClientRect();
+  const w = box.width, h = box.height;
+  plateCv.width = Math.round(w*DPR); plateCv.height = Math.round(h*DPR);
+  const g = pg; g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,w,h);
+  const st = standings(END), A = st[0].r, B = st[1].r;
+  const cols = mob ? 3 : 6, rows = 12/cols, gap = mob ? 5 : 8;
+  const fw = (w - gap*(cols-1))/cols, fh = (h - gap*(rows-1))/rows;
+  // zoomed scale around the finish
+  const vals = FINAL.flatMap(d => [revAt(A,d), revAt(B,d)]);
+  const lo = Math.floor((Math.min(...vals) - 3000)/5000)*5000, hi = Math.ceil((Math.max(...vals) + 5000)/5000)*5000;
+  FINAL.forEach((d, k) => {
+    const x = (k%cols)*(fw+gap), y = Math.floor(k/cols)*(fh+gap);
+    g.save(); g.beginPath(); g.rect(x, y, fw, fh); g.clip();
+    const bg = g.createLinearGradient(0, y, 0, y+fh); bg.addColorStop(0,'#e6d3ab'); bg.addColorStop(1,'#c6a77a');
+    g.fillStyle = bg; g.fillRect(x, y, fw, fh);
+    const lh2 = (fh - 26)/2, s = Math.min(lh2*0.85/1.2, fw*0.2), padL = 1.35*s + 4;
+    const X = v => x + padL + (v - lo)/(hi - lo)*(fw - padL - 8);
+    const pxPer10k = (fw - padL - 8)/((hi - lo)/10000), labStep = pxPer10k > 34 ? 10000 : pxPer10k > 17 ? 20000 : 50000;
+    for (let v = lo; v <= hi; v += 2000){
+      const xx = Math.round(X(v)) + 0.5, major = v % 10000 === 0;
+      g.strokeStyle = major ? 'rgba(40,25,10,.55)' : 'rgba(40,25,10,.15)'; g.lineWidth = major ? 1 : 0.7;
+      g.beginPath(); g.moveTo(xx, y + 12); g.lineTo(xx, y + fh - 14); g.stroke();
+      if (v % labStep === 0 && xx > x + 10 && xx < x + fw - 10){ g.fillStyle='rgba(40,25,10,.85)'; g.font = `700 ${mob?7:8.5}px "Old Standard TT"`; g.textAlign='center'; g.textBaseline='alphabetic'; g.fillText((v/1000)+'k', xx, y + 9); }
+    }
+    if (QUOTA >= lo && QUOTA <= hi){ g.fillStyle='rgba(30,18,8,.85)'; g.fillRect(X(QUOTA)-1.5, y+10, 3, fh-22); }
+    [[A, 0],[B, 1]].forEach(([r, j]) => {
+      const gy = y + 14 + (j+1)*lh2 - 2, nose = X(revAt(r, d));
+      g.fillStyle = 'rgba(70,45,20,.25)'; g.fillRect(x, gy, fw, 1);
+      drawHorse(g, nose - 0.84*s, gy, s, (k/12 + j*0.21)%1, 1, r.no, '#24150a', '#cdb38c');
+    });
+    // grain
+    g.globalCompositeOperation='overlay'; g.drawImage(grain, x, y, fw, fh); g.globalCompositeOperation='source-over';
+    const vg = g.createRadialGradient(x+fw/2, y+fh/2, fh*0.3, x+fw/2, y+fh/2, fw*0.8); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,35,12,.35)');
+    g.fillStyle = vg; g.fillRect(x,y,fw,fh);
+    // frame caption
+    const diff = revAt(A,d) - revAt(B,d);
+    g.fillStyle = '#efe4c8'; g.fillRect(x, y + fh - 13, fw, 13);
+    g.fillStyle = '#24150a'; g.font = `700 ${mob?7.5:9}px "Old Standard TT"`; g.textAlign='left'; g.textBaseline='middle';
+    g.fillText(`${k+1}. ${fmtD(d)}`, x + 3, y + fh - 6.5);
+    g.textAlign = 'right'; g.font = `italic 400 ${mob?8:10}px "IM Fell English"`;
+    g.fillText(diff === 0 ? 'level' : `No. ${diff > 0 ? A.no : B.no} by ${kmoney(Math.abs(diff))}`, x + fw - 3, y + fh - 6.5);
+    g.restore();
+    g.strokeStyle = 'rgba(40,25,10,.6)'; g.lineWidth = 1; g.strokeRect(x+0.5, y+0.5, fw-1, fh-1);
+  });
+}
+
+/* ---------------- sound: hooves, bell, shutters ---------------- */
+let AC = null, master = null, muted = false;
+function audio(){ if (AC){ if (AC.state==='suspended') AC.resume(); return; } try{ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.16; master.connect(AC.destination);}catch(e){ AC = null; } }
+function thump(vol, f){
+  if (!AC || muted) return; const t0 = AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(f, t0); o.frequency.exponentialRampToValueAtTime(f*0.5, t0+0.08);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol, t0+0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
+  o.connect(g); g.connect(master); o.start(t0); o.stop(t0+0.14);
+}
+let hoofBudget = 0;
+function hoof(r, dt){
+  // four footfalls per stride, thinned out so eight horses don't become noise
+  const prev = r.lastBeat || 0, beat = Math.floor(r.phase*4);
+  if (beat !== prev){ r.lastBeat = beat; if (hoofBudget > 0){ hoofBudget--; thump(0.12*r.sp, 90 + r.no*6 + beat*8); } }
+}
+setInterval(() => { hoofBudget = 6; }, 120);
+function bell(v){ if (!AC || muted) return; const t0 = AC.currentTime; [1,2.4,3.9,5.3].forEach((m,i) => { const o=AC.createOscillator(), g=AC.createGain(); o.frequency.value = 740*m; g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.16*v/(i+1), t0+0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0+1.6/(i*0.5+1)); o.connect(g); g.connect(master); o.start(t0); o.stop(t0+1.7); }); }
+function shutter(){
+  if (!AC || muted) return; const t0 = AC.currentTime;
+  for (const [dly, f] of [[0, 3200],[0.03, 1800]]){
+    const len = 0.03, b = AC.createBuffer(1, Math.ceil(AC.sampleRate*len), AC.sampleRate), d = b.getChannelData(0);
+    for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/d.length, 4);
+    const s = AC.createBufferSource(); s.buffer = b; const bp = AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = f; bp.Q.value = 3;
+    const g = AC.createGain(); g.gain.value = 0.5; s.connect(bp); bp.connect(g); g.connect(master); s.start(t0 + dly);
+  }
+}
+function setMute(){
+  $('mute').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="#2a1a0e"/>${muted ? '<path d="M16 9l5 6M21 9l-5 6" stroke="#2a1a0e" stroke-width="1.8" stroke-linecap="round"/>' : '<path d="M16.5 9c1.4 1.6 1.4 4.4 0 6M19 6.5c2.8 3 2.8 8 0 11" fill="none" stroke="#2a1a0e" stroke-width="1.6" stroke-linecap="round"/>'}</svg>`;
+  $('mute').setAttribute('aria-pressed', String(muted)); $('mute').setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
+}
+$('mute').addEventListener('click', () => { muted = !muted; setMute(); });
+function announce(s){ $('live').textContent = s; }
+
+/* ---------------- loop ---------------- */
+let last = performance.now();
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  if (playing) setT(t + dt*(reduce ? 9 : 4.6), true);
+  drawTrack(dt); drawStrip();
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', layout);
+addEventListener('keydown', e => { if (e.key==='Escape' && !$('plate').hidden) hidePlate(); });
+setMute();
+layout();
+REPS.forEach(r => { r.x = xOfRev(revAt(r, OPEN)); });
+renderRows(true); syncRun();
+{ const st = standings(OPEN); $('ticker').textContent = `31 Aug, week 9 of 13: ${st[0].r.name} leads by ${money(st[0].v - st[1].v)}. Run the quarter to watch it from 1 July.`; }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+requestAnimationFrame(frame);
+window.__race = { setT: v => { setT(v, false); renderRows(); }, finish: () => { setT(END, false); renderRows(); photoFinish(); } };
+})();
+</script>
+</body>
+</html>

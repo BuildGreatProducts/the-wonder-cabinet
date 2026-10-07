@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dandelion Focus Mode</title>
+<meta name="description" content="Focus mode as a macro photograph: press and hold to blow on a dandelion, and every distraction around your draft turns to seed and drifts out of frame. A gust brings them back.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Dandelion Focus Mode","reimagines":"Focus / zen mode","category":"Novel Interactions","description":"A writing app photographed in soft macro light. Press and hold to blow on the dandelion: the seeds lift off, and every badge, sidebar and notification around your draft turns to seed and drifts out of frame until only the page is in focus. A gust brings everything back.","hint":"Press and hold the dandelion to blow the distractions away"}
+</script>
+<style>
+:root{--peach:#f6d6c8;--blush:#efc6d2;--lav:#cfc8ec;--mint:#cbe7da;--cream:#fbf6ee;--ink:#3a3340;--ink-soft:#7c7183;--glow:#fffaf2}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Instrument Sans","Helvetica Neue",Arial,sans-serif;color:var(--ink);background:#eed8d6;-webkit-font-smoothing:antialiased}
+#bg,#fx,#grain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+#bg{z-index:0}
+#fx{z-index:2}
+.slip{z-index:1}
+.page{z-index:3}
+#grain{z-index:9;opacity:.09;mix-blend-mode:overlay}
+.leak{position:fixed;inset:0;z-index:8;pointer-events:none;mix-blend-mode:screen;
+  background:radial-gradient(60% 50% at 6% 4%, rgba(255,214,170,.55), rgba(255,214,170,0) 70%), radial-gradient(40% 40% at 100% 100%, rgba(255,190,210,.35), rgba(255,190,210,0) 70%)}
+.vignette{position:fixed;inset:0;z-index:8;pointer-events:none;background:radial-gradient(120% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(80,50,70,.22) 100%);transition:opacity 1.2s}
+body.focused .vignette{opacity:1.6}
+#dl{position:fixed;z-index:5;border:0;padding:0;background:none;cursor:pointer;border-radius:50%;touch-action:none;-webkit-tap-highlight-color:transparent}
+#dl:focus-visible{outline:2px dashed rgba(90,70,100,.6);outline-offset:8px}
+#dl canvas{display:block;width:100%;height:100%}
+.ui{position:fixed;inset:0;z-index:4;pointer-events:none}
+.ui > *{pointer-events:auto}
+/* photographed paper slips — slightly out of the focal plane */
+.slip{position:absolute;background:linear-gradient(170deg,#fffdf9,#f6efe6);border-radius:10px;color:var(--ink);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 18px 30px -12px rgba(110,70,90,.35), 0 3px 8px rgba(110,70,90,.12);
+  filter:blur(var(--soft,.9px)) saturate(.95);transition:filter 1.2s}
+body.focused .slip{--soft:2px}
+.slip h4{margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+.side{left:28px;top:96px;width:214px;padding:16px 14px}
+.side ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.side li{display:flex;justify-content:space-between;align-items:center;font-size:14.5px;padding:6px 8px;border-radius:7px}
+.side li.on{background:rgba(207,200,236,.45)}
+.badge{min-width:22px;height:20px;padding:0 7px;border-radius:10px;background:#e2627f;color:#fff;font-size:11.5px;font-weight:600;display:inline-grid;place-items:center}
+.badge.soft{background:#b9add0}
+.toast{right:28px;top:26px;width:290px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.35}
+.avatar{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px;background:linear-gradient(140deg,#e7a0b2,#a78bd0)}
+.toast b{font-weight:600}
+.toast small{display:block;color:var(--ink-soft);font-size:12px;margin-top:2px}
+.trend{right:28px;top:118px;width:250px;padding:14px}
+.trend p{margin:0;font-size:14px;line-height:1.4}
+.trend .meter{height:6px;border-radius:3px;background:rgba(207,200,236,.6);margin-top:10px;overflow:hidden}
+.trend .meter i{display:block;height:100%;width:72%;background:linear-gradient(90deg,#e2627f,#a78bd0)}
+.cal{left:50%;top:22px;transform:translateX(-50%);padding:9px 14px;font-size:13.5px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#e2627f;box-shadow:0 0 0 4px rgba(226,98,127,.18)}
+.inbox{left:28px;top:26px;padding:9px 12px;font-size:13.5px;display:flex;align-items:center;gap:8px}
+.inbox svg{width:18px;height:18px}
+.goal{padding:9px 14px;font-size:13px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.viewers{padding:7px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px}
+.viewers .faces{display:flex}
+.viewers .faces span{width:22px;height:22px;border-radius:50%;border:2px solid #fffdf9;margin-left:-7px;background:linear-gradient(140deg,#9fd3c0,#7aa6d8)}
+.viewers .faces span:nth-child(2){background:linear-gradient(140deg,#f1b48f,#e2627f)}
+.viewers .faces span:nth-child(3){background:linear-gradient(140deg,#cfc8ec,#8a79c4)}
+.tools{display:flex;gap:4px;padding:6px}
+.tools button{font:inherit;font-size:13px;border:0;background:none;padding:5px 9px;border-radius:6px;color:var(--ink);cursor:pointer}
+.tools button:hover{background:rgba(207,200,236,.4)}
+/* the page itself — the one thing in the focal plane */
+.page{position:absolute;padding:34px 42px 22px;background:linear-gradient(170deg,#fffefb,#fbf5ec);border-radius:4px;
+  box-shadow:0 1px 0 #fff inset, 0 40px 60px -26px rgba(110,70,90,.4), 0 6px 14px rgba(110,70,90,.12);display:flex;flex-direction:column;transition:box-shadow 1.2s}
+body.focused .page{box-shadow:0 1px 0 #fff inset, 0 60px 90px -30px rgba(110,70,90,.45), 0 0 0 1px rgba(255,255,255,.6), 0 0 80px rgba(255,248,236,.7)}
+.page input{font-family:"Newsreader",Georgia,serif;font-size:34px;font-weight:500;border:0;background:none;color:var(--ink);padding:0;margin:0 0 10px;outline:none;letter-spacing:-.01em}
+.page textarea{flex:1;font-family:"Newsreader",Georgia,serif;font-size:19px;line-height:1.6;border:0;background:none;color:#3f3846;resize:none;outline:none;padding:0}
+.page textarea::selection,.page input::selection{background:rgba(207,200,236,.7)}
+.page .foot{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--ink-soft);border-top:1px solid rgba(124,113,131,.18);padding-top:10px;margin-top:10px;gap:10px}
+.page .foot button{font:inherit;font-size:12.5px;border:0;background:none;color:#8a5a8a;cursor:pointer;padding:2px 0;text-decoration:underline;text-underline-offset:3px;opacity:0;pointer-events:none;transition:opacity .6s}
+body.focused .page .foot button,body.partial .page .foot button{opacity:1;pointer-events:auto}
+.page .foot button:focus-visible,.tools button:focus-visible{outline:2px solid #a78bd0;outline-offset:2px}
+.hint{position:fixed;z-index:7;font-family:"Newsreader",serif;font-style:italic;font-size:17px;color:#5d4f66;text-align:right;pointer-events:none;transition:opacity .8s;text-shadow:0 1px 8px rgba(255,248,240,.9)}
+.blown{visibility:hidden}
+.mute{position:fixed;z-index:10;left:12px;bottom:10px;border:0;background:none;color:#6d5f78;cursor:pointer;padding:4px;opacity:.75}
+.mute svg{width:16px;height:16px;display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:860px){
+  .side{left:12px;top:64px;width:150px;padding:10px 8px}
+  .side li{font-size:12.5px;padding:4px 6px}
+  .toast{right:12px;top:12px;width:212px;font-size:12.5px;padding:9px 10px}
+  .avatar{width:28px;height:28px}
+  .trend,.cal{display:none}
+  .side li:nth-child(n+4){display:none}
+  .viewers{font-size:12px;padding:6px 10px}
+  .goal{font-size:12px;padding:7px 11px}
+  .tools button{font-size:12px;padding:4px 7px}
+  .inbox{left:12px;top:12px;font-size:12px;padding:7px 10px}
+  .page{padding:22px 20px 14px}
+  .page input{font-size:25px}
+  .page textarea{font-size:16px}
+  .hint{font-size:15px}
+}
+@media (prefers-reduced-motion: reduce){ .slip,.page,.vignette,.hint{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="ui" id="ui">
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="slip inbox d" data-name="inbox badge"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 10l2-7h10l2 7v5H2z M2 10h4l1 2h4l1-2h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Inbox <span class="badge">47</span></div>
+  <div class="slip cal d" data-name="calendar alert"><span class="dot"></span>Design standup in 5 min · Room Linden</div>
+  <div class="slip toast d" data-name="message notification"><span class="avatar">PN</span><div><b>Priya Nair</b> are you joining the 3 pm crit? I saved you a seat 🙂<small>Studio chat · now</small></div></div>
+  <nav class="slip side d" data-name="channels sidebar" aria-label="Channels"><h4>Channels</h4><ul>
+    <li class="on"># drafts <span class="badge soft">2</span></li><li># general <span class="badge">12</span></li><li># design-crit <span class="badge">3</span></li><li># random <span class="badge">28</span></li><li># links <span class="badge soft">9</span></li><li>@ Priya Nair <span class="badge">1</span></li></ul></nav>
+  <div class="slip trend d" data-name="trending panel"><h4>Trending in Studio</h4><p>“Autumn reading lists” — 214 people are discussing this right now</p><div class="meter"><i></i></div></div>
+  <div class="slip viewers d" data-name="viewers" id="viewers"><span class="faces"><span></span><span></span><span></span></span>3 viewing this draft</div>
+  <div class="slip tools d" data-name="formatting toolbar" id="tools" role="toolbar" aria-label="Formatting"><button>Bold</button><button>Italic</button><button>Quote</button><button>Link</button><button>Comment</button></div>
+  <div class="slip goal d" data-name="writing streak" id="goal"><span class="dot" style="background:#a78bd0;box-shadow:0 0 0 4px rgba(167,139,208,.2)"></span>Daily goal 312 / 1,000 words · 14-day streak</div>
+  <section class="page" id="page" aria-label="Draft">
+    <input id="title" value="On noticing small things" aria-label="Title">
+    <textarea id="body" aria-label="Draft text">The dandelion on the balcony went to seed overnight. Yesterday it was a small sun; this morning it is a held breath, a hundred parachutes waiting for permission.
+
+I keep meaning to write about how attention works — how it scatters the moment something blinks at the edge of the page, and how hard it is to call back. Maybe the trick isn't to fight the noise, but to let it drift off on its own.</textarea>
+    <div class="foot"><span id="wc">78 words</span><span id="focusT"></span><button id="back">Bring everything back</button></div>
+  </section>
+</div>
+<button id="dl" aria-label="Dandelion. Press and hold to blow distractions away." aria-pressed="false"><canvas id="dlc"></canvas></button>
+<p class="hint" id="hint">Press and hold the dandelion<br>to blow the distractions away</p>
+<div class="leak"></div><div class="vignette"></div>
+<canvas id="grain" aria-hidden="true"></canvas>
+<button class="mute" id="mute" aria-label="Mute breeze sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const bg = $('#bg'), bx = bg.getContext('2d'), fx = $('#fx'), fxc = fx.getContext('2d'), grain = $('#grain'), gx = grain.getContext('2d');
+const dlBtn = $('#dl'), dlc = $('#dlc'), dx = dlc.getContext('2d');
+let W = 0, H = 0, dpr = 1, mobile = false;
+const live = $('#live');
+function say(t){ live.textContent = t; }
+
+/* ---------------- dandelion head ---------------- */
+let head = {x: 0, y: 0, R: 150}, seeds = [];
+const NSEEDS = 150;
+function makeSeeds(){
+  seeds = [];
+  const ga = Math.PI*(3 - Math.sqrt(5));
+  for (let i = 0; i < NSEEDS; i++){
+    const y = 1 - (i/(NSEEDS - 1))*2, r = Math.sqrt(1 - y*y), th = ga*i;
+    const v = {x: Math.cos(th)*r, y, z: Math.sin(th)*r};
+    seeds.push({v, on: true, back: v.z < 0, flex: Math.random()*Math.PI*2});
+  }
+  seeds.sort((a, b) => a.v.z - b.v.z);
+}
+function drawPappus(ctx, px, py, ang, len, alpha, n = 13){
+  // a parachute of fine filaments, fanning outward
+  ctx.globalAlpha = alpha;
+  for (let k = 0; k < n; k++){
+    const a = ang + (k/(n - 1) - .5)*2.2, ex = px + Math.cos(a)*len, ey = py + Math.sin(a)*len;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo(px + Math.cos(a)*len*.6, py + Math.sin(a)*len*.6 - 1, ex, ey); ctx.stroke();
+  }
+}
+let headDirty = true, sway = 0;
+function drawHead(t){
+  const size = dlc.width/dpr, c = size/2, R = head.R, rot = sway*.05;
+  dx.setTransform(dpr, 0, 0, dpr, 0, 0); dx.clearRect(0, 0, size, size);
+  // soft halo of backlight
+  const halo = dx.createRadialGradient(c, c, R*.2, c, c, R*1.3); halo.addColorStop(0, 'rgba(255,250,240,.55)'); halo.addColorStop(.6, 'rgba(255,245,235,.18)'); halo.addColorStop(1, 'rgba(255,245,235,0)');
+  dx.fillStyle = halo; dx.beginPath(); dx.arc(c, c, R*1.3, 0, 7); dx.fill();
+  dx.lineCap = 'round';
+  for (const s of seeds){
+    if (!s.on) continue;
+    const cs = Math.cos(rot), sn = Math.sin(rot);
+    const vx = s.v.x*cs - s.v.y*sn, vy = s.v.x*sn + s.v.y*cs, depth = (s.v.z + 1)/2;
+    const r0 = R*.16, px = c + vx*R*.86, py = c + vy*R*.86, sx = c + vx*r0, sy = c + vy*r0;
+    const wob = Math.sin(t*1.7 + s.flex)*.04*(1 + wind*3);
+    // the beak (stalk) and the parachute
+    dx.strokeStyle = `rgba(255,252,246,${.25 + depth*.5})`; dx.lineWidth = .6 + depth*.4; dx.globalAlpha = 1;
+    dx.beginPath(); dx.moveTo(sx, sy); dx.lineTo(px, py); dx.stroke();
+    dx.strokeStyle = `rgba(255,253,248,${.35 + depth*.55})`; dx.lineWidth = .45 + depth*.25;
+    drawPappus(dx, px, py, Math.atan2(vy, vx) + wob, R*(.18 + .05*depth), .5 + depth*.5, depth > .5 ? 13 : 9);
+  }
+  dx.globalAlpha = 1;
+  // the receptacle in the middle
+  const rg = dx.createRadialGradient(c - R*.04, c - R*.05, 1, c, c, R*.2); rg.addColorStop(0, '#d9c3a2'); rg.addColorStop(1, '#8f7a5e');
+  dx.fillStyle = rg; dx.beginPath(); dx.arc(c, c, R*.15, 0, 7); dx.fill();
+  dx.fillStyle = 'rgba(60,40,30,.35)'; for (let i = 0; i < 40; i++){ const a = i*2.4, rr = Math.sqrt(i/40)*R*.13; dx.beginPath(); dx.arc(c + Math.cos(a)*rr, c + Math.sin(a)*rr, 1.2, 0, 7); dx.fill(); }
+  headDirty = false;
+}
+
+/* ---------------- background: a soft-focus meadow ---------------- */
+let bokeh = [];
+function paintBg(t){
+  bx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = bx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#f4dccf'); g.addColorStop(.4, '#efcfd6'); g.addColorStop(.7, '#d9d2ee'); g.addColorStop(1, '#cfe6da');
+  bx.fillStyle = g; bx.fillRect(0, 0, W, H);
+  // out-of-focus grass and a far dandelion
+  bx.save(); bx.filter = 'blur(18px)';
+  bx.fillStyle = 'rgba(150,190,150,.35)'; for (let i = 0; i < 9; i++){ const x = (i/9)*W + 40; bx.beginPath(); bx.ellipse(x, H + 30, 60, H*.35, (i % 2 ? .2 : -.15), 0, 7); bx.fill(); }
+  bx.fillStyle = 'rgba(255,250,240,.55)'; bx.beginPath(); bx.arc(W*.16, H*.82, 70, 0, 7); bx.fill();
+  bx.restore();
+  bx.globalCompositeOperation = 'screen';
+  const focusK = focusAmt;
+  for (const b of bokeh){
+    const x = b.x*W + Math.sin(t*.05*b.s + b.p)*14, y = b.y*H + Math.cos(t*.04*b.s + b.p)*10, r = b.r*(1 + focusK*.25);
+    const gg = bx.createRadialGradient(x, y, r*.6, x, y, r); gg.addColorStop(0, `rgba(${b.c},${b.a*(1 - focusK*.45)})`); gg.addColorStop(.86, `rgba(${b.c},${b.a*1.25*(1 - focusK*.45)})`); gg.addColorStop(1, `rgba(${b.c},0)`);
+    bx.fillStyle = gg; bx.beginPath(); bx.arc(x, y, r, 0, 7); bx.fill();
+  }
+  bx.globalCompositeOperation = 'source-over';
+}
+function makeBokeh(){ bokeh = []; const cols = ['255,236,220', '255,220,232', '226,220,255', '220,245,232', '255,248,230'];
+  for (let i = 0; i < 26; i++) bokeh.push({x: Math.random(), y: Math.random(), r: 20 + Math.random()*70, c: cols[i % cols.length], a: .12 + Math.random()*.2, s: .5 + Math.random(), p: Math.random()*9}); }
+function paintGrain(){ const w = 256, h = 256; grain.width = w; grain.height = h; const id = gx.createImageData(w, h); for (let i = 0; i < id.data.length; i += 4){ const v = Math.random()*255; id.data[i] = id.data[i+1] = id.data[i+2] = v; id.data[i+3] = 255; } gx.putImageData(id, 0, 0); grain.style.imageRendering = 'auto'; }
+
+/* ---------------- layout ---------------- */
+const slips = [...document.querySelectorAll('.slip.d')];
+function layout(){
+  W = innerWidth; H = innerHeight; dpr = Math.min(2, devicePixelRatio || 1); mobile = W < 860;
+  [bg, fx].forEach(c => { c.width = Math.round(W*dpr); c.height = Math.round(H*dpr); });
+  const page = $('#page');
+  let pw, ph, pl, pt;
+  if (!mobile){ pw = Math.min(600, W - 620); pw = Math.max(480, pw); ph = Math.min(H - 220, 520); pl = Math.max(270, (W - pw)/2 - 70); pt = Math.max(110, (H - ph)/2 + 10); }
+  else { pw = W - 32; pt = 250; ph = Math.max(220, Math.min(330, H - pt - 240)); pl = 16; }
+  Object.assign(page.style, {left: pl + 'px', top: pt + 'px', width: pw + 'px', height: ph + 'px'});
+  const v = $('#viewers'), tl = $('#tools'), gl = $('#goal');
+  Object.assign(v.style, {left: (pl + pw - 230) + 'px', top: (pt - 46) + 'px'});
+  Object.assign(tl.style, {left: pl + 'px', top: (pt - 50) + 'px'});
+  Object.assign(gl.style, {left: (pl + 20) + 'px', top: (pt + ph + 18) + 'px'});
+  if (mobile){ Object.assign(v.style, {left: 'auto', right: '12px', top: '100px'}); Object.assign(tl.style, {left: '16px', top: (pt - 48) + 'px'}); Object.assign(gl.style, {left: '16px', top: (pt + ph + 12) + 'px'}); }
+  // the dandelion, big and close in the lower right
+  head.R = mobile ? Math.min(88, W*.23) : Math.min(170, H*.22);
+  const size = Math.round(head.R*2.8);
+  head.x = mobile ? W - head.R*1.1 : W - head.R*1.25; head.y = mobile ? H - head.R*1.15 : H - head.R*1.35;
+  dlc.width = Math.round(size*dpr); dlc.height = Math.round(size*dpr);
+  Object.assign(dlBtn.style, {left: (head.x - size/2) + 'px', top: (head.y - size/2) + 'px', width: size + 'px', height: size + 'px'});
+  const hint = $('#hint'); Object.assign(hint.style, {right: (W - head.x - head.R*.4) + 'px', top: Math.min(head.y + head.R*1.12, H - hint.offsetHeight - 18) + 'px', textAlign: 'right'});
+  if (mobile) Object.assign(hint.style, {right: (W - head.x + head.R*1.05) + 'px', top: (head.y - 20) + 'px'});
+  headDirty = true;
+}
+
+/* ---------------- blowing ---------------- */
+let blowing = false, wind = 0, focusAmt = 0, flying = [], blownCount = 0, nextBlowT = 0, returning = false;
+const pending = () => slips.filter(s => !s.classList.contains('blown') && !s.dataset.leaving);
+function startBlow(){ if (returning) return; blowing = true; dlBtn.setAttribute('aria-pressed', 'true'); audio(); hideHint(); }
+function stopBlow(){ if (!blowing) return; blowing = false; dlBtn.setAttribute('aria-pressed', 'false');
+  const left = pending().length; if (left && blownCount) say(`${blownCount} distraction${blownCount > 1 ? 's' : ''} drifted away. ${left} left — hold again to clear the rest.`); }
+function blowNext(){
+  const list = pending(); if (!list.length) return;
+  // the nearest distraction to the dandelion lifts first
+  list.sort((a, b) => dist(b) - dist(a));
+  const el = list[list.length - 1]; el.dataset.leaving = '1';
+  const r = el.getBoundingClientRect();
+  const dxw = (mobile ? -1 : -1)*(W*.5 + Math.random()*W*.3), dyw = -(H*.35 + Math.random()*H*.3);
+  // it dissolves into seeds that ride the wind
+  for (let i = 0; i < (reduce ? 0 : 12); i++) flying.push(seedParticle(r.left + Math.random()*r.width, r.top + Math.random()*r.height, .8 + Math.random()*.9, Math.random() < .5));
+  const anim = el.animate([
+    {transform: getComputedStyle(el).transform === 'none' ? 'none' : getComputedStyle(el).transform, filter: 'blur(1px)', opacity: 1},
+    {transform: `${el.classList.contains('cal') ? 'translateX(-50%) ' : ''}translate(${dxw*.2}px, ${dyw*.15}px) rotate(${(Math.random() - .5)*14}deg) scale(.82)`, filter: 'blur(5px)', opacity: .7, offset: .35},
+    {transform: `${el.classList.contains('cal') ? 'translateX(-50%) ' : ''}translate(${dxw}px, ${dyw}px) rotate(${(Math.random() - .5)*50}deg) scale(.25)`, filter: 'blur(14px)', opacity: 0}
+  ], {duration: reduce ? 200 : 1500, easing: 'cubic-bezier(.5,0,.7,1)', fill: 'forwards'});
+  anim.onfinish = () => { el.classList.add('blown'); el.setAttribute('aria-hidden', 'true'); el.inert = true; anim.cancel(); delete el.dataset.leaving; checkFocus(); };
+  blownCount++; whoosh(.4);
+}
+function dist(el){ const r = el.getBoundingClientRect(); return Math.hypot(r.left + r.width/2 - head.x, r.top + r.height/2 - head.y); }
+function checkFocus(){
+  const left = slips.filter(s => !s.classList.contains('blown')).length;
+  document.body.classList.toggle('partial', left > 0 && left < slips.length);
+  if (left === 0 && !document.body.classList.contains('focused')){
+    document.body.classList.add('focused'); focusStart = performance.now(); chime();
+    say('Focus mode. Every distraction has drifted away. Press Escape or “Bring everything back” to return.');
+    $('#body').focus({preventScroll:true});
+  }
+}
+function seedParticle(x, y, scale, fromSlip){
+  return {x, y, vx: -(60 + Math.random()*120), vy: -(30 + Math.random()*80), rot: (Math.random() - .5)*1.2, vr: (Math.random() - .5)*1.2, s: scale, life: 0, blur: fromSlip ? .55 : 0, depth: Math.random(), back: false};
+}
+function detachSeed(){
+  const on = seeds.filter(s => s.on); if (!on.length) return;
+  // seeds facing the breath (front, upper-left) go first
+  on.sort((a, b) => (b.v.z - b.v.x*.6) - (a.v.z - a.v.x*.6));
+  const s = on[Math.floor(Math.random()*Math.min(8, on.length))]; s.on = false; headDirty = true;
+  const px = head.x + s.v.x*head.R*.86, py = head.y + s.v.y*head.R*.86;
+  const p = seedParticle(px, py, 1, false); p.vx = -(80 + Math.random()*160) + s.v.x*30; p.vy = -(20 + Math.random()*120) + s.v.y*40; p.ref = s; flying.push(p);
+}
+/* the return gust: everything drifts back in from where it went */
+function bringBack(){
+  if (returning) return; returning = true; blowing = false; dlBtn.setAttribute('aria-pressed', 'false'); audio(); whoosh(1, true);
+  document.body.classList.remove('focused', 'partial'); focusStart = 0; $('#focusT').textContent = '';
+  const back = slips.filter(s => s.classList.contains('blown'));
+  back.forEach((el, i) => {
+    el.classList.remove('blown'); el.removeAttribute('aria-hidden'); el.inert = false;
+    const cal = el.classList.contains('cal') ? 'translateX(-50%) ' : '';
+    el.animate([{transform: `${cal}translate(${-W*.6}px, ${-H*.4}px) rotate(-30deg) scale(.3)`, filter: 'blur(14px)', opacity: 0}, {transform: `${cal}translate(${-W*.05}px, ${-H*.03}px) rotate(3deg) scale(1.02)`, filter: 'blur(3px)', opacity: 1, offset: .75}, {transform: cal ? 'translateX(-50%)' : 'none', filter: 'blur(1px)', opacity: 1}],
+      {duration: reduce ? 200 : 1300, delay: reduce ? 0 : i*110, easing: 'cubic-bezier(.2,.8,.3,1)'});
+  });
+  // seeds blow back home onto the clock
+  const missing = seeds.filter(s => !s.on);
+  missing.forEach((s, i) => { const p = seedParticle(-40 - Math.random()*200, H*(.1 + Math.random()*.6), 1, false); p.home = s; p.delay = Math.random()*.9; flying.push(p); });
+  if (reduce) missing.forEach(s => s.on = true);
+  blownCount = 0;
+  setTimeout(() => { returning = false; seeds.forEach(s => s.on = true); headDirty = true; say('Everything is back.'); }, reduce ? 250 : 2200);
+}
+$('#back').addEventListener('click', bringBack);
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ bringBack(); } });
+
+/* input on the dandelion: press and hold */
+dlBtn.addEventListener('pointerdown', e => { if (e.button > 0) return; e.preventDefault(); dlBtn.setPointerCapture(e.pointerId); startBlow(); });
+['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => dlBtn.addEventListener(ev, stopBlow));
+dlBtn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat){ e.preventDefault(); startBlow(); } });
+dlBtn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); stopBlow(); } });
+dlBtn.addEventListener('click', e => e.preventDefault());
+let hinted = false; function hideHint(){ if (hinted) return; hinted = true; $('#hint').style.opacity = 0; }
+
+/* ---------------- writing ---------------- */
+const bodyEl = $('#body'), wc = $('#wc');
+function count(){ const n = (bodyEl.value.trim().match(/\S+/g) || []).length + ($('#title').value.trim().match(/\S+/g) || []).length; wc.textContent = `${n} words`; }
+bodyEl.addEventListener('input', count); $('#title').addEventListener('input', count); count();
+let focusStart = 0;
+
+/* ---------------- sound: breath and breeze ---------------- */
+let ac = null, master = null, muted = false, nb = null, breathG = null, breathF = null;
+function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination);
+    nb = ac.createBuffer(1, ac.sampleRate*2, ac.sampleRate); const d = nb.getChannelData(0); let b = 0; for (let i = 0; i < d.length; i++){ const w = Math.random()*2 - 1; b = .985*b + .015*w; d[i] = w*.25 + b*4; }
+    const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; breathF = ac.createBiquadFilter(); breathF.type = 'bandpass'; breathF.Q.value = .6; breathF.frequency.value = 700; breathG = ac.createGain(); breathG.gain.value = 0; s.connect(breathF).connect(breathG).connect(master); s.start();
+  } catch(e){ ac = null; } }
+function whoosh(k, back){ if (!ac || muted) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; f.type = 'bandpass'; f.Q.value = .7; f.frequency.setValueAtTime(back ? 1400 : 500, t); f.frequency.exponentialRampToValueAtTime(back ? 400 : 1600, t + 1.2); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.35*k, t + .3); g.gain.exponentialRampToValueAtTime(.0001, t + 1.5); s.connect(f).connect(g).connect(master); s.start(t, Math.random(), 1.6); }
+function chime(){ if (!ac || muted) return; const t = ac.currentTime; [659.25, 987.77, 1318.5].forEach((fq, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = fq; g.gain.setValueAtTime(.0001, t + i*.18); g.gain.exponentialRampToValueAtTime(.08, t + i*.18 + .04); g.gain.exponentialRampToValueAtTime(.0001, t + i*.18 + 2.4); o.connect(g).connect(master); o.start(t + i*.18); o.stop(t + i*.18 + 2.5); }); }
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute breeze sounds' : 'Mute breeze sounds'); $('#mw').style.opacity = muted ? 0 : 1; if (muted && breathG) breathG.gain.value = 0; });
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), raf = 0, time = 0, grainT = 0, bgT = 0, seedAcc = 0;
+function drawFlyingSeed(p){
+  const a = Math.min(1, p.life*3)*(p.home ? 1 : Math.max(0, 1 - p.life/5));
+  if (a <= 0) return;
+  const s = p.s*(mobile ? .85 : 1.15)*(head.R/170)*1.3, blur = Math.min(1, p.blur + Math.max(0, p.life - 1.2)*.25);
+  fxc.save(); fxc.translate(p.x, p.y); fxc.rotate(p.rot);
+  // out-of-focus: a soft disc of light
+  if (blur > .05){ const r = 18*s*(1 + blur*1.6); const g = fxc.createRadialGradient(0, -14*s, 0, 0, -14*s, r); g.addColorStop(0, `rgba(255,252,246,${.45*a*blur})`); g.addColorStop(1, 'rgba(255,252,246,0)'); fxc.fillStyle = g; fxc.beginPath(); fxc.arc(0, -14*s, r, 0, 7); fxc.fill(); }
+  // in focus: achene, beak and parachute
+  const fa = a*(1 - blur*.8);
+  if (fa > .02){
+    const halo = fxc.createRadialGradient(0, -14*s, 0, 0, -14*s, 16*s); halo.addColorStop(0, `rgba(255,255,255,${.35*fa})`); halo.addColorStop(1, 'rgba(255,255,255,0)'); fxc.fillStyle = halo; fxc.beginPath(); fxc.arc(0, -14*s, 16*s, 0, 7); fxc.fill();
+    fxc.strokeStyle = `rgba(255,255,252,${fa})`; fxc.lineWidth = .9; fxc.lineCap = 'round';
+    fxc.beginPath(); fxc.moveTo(0, 6*s); fxc.lineTo(0, -14*s); fxc.stroke();
+    fxc.fillStyle = `rgba(150,120,90,${fa})`; fxc.beginPath(); fxc.ellipse(0, 8*s, 1.4*s, 3.4*s, 0, 0, 7); fxc.fill();
+    fxc.lineWidth = .75; drawPappus(fxc, 0, -14*s, -Math.PI/2, 15*s, fa, 17);
+  }
+  fxc.restore(); fxc.globalAlpha = 1;
+}
+function frame(t){
+  const dt = Math.min(1/30, (t - last)/1000); last = t; time += dt;
+  wind += ((blowing ? 1 : 0) - wind)*Math.min(1, dt*(blowing ? 3 : 1.6));
+  sway += (wind*1.2 + Math.sin(time*.7)*.15 - sway)*dt*3;
+  if (ac && breathG){ breathG.gain.setTargetAtTime(muted ? 0 : wind*.5, ac.currentTime, .08); breathF.frequency.setTargetAtTime(500 + wind*600, ac.currentTime, .1); }
+  if (blowing && !returning){
+    seedAcc += dt*wind*(reduce ? 12 : 34); while (seedAcc > 1){ seedAcc--; detachSeed(); }
+    nextBlowT -= dt; if (nextBlowT <= 0 && wind > .45){ blowNext(); nextBlowT = reduce ? .15 : .38; }
+  } else nextBlowT = .25;
+  const target = document.body.classList.contains('focused') ? 1 : 0; focusAmt += (target - focusAmt)*Math.min(1, dt*1.5);
+  // background breathes slowly; repaint at a modest rate
+  bgT -= dt; if (bgT <= 0){ paintBg(time); bgT = 1/20; }
+  if (headDirty || wind > .01 || Math.abs(sway) > .001) drawHead(time);
+  dlc.style.transform = `rotate(${(sway*2.5).toFixed(2)}deg)`;
+  // particles
+  fxc.setTransform(dpr, 0, 0, dpr, 0, 0); fxc.clearRect(0, 0, W, H);
+  // breath streaks
+  if (wind > .02 && !reduce){ fxc.save(); fxc.globalCompositeOperation = 'screen'; for (let i = 0; i < 7; i++){ const k = (time*1.4 + i/7) % 1, y = head.y - head.R*.7 + i*head.R*.2 + Math.sin(time*3 + i)*6, x = head.x + head.R*1.1 - k*W*.7;
+    const g = fxc.createLinearGradient(x, y, x + 160, y); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, `rgba(255,252,246,${.22*wind})`); g.addColorStop(1, 'rgba(255,255,255,0)'); fxc.strokeStyle = g; fxc.lineWidth = 2; fxc.beginPath(); fxc.moveTo(x, y); fxc.quadraticCurveTo(x + 80, y - 8, x + 160, y); fxc.stroke(); } fxc.restore(); }
+  for (const p of flying){
+    if (p.home){
+      if (p.delay > 0){ p.delay -= dt; continue; }
+      const s = p.home, hx = head.x + s.v.x*head.R*.86, hy = head.y + s.v.y*head.R*.86;
+      p.x += (hx - p.x)*Math.min(1, dt*2.6); p.y += (hy - p.y)*Math.min(1, dt*2.6) + Math.sin(time*3 + p.rot)*.6; p.rot += (Math.atan2(s.v.y, s.v.x) + Math.PI/2 - p.rot)*dt*2; p.life += dt;
+      p.blur = Math.max(0, 1 - p.life*.8);
+      if (Math.hypot(hx - p.x, hy - p.y) < 6){ s.on = true; headDirty = true; p.done = true; }
+    } else {
+      const gust = .6 + wind*1.4 + Math.sin(time*2 + p.depth*9)*.2;
+      p.vx += (-30*gust - p.vx*.2)*dt; p.vy += (-18*gust + Math.sin(time*2.2 + p.rot*3)*30 - p.vy*.3)*dt;
+      p.x += p.vx*dt*gust; p.y += p.vy*dt*gust; p.rot += p.vr*dt + Math.sin(time + p.depth*5)*dt*.4; p.life += dt;
+      if (p.ref && p.life < .2) p.blur = 0;
+      if (p.x < -80 || p.y < -80 || p.life > 6) p.done = true;
+    }
+    drawFlyingSeed(p);
+  }
+  flying = flying.filter(p => !p.done);
+  // grain flicker
+  grainT -= dt; if (grainT <= 0){ grain.style.transform = `translate(${(Math.random()*40 - 20) | 0}px, ${(Math.random()*40 - 20) | 0}px) scale(4)`; grainT = .08; }
+  if (focusStart){ const s = Math.floor((performance.now() - focusStart)/1000); $('#focusT').textContent = `In focus · ${Math.floor(s/60)}:${String(s % 60).padStart(2, '0')}`; }
+  raf = requestAnimationFrame(frame);
+}
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden){ cancelAnimationFrame(raf); stopBlow(); if (breathG) breathG.gain.value = 0; } else start(); });
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); paintBg(time); }, 120); });
+grain.style.width = grain.style.height = '100%'; grain.style.transformOrigin = '0 0';
+makeSeeds(); makeBokeh(); paintGrain(); layout(); paintBg(0); drawHead(0); start();
+window.__dl = {start: startBlow, stop: stopBlow, back: bringBack};
+})();
+</script>
+</body>
+</html>

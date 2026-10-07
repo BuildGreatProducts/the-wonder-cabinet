@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chili Spice Slider</title>
+<meta name="description" content="A spice-level rating slider drawn as a Mexican lotería game: slide the bean across the tabla and the pepper ripens, sweats, steams and finally sets its own card on fire.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Alegreya+Sans:ital,wght@0,500;0,800;1,500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Chili Spice Slider","reimagines":"Rating slider","category":"Sliders, Knobs & Dials","description":"Choose how hot your tacos are by sliding a frijol across a lotería tabla. The card's pepper ripens from green to red, the air shimmers, it sweats and steams, and at Inferno the card's own title catches fire (horchata included).","hint":"Slide the bean along the tabla to pick your heat"}
+</script>
+<style>
+  :root{
+    --wall:#17a2a0; --ink:#17110d; --card:#f6ecd4; --pink:#e6337f; --turq:#1aa59f; --mari:#f4a31b; --red:#d32a1e; --green:#3b8d3a; --violet:#7a3fa0;
+    --display:'Abril Fatface', 'Bodoni 72', Didot, Georgia, serif;
+    --body:'Alegreya Sans', 'Gill Sans', 'Trebuchet MS', sans-serif;
+    --heat:0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--body); color:var(--ink); overflow:hidden; background:var(--wall); transition:background-color .2s}
+  .wall{position:fixed; inset:0; overflow:hidden}
+  .wall::before{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .04' numOctaves='4' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .2 0 0 0 .5 -.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .wall::after{content:""; position:absolute; inset:0; pointer-events:none; opacity:.35; mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .15 0 0 0 0 .1 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  #picado{position:absolute; left:0; right:0; top:0; height:150px; width:100%; z-index:2; pointer-events:none}
+  .stage{position:absolute; inset:0; display:grid; grid-template-columns: auto minmax(0, 560px); justify-content:center; align-items:center; gap:56px; padding:116px 40px 30px; z-index:1}
+  /* big lotería card */
+  .bigcard{position:relative; width:min(330px, 40vh); aspect-ratio:300/460; filter:drop-shadow(6px 9px 0 rgba(0,0,0,.25))}
+  .bigcard svg{width:100%; height:100%; display:block; overflow:visible}
+  /* right column */
+  .order{display:flex; flex-direction:column; gap:14px; min-width:0}
+  .ticket{background:var(--card); border:3px solid var(--ink); padding:14px 18px 12px; position:relative; box-shadow:5px 6px 0 rgba(0,0,0,.25)}
+  .ticket::before{content:""; position:absolute; inset:5px; border:1.5px solid var(--pink); pointer-events:none}
+  .ticket h1{font-family:var(--display); font-weight:400; font-size:30px; line-height:1; margin:0 0 4px; letter-spacing:.01em}
+  .ticket .sub{font-size:15px; margin:0; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .ticket .sub b{font-weight:800}
+  .tablawrap{position:relative; padding:0 0 4px}
+  .tablabel{font-family:var(--display); font-size:19px; color:#fff; text-shadow:2px 2px 0 var(--ink); margin:0 0 8px; letter-spacing:.02em}
+  .tabla{position:relative; display:grid; grid-template-columns:repeat(5, 1fr); gap:7px; background:var(--ink); padding:7px; border-radius:4px; touch-action:none; cursor:pointer; box-shadow:5px 6px 0 rgba(0,0,0,.25)}
+  .mini{position:relative; background:var(--card); border-radius:2px; aspect-ratio:3/4.1; overflow:hidden; display:flex; flex-direction:column}
+  .mini .num{position:absolute; left:5px; top:3px; font-family:var(--display); font-size:15px; line-height:1}
+  .mini svg{flex:1; width:100%; min-height:0}
+  .mini .nm{font-family:var(--display); font-size:11.5px; text-align:center; padding:0 2px 4px; letter-spacing:.02em; white-space:nowrap; overflow:hidden}
+  .mini.on{outline:3px solid var(--mari); outline-offset:-3px}
+  .bean{position:absolute; top:50%; width:58px; height:44px; margin:-26px 0 0 -29px; touch-action:none; cursor:grab; z-index:3; outline:none; filter:drop-shadow(2px 4px 0 rgba(0,0,0,.35)); transition:filter .15s}
+  .bean.drag{cursor:grabbing; filter:drop-shadow(5px 12px 2px rgba(0,0,0,.3))}
+  .bean svg{width:100%; height:100%; overflow:visible}
+  .bean:focus-visible{outline:3px dashed #fff; outline-offset:4px; border-radius:50%}
+  .hint{font-style:italic; font-size:15px; color:#fff; text-shadow:1px 1px 0 rgba(0,0,0,.6); margin:8px 0 0; transition:opacity .8s}
+  .readout{display:grid; grid-template-columns:auto 1fr; gap:4px 14px; align-items:baseline; background:var(--card); border:3px solid var(--ink); padding:12px 16px; position:relative; box-shadow:5px 6px 0 rgba(0,0,0,.25)}
+  .readout::before{content:""; position:absolute; inset:5px; border:1.5px solid var(--turq); pointer-events:none}
+  .readout .lvl{font-family:var(--display); font-size:34px; line-height:1}
+  .readout .en{font-size:17px; font-weight:800; text-transform:uppercase; letter-spacing:.06em}
+  .readout .shu{grid-column:1 / -1; font-size:15px}
+  .actions{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+  .add{font-family:var(--display); font-size:21px; color:#fff; background:var(--pink); border:3px solid var(--ink); padding:9px 20px 8px; cursor:pointer; box-shadow:4px 5px 0 var(--ink); letter-spacing:.02em; position:relative}
+  .add::after{content:""; position:absolute; inset:3px; border:1.5px dashed rgba(255,255,255,.7); pointer-events:none}
+  .add:hover{transform:translate(-1px,-1px); box-shadow:5px 6px 0 var(--ink)}
+  .add:active{transform:translate(3px,4px); box-shadow:1px 1px 0 var(--ink)}
+  .add:focus-visible, .horchata:focus-visible, .mute:focus-visible{outline:3px dashed #fff; outline-offset:4px}
+  .price{font-family:var(--display); font-size:22px; color:#fff; text-shadow:2px 2px 0 var(--ink)}
+  .done{font-size:15px; color:#fff; font-weight:800; text-shadow:1px 1px 0 rgba(0,0,0,.6); min-height:1.3em; margin:0}
+  .horchata{position:absolute; z-index:4; width:74px; height:104px; border:0; padding:0; background:none; cursor:pointer; opacity:0; transform:translateY(20px) scale(.8); pointer-events:none; transition:opacity .4s, transform .5s cubic-bezier(.3,1.6,.5,1)}
+  .horchata.show{opacity:1; transform:none; pointer-events:auto}
+  .horchata svg{width:100%; height:100%; overflow:visible}
+  .mute{position:absolute; right:14px; bottom:12px; z-index:5; background:var(--card); border:2.5px solid var(--ink); font-family:var(--body); font-weight:800; font-size:12px; padding:4px 8px; cursor:pointer; text-transform:uppercase}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    #picado{height:84px}
+    .stage{grid-template-columns:minmax(0,1fr); gap:10px; padding:84px 14px 12px; align-content:start; justify-items:center}
+    .bigcard{width:min(170px, 24vh)}
+    .order{width:100%; gap:9px}
+    .ticket{padding:8px 12px 7px}
+    .ticket h1{font-size:20px}
+    .ticket .sub{font-size:12.5px}
+    .tablabel{font-size:15px; margin-bottom:5px}
+    .tabla{gap:4px; padding:4px}
+    .mini .num{font-size:11px; left:3px; top:2px}
+    .mini .nm{font-size:8px}
+    .bean{width:42px; height:32px; margin:-18px 0 0 -21px}
+    .hint{font-size:12.5px; margin-top:5px}
+    .readout{padding:7px 12px; gap:2px 10px}
+    .readout .lvl{font-size:22px}
+    .readout .en{font-size:13px}
+    .readout .shu{font-size:12.5px}
+    .add{font-size:16px; padding:7px 13px 6px}
+    .price{font-size:17px}
+    .done{font-size:12.5px}
+    .horchata{width:54px; height:76px}
+    .mute{bottom:auto; top:8px; right:8px; font-size:10px; padding:3px 6px}
+  }
+</style>
+</head>
+<body>
+<div class="wall" id="wall">
+  <svg id="picado" aria-hidden="true"></svg>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <filter id="shimmer" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence id="turb" type="fractalNoise" baseFrequency="0.012 0.045" numOctaves="2" seed="4" result="t"/>
+        <feDisplacementMap id="disp" in="SourceGraphic" in2="t" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <symbol id="chili" viewBox="0 0 100 120">
+        <path d="M52 22c18 1 26 16 25 36-1 24-14 44-34 56-5 3-9-1-6-5 13-15 17-30 15-46-2-14-10-22-15-30 2-7 8-11 15-11z" style="fill:var(--pc, #3b8d3a)" stroke="#17110d" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M46 34c-4 10 0 20 0 32" stroke="rgba(255,255,255,.75)" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <path d="M38 24c4-6 10-7 15-6 6-2 12 0 16 5-5 2-9 2-13 0-5 3-12 4-18 1z" fill="#2f7a2c" stroke="#17110d" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M53 18c0-8 3-13 10-15" stroke="#17110d" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <path d="M53 18c0-8 3-13 10-15" stroke="#4a9a3c" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <main class="stage">
+    <div class="bigcard" aria-hidden="true">
+      <svg id="card" viewBox="0 0 300 460">
+        <defs>
+          <clipPath id="artClip"><rect x="20" y="20" width="260" height="360"/></clipPath>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="6" stroke="#17110d" stroke-width="1.6"/></pattern>
+        </defs>
+        <rect x="2" y="2" width="296" height="456" rx="12" fill="#f6ecd4" stroke="#17110d" stroke-width="4"/>
+        <rect x="14" y="14" width="272" height="432" fill="none" stroke="#17110d" stroke-width="2.5"/>
+        <g clip-path="url(#artClip)">
+          <rect id="cardBg" x="20" y="20" width="260" height="360" fill="#f3e3b6"/>
+          <g id="art" filter="url(#shimmer)">
+            <g id="rays" opacity="0"></g>
+            <g id="steam" fill="none" stroke="#17110d" stroke-width="3" stroke-linecap="round" opacity="0">
+              <path id="st1" d="M120 92c-10-12 10-20 0-32s10-20 0-30"/>
+              <path id="st2" d="M150 80c-10-12 10-20 0-32s10-20 0-30"/>
+              <path id="st3" d="M180 92c-10-12 10-20 0-32s10-20 0-30"/>
+            </g>
+            <!-- pepper character -->
+            <g id="pepper" transform="translate(0 0)">
+              <path id="pBody" d="M164 116c46 4 66 44 62 96-4 66-40 118-98 150-12 7-22-3-14-12 36-40 46-82 40-126-5-38-26-58-36-78 6-20 24-31 46-30z" fill="#3b8d3a" stroke="#17110d" stroke-width="5" stroke-linejoin="round"/>
+              <path id="pShade" d="M216 170c6 58-14 116-70 170 46-24 76-70 80-128 1-16-3-30-10-42z" fill="url(#hatch)" opacity=".55"/>
+              <path d="M140 150c-10 26-2 52 0 84" stroke="rgba(255,255,255,.8)" stroke-width="9" stroke-linecap="round" fill="none"/>
+              <path d="M148 254c-4 18-10 34-18 48" stroke="rgba(255,255,255,.6)" stroke-width="5" stroke-linecap="round" fill="none"/>
+              <path d="M118 122c12-16 30-20 46-16 18-6 38 0 50 14-14 6-28 6-40 0-16 9-38 11-56 2z" fill="#2f7a2c" stroke="#17110d" stroke-width="4.5" stroke-linejoin="round"/>
+              <path d="M164 108c0-26 10-42 32-48" stroke="#17110d" stroke-width="12" fill="none" stroke-linecap="round"/>
+              <path d="M164 108c0-26 10-42 32-48" stroke="#4a9a3c" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+              <!-- horns (inferno) -->
+              <g id="horns" opacity="0">
+                <path d="M136 136c-14-10-18-26-12-40 6 12 14 20 26 26z" fill="#9e0f14" stroke="#17110d" stroke-width="4" stroke-linejoin="round"/>
+                <path d="M206 132c14-8 20-24 16-38-8 12-16 18-28 24z" fill="#9e0f14" stroke="#17110d" stroke-width="4" stroke-linejoin="round"/>
+              </g>
+              <!-- face -->
+              <g id="face">
+                <path id="browL" d="M150 168l20 4" stroke="#17110d" stroke-width="5" stroke-linecap="round"/>
+                <path id="browR" d="M188 172l20 -2" stroke="#17110d" stroke-width="5" stroke-linecap="round"/>
+                <ellipse cx="164" cy="186" rx="9" ry="11" fill="#fff" stroke="#17110d" stroke-width="3.5"/>
+                <ellipse cx="198" cy="186" rx="9" ry="11" fill="#fff" stroke="#17110d" stroke-width="3.5"/>
+                <circle id="eyeL" cx="166" cy="188" r="4.5" fill="#17110d"/>
+                <circle id="eyeR" cx="200" cy="188" r="4.5" fill="#17110d"/>
+                <path id="lidL" d="M154 180h20" stroke="#17110d" stroke-width="4" stroke-linecap="round" opacity="1"/>
+                <path id="lidR" d="M188 180h20" stroke="#17110d" stroke-width="4" stroke-linecap="round" opacity="1"/>
+                <path id="mouth" d="M168 214q14 10 28 0" fill="none" stroke="#17110d" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+              <g id="drops"></g>
+            </g>
+          </g>
+        </g>
+        <rect x="20" y="20" width="260" height="360" fill="none" stroke="#17110d" stroke-width="3"/>
+        <text id="cardNum" x="34" y="62" font-family="Abril Fatface, Georgia, serif" font-size="40" fill="#17110d">7</text>
+        <g id="flames"></g>
+        <g id="titleBand">
+          <text id="cardTitle" x="150" y="428" text-anchor="middle" font-family="Abril Fatface, Georgia, serif" font-size="38" letter-spacing="1" fill="#17110d">EL GÜERO</text>
+          <g id="titleDrops"></g>
+        </g>
+      </svg>
+      <button class="horchata" id="horchata" aria-label="Too hot? Drink horchata to cool down to medium" tabindex="-1">
+        <svg viewBox="0 0 74 104">
+          <path d="M10 18h54l-7 80c-1 4-4 6-8 6H25c-4 0-7-2-8-6z" fill="#f7f1e2" stroke="#17110d" stroke-width="3.5" stroke-linejoin="round"/>
+          <path d="M14 36h46l-5 58c0 3-3 5-6 5H25c-3 0-6-2-6-5z" fill="#eadcb8"/>
+          <circle cx="30" cy="56" r="2" fill="#a77b4a"/><circle cx="44" cy="70" r="2" fill="#a77b4a"/><circle cx="36" cy="82" r="2" fill="#a77b4a"/>
+          <path d="M46 18l12-16" stroke="#e6337f" stroke-width="5" stroke-linecap="round"/>
+          <path d="M8 18h58" stroke="#17110d" stroke-width="3.5" stroke-linecap="round"/>
+          <text x="37" y="64" text-anchor="middle" font-family="Abril Fatface, Georgia, serif" font-size="10" fill="#17110d">¡AGUA!</text>
+        </svg>
+      </button>
+    </div>
+
+    <section class="order" aria-labelledby="ttl">
+      <div class="ticket">
+        <h1 id="ttl">Taquería La Lupita</h1>
+        <p class="sub"><span>Pedido #0417 · Mesa 6</span><span><b>3 × Tacos al pastor</b> · salsa de la casa</span></p>
+      </div>
+      <div class="tablawrap">
+        <p class="tablabel">¿Qué tan picante? — How hot?</p>
+        <div class="tabla" id="tabla">
+          <!-- minis injected -->
+          <div class="bean" id="bean" role="slider" tabindex="0" aria-label="Spice level" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1" aria-valuetext="Mild — El Güero">
+            <svg viewBox="0 0 58 44"><path d="M8 20c0-12 12-18 24-16 14 2 22 10 20 20-2 12-14 18-28 16C12 38 8 30 8 20z" fill="#7a3a22" stroke="#17110d" stroke-width="3"/><path d="M27 8c-4 4-4 10 1 12" fill="none" stroke="#f6ecd4" stroke-width="2.5" stroke-linecap="round"/><path d="M16 14c4-4 10-5 14-4" stroke="rgba(255,255,255,.55)" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M38 34c6-2 9-6 10-10" stroke="rgba(0,0,0,.3)" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+          </div>
+        </div>
+        <p class="hint" id="hint">Slide the frijol along the tabla to pick your heat.</p>
+      </div>
+      <div class="readout" aria-live="polite">
+        <span class="lvl" id="lvl">El Güero</span><span class="en" id="en">Mild</span>
+        <span class="shu" id="shu">Barely there · 500–1,000 Scoville. Sweet, bright, kid-friendly.</span>
+      </div>
+      <div class="actions">
+        <button class="add" id="add">Agregar al pedido</button>
+        <span class="price">$147.00 MXN</span>
+      </div>
+      <p class="done" id="done" aria-live="polite"></p>
+    </section>
+  </main>
+  <button class="mute" id="mute" aria-pressed="false">Sonido: sí</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const LEVELS = [
+    { es:'El Güero',     card:'EL GÜERO',    num:7,  en:'Mild',      shu:'Barely there · 500–1,000 Scoville. Sweet, bright, kid-friendly.', ripe:'#f2c230' },
+    { es:'El Jalapeño',  card:'EL JALAPEÑO', num:19, en:'Medium',    shu:'A friendly kick · 2,500–8,000 Scoville.', ripe:'#3b8d3a' },
+    { es:'El Serrano',   card:'EL SERRANO',  num:23, en:'Hot',       shu:'Sharp and lingering · 10,000–23,000 Scoville.', ripe:'#e8641c' },
+    { es:'El Habanero',  card:'EL HABANERO', num:38, en:'Very hot',  shu:'Fruity fire · 100,000–350,000 Scoville. Keep a napkin close.', ripe:'#f08a1c' },
+    { es:'El Infierno',  card:'EL INFIERNO', num:54, en:'Inferno',   shu:'Ghost pepper · 1,000,000+ Scoville. The kitchen will ask if you are sure.', ripe:'#b3121a' },
+  ];
+  // heat 0..1 continuous; level = round(heat*4)
+  let heat = 0, target = 0, dragging = false, level = 0, interacted = false;
+
+  // ---------- colour helpers ----------
+  const hex = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const mix = (a, b, k) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v,i) => Math.round(v + (B[i]-v)*k)).join(',')})`; };
+  function ramp(stops, k){ k = Math.max(0, Math.min(1, k)); const n = stops.length - 1, i = Math.min(n - 1, Math.floor(k * n)); return mix(stops[i], stops[i+1], k * n - i); }
+  const PEPPER = ['#4f9a36','#9bb52c','#f2b21c','#ef7a1a','#d32a1e','#9e0f14'];
+  const WALL = ['#17a2a0','#2aa67e','#e9a51f','#e2621d','#c8261c'];
+  const CARDBG = ['#f3e3b6','#f6dda0','#f8c98a','#f6a77a','#f08a64'];
+
+  // ---------- tabla minis ----------
+  const tabla = $('tabla'), bean = $('bean');
+  const minis = LEVELS.map((L, i) => {
+    const d = document.createElement('div');
+    d.className = 'mini';
+    d.innerHTML = `<span class="num">${L.num}</span><svg viewBox="0 0 100 120" aria-hidden="true"><use href="#chili"/></svg><span class="nm">${L.card}</span>`;
+    tabla.insertBefore(d, bean);
+    return d;
+  });
+
+  // ---------- papel picado ----------
+  const picado = $('picado');
+  const FLAG_COLS = ['#e6337f','#f4a31b','#1aa59f','#7a3fa0','#3b8d3a','#d32a1e','#f2c230'];
+  let flags = [];
+  function cutPattern(w, h, kind){
+    // returns a path of holes (evenodd) inside the flag
+    let p = '';
+    const cx = w/2, cy = h*.46;
+    // border dots
+    for (let x = 8; x < w - 4; x += 10) p += `M${x} 10a2.2 2.2 0 1 0 .1 0z`;
+    // diamond lattice
+    for (let i = 0; i < 4; i++){ const y = h*.2 + i * h*.17; for (let x = 12 + (i%2)*7; x < w - 8; x += 14){ if (Math.hypot(x - cx, y - cy) < w*.27) continue; p += `M${x} ${y-4}l4 4l-4 4l-4 -4z`; } }
+    // central motif
+    if (kind === 0){ // flower
+      for (let k = 0; k < 8; k++){ const a = k / 8 * Math.PI * 2, x = cx + Math.cos(a) * w*.14, y = cy + Math.sin(a) * w*.14; p += `M${x.toFixed(1)} ${y.toFixed(1)}a${w*.07} ${w*.07} 0 1 0 .1 0z`; }
+    } else if (kind === 1){ // chili
+      p += `M${cx-10} ${cy-12}c14 0 20 10 16 24-3 10-12 18-24 22 8-8 12-18 10-28-1-6-4-10-2-18z`;
+    } else if (kind === 2){ // star
+      for (let k = 0; k < 10; k++){ const a = k/10*Math.PI*2 - Math.PI/2, r = k % 2 ? w*.08 : w*.2; p += (k ? 'L' : 'M') + (cx + Math.cos(a)*r).toFixed(1) + ' ' + (cy + Math.sin(a)*r).toFixed(1); } p += 'z';
+    } else { // sun
+      p += `M${cx} ${cy - w*.11}a${w*.11} ${w*.11} 0 1 0 .1 0z`;
+      for (let k = 0; k < 12; k++){ const a = k/12*Math.PI*2, r0 = w*.15, r1 = w*.24; p += `M${(cx+Math.cos(a-.12)*r0).toFixed(1)} ${(cy+Math.sin(a-.12)*r0).toFixed(1)}L${(cx+Math.cos(a)*r1).toFixed(1)} ${(cy+Math.sin(a)*r1).toFixed(1)}L${(cx+Math.cos(a+.12)*r0).toFixed(1)} ${(cy+Math.sin(a+.12)*r0).toFixed(1)}z`; }
+    }
+    return p;
+  }
+  function buildPicado(){
+    const W = innerWidth, mob = W < 760, H = mob ? 84 : 150;
+    picado.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    picado.innerHTML = '';
+    const fw = mob ? 54 : 92, fh = mob ? 64 : 112, gap = mob ? 6 : 12;
+    const n = Math.ceil(W / (fw + gap)) + 1, start = (W - (n * (fw + gap) - gap)) / 2;
+    const sag = mob ? 10 : 18;
+    const yOf = x => 8 + sag * 4 * (x / W) * (1 - x / W);
+    const str = document.createElementNS(NS, 'path');
+    let d = ''; for (let x = 0; x <= W; x += 20) d += (x ? 'L' : 'M') + x + ' ' + yOf(x).toFixed(1);
+    str.setAttribute('d', d); str.setAttribute('stroke', '#17110d'); str.setAttribute('stroke-width', '2'); str.setAttribute('fill', 'none');
+    picado.appendChild(str);
+    flags = [];
+    for (let i = 0; i < n; i++){
+      const x = start + i * (fw + gap) + fw/2, y = yOf(x);
+      const g = document.createElementNS(NS, 'g');
+      const col = FLAG_COLS[i % FLAG_COLS.length];
+      // fringe bottom
+      let outline = `M${-fw/2} 0H${fw/2}V${fh - 10}`;
+      for (let k = 0; k <= 8; k++){ const xx = fw/2 - k * fw/8; outline += `L${xx.toFixed(1)} ${k % 2 ? fh : fh - 10}`; }
+      outline += 'Z';
+      const holes = cutPattern(fw, fh, i % 4).replace(/M([\d.]+) ([\d.]+)/g, (m, a, b) => `M${(+a - fw/2).toFixed(1)} ${b}`).replace(/L([\d.]+) ([\d.]+)/g, (m, a, b) => `L${(+a - fw/2).toFixed(1)} ${b}`);
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', outline + holes); p.setAttribute('fill', col); p.setAttribute('fill-rule', 'evenodd'); p.setAttribute('opacity', '.93');
+      p.setAttribute('stroke', 'rgba(0,0,0,.25)'); p.setAttribute('stroke-width', '1');
+      const fold = document.createElementNS(NS, 'rect');
+      fold.setAttribute('x', -fw/2); fold.setAttribute('y', -2); fold.setAttribute('width', fw); fold.setAttribute('height', 6); fold.setAttribute('fill', col); fold.setAttribute('stroke', '#17110d'); fold.setAttribute('stroke-width', '1.2');
+      g.appendChild(p); g.appendChild(fold);
+      picado.appendChild(g);
+      flags.push({ g, x, y, a: 0, v: 0, sk: 0, ph: Math.random() * 10 });
+    }
+  }
+
+  // ---------- card drawing ----------
+  const rays = $('rays');
+  (function buildRays(){
+    for (let k = 0; k < 18; k++){
+      const a0 = k / 18 * Math.PI * 2, a1 = a0 + Math.PI / 18, cx = 172, cy = 220, R = 300;
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', `M${cx} ${cy}L${cx + Math.cos(a0)*R} ${cy + Math.sin(a0)*R}L${cx + Math.cos(a1)*R} ${cy + Math.sin(a1)*R}Z`);
+      p.setAttribute('fill', k % 2 ? '#f4a31b' : '#e6337f'); p.setAttribute('opacity', k % 2 ? '.55' : '.25');
+      rays.appendChild(p);
+    }
+  })();
+
+  const drops = [], titleDrops = [];
+  function spawnDrop(parent, list, x, y, s){
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M0 ${-8*s}c${3*s} ${5*s} ${6*s} ${8*s} ${6*s} ${12*s}a${6*s} ${6*s} 0 1 1 ${-12*s} 0c0 ${-4*s} ${3*s} ${-7*s} ${6*s} ${-12*s}z`);
+    p.setAttribute('fill', '#8fd3f0'); p.setAttribute('stroke', '#17110d'); p.setAttribute('stroke-width', 2.2);
+    parent.appendChild(p);
+    list.push({ el: p, x, y, vy: 0, life: 0, s });
+  }
+
+  // folk flames over the title
+  const flamesG = $('flames');
+  const FL = [];
+  for (let i = 0; i < 7; i++){
+    const g = document.createElementNS(NS, 'g');
+    const outer = document.createElementNS(NS, 'path'), mid = document.createElementNS(NS, 'path'), inner = document.createElementNS(NS, 'path');
+    outer.setAttribute('fill', '#d32a1e'); outer.setAttribute('stroke', '#17110d'); outer.setAttribute('stroke-width', '3'); outer.setAttribute('stroke-linejoin', 'round');
+    mid.setAttribute('fill', '#f4a31b'); inner.setAttribute('fill', '#f8e27a');
+    g.appendChild(outer); g.appendChild(mid); g.appendChild(inner);
+    flamesG.appendChild(g);
+    FL.push({ g, outer, mid, inner, x: 46 + i * 34.5, ph: Math.random() * 10, h: 0 });
+  }
+  function flamePath(x, base, h, w, sway){
+    const tipX = x + sway, tipY = base - h;
+    return `M${x - w} ${base}C${x - w} ${base - h*.45} ${tipX - w*.6} ${base - h*.6} ${tipX} ${tipY}C${tipX + w*.5} ${base - h*.55} ${x + w} ${base - h*.4} ${x + w} ${base}Z`;
+  }
+
+  function setPepperFace(k){
+    // k 0..1 heat — sleepy → grin → fierce → devilish
+    const eyeOpen = k > .12;
+    $('lidL').setAttribute('opacity', eyeOpen ? 0 : 1); $('lidR').setAttribute('opacity', eyeOpen ? 0 : 1);
+    ['eyeL','eyeR'].forEach(id => $(id).setAttribute('opacity', eyeOpen ? 1 : 0));
+    document.querySelectorAll('#face ellipse').forEach(e => e.setAttribute('opacity', eyeOpen ? 1 : 0));
+    const ang = k < .5 ? 0 : (k - .5) * 2;
+    $('browL').setAttribute('d', `M150 ${168 - (1-ang)*4}l20 ${4 + ang*8}`);
+    $('browR').setAttribute('d', `M188 ${172 + ang*8}l20 ${-2 - ang*10}`);
+    let m;
+    if (k < .2) m = 'M170 214q12 8 24 0';
+    else if (k < .45) m = 'M166 210q16 16 32 0';
+    else if (k < .7) m = 'M164 208q18 22 36 0z';
+    else if (k < .9) m = 'M162 206q20 4 40 0q-4 22 -20 22q-16 0 -20 -22z';
+    else m = 'M160 204l8 6l8 -6l8 6l8 -6l8 6q-6 22 -20 22q-16 0 -20 -28z';
+    $('mouth').setAttribute('d', m);
+    $('mouth').setAttribute('fill', k >= .45 ? '#7a1010' : 'none');
+    $('horns').setAttribute('opacity', k > .9 ? Math.min(1, (k - .9) * 10) : 0);
+  }
+
+  // ---------- value ----------
+  function levelOf(h){ return Math.max(0, Math.min(4, Math.round(h * 4))); }
+  let lastLevel = -1;
+  function applyHeat(h){
+    const k = Math.max(0, Math.min(1, h));
+    document.body.style.backgroundColor = ramp(WALL, k);
+    $('pBody').setAttribute('fill', ramp(PEPPER, k));
+    $('cardBg').setAttribute('fill', ramp(CARDBG, k));
+    $('rays').setAttribute('opacity', Math.max(0, (k - .55) * 2.2));
+    $('steam').setAttribute('opacity', Math.max(0, (k - .35) * 1.6));
+    setPepperFace(k);
+    // minis ripen as the bean passes
+    minis.forEach((m, i) => {
+      const pos = i / 4, ripe = Math.max(0, Math.min(1, (k - pos) * 4 + 1));
+      m.style.setProperty('--pc', mix('#4f9a36', LEVELS[i].ripe, i === 1 ? .2 : ripe));
+      m.classList.toggle('on', i === levelOf(k));
+    });
+    const lv = levelOf(k);
+    bean.style.left = (tablaPad + k * (tabla.clientWidth - tablaPad*2)) + 'px';
+    if (lv !== lastLevel){
+      lastLevel = lv;
+      const L = LEVELS[lv];
+      $('lvl').textContent = L.es; $('en').textContent = L.en; $('shu').textContent = L.shu;
+      $('cardTitle').textContent = L.card; $('cardNum').textContent = L.num;
+      $('cardTitle').setAttribute('font-size', L.card.length > 10 ? 32 : 38);
+      bean.setAttribute('aria-valuenow', lv + 1);
+      bean.setAttribute('aria-valuetext', `${L.en} — ${L.es}`);
+      if (interacted) tok(lv);
+      $('horchata').classList.toggle('show', lv === 4);
+      $('horchata').tabIndex = lv === 4 ? 0 : -1;
+    }
+  }
+  let tablaPad = 40;
+  function measure(){
+    const miniW = minis[0].getBoundingClientRect().width;
+    tablaPad = (tabla.clientWidth - tabla.clientWidth) + 7 + miniW / 2;
+    const c = document.querySelector('.bigcard').getBoundingClientRect();
+    const hb = $('horchata'); hb.style.left = (c.width - hb.offsetWidth * .3) + 'px'; hb.style.top = (c.height * .55) + 'px';
+    if (innerWidth < 760){ hb.style.left = (c.width + 6) + 'px'; hb.style.top = (c.height * .45) + 'px'; }
+  }
+
+  // ---------- input ----------
+  function kFromX(clientX){
+    const r = tabla.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientX - r.left - tablaPad) / (r.width - tablaPad*2)));
+  }
+  tabla.addEventListener('pointerdown', e => {
+    touch(); dragging = true; bean.classList.add('drag');
+    tabla.setPointerCapture(e.pointerId);
+    target = kFromX(e.clientX); bean.focus({ preventScroll:true });
+  });
+  tabla.addEventListener('pointermove', e => { if (dragging) target = kFromX(e.clientX); });
+  const end = () => { if (!dragging) return; dragging = false; bean.classList.remove('drag'); target = levelOf(target) / 4; plop(); };
+  tabla.addEventListener('pointerup', end); tabla.addEventListener('pointercancel', end);
+  bean.addEventListener('keydown', e => {
+    let lv = levelOf(target);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') lv++;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') lv--;
+    else if (e.key === 'Home') lv = 0; else if (e.key === 'End') lv = 4;
+    else return;
+    e.preventDefault(); touch();
+    target = Math.max(0, Math.min(4, lv)) / 4; plop();
+  });
+  function touch(){ if (!interacted){ interacted = true; $('hint').style.opacity = .55; } audio(); }
+
+  $('horchata').addEventListener('click', () => {
+    touch(); target = 1/4; plop(); sizzleOut();
+    $('done').textContent = 'Horchata to the rescue — back to El Jalapeño.';
+  });
+  $('add').addEventListener('click', () => {
+    touch();
+    const L = LEVELS[levelOf(target)];
+    $('done').textContent = `¡Lotería! 3 tacos al pastor, ${L.en.toLowerCase()} (${L.es}) — sent to the kitchen.`;
+    $('add').textContent = '¡Listo! Agregado';
+    setTimeout(() => $('add').textContent = 'Agregar al pedido', 2200);
+    fanfare();
+  });
+
+  // ---------- audio ----------
+  let ac = null, master, sizzleG, mute = false;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination);
+      // continuous sizzle bed
+      const len = ac.sampleRate * 2, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * (Math.random() < .08 ? 1 : .25);
+      const s = ac.createBufferSource(); s.buffer = b; s.loop = true;
+      const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 3500;
+      sizzleG = ac.createGain(); sizzleG.gain.value = 0;
+      s.connect(hp); hp.connect(sizzleG); sizzleG.connect(master); s.start();
+    } catch(_) { ac = null; }
+  }
+  function tone(f, t0, dur, g0, type){
+    if (!ac || mute) return;
+    const n = ac.currentTime + t0, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(g0, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + dur);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + dur + .05);
+  }
+  function tok(lv){ tone(330 * Math.pow(1.26, lv), 0, .12, .35, 'sine'); }
+  function plop(){ if (!ac || mute) return; const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(420, n); o.frequency.exponentialRampToValueAtTime(140, n + .09); g.gain.setValueAtTime(.5, n); g.gain.exponentialRampToValueAtTime(.0001, n + .12); o.connect(g); g.connect(master); o.start(n); o.stop(n + .14); }
+  function fanfare(){ [523, 659, 784, 1046].forEach((f, i) => tone(f, i * .09, .35, .3)); }
+  function sizzleOut(){ if (!ac || mute) return; sizzleG.gain.cancelScheduledValues(ac.currentTime); sizzleG.gain.setValueAtTime(.9, ac.currentTime); sizzleG.gain.exponentialRampToValueAtTime(.001, ac.currentTime + 1.2); }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'Sonido: no' : 'Sonido: sí'; $('mute').setAttribute('aria-pressed', mute); if (sizzleG && ac) sizzleG.gain.setTargetAtTime(0, ac.currentTime, .05); });
+
+  // ---------- loop ----------
+  let last = performance.now(), running = true, t = 0, dropT = 0;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.05, (now - last) / 1000); last = now; t += dt;
+    // heat eases toward the bean
+    const prev = heat;
+    heat += (target - heat) * Math.min(1, dt * (dragging ? 18 : 9));
+    if (Math.abs(heat - prev) > 1e-5 || lastLevel < 0) applyHeat(heat);
+    const k = heat;
+    // shimmer
+    const sc = reduce ? 0 : Math.max(0, k - .2) * 15;
+    $('disp').setAttribute('scale', sc.toFixed(2));
+    if (sc > 0) $('turb').setAttribute('baseFrequency', `${(0.012 + Math.sin(t * 1.7) * .002).toFixed(4)} ${(0.045 + Math.sin(t * (2.2 + k * 3)) * .009).toFixed(4)}`);
+    // steam wiggle
+    if (k > .35 && !reduce){
+      ['st1','st2','st3'].forEach((id, i) => {
+        const x = 120 + i * 30, w = 9 + Math.sin(t * 3 + i) * 3, rise = (t * 30 + i * 13) % 26;
+        $(id).setAttribute('d', `M${x} ${96 - rise}c-${w} -12 ${w} -20 0 -32s${w} -20 0 -30`);
+        $(id).setAttribute('opacity', (1 - rise / 26).toFixed(2));
+      });
+    }
+    // sweat on pepper + title
+    dropT += dt;
+    if (k > .45 && !reduce && dropT > (1.4 - k)){
+      dropT = 0;
+      spawnDrop($('drops'), drops, 140 + Math.random() * 70, 150 + Math.random() * 30, .9 + Math.random() * .4);
+      if (k > .7 && Math.random() < .6) spawnDrop($('titleDrops'), titleDrops, 50 + Math.random() * 200, 404, .65);
+    }
+    for (const list of [drops, titleDrops]){
+      for (let i = list.length - 1; i >= 0; i--){
+        const d = list[i]; d.life += dt; d.vy += (d.life > .5 ? 260 : 6) * dt; d.y += d.vy * dt;
+        d.el.setAttribute('transform', `translate(${d.x.toFixed(1)} ${d.y.toFixed(1)})`);
+        d.el.setAttribute('opacity', Math.max(0, 1 - Math.max(0, d.life - 1.1)));
+        if (d.life > 2.1 || d.y > 470){ d.el.remove(); list.splice(i, 1); }
+      }
+    }
+    // the title catches fire at inferno
+    const fire = Math.max(0, (k - .9) * 10);
+    FL.forEach((f, i) => {
+      f.h += ((fire > 0 ? (26 + 22 * Math.sin(t * 9 + f.ph) + 14 * Math.sin(t * 23 + f.ph * 2)) * fire : 0) - f.h) * .25;
+      if (f.h < .5){ f.g.setAttribute('opacity', 0); return; }
+      f.g.setAttribute('opacity', 1);
+      const sway = Math.sin(t * 6 + f.ph) * 6, base = 418;
+      f.outer.setAttribute('d', flamePath(f.x, base, f.h + 14, 17, sway));
+      f.mid.setAttribute('d', flamePath(f.x, base - 2, f.h * .7 + 6, 11, sway * .8));
+      f.inner.setAttribute('d', flamePath(f.x, base - 3, f.h * .38 + 2, 6, sway * .6));
+    });
+    $('cardTitle').setAttribute('fill', fire > .2 ? '#fff' : '#17110d');
+    $('cardTitle').setAttribute('stroke', fire > .2 ? '#17110d' : 'none'); $('cardTitle').setAttribute('stroke-width', 5); $('cardTitle').setAttribute('paint-order', 'stroke');
+    // papel picado flutter: warm air rises harder as heat climbs
+    flags.forEach((f, i) => {
+      const gust = reduce ? 0 : (Math.sin(t * (1.1 + k * 3) + f.ph) + Math.sin(t * (2.7 + k * 5) + f.ph * 1.7) * .5) * (2 + k * 14);
+      f.v += (gust - f.a * 6 - f.v * 2.2) * dt * 8;
+      f.a += f.v * dt;
+      const flut = reduce ? 1 : 1 - Math.abs(Math.sin(t * (3 + k * 9) + f.ph)) * (.02 + k * .16);
+      f.g.setAttribute('transform', `translate(${f.x.toFixed(1)} ${f.y.toFixed(1)}) rotate(${f.a.toFixed(2)}) scale(1 ${flut.toFixed(3)})`);
+    });
+    if (ac && sizzleG && !mute) sizzleG.gain.setTargetAtTime(Math.max(0, k - .3) * (dragging ? .9 : .35), ac.currentTime, .1);
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){ running = false; if (ac) ac.suspend(); }
+    else { running = true; last = performance.now(); if (ac) ac.resume(); requestAnimationFrame(frame); }
+  });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { buildPicado(); measure(); applyHeat(heat); }, 80); });
+  buildPicado(); measure(); applyHeat(0);
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { measure(); applyHeat(heat); });
+  requestAnimationFrame(frame);
+  window.__chili = { set(k){ target = k; heat = k; lastLevel = -1; applyHeat(k); } };
+})();
+</script>
+</body>
+</html>

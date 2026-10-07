@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calder Mobile Org Chart</title>
+<meta name="description" content="An org chart hung as a Calder mobile: every team is a painted metal shape sized by headcount, every arm is balanced by real torque, and adding a person tips the arm until the pivot slides to its new balance point.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Bodoni+Moda:ital,opsz,wght@1,6..96,400;1,6..96,500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Calder Mobile Org Chart","reimagines":"Tree / hierarchy chart","category":"Data & Visualization","description":"The company hangs as a Calder mobile in a white gallery: each team is a painted sheet-metal shape whose area is its headcount, and each arm hangs from the true centre of mass of everything below it. Drop a new hire on a team and the arm tips, sways, and then the pivot slides to its new balance point.","hint":"Drag a new hire onto a team, or click a shape to see who is on it"}
+</script>
+<style>
+  :root{ --wall:#f3f1ec; --ink:#141414; --red:#d1301f; --yellow:#f1bf1f; --blue:#1d47a6; --mute:#77736b; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--wall)}
+  body{font-family:Jost, "Futura", "Century Gothic", sans-serif;color:var(--ink)}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .hit{position:absolute;border-radius:50%;background:transparent;border:0;padding:0;cursor:pointer;outline:none}
+  .hit:focus-visible{outline:2px solid var(--ink);outline-offset:5px}
+  .label{position:absolute;background:#fbfaf7;padding:16px 18px 14px;box-shadow:0 1px 1px rgba(0,0,0,.08), 0 6px 14px rgba(40,35,25,.10), 0 0 0 1px rgba(0,0,0,.04);font:400 13px/1.45 Jost}
+  .label h2{font:italic 500 19px/1.15 "Bodoni Moda", "Didot", serif;margin:0 0 2px;letter-spacing:.005em}
+  .label .depts{font:400 12px/1.4 Jost;margin:0;padding-top:7px;border-top:1px solid #e3e0d8;color:#3a3833}
+  .label .depts b{font-weight:600}
+  #wall{width:360px;padding:11px 15px 9px}
+  #wall .yr{margin:0 0 3px;font-size:12.5px}
+  #wall .med{margin:0 0 6px}
+  .label .yr{font:400 13px/1.3 Jost;margin:0 0 8px;color:#3a3833}
+  .label .med{font:300 12.5px/1.4 Jost;color:#3a3833;margin:0 0 8px}
+  .label .key{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:center;font:400 12.5px/1.5 Jost;margin:0;padding:8px 0 0;border-top:1px solid #e3e0d8}
+  .label .key i{width:10px;height:10px;border-radius:50% 46% 52% 48%;display:inline-block}
+  .label .key b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .label .key .dept{grid-column:1 / -1;font:600 10.5px/1 Jost;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-top:6px}
+  .label .acc{font:300 11px/1.3 Jost;color:var(--mute);margin:10px 0 0}
+  .card{width:270px}
+  .card .lead{font:400 13px/1.3 Jost;margin:0 0 8px;color:#3a3833}
+  .card ul{list-style:none;margin:0 0 10px;padding:0;columns:2;column-gap:14px;font:300 12.5px/1.55 Jost}
+  .card li.new{font-weight:600}
+  .card li.new::after{content:" · new";color:var(--red);font-weight:400}
+  .card .row{display:flex;gap:8px}
+  .btn{all:unset;cursor:pointer;font:500 12px/1 Jost;letter-spacing:.12em;text-transform:uppercase;padding:9px 12px;border:1.5px solid var(--ink);background:#fff}
+  .btn:hover{background:var(--ink);color:#fff}
+  .btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .btn[disabled]{opacity:.35;pointer-events:none}
+  .card .x{all:unset;position:absolute;right:10px;top:8px;cursor:pointer;font:300 24px/1 Jost;padding:2px 7px}
+  .card h2{padding-right:28px}
+  .card .x:focus-visible{outline:2px solid var(--blue)}
+  .hires{position:absolute;display:flex;align-items:flex-end;gap:16px}
+  .hires .cap{font:600 10.5px/1.3 Jost;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:0 0 24px}
+  .chip{all:unset;cursor:grab;display:flex;flex-direction:column;align-items:center;gap:6px;touch-action:none;width:86px;text-align:center}
+  .chip .disc{width:26px;height:26px;border-radius:52% 48% 50% 50%/48% 52% 48% 52%;background:var(--ink);box-shadow:0 3px 0 rgba(0,0,0,.12);position:relative}
+  .chip .disc::before{content:"";position:absolute;left:50%;top:-12px;width:1.5px;height:12px;background:var(--ink);transform:translateX(-50%)}
+  .chip .disc::after{content:"";position:absolute;left:50%;top:-17px;width:7px;height:7px;border:1.5px solid var(--ink);border-radius:50%;transform:translateX(-50%)}
+  .chip span{font:400 12px/1.25 Jost}
+  .chip span small{display:block;color:var(--mute);font-size:11px}
+  .chip:focus-visible{outline:2px solid var(--blue);outline-offset:4px}
+  .chip.used{visibility:hidden}
+  .hint{position:absolute;font:italic 400 15px/1.3 "Bodoni Moda", serif;color:#55524b;margin:0;transition:opacity .6s;pointer-events:none}
+  .hint.gone{opacity:0}
+  .ghost{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:var(--ink);pointer-events:none;z-index:5;box-shadow:12px 18px 10px rgba(0,0,0,.12)}
+  @media (max-width:760px){
+    .label{padding:11px 13px 10px}
+    .label h2{font-size:17px}
+    .label .med{font-size:12px;margin-bottom:6px}
+    .label .key{font-size:12px;gap:0 6px}
+    .card{width:auto}
+    .label .med,.label .acc{display:none}
+    .label .yr{margin-bottom:4px}
+    .label .key{grid-template-columns:auto 1fr auto auto 1fr auto;column-gap:7px;font-size:11.5px;line-height:1.35}
+    .label .key .dept{margin-top:4px}
+    .card ul{font-size:12px;line-height:1.4;margin-bottom:8px}
+    .btn{font-size:11px;padding:8px 10px}
+    .hires .cap{margin-bottom:20px}
+    .chip{width:64px}
+    .chip span{font-size:11px}
+    .chip span small{font-size:10px}
+    .hint{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="cv" aria-hidden="true"></canvas>
+  <div id="hits"></div>
+  <aside class="label" id="wall" aria-live="polite"></aside>
+  <aside class="label card" id="card" hidden></aside>
+  <div class="hires" id="hires" aria-label="New hires joining in October">
+    <div><p class="cap">Joining in October</p><div style="display:flex;gap:12px" id="chips"></div></div>
+  </div>
+  <p class="hint" id="hint">Drag a new hire onto their team and watch the mobile rebalance.</p>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+const COL = {red:'#d1301f', yellow:'#f1bf1f', blue:'#1d47a6', black:'#141414', white:'#f7f5ef'};
+
+/* ---------------- the organisation ---------------- */
+const ORG = {name:'Halden Robotics', wire:46, children:[
+  {name:'Engineering', wire:96, children:[
+    {name:'Platform', col:'blue', shape:'disc', wire:58, lead:'Priya Nair', people:['Priya Nair','Elias Brandt','Fatima Zahra','Owen Clarke','Yuki Tanaka','Rafael Costa','Nina Petrova','Kwame Asante','Leo Martin']},
+    {name:'Robotics', col:'red', shape:'leaf', wire:96, lead:'Jonas Weber', people:['Jonas Weber','Ama Owusu','Daniel Kim','Sofia Rossi','Arjun Mehta','Clara Jensen','Mateo García','Hana Sato','Victor Lund','Zainab Bello','Oliver Grant']},
+    {name:'Firmware', col:'black', shape:'fin', wire:44, lead:'Mei Lin', people:['Mei Lin','Pavel Novak','Grace Ndlovu','Tom Becker','Isha Rao','Luca Bianchi']},
+  ]},
+  {name:'Product & Design', wire:44, children:[
+    {name:'Product', col:'yellow', shape:'disc', wire:70, lead:'Sam Okoro', people:['Sam Okoro','Julia Weiss','Noah Fischer','Amara Diallo']},
+    {name:'Design', col:'red', shape:'kidney', wire:42, lead:'Laila Haddad', people:['Laila Haddad','Ben Carter','Mira Kovač','Theo Laurent','Selin Aydın']},
+  ]},
+  {name:'Operations', wire:150, children:[
+    {name:'Sales', col:'black', shape:'leaf', wire:40, lead:'Marco Ricci', people:['Marco Ricci','Emma Walsh','Diego Fernández','Chloé Dubois','Ravi Shah','Freya Nilsen']},
+    {name:'Support', col:'blue', shape:'fin', wire:74, lead:'Hannah Berg', people:['Hannah Berg','Kofi Mensah','Lucía Torres','Adam Wright']},
+    {name:'People', col:'yellow', shape:'kidney', wire:46, lead:'Ruth Mensah', people:['Ruth Mensah','Iris Vogel','Samir Aziz']},
+  ]},
+]};
+const HIRES = [
+  {name:'Ana Souza', role:'Robotics engineer', team:'Robotics'},
+  {name:'Ben Ito', role:'Product designer', team:'Design'},
+  {name:'Carla Ruiz', role:'Support specialist', team:'Support'},
+];
+const nodes = [], leaves = [];
+(function walk(n, parent, depth){
+  n.parent = parent; n.depth = depth; nodes.push(n);
+  n.phi = 0; n.phiV = 0; n.yaw = 0; n.yawV = 0; n.theta = 0; n.omega = 0; n.shift = 0; n.shiftTarget = 0;
+  n.seed = nodes.length*7.3;
+  if (n.children) n.children.forEach(c => walk(c, n, depth+1)); else { n.newbies = []; leaves.push(n); }
+})(ORG, null, 0);
+const count = n => n.children ? n.children.reduce((a,c)=>a+count(c),0) : n.people.length;
+
+/* ---------------- Calder shape vocabulary (unit outlines, area-normalised later) ---------------- */
+function chaikin(pts, it){ for (let k=0;k<it;k++){ const o=[]; for (let i=0;i<pts.length;i++){ const a=pts[i], b=pts[(i+1)%pts.length]; o.push([a[0]*0.75+b[0]*0.25, a[1]*0.75+b[1]*0.25],[a[0]*0.25+b[0]*0.75, a[1]*0.25+b[1]*0.75]); } pts=o; } return pts; }
+const SHAPES = (() => {
+  const mk = {}, N = 64;
+  mk.disc = Array.from({length:N}, (_,i) => { const a=i/N*TAU, r = 1 + 0.05*Math.sin(2*a+0.7) + 0.04*Math.sin(3*a+2); return [Math.cos(a)*r, Math.sin(a)*r]; });
+  mk.leaf = Array.from({length:N}, (_,i) => { const t=i/N*TAU; return [1.35*Math.cos(t), 0.82*Math.sin(t)*(0.7 + 0.3*Math.cos(t)) + 0.12*Math.cos(t)]; });
+  mk.kidney = Array.from({length:N}, (_,i) => { const t=i/N*TAU; return [1.25*Math.cos(t), 0.8*Math.sin(t) - 0.22*Math.cos(2*t) + 0.1]; });
+  mk.fin = chaikin([[-1.15,0.62],[1.2,0.42],[-0.15,-1.0]], 4);
+  const out = {};
+  for (const k in mk){
+    const pts = mk[k];
+    let A=0, cx=0, cy=0;
+    for (let i=0;i<pts.length;i++){ const [x0,y0]=pts[i], [x1,y1]=pts[(i+1)%pts.length]; const c = x0*y1 - x1*y0; A += c; cx += (x0+x1)*c; cy += (y0+y1)*c; }
+    A /= 2; cx /= 6*A; cy /= 6*A; A = Math.abs(A);
+    // hang point: the outline point directly above the centroid
+    let best = null; for (const [x,y] of pts) if (y < cy && (!best || Math.abs(x-cx) < Math.abs(best[0]-cx))) best = [x,y];
+    const ext = Math.max(...pts.map(([x,y]) => Math.hypot(x-cx, y-cy)));
+    out[k] = {pts, A, cx, cy, ax: cx, ay: best[1], ext, minX: Math.min(...pts.map(p=>p[0])), maxX: Math.max(...pts.map(p=>p[0])), maxY: Math.max(...pts.map(p=>p[1]))};
+  }
+  return out;
+})();
+
+/* ---------------- layout (rest geometry) ---------------- */
+let W=0,H=0,DPR=1, S=1, SV=1, mob=false, ROOT={x:0,y:0};
+const UNIT = 11.2;   // a one-person shape has the area of a disc of radius 11.2 px (x scale)
+const leafScale = (n, extra=0) => S*UNIT*Math.sqrt((n.people.length + extra)*Math.PI/SHAPES[n.shape].A);
+function buildLayout(){
+  // widths bottom-up with room for growth
+  (function widths(n){
+    if (!n.children){ const sh = SHAPES[n.shape]; n.w = (sh.maxX - sh.minX)*leafScale(n, mob ? 1 : 2) + S*(mob ? 10 : 22); return n.w; }
+    n.w = n.children.reduce((a,c)=>a + widths(c), 0) + S*(n.depth===0 ? (mob ? 16 : 44) : (mob ? 5 : 14))*(n.children.length-1);
+    return n.w;
+  })(ORG);
+  (function place(n){
+    if (!n.children) return;
+    let x = 0;
+    n.children.forEach(c => {
+      place(c);
+      const anchor = c.children ? c.pivotFromLeft : c.w/2;
+      c.x0 = x + anchor; x += c.w + S*(n.depth===0 ? (mob ? 16 : 44) : (mob ? 5 : 14));
+    });
+    n.u = n.children.map(c => c.x0);
+    rebalance(n, true);
+    n.pivotFromLeft = n.centroid;
+  })(ORG);
+}
+function mass(n){ return count(n); }
+function restExtents(){
+  let minX=1e9, maxX=-1e9, maxY=-1e9;
+  (function go(n, hx, hy){
+    const px = hx, py = hy + n.wire*SV;
+    if (!n.children){ const sh = SHAPES[n.shape], s = leafScale(n, 1); minX = Math.min(minX, px + (sh.minX - sh.ax)*s); maxX = Math.max(maxX, px + (sh.maxX - sh.ax)*s); maxY = Math.max(maxY, py + (sh.maxY - sh.ay)*s + 26); return; }
+    n.children.forEach((c,j) => { const x = px + (n.u[j] - n.shift); minX = Math.min(minX, x - 12*S); maxX = Math.max(maxX, x + 12*S); go(c, x, py + H_PIVOT*S); });
+  })(ORG, 0, 0);
+  return {minX, maxX, maxY};
+}
+function rebalance(n, instant){
+  const M = n.children.reduce((a,c)=>a+mass(c),0);
+  const c = n.children.reduce((a,c,j)=>a + mass(c)*n.u[j], 0)/M;
+  n.centroid = c;
+  if (instant){ n.shift = c; n.shiftTarget = c; } else n.shiftTarget = c;
+}
+
+function layout(){
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height; mob = W < 760;
+  DPR = Math.min(2, devicePixelRatio||1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  const aL = mob ? 4 : 36, aR = mob ? W - 4 : W - 36;
+  const vk = mob ? 1.9 : 1;
+  S = 1; SV = vk; buildLayout();
+  let E = restExtents();
+  S = Math.min(mob ? 1.1 : 2.0, (aR - aL)/(E.maxX - E.minX));
+  SV = S*vk; buildLayout(); E = restExtents();
+  const maxH = mob ? H - 300 : H - 246;
+  if (E.maxY > maxH){ const k = maxH/E.maxY; S *= k; SV *= k; buildLayout(); E = restExtents(); }
+  // stretch the wires so the mobile fills the height of the room
+  for (let i=0;i<5;i++){ SV = Math.min(S*(mob ? 3.8 : 2.8), SV*maxH/E.maxY); E = restExtents(); }
+  ROOT.x = (aL + aR)/2 - (E.minX + E.maxX)/2;
+  ROOT.y = 0;
+  placeDom();
+}
+
+/* ---------------- physics ---------------- */
+const G = 2600, H_PIVOT = 16;
+const pos = new Map(); // node -> {x,y} (pivot for rods, centre for shapes)
+function solve(dt){
+  // top-down: positions + pendulum swing from the motion of each hang point
+  (function go(n, hx, hy){
+    const L = n.wire*SV;
+    // pendulum swing of the wire this node hangs from
+    const last = n.lastH || {x:hx, y:hy, vx:0};
+    const vx = (hx - last.x)/dt, ax = (vx - last.vx)/dt;
+    n.lastH = {x:hx, y:hy, vx};
+    if (!reduce){
+      const acc = -(G/L)*Math.sin(n.phi) - 2.2*n.phiV - Math.max(-6000, Math.min(6000, ax))/L*Math.cos(n.phi)*0.6;
+      n.phiV += acc*dt; n.phi += n.phiV*dt;
+      const tt = performance.now();
+      n.yawV += (-2.0*n.yaw - 0.55*n.yawV + Math.sin(tt/(3100 + n.depth*1300) + n.seed)*0.85)*dt;
+      n.phiV += Math.sin(tt/(4300 + n.depth*700) + n.seed*1.7)*0.035*dt;
+      n.yaw += n.yawV*dt; n.yaw = Math.max(-0.6, Math.min(0.6, n.yaw));
+    }
+    const px = hx + Math.sin(n.phi)*L, py = hy + Math.cos(n.phi)*L;
+    if (!n.children){ const sh = SHAPES[n.shape], sc = leafScale(n), dc = (sh.cy - sh.ay)*sc; pos.set(n, {x: px + Math.sin(n.phi)*dc, y: py + Math.cos(n.phi)*dc, hx: px, hy: py, r: sh.ext*sc, s: sc, bottom: (sh.maxY - sh.cy)*sc}); return; }
+    pos.set(n, {x:px, y:py});
+    // rod torque about pivot: children weights at rod-local u (relative to pivot)
+    const cy = Math.cos(n.yaw);
+    let Mu = 0, M = 0, I = 0;
+    n.children.forEach((c,j) => { const m = mass(c), u = (n.u[j] - n.shift)*cy; Mu += m*u; M += m; I += m*(u*u + H_PIVOT*H_PIVOT*S*S); });
+    const h = H_PIVOT*S;
+    const tau = G*(Math.cos(n.theta)*Mu - h*Math.sin(n.theta)*M);
+    if (!reduce){ n.omega += (tau/(I*0.12 + 1) - 1.9*n.omega)*dt; n.theta += n.omega*dt; }
+    else n.theta = Math.atan2(Mu, h*M);
+    n.theta = Math.max(-0.9, Math.min(0.9, n.theta));
+    // the curator slides the pivot loop toward the balance point
+    if (Math.abs(n.shiftTarget - n.shift) > 0.01){
+      if (n.waitShift > 0) n.waitShift -= dt;
+      else n.shift += (n.shiftTarget - n.shift)*Math.min(1, dt*(reduce?60:2.2));
+    }
+    n.children.forEach((c,j) => {
+      const u = (n.u[j] - n.shift)*cy;
+      const x = px + u*Math.cos(n.theta) - h*Math.sin(n.theta);
+      const y = py + u*Math.sin(n.theta) + h*Math.cos(n.theta);
+      go(c, x, y);
+    });
+  })(ORG, ROOT.x, ROOT.y);
+}
+
+/* ---------------- drawing ---------------- */
+function shade(hex, k){ const n = parseInt(hex.slice(1),16); const f = v => Math.max(0, Math.min(255, Math.round(v*k))); return `rgb(${f(n>>16)},${f(n>>8&255)},${f(n&255)})`; }
+function shapePath(g, n, p, yawScale, rot, grow=0){
+  const sh = SHAPES[n.shape], sc = p.s, c = Math.cos(rot), si = Math.sin(rot);
+  g.beginPath();
+  sh.pts.forEach(([ux,uy], i) => {
+    let dx = (ux - sh.cx), dy = (uy - sh.cy);
+    if (grow){ const d = Math.hypot(dx,dy) || 1; dx += dx/d*grow/sc; dy += dy/d*grow/sc; }
+    const x = dx*sc*yawScale, y = dy*sc;
+    const X = p.x + x*c - y*si, Y = p.y + x*si + y*c;
+    i ? g.lineTo(X,Y) : g.moveTo(X,Y);
+  });
+  g.closePath();
+}
+function rodPath(g, n){
+  const p = pos.get(n), h = H_PIVOT*S, cy = Math.cos(n.yaw);
+  const us = n.u.map(u => (u - n.shift)*cy);
+  const a = Math.min(...us) - 10*S, b = Math.max(...us) + 10*S;
+  const pt = u => [p.x + u*Math.cos(n.theta) - h*Math.sin(n.theta), p.y + u*Math.sin(n.theta) + h*Math.cos(n.theta)];
+  const arch = (b - a)*0.035;
+  const A = pt(a), B = pt(b), M = pt((a+b)/2);
+  const nx = Math.sin(n.theta), ny = -Math.cos(n.theta);
+  return {A, B, C:[M[0] + nx*arch, M[1] + ny*arch], us, pt};
+}
+function drawWires(g, shadow){
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.strokeStyle = shadow ? '#000' : '#141414';
+  // ceiling wire
+  const rp = pos.get(ORG);
+  g.lineWidth = 1.4; g.beginPath(); g.moveTo(ROOT.x, 0); g.lineTo(rp.x, rp.y); g.stroke();
+  for (const n of nodes){
+    if (!n.children) continue;
+    const p = pos.get(n), R = rodPath(g, n), h = H_PIVOT*S;
+    // rod with curled ends
+    g.lineWidth = Math.max(1.6, 2.6*S*(n.depth===0?1.15:1));
+    g.beginPath(); g.moveTo(R.A[0], R.A[1]); g.quadraticCurveTo(R.C[0], R.C[1], R.B[0], R.B[1]); g.stroke();
+    for (const [E, dir] of [[R.A,-1],[R.B,1]]){
+      g.lineWidth = Math.max(1.3, 2*S);
+      g.beginPath(); g.arc(E[0] + dir*3.2*S*Math.cos(n.theta), E[1] + dir*3.2*S*Math.sin(n.theta) - 2.6*S, 3.4*S, 0, TAU*0.8); g.stroke();
+    }
+    // pivot loop
+    g.lineWidth = Math.max(1.2, 1.8*S);
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - h*Math.sin(n.theta), p.y + h*Math.cos(n.theta)); g.stroke();
+    g.beginPath(); g.ellipse(p.x, p.y + 2*S, 3.4*S, 4.2*S, n.theta, 0, TAU); g.stroke();
+    // hanging wires to children
+    g.lineWidth = Math.max(1, 1.3*S);
+    n.children.forEach((c,j) => {
+      const H0 = R.pt(R.us[j]); const cp = pos.get(c);
+      const tx = c.children ? cp.x : cp.hx, ty = c.children ? cp.y : cp.hy;
+      g.beginPath(); g.moveTo(H0[0], H0[1]); g.lineTo(tx, ty); g.stroke();
+      if (!c.children){ g.beginPath(); g.arc(tx, ty + 2.4*S, 2.4*S, Math.PI*1.2, Math.PI*3.0); g.stroke(); }
+    });
+  }
+}
+function drawShapes(g, shadow){
+  for (const n of leaves){
+    const p = pos.get(n);
+    const yawS = Math.max(0.5, Math.cos(n.yaw*1.4));
+    const rot = -n.phi;
+    if (shadow){ shapePath(g, n, p, yawS, rot); g.fillStyle = '#000'; g.fill(); continue; }
+    const col = COL[n.col];
+    // the plate's cut edge: sheet steel seen at an angle as it turns
+    const th = (2 + 5*Math.abs(Math.sin(n.yaw)))*Math.max(0.8, S);
+    g.save(); g.translate(th*0.7*Math.sign(n.yaw || 1), th*0.55);
+    shapePath(g, n, p, yawS, rot); g.fillStyle = n.col==='black' ? '#000' : shade(col, 0.55); g.fill();
+    g.restore();
+    shapePath(g, n, p, yawS, rot);
+    g.fillStyle = col; g.fill();
+    // brushed enamel: faint strokes in the paint, a sheen that follows the turn
+    g.save(); g.clip();
+    const R = mulberry32(Math.floor(n.seed*99));
+    g.strokeStyle = n.col==='black' ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.06)'; g.lineWidth = 2;
+    for (let i=0;i<9;i++){ const y = p.y - p.r + R()*p.r*2; g.beginPath(); g.moveTo(p.x - p.r, y); g.quadraticCurveTo(p.x, y + (R()-0.5)*6, p.x + p.r, y + (R()-0.5)*4); g.stroke(); }
+    const sh = g.createLinearGradient(p.x - p.r, p.y - p.r, p.x + p.r, p.y + p.r);
+    const k = 0.5 + Math.sin(n.yaw*3)*0.35;
+    sh.addColorStop(0, 'rgba(255,255,255,0)'); sh.addColorStop(Math.max(0.01,k-0.2), 'rgba(255,255,255,0)'); sh.addColorStop(k, 'rgba(255,255,255,.16)'); sh.addColorStop(Math.min(0.99,k+0.2), 'rgba(255,255,255,0)'); sh.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle = sh; g.fillRect(p.x - p.r, p.y - p.r, p.r*2, p.r*2);
+    g.restore();
+    // new hires: small black discs riveted on
+    n.newbies.forEach((nb, i) => {
+      const a = -0.5 + i*0.6 + rot, d = p.s*0.55;
+      const x = p.x + Math.cos(a)*d*yawS, y = p.y + Math.sin(a)*d;
+      g.fillStyle = n.col==='black' ? '#f7f5ef' : '#141414'; g.beginPath(); g.arc(x, y, Math.max(3, 4.2*S), 0, TAU); g.fill();
+    });
+    // a bright rim where the spotlight catches the edge
+    shapePath(g, n, p, yawS, rot);
+    const rimG = g.createLinearGradient(p.x - p.r, p.y - p.r, p.x + p.r*0.4, p.y + p.r*0.4);
+    rimG.addColorStop(0, n.col==='black' ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.6)'); rimG.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = rimG; g.lineWidth = Math.max(1.2, 1.6*S); g.stroke();
+    // numeral cut into the shape
+    g.save(); g.translate(p.x, p.y); g.scale(yawS, 1); g.rotate(rot*0.3);
+    g.fillStyle = (n.col==='yellow' || n.col==='white') ? '#141414' : '#f7f5ef';
+    g.font = `500 ${Math.max(11, Math.min(p.s*0.75, 44))}px Jost, sans-serif`; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(String(n.people.length), 0, 1);
+    g.restore();
+    // selection ring
+    if (sel===n || hover===n){
+      g.save(); g.strokeStyle = '#141414'; g.lineWidth = sel===n ? 1.6 : 1; g.setLineDash(sel===n?[]:[3,4]);
+      shapePath(g, n, p, yawS, rot, 7*S + 2); g.stroke(); g.restore();
+    }
+    // team name below
+    if (!mob || S > 0.5){
+      g.fillStyle = '#2a2824'; g.font = `400 ${mob ? 10.5 : Math.min(15, 9 + 3*S)}px Jost, sans-serif`; g.textAlign='center'; g.textBaseline='top';
+      g.fillText(n.name, p.x, p.y + p.bottom + 8*S + 3);
+    }
+  }
+}
+function drawWall(){
+  const g = ctx;
+  g.fillStyle = '#e4e1da'; g.fillRect(0,0,W,H);
+  // the gallery spotlight: a warm oval pool on the white wall
+  const cx = W*0.5, cy = H*0.36, rx = W*0.62, ry = H*0.62;
+  g.save(); g.translate(cx, cy); g.scale(1, ry/rx);
+  const sp = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+  sp.addColorStop(0,'#fffdf8'); sp.addColorStop(0.55,'#f6f3ec'); sp.addColorStop(0.85,'#ebe8e1'); sp.addColorStop(1,'rgba(228,225,218,0)');
+  g.fillStyle = sp; g.beginPath(); g.arc(0, 0, rx, 0, TAU); g.fill(); g.restore();
+  // floor + skirting
+  const fy = H - (mob ? 54 : 86);
+  g.fillStyle = '#d9d4c9'; g.fillRect(0, fy, W, H-fy);
+  const fl = g.createLinearGradient(0, fy, 0, H); fl.addColorStop(0,'rgba(0,0,0,.08)'); fl.addColorStop(0.15,'rgba(0,0,0,0)'); fl.addColorStop(1,'rgba(0,0,0,.06)');
+  g.fillStyle = fl; g.fillRect(0, fy, W, H-fy);
+  g.strokeStyle = 'rgba(0,0,0,.05)'; g.lineWidth = 1;
+  for (let x = -H; x < W; x += 90){ g.beginPath(); g.moveTo(x, H); g.lineTo(x + (H-fy)*0.8, fy); g.stroke(); }
+  g.fillStyle = '#ecebe6'; g.fillRect(0, fy - 8, W, 8); g.fillStyle='rgba(0,0,0,.06)'; g.fillRect(0, fy, W, 1);
+  // ceiling hook
+  g.fillStyle = '#c9c5bb'; g.fillRect(ROOT.x - 14, 0, 28, 5);
+}
+
+/* ---------------- interaction ---------------- */
+let sel = null, hover = null;
+const hits = $('hits');
+leaves.forEach(n => {
+  const b = document.createElement('button'); b.className = 'hit'; b.type = 'button';
+  b.addEventListener('click', () => { audio(); select(sel===n ? null : n); });
+  b.addEventListener('mouseenter', () => { hover = n; });
+  b.addEventListener('mouseleave', () => { if (hover===n) hover = null; });
+  b.addEventListener('focus', () => { hover = n; });
+  b.addEventListener('blur', () => { if (hover===n) hover = null; });
+  b.addEventListener('keydown', e => {
+    if (e.key==='+' || e.key==='='){ e.preventDefault(); addPerson(n, null); }
+    if (e.key==='-' ){ e.preventDefault(); removePerson(n); }
+  });
+  n.btn = b; hits.appendChild(b);
+});
+function updateHits(){
+  for (const n of leaves){
+    const p = pos.get(n); if (!p) continue;
+    const r = Math.max(p.r, 16);
+    const st = n.btn.style; st.left = (p.x - r) + 'px'; st.top = (p.y - r) + 'px'; st.width = st.height = (2*r) + 'px';
+    n.btn.setAttribute('aria-label', `${n.name}: ${n.people.length} people, led by ${n.lead}, part of ${n.parent.name}. Press plus to add a person.`);
+  }
+}
+function deptOf(n){ return n.parent; }
+function renderWall(){
+  const tot = count(ORG);
+  const key = ORG.children.map(d => `<span class="dept">${d.name} · ${count(d)}</span>` + d.children.map(t => `<i style="background:${COL[t.col]};${t.col==='white'?'box-shadow:0 0 0 1px #000 inset':''}"></i><span>${t.name}</span><b>${t.people.length}</b>`).join('')).join('');
+  $('wall').innerHTML = `<h2>Halden Robotics, 2026</h2>
+    <p class="yr">Painted steel and wire · ${tot} people in 8 teams</p>
+    <p class="med">Plate area is headcount; arms hang from their centre of mass.</p>
+    <p class="depts">${ORG.children.map(d => `${d.name} <b>${count(d)}</b>`).join(' · ')}</p>`;
+}
+function renderCard(){
+  const c = $('card');
+  if (!sel){ c.hidden = true; return; }
+  const n = sel;
+  c.innerHTML = `<button class="x" type="button" id="cx" aria-label="Close">×</button>
+    <h2>${n.name}</h2><p class="lead">${n.people.length} people · ${n.parent.name} · led by ${n.lead}</p>
+    <ul>${n.people.map(p => `<li class="${n.newbies.includes(p)?'new':''}">${p}</li>`).join('')}</ul>
+    <div class="row"><button class="btn" id="cadd" type="button">Add a person</button><button class="btn" id="crem" type="button" ${n.people.length<=1?'disabled':''}>Someone leaves</button></div>`;
+  c.hidden = false;
+  $('cx').onclick = () => { const b = n.btn; select(null); b.focus(); };
+  $('cadd').onclick = () => addPerson(n, null);
+  $('crem').onclick = () => removePerson(n);
+}
+function select(n){ sel = n; renderCard(); placeDom(); requestAnimationFrame(placeDom); if (n) announce(`${n.name}: ${n.people.length} people, led by ${n.lead}.`); }
+const SPARE = ['Noor Rahman','Felix Wagner','Lena Kowalski','Marcus Bell','Tara Quinn','Hugo Moreau','Ines Duarte','Kai Larsen'];
+let spareI = 0;
+function addPerson(n, who){
+  audio();
+  const name = who || SPARE[spareI++ % SPARE.length];
+  n.people.push(name); n.newbies.push(name);
+  kick(n, 1);
+  renderWall(); if (sel===n) renderCard();
+  $('hint').classList.add('gone');
+}
+function removePerson(n){
+  if (n.people.length <= 1) return;
+  audio();
+  const gone = n.newbies.length ? n.newbies.pop() : n.people[n.people.length-1];
+  n.people.splice(n.people.lastIndexOf(gone), 1);
+  kick(n, -1);
+  renderWall(); if (sel===n) renderCard();
+}
+function kick(n, sign){
+  // mass changes now; the arms tip; then each pivot slides to its new balance point
+  let a = n.parent, depth = 0, tilt = 0;
+  while (a){ rebalance(a, false); a.waitShift = reduce ? 0 : 0.9 + depth*0.35; depth++; a = a.parent; }
+  n.phiV += sign*1.6; n.yawV += sign*2.2;
+  ding(sign);
+  setTimeout(() => {
+    const t = Math.round(Math.abs(n.parent.theta)*180/Math.PI);
+    announce(`${n.name} is now ${n.people.length} ${n.people.length===1?'person':'people'}. ${n.parent.name} tipped about ${t} degrees, then rebalanced. Company total ${count(ORG)}.`);
+  }, 700);
+}
+
+/* drag a new hire onto a shape */
+const chipsEl = $('chips');
+HIRES.forEach((h, i) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+  b.innerHTML = `<span class="disc"></span><span>${h.name}<small>${h.role}</small></span>`;
+  b.setAttribute('aria-label', `${h.name}, ${h.role}. Press to add to ${h.team}, or drag onto any team.`);
+  let drag = null;
+  b.addEventListener('pointerdown', e => {
+    audio(); e.preventDefault();
+    try{ b.setPointerCapture(e.pointerId); }catch(_){}
+    drag = {x:e.clientX, y:e.clientY, moved:false, ghost:null};
+  });
+  b.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX-drag.x, e.clientY-drag.y) > 5){
+      drag.moved = true; drag.ghost = document.createElement('div'); drag.ghost.className = 'ghost'; document.body.appendChild(drag.ghost); b.classList.add('used');
+    }
+    if (drag.moved){ drag.ghost.style.left = e.clientX+'px'; drag.ghost.style.top = e.clientY+'px'; const t = shapeAt(e.clientX, e.clientY, 18); hover = t; breeze(e.movementX||0, e.clientX, e.clientY); }
+  });
+  const end = e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.ghost) d.ghost.remove();
+    if (!d.moved){ place(h, b, leaves.find(n => n.name===h.team)); return; }
+    const t = shapeAt(e.clientX, e.clientY, 22);
+    hover = null;
+    if (t) place(h, b, t); else b.classList.remove('used');
+  };
+  b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
+  b.addEventListener('click', e => { if (e.detail === 0 && !b.classList.contains('used')){ audio(); place(h, b, leaves.find(n => n.name===h.team)); } });
+  chipsEl.appendChild(b);
+});
+function place(h, b, n){
+  b.classList.add('used'); b.disabled = true; b.tabIndex = -1;
+  addPerson(n, h.name);
+  if (!sel) select(n); else if (sel===n) renderCard();
+  if ([...chipsEl.children].every(c => c.classList.contains('used'))){
+    $('hires').querySelector('.cap').textContent = 'Everyone has a team';
+  }
+}
+function shapeAt(x, y, pad){
+  let best = null, bd = 1e9;
+  for (const n of leaves){ const p = pos.get(n); if (!p) continue; const d = Math.hypot(x-p.x, y-p.y); if (d < p.r + pad && d < bd){ bd = d; best = n; } }
+  return best;
+}
+/* moving air: quick pointer motion near the mobile */
+function breeze(dx, x, y){
+  if (reduce) return;
+  for (const n of nodes){ const p = pos.get(n); if (!p) continue; const d = Math.hypot(x-p.x, y-p.y); if (d < 140){ const f = (1 - d/140); n.yawV += dx*0.004*f; n.phiV += dx*0.0015*f; } }
+}
+cv.addEventListener('pointermove', e => { breeze(e.movementX||0, e.clientX, e.clientY); });
+
+/* ---------------- sound: soft metal tink ---------------- */
+let AC=null, master=null;
+function audio(){ if (AC){ if (AC.state==='suspended') AC.resume(); return; } try{ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.14; master.connect(AC.destination);}catch(e){AC=null;} }
+function ding(sign){
+  if (!AC) return; const t0 = AC.currentTime;
+  const base = sign > 0 ? 880 : 660;
+  [1, 2.76, 5.4].forEach((m,i) => { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = base*m; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.18/(i+1), t0+0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.4/(i+1)); o.connect(g); g.connect(master); o.start(t0); o.stop(t0+1.5); });
+}
+
+/* ---------------- DOM placement ---------------- */
+function placeDom(){
+  const wall = $('wall'), card = $('card'), hires = $('hires'), hint = $('hint');
+  wall.hidden = mob && !!sel;
+  if (!mob){
+    Object.assign(wall.style, {right:'36px', left:'auto', top:'auto', bottom:'98px', width:'360px'});
+    Object.assign(hires.style, {left:'36px', bottom:'100px', top:'auto'});
+    Object.assign(hint.style, {left:'0', right:'0', top:'auto', bottom:'30px', maxWidth:'none', textAlign:'center'});
+    placeCard();
+  } else {
+    Object.assign(wall.style, {left:'10px', right:'10px', width:'auto', top:'auto', bottom:'128px'});
+    Object.assign(card.style, {left:'10px', right:'10px', width:'auto', top:'auto', bottom:'8px'});
+    Object.assign(hires.style, {left:'10px', bottom:'8px', top:'auto'});
+    Object.assign(hint.style, {left:'auto', right:'12px', top:'auto', bottom:'14px', maxWidth:'118px', textAlign:'left'});
+  }
+}
+function placeCard(){
+  // on the wall beside the selected plate, like a gallery hand-out
+  const card = $('card');
+  if (!sel || mob) return;
+  const p = pos.get(sel); if (!p) return;
+  const cw = 280, ch = card.offsetHeight || 260;
+  let x = p.x + p.r + 28; if (x + cw > W - 16) x = p.x - p.r - 28 - cw;
+  const y = Math.max(16, Math.min(H - ch - 100, p.y - ch/2));
+  Object.assign(card.style, {left: Math.max(16, x) + 'px', top: y + 'px', right:'auto', bottom:'auto', width: cw + 'px'});
+}
+function maxShapeBottom(){ let m = 0; for (const n of leaves){ const p = pos.get(n); if (p) m = Math.max(m, p.y + p.r + 22); } return m || 360; }
+function announce(s){ $('live').textContent = s; }
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), acc = 0;
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  acc += Math.min(0.05, (now-last)/1000); last = now;
+  const h = 1/240;
+  while (acc >= h){ solve(h); acc -= h; }
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawWall();
+  // crisp cast shadows on the wall from a spotlight high and to the left
+  const Lx = W*0.2, Ly = -H*0.9;
+  ctx.save(); ctx.globalAlpha = 0.17; ctx.filter = 'blur(0.8px)';
+  ctx.translate(Lx, Ly); ctx.scale(1.035, 1.035); ctx.translate(-Lx, -Ly); ctx.translate(16*S, 24*S);
+  drawWires(ctx, true); drawShapes(ctx, true);
+  ctx.restore(); ctx.filter = 'none';
+  drawWires(ctx, false);
+  drawShapes(ctx, false);
+  updateHits();
+  requestAnimationFrame(frame);
+}
+
+addEventListener('resize', () => { layout(); });
+addEventListener('keydown', e => { if (e.key==='Escape' && sel){ const b = sel.btn; select(null); b.focus(); } });
+layout();
+for (let i=0;i<400;i++) solve(1/240);
+renderWall(); placeDom();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeDom);
+// a gentle first breath of air
+if (!reduce) setTimeout(() => { ORG.children.forEach((d,i) => { d.yawV += (i%2?1:-1)*1.2; d.phiV += 0.25; }); }, 400);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

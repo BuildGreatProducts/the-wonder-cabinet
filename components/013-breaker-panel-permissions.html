@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breaker Panel Permissions</title>
+<meta name="description" content="App permissions as a fuse box drawn in architect's pencil with marker accents. Dependencies trip each other.">
+<script type="application/json" id="component-meta">
+{"name":"Breaker Panel Permissions","reimagines":"Toggle group with dependencies","category":"Toggles & Switches","description":"App permissions drawn as an architect's pencil sketch of a fuse box. Flip a breaker and anything that depends on it trips to the halfway position with a clack, traced by a red marker arrow. Highlighter shows what is live, so the dependency graph is visible instead of hidden in fine print.","hint":"Flip a breaker; switch off Network and watch Sync and Backups trip"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#f3efe4;--graphite:#3a3a3c;--red:#d9402f;--yellow:#ffd83a;--grey:#8f989e;--tape:#e7dab2}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:"Architects Daughter","Comic Sans MS",cursive;color:var(--graphite);
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%),
+    radial-gradient(90% 70% at 90% 100%, rgba(150,130,90,.12), rgba(0,0,0,0) 70%),
+    var(--paper)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .5 0 0 0 0 .42 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23p)'/%3E%3C/svg%3E")}
+svg#sheet{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+.pencil{fill:none;stroke:var(--graphite);stroke-linecap:round;stroke-linejoin:round}
+.faint{opacity:.38}
+.mk{fill:none;stroke-linecap:round;mix-blend-mode:multiply}
+.hand{font-family:"Architects Daughter",cursive;fill:var(--graphite)}
+.marker{font-family:"Caveat",cursive;font-weight:700}
+.brk{cursor:pointer;outline:none}
+.brk .ring{opacity:0;transition:opacity .2s}
+.brk:focus-visible .ring{opacity:1}
+.brk.refuse .lever{animation:none}
+.tape-t{font-family:"Architects Daughter",cursive;fill:#2c2c2e}
+.off-dim{transition:opacity .5s}
+.note{transition:opacity .5s}
+.draw{transition:stroke-dashoffset .55s cubic-bezier(.4,0,.2,1)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.draw{transition:none}}
+</style>
+</head>
+<body>
+<svg id="sheet" role="group" aria-labelledby="ttl" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="graphite" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="7" result="t"/>
+      <feColorMatrix in="t" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.75" result="mask"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="1.1" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feComposite in="d" in2="mask" operator="in"/>
+    </filter>
+    <filter id="markerEdge" x="-5%" y="-20%" width="110%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency=".06 .9" numOctaves="2" seed="3" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="3" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <title id="ttl">Fieldnote app permissions, drawn as a breaker panel</title>
+  <g id="root"></g>
+</svg>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('sheet'), root = document.getElementById('root');
+const live = document.getElementById('live');
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- seeded jitter so the sketch is stable between redraws ---------- */
+let seed = 1;
+const R = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const rr = (a, b) => a + R() * (b - a);
+const f1 = n => Math.round(n * 10) / 10;
+
+function strokeD(x1, y1, x2, y2, o = {}){
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, nx = -uy, ny = ux;
+  const os1 = o.over != null ? o.over : rr(1, 6), os2 = o.over != null ? o.over : rr(1, 7);
+  const j = o.j != null ? o.j : Math.min(2.2, L * .012);
+  const sx = x1 - ux * os1 + nx * rr(-j, j) * .4, sy = y1 - uy * os1 + ny * rr(-j, j) * .4;
+  const ex = x2 + ux * os2 + nx * rr(-j, j) * .4, ey = y2 + uy * os2 + ny * rr(-j, j) * .4;
+  const t = rr(.35, .65), b = rr(-j, j);
+  return `M${f1(sx)},${f1(sy)} Q${f1(x1 + dx * t + nx * b * 2)},${f1(y1 + dy * t + ny * b * 2)} ${f1(ex)},${f1(ey)}`;
+}
+function lineD(x1, y1, x2, y2, o = {}){ return strokeD(x1, y1, x2, y2, o) + (o.single ? '' : ' ' + strokeD(x1 + rr(-.6, .6), y1 + rr(-.6, .6), x2 + rr(-.6, .6), y2 + rr(-.6, .6), Object.assign({}, o, {over: rr(0, 3)}))); }
+function rectD(x, y, w, h, o = {}){ return [lineD(x, y, x + w, y, o), lineD(x + w, y, x + w, y + h, o), lineD(x + w, y + h, x, y + h, o), lineD(x, y + h, x, y, o)].join(' '); }
+function hatchD(x, y, w, h, sp = 6, ang = -.9){
+  const out = [], c = Math.cos(ang), s = Math.sin(ang), diag = Math.hypot(w, h);
+  for (let k = -diag; k < diag; k += sp + rr(-1, 1)) {
+    // line through centre offset k along normal, clipped to rect (Liang–Barsky)
+    const cx = x + w / 2 - s * k, cy = y + h / 2 + c * k;
+    let t0 = -diag, t1 = diag; const p = [-c, c, -s, s], q = [cx - x, x + w - cx, cy - y, y + h - cy]; let ok = true;
+    for (let i = 0; i < 4; i++) { if (Math.abs(p[i]) < 1e-9) { if (q[i] < 0) ok = false; continue; } const r = q[i] / p[i]; if (p[i] < 0) t0 = Math.max(t0, r); else t1 = Math.min(t1, r); }
+    if (!ok || t0 >= t1) continue;
+    out.push(`M${f1(cx + c * t0 + rr(-1, 1))},${f1(cy + s * t0)} L${f1(cx + c * t1 + rr(-1, 1))},${f1(cy + s * t1)}`);
+  }
+  return out.join(' ');
+}
+function el(tag, attrs = {}, parent = root, text){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  parent && parent.appendChild(e); return e;
+}
+const pencil = (parent, d, w = 1.15, op = .85, cls = 'pencil') => el('path', {d, class: cls, 'stroke-width': w, opacity: op}, parent);
+function marker(parent, pts, color, w, op = .55, drawn = true){
+  // two overlapping passes like a real chisel marker
+  let d = '';
+  for (let p = 0; p < 2; p++) {
+    d += `M${f1(pts[0][0] + rr(-1, 1))},${f1(pts[0][1] + rr(-1.5, 1.5) + p * w * .35)}`;
+    for (let i = 1; i < pts.length; i++) d += ` L${f1(pts[i][0] + rr(-1, 1))},${f1(pts[i][1] + rr(-1.5, 1.5) + p * w * .35)}`;
+    d += ' ';
+  }
+  const e = el('path', {d, class: 'mk draw', stroke: color, 'stroke-width': w, opacity: op, filter: 'url(#markerEdge)'}, parent);
+  const len = pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0, 0) * 2 + 40;
+  e.style.strokeDasharray = len; e.style.strokeDashoffset = drawn ? 0 : len; e._len = len;
+  return e;
+}
+function setDrawn(e, on){ e.style.strokeDashoffset = on ? 0 : e._len; }
+function text(parent, x, y, str, size, o = {}){
+  const t = el('text', {x, y, 'font-size': size, class: o.cls || 'hand', transform: o.rot ? `rotate(${o.rot} ${x} ${y})` : '', 'text-anchor': o.anchor || 'start'}, parent, str);
+  if (o.fill) t.setAttribute('fill', o.fill);
+  if (o.op != null) t.setAttribute('opacity', o.op);
+  return t;
+}
+function arrowD(x1, y1, x2, y2, bend = 30){
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  const cx = mx - dy / L * bend, cy = my + dx / L * bend;
+  const ang = Math.atan2(y2 - cy, x2 - cx), h = 9;
+  return {d: `M${f1(x1)},${f1(y1)} Q${f1(cx)},${f1(cy)} ${f1(x2)},${f1(y2)} M${f1(x2 - h * Math.cos(ang - .45))},${f1(y2 - h * Math.sin(ang - .45))} L${f1(x2)},${f1(y2)} L${f1(x2 - h * Math.cos(ang + .45))},${f1(y2 - h * Math.sin(ang + .45))}`, len: L * 1.3 + 30};
+}
+
+/* ---------- audio ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch(e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function noise(dur, type, freq, q, gain, when = 0){
+  if (!ac) return;
+  const n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.5);
+  const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+  const g = ac.createGain(); g.gain.value = gain; s.connect(f); f.connect(g); g.connect(master); s.start(ac.currentTime + when);
+}
+function thump(freq, dur, gain, when = 0){
+  if (!ac) return; const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+  o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * .5, t + dur);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+}
+const sClack = () => { noise(.05, 'bandpass', 2600, 1.4, 1.1); thump(140, .09, .5); noise(.09, 'lowpass', 500, .7, .7); };
+const sTrip = () => { noise(.035, 'highpass', 3000, .7, 1.2); thump(220, .06, .35); setTimeout(() => thump(1180, .12, .06), 10); };
+const sRefuse = () => { thump(90, .14, .55); noise(.06, 'lowpass', 300, .7, .6); };
+const sMain = (on) => { noise(.08, 'bandpass', 1800, 1, 1.3); thump(90, .22, .7); if (!on) thump(60, .5, .25, .05); };
+const sScribble = () => { if (!ac) return; for (let i = 0; i < 4; i++) noise(.05, 'bandpass', 4200 + Math.random() * 1500, 3, .25, i * .06); };
+
+/* ---------- model ---------- */
+const BRK = [
+  {id: 'net',  name: 'Network',         sub: 'wi-fi + cellular',     col: 0, row: 0, deps: [], state: 'on'},
+  {id: 'sync', name: 'Background sync', sub: 'every 15 min',         col: 0, row: 1, deps: ['net'], state: 'on'},
+  {id: 'stor', name: 'Storage',         sub: 'photos & drafts',      col: 0, row: 2, deps: [], state: 'on'},
+  {id: 'back', name: 'Cloud backups',   sub: 'nightly, 02:00',       col: 0, row: 3, deps: ['net', 'stor'], state: 'on'},
+  {id: 'loc',  name: 'Location',        sub: 'while using',          col: 1, row: 0, deps: [], state: 'on'},
+  {id: 'cam',  name: 'Camera',          sub: 'site photos',          col: 1, row: 1, deps: [], state: 'on'},
+  {id: 'geo',  name: 'Geotag photos',   sub: 'needs both above',     col: 1, row: 2, deps: ['loc', 'cam'], state: 'on'},
+  {id: 'notif',name: 'Notifications',   sub: 'site reminders',       col: 1, row: 3, deps: [], state: 'off'},
+];
+const byId = Object.fromEntries(BRK.map(b => [b.id, b]));
+let mainOn = true;
+const powered = b => mainOn && b.state === 'on' && b.deps.every(d => powered(byId[d]));
+
+/* ---------- layout ---------- */
+let L = null, portrait = false;
+function computeLayout(){
+  const W = innerWidth, H = innerHeight; portrait = W / H < .9;
+  if (portrait) {
+    const vw = 400, vh = Math.max(820, Math.round(400 * H / W));
+    return {vw, vh, title: [22, 46], panel: [14, 112, 372, 580], main: [180, 168], bus: [28, 212], colX: [40, 224], tapeW: 132,
+      rowY: [296, 386, 476, 566], bw: 42, bh: 72, notes: 'below', tb: [14, vh - 92, 372, 78], fs: .86, reset: [200, 642]};
+  }
+  return {vw: 1200, vh: 760, title: [60, 66], panel: [60, 112, 590, 590], main: [330, 172], bus: [92, 380], colX: [106, 394], tapeW: 178,
+    rowY: [300, 392, 484, 576], bw: 56, bh: 82, notes: 'right', tb: [712, 636, 440, 96], fs: 1, reset: [355, 662]};
+}
+
+/* ---------- drawing ---------- */
+const refs = {};
+function draw(){
+  L = computeLayout();
+  svg.setAttribute('viewBox', `0 0 ${L.vw} ${L.vh}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  root.innerHTML = ''; seed = 11;
+  const lay = el('g', {filter: 'url(#graphite)'});
+  const mk = el('g', {});         // marker layer (under pencil visually via multiply)
+  const top = el('g', {});
+  const fs = L.fs;
+  // title
+  text(top, L.title[0], L.title[1], 'Fieldnote — app permissions', 32 * fs);
+  text(top, L.title[0] + 2, L.title[1] + 24 * fs, 'what the app may touch, drawn as a breaker panel', 15 * fs, {op: .7});
+  pencil(lay, lineD(L.title[0], L.title[1] + 8, L.title[0] + (portrait ? 330 : 420), L.title[1] + 6, {j: 1.5}), 1, .5);
+
+  // panel enclosure with construction lines
+  const [px, py, pw, ph] = L.panel;
+  pencil(lay, rectD(px, py, pw, ph, {}), 1.6, .9);
+  pencil(lay, rectD(px + 10, py + 10, pw - 20, ph - 20, {over: 2}), 1, .55);
+  pencil(lay, lineD(px - 30, py, px + pw + 30, py, {single: true, over: 0, j: .5}), .6, .25);
+  pencil(lay, lineD(px, py - 26, px, py + ph + 26, {single: true, over: 0, j: .5}), .6, .25);
+  pencil(lay, lineD(px + pw, py - 20, px + pw, py + ph + 30, {single: true, over: 0, j: .5}), .6, .25);
+  // grey marker shadow along right & bottom of the enclosure
+  marker(mk, [[px + pw + 6, py + 14], [px + pw + 6, py + ph + 6], [px + 14, py + ph + 6]], '#9aa3a8', 9, .45);
+  // dimension line under the panel
+  if (!portrait) {
+    const dy = py + ph + 34;
+    pencil(lay, lineD(px, dy, px + pw, dy, {single: true, over: 4}), .8, .55);
+    pencil(lay, `M${px - 4},${dy + 4} L${px + 4},${dy - 4} M${px + pw - 4},${dy + 4} L${px + pw + 4},${dy - 4}`, 1.2, .6);
+    text(top, px + pw / 2, dy - 6, '600', 13, {anchor: 'middle', op: .65});
+    const dx = px - 30;
+    pencil(lay, lineD(dx, py, dx, py + ph, {single: true, over: 4}), .8, .55);
+    pencil(lay, `M${dx - 4},${py + 4} L${dx + 4},${py - 4} M${dx - 4},${py + ph + 4} L${dx + 4},${py + ph - 4}`, 1.2, .6);
+    text(top, dx - 8, py + ph / 2, '600', 13, {anchor: 'middle', op: .65, rot: -90});
+  }
+  // bus bars
+  refs.bus = [];
+  L.bus.forEach((bx, i) => {
+    const y0 = L.main[1] + 46, y1 = L.rowY[3] + 30;
+    pencil(lay, lineD(bx, y0, bx, y1, {j: 1}), 1.4, .8);
+    pencil(lay, lineD(bx + 5, y0, bx + 5, y1, {single: true, j: 1}), .7, .5);
+    refs.bus.push(marker(mk, [[bx + 2.5, y0], [bx + 2.5, y1]], '#ffd83a', 10, .62));
+  });
+  // main → buses
+  const mx = L.main[0], my = L.main[1];
+  pencil(lay, lineD(L.bus[0], my + 46, L.bus[1] + 5, my + 46, {j: 1}), 1.3, .8);
+  refs.mainFeed = marker(mk, [[L.bus[0], my + 46], [L.bus[1] + 5, my + 46]], '#ffd83a', 10, .62);
+  pencil(lay, lineD(mx, my + 36, mx, my + 46, {}), 1.3, .8);
+
+  // main breaker
+  refs.main = drawBreaker(lay, mk, top, {main: true, x: mx - (portrait ? 46 : 58), y: my - 40, w: portrait ? 92 : 116, h: portrait ? 76 : 82});
+
+  // breakers
+  BRK.forEach(b => {
+    const x = L.colX[b.col], y = L.rowY[b.row] - L.bh / 2;
+    // feeder from bus
+    const fy = L.rowY[b.row];
+    pencil(lay, lineD(L.bus[b.col] + 5, fy, x, fy, {over: 2}), 1.1, .75);
+    b.feed = marker(mk, [[L.bus[b.col] + 4, fy], [x, fy]], '#ffd83a', 8, .62);
+    b.ref = drawBreaker(lay, mk, top, {b, x, y, w: L.bw, h: L.bh});
+  });
+
+  // dependency arrows (faint pencil), drawn in the gutter right of each tape
+  refs.dep = {};
+  BRK.forEach(b => b.deps.forEach(pid => {
+    const p = byId[pid], gx = L.colX[b.col] + L.bw + L.tapeW + (portrait ? 4 : 14);
+    const y1 = L.rowY[p.row] + 6, y2 = L.rowY[b.row] - 6;
+    const sameCol = p.col === b.col;
+    if (!sameCol) return;
+    const off = (b.row - p.row) > 1 ? (portrait ? 9 : 16) : 0;
+    const a = arrowD(gx + off * .3, y1, gx + off * .3, y2, -(portrait ? 10 : 16) - off);
+    pencil(lay, a.d, .9, .45);
+    const red = el('path', {d: a.d, class: 'mk draw', stroke: '#d9402f', 'stroke-width': 3, opacity: .85, fill: 'none'}, mk);
+    red.style.strokeDasharray = a.len; red.style.strokeDashoffset = a.len; red._len = a.len;
+    refs.dep[pid + '>' + b.id] = red;
+  }));
+
+  // hand-drawn reset button (appears when tripped breakers can be restored)
+  {
+    const [rx, ry] = L.reset, w = portrait ? 170 : 190, h = 38;
+    const g = el('g', {class: 'note', role: 'button', tabindex: -1, opacity: 0, 'aria-hidden': 'true', style: 'cursor:pointer;pointer-events:none'}, top);
+    el('path', {d: rectD(rx - w / 2, ry - h / 2, w, h, {over: 4}), class: 'pencil', 'stroke-width': 1.4, stroke: '#d9402f', opacity: .9}, g);
+    el('path', {d: hatchD(rx - w / 2 + 2, ry - h / 2 + 2, w - 4, h - 4, 7, -.6), class: 'pencil', 'stroke-width': .7, stroke: '#d9402f', opacity: .25}, g);
+    const t = text(g, rx, ry + 7, 'reset 2 tripped', (portrait ? 19 : 21), {cls: 'marker', anchor: 'middle', fill: '#d9402f'});
+    el('rect', {x: rx - w / 2 - 6, y: ry - h / 2 - 6, width: w + 12, height: h + 12, fill: 'transparent'}, g);
+    refs.reset = {g, t};
+    const go = () => resetTripped();
+    g.addEventListener('click', go);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  }
+  // notes & status
+  drawNotes(lay, mk, top);
+  drawTitleBlock(lay, top);
+  refresh(true);
+}
+
+function tapeShape(x, y, w, h){
+  const pts = [[x, y]];
+  for (let i = 1; i <= 4; i++) pts.push([x + w, y]); // placeholder replaced below
+  // torn ends: zigzag left/right
+  const zz = (x0, dir) => { const a = []; for (let k = 0; k <= 5; k++) a.push([x0 + (k % 2 ? 3 : -2) * dir + rr(-1, 1), y + h * k / 5]); return a; };
+  const right = zz(x + w, 1), left = zz(x, -1).reverse();
+  return 'M' + [[x, y], ...right.slice(0, 1), ...right, [x, y + h], ...left].map(p => `${f1(p[0])},${f1(p[1])}`).join(' L') + ' Z';
+}
+
+function drawBreaker(lay, mk, top, o){
+  const g = el('g', {class: 'brk', tabindex: 0, role: 'switch'}, top);
+  const {x, y, w, h} = o;
+  const fs = L.fs;
+  // body
+  pencil(lay, rectD(x, y, w, h, {over: 3}), 1.2, .9);
+  marker(mk, [[x + w + 3, y + 6], [x + w + 3, y + h + 3], [x + 6, y + h + 3]], '#9aa3a8', 6, .5);
+  // slot
+  const sw = o.main ? w * .62 : w * .38, sx = x + (w - sw) / 2, sy = y + h * .16, sh = h * .68;
+  pencil(lay, rectD(sx, sy, sw, sh, {over: 1.5}), .9, .7);
+  pencil(lay, hatchD(sx + 1, sy + 1, sw - 2, sh - 2, 4.5, -.9), .5, .35);
+  text(top, sx - (o.main ? 9 : 6), sy + 9, 'I', 10 * fs, {anchor: 'middle', op: .55});
+  text(top, sx - (o.main ? 9 : 6), sy + sh - 1, 'O', 9 * fs, {anchor: 'middle', op: .55});
+  // lever (moves)
+  const lever = el('g', {class: 'lever'}, top);
+  const lw = sw + (o.main ? 10 : 8), lh = o.main ? 18 : 15;
+  const lp = el('path', {d: rectD(x + (w - lw) / 2, -lh / 2, lw, lh, {over: 1.5}), class: 'pencil', 'stroke-width': 1.3, opacity: .95}, lever);
+  el('path', {d: hatchD(x + (w - lw) / 2 + 1, -lh / 2 + 1, lw - 2, lh - 2, 3, -.7), class: 'pencil', 'stroke-width': .7, opacity: .55}, lever);
+  const lmk = el('path', {d: `M${x + (w - lw) / 2 + 3},0 L${x + (w + lw) / 2 - 3},0`, class: 'mk', stroke: '#6d767c', 'stroke-width': lh - 4, opacity: .55}, lever);
+  const yOn = sy + lh / 2 + 1, yOff = sy + sh - lh / 2 - 1, yTrip = (yOn + yOff) / 2;
+  // red "tripped" ring + note
+  const trip = el('g', {class: 'note', opacity: 0}, top);
+  el('ellipse', {cx: x + w / 2, cy: yTrip, rx: w * .78, ry: h * .3, class: 'mk', stroke: '#d9402f', 'stroke-width': 2.4, opacity: .8, fill: 'none', transform: `rotate(-8 ${x + w / 2} ${yTrip})`, filter: 'url(#markerEdge)'}, trip);
+  // focus ring (dashed pencil)
+  el('rect', {x: x - 8, y: y - 10, width: (o.main ? w : w + L.tapeW) + 20, height: h + 26, rx: 6, class: 'ring pencil', 'stroke-width': 1.2, 'stroke-dasharray': '5 5', stroke: '#d9402f'}, g);
+  // hit area
+  el('rect', {x: x - 6, y: y - 6, width: (o.main ? w : w + L.tapeW) + 16, height: h + 16, fill: 'transparent'}, g);
+  // tape label
+  let tape = null, tapeT = null, sub = null, power = null;
+  if (!o.main) {
+    const b = o.b, tx = x + w + 10, ty = y + h * .2, tw = L.tapeW - 18, th = h * .5;
+    const rot = rr(-2.2, 2.2);
+    tape = el('g', {transform: `rotate(${rot} ${tx + tw / 2} ${ty + th / 2})`, class: 'off-dim'}, top);
+    el('path', {d: tapeShape(tx, ty, tw, th), fill: 'var(--tape)', opacity: .9, style: 'mix-blend-mode:multiply'}, tape);
+    el('path', {d: tapeShape(tx, ty, tw, th), fill: 'none', stroke: 'rgba(120,100,60,.35)', 'stroke-width': .8}, tape);
+    tapeT = text(tape, tx + 8, ty + th * .62, b.name, Math.min(17, tw / b.name.length * 1.75) * fs, {cls: 'tape-t'});
+    sub = text(top, tx + 4, y + h * .2 + th + 14 * fs, b.sub, 11.5 * fs, {op: .62});
+    // live = a highlighter swipe across the tape label
+    power = marker(tape, [[tx + 3, ty + th * .4], [tx + tw - 6, ty + th * .37]], '#ffd83a', th * .5, .6, true);
+    tape.insertBefore(power, tapeT);
+    g.setAttribute('aria-label', `${b.name}${b.deps.length ? ', needs ' + b.deps.map(d => byId[d].name).join(' and ') : ''}`);
+  } else {
+    const tx = x + w + 14, ty = y + h * .25, tw = portrait ? 120 : 200, th = h * .44;
+    tape = el('g', {transform: `rotate(-1.5 ${tx + tw / 2} ${ty + th / 2})`}, top);
+    el('path', {d: tapeShape(tx, ty, tw, th), fill: '#f0c8b8', opacity: .9, style: 'mix-blend-mode:multiply'}, tape);
+    tapeT = text(tape, tx + 10, ty + th * .66, portrait ? 'MAIN' : 'MAIN — all access', (portrait ? 17 : 19) * fs, {cls: 'tape-t marker'});
+    g.setAttribute('aria-label', 'Main breaker: all permissions');
+    // hit area should include the tape for main too
+    el('rect', {x: tx, y: ty - 4, width: tw, height: th + 8, fill: 'transparent'}, g);
+  }
+  return {g, lever, yOn, yOff, yTrip, trip, tape, sub, lmk, power, y: o.b ? (o.b.state === 'on' ? yOn : yOff) : yOn, v: 0, target: null, main: !!o.main, b: o.b, sx, sy, sw, sh};
+}
+
+function drawNotes(lay, mk, top){
+  const fs = L.fs;
+  if (L.notes === 'right') {
+    const nx = 712;
+    // status
+    refs.status = text(top, nx, 168, '7 of 8 live', 46, {cls: 'marker', fill: '#2c2c2e'});
+    refs.statusHi = marker(mk, [[nx - 4, 156], [nx + 210, 154]], '#ffd83a', 20, .5);
+    text(top, nx + 2, 194, 'yellow = permission the app can actually use', 14, {op: .7});
+    // pencil notes with leaders
+    const n1y = 290;
+    text(top, nx, n1y, 'Sync + backups ride on Network.', 17);
+    text(top, nx, n1y + 22, 'Kill Network and they trip — lever', 15, {op: .8});
+    text(top, nx, n1y + 41, 'jumps halfway, ringed in red.', 15, {op: .8});
+    const a1 = arrowD(nx - 8, n1y - 6, L.colX[0] + L.bw + L.tapeW - 6, L.rowY[0] - 14, 30);
+    pencil(lay, a1.d, 1, .7);
+    const n2y = 430;
+    text(top, nx, n2y, 'Geotag needs Location AND Camera.', 17);
+    const a2 = arrowD(nx - 8, n2y - 6, L.colX[1] + L.bw + L.tapeW - 8, L.rowY[2] - 10, -24);
+    pencil(lay, a2.d, 1, .7);
+    const n3y = 506;
+    text(top, nx, n3y, 'Tripped? Restore its feed, then tap', 15, {op: .8});
+    text(top, nx, n3y + 20, 'the breaker to reset it.', 15, {op: .8});
+    refs.mainNote = text(top, nx, 588, 'Main is off — the app can touch nothing.', 19, {cls: 'marker', fill: '#d9402f'});
+    refs.mainNote.setAttribute('class', 'marker note'); refs.mainNote.setAttribute('opacity', 0);
+    refs.toast = text(top, nx, 588, '', 19, {cls: 'marker', fill: '#d9402f'});
+    refs.toast.setAttribute('class', 'marker note');
+  } else {
+    const ny = L.panel[1] + L.panel[3] + 34;
+    refs.status = text(top, 22, ny + 6, '7 of 8 live', 30, {cls: 'marker', fill: '#2c2c2e'});
+    refs.statusHi = marker(mk, [[18, ny - 2], [150, ny - 3]], '#ffd83a', 14, .5);
+    text(top, 170, ny - 4, 'yellow = usable', 12, {op: .7});
+    text(top, 170, ny + 11, 'red ring = tripped, tap to reset', 12, {op: .7});
+    refs.mainNote = text(top, 22, ny + 36, 'Main is off — the app can touch nothing.', 15, {cls: 'marker', fill: '#d9402f'});
+    refs.mainNote.setAttribute('class', 'marker note'); refs.mainNote.setAttribute('opacity', 0);
+    refs.toast = text(top, 22, ny + 36, '', 15, {cls: 'marker', fill: '#d9402f'});
+    refs.toast.setAttribute('class', 'marker note');
+  }
+}
+function drawTitleBlock(lay, top){
+  const [x, y, w, h] = L.tb, fs = L.fs;
+  pencil(lay, rectD(x, y, w, h, {over: 4}), 1.2, .8);
+  const c1 = x + w * .5, r1 = y + h * .5;
+  pencil(lay, lineD(c1, y, c1, y + h, {over: 2}), .8, .6);
+  pencil(lay, lineD(x, r1, x + w, r1, {over: 2}), .8, .6);
+  pencil(lay, lineD(x + w * .75, r1, x + w * .75, y + h, {over: 2}), .8, .6);
+  const lab = (tx, ty, a, b) => { text(top, tx + 6, ty + 13 * fs, a, 9 * fs, {op: .55}); text(top, tx + 6, ty + 31 * fs, b, 15 * fs); };
+  lab(x, y, 'PROJECT', 'Fieldnote 2.4');
+  lab(c1, y, 'SHEET', portrait ? 'Permissions' : 'Permissions panel');
+  lab(x, r1, 'DRAWN · DATE', 'C.A. · 07.10.2026');
+  lab(c1, r1, 'SCALE', '1 : 5');
+  lab(x + w * .75, r1, 'REV', 'C');
+}
+
+/* ---------- state → picture ---------- */
+let first = true;
+function refresh(instant){
+  let liveCount = 0;
+  BRK.forEach(b => {
+    const p = powered(b); if (p) liveCount++;
+    setDrawn(b.feed, p);
+    const r = b.ref;
+    r.target = b.state === 'on' ? r.yOn : b.state === 'tripped' ? r.yTrip : r.yOff;
+    if (instant) { r.y = r.target; r.v = 0; }
+    r.trip.setAttribute('opacity', b.state === 'tripped' ? 1 : 0);
+    r.tape.setAttribute('opacity', p ? 1 : (b.state === 'on' ? .7 : .5));
+    setDrawn(r.power, p);
+    r.lmk.setAttribute('stroke', b.state === 'tripped' ? '#d9402f' : '#6d767c');
+    r.g.setAttribute('aria-checked', String(b.state === 'on'));
+    r.g.setAttribute('aria-description', b.state === 'tripped' ? 'tripped' : (b.state === 'on' && !p ? 'on but not live' : ''));
+  });
+  refs.bus.forEach(e => setDrawn(e, mainOn)); setDrawn(refs.mainFeed, mainOn);
+  const resettable = BRK.filter(b => b.state === 'tripped' && b.deps.every(d => byId[d].state === 'on'));
+  if (refs.reset) {
+    refs.reset.g.setAttribute('opacity', resettable.length ? 1 : 0);
+    refs.reset.g.style.pointerEvents = resettable.length ? 'auto' : 'none';
+    refs.reset.g.setAttribute('tabindex', resettable.length ? 0 : -1);
+    refs.reset.g.setAttribute('aria-hidden', resettable.length ? 'false' : 'true');
+    refs.reset.t.textContent = `reset ${resettable.length} tripped`;
+  }
+  const m = refs.main; m.target = mainOn ? m.yOn : m.yOff; if (instant) { m.y = m.target; }
+  m.g.setAttribute('aria-checked', String(mainOn));
+  refs.mainNote.setAttribute('opacity', mainOn ? 0 : 1);
+  refs.status.textContent = `${liveCount} of ${BRK.length} live`;
+  setDrawn(refs.statusHi, liveCount > 0);
+}
+
+/* ---------- actions ---------- */
+function say(s){ live.textContent = s; }
+let toastT = 0;
+function toast(s){
+  refs.toast.textContent = s; refs.toast.setAttribute('opacity', 1);
+  if (!mainOn) refs.mainNote.setAttribute('opacity', 0);
+  clearTimeout(toastT); toastT = setTimeout(() => { refs.toast.setAttribute('opacity', 0); if (!mainOn) refs.mainNote.setAttribute('opacity', 1); }, 3200);
+  sScribble();
+}
+function cascade(fromId, delay){
+  // trip everything that depends (directly or indirectly) on fromId
+  BRK.filter(c => c.deps.includes(fromId) && c.state === 'on').forEach((c, i) => {
+    const d = delay + 160 + i * 170;
+    const arrow = refs.dep[fromId + '>' + c.id];
+    setTimeout(() => { if (arrow) setDrawn(arrow, true); }, d - 140);
+    setTimeout(() => {
+      if (c.state !== 'on' || byId[fromId].state === 'on') { if (arrow) setDrawn(arrow, false); return; }
+      c.state = 'tripped'; sTrip(); c.ref.v -= 260; refresh(); say(`${c.name} tripped — it needs ${byId[fromId].name}.`);
+      setTimeout(() => { if (arrow) setDrawn(arrow, false); }, 900);
+      cascade(c.id, 0);
+    }, d);
+  });
+}
+function flip(b, want){
+  audio();
+  if (want === undefined) want = b.state !== 'on';
+  if (want) {
+    const missing = b.deps.filter(d => byId[d].state !== 'on');
+    if (missing.length) {
+      // refuse: lever goes up then springs back
+      sRefuse(); b.ref.y = b.ref.yOn + 8; b.ref.v = 0;
+      setTimeout(() => refresh(), 120);
+      missing.forEach(m => { const a = refs.dep[m + '>' + b.id]; if (a) { setDrawn(a, true); setTimeout(() => setDrawn(a, false), 1400); } });
+      const msg = `${b.name} needs ${missing.map(m => byId[m].name).join(' and ')} on first`;
+      toast(msg + '.'); say(msg + '.');
+      return;
+    }
+    b.state = 'on'; sClack(); refresh(); say(`${b.name} on${mainOn ? '' : ', but the main breaker is off'}.`);
+  } else {
+    b.state = 'off'; sClack(); refresh(); say(`${b.name} off.`);
+    cascade(b.id, 0);
+  }
+}
+function resetTripped(){
+  audio();
+  const list = BRK.filter(b => b.state === 'tripped' && b.deps.every(d => byId[d].state === 'on'));
+  list.forEach((b, i) => setTimeout(() => {
+    if (b.state !== 'tripped' || !b.deps.every(d => byId[d].state === 'on')) return;
+    b.state = 'on'; sClack(); b.ref.v -= 200; refresh();
+    if (i === list.length - 1) say(`${list.length} tripped ${list.length === 1 ? 'breaker' : 'breakers'} reset.`);
+  }, i * 200));
+}
+function flipMain(want){
+  audio();
+  if (want === undefined) want = !mainOn;
+  if (want === mainOn) return;
+  mainOn = want; sMain(mainOn);
+  BRK.forEach(b => { const d = (b.row * 90 + b.col * 40) + 'ms'; b.feed.style.transitionDelay = d; b.ref.power.style.transitionDelay = d; });
+  setTimeout(() => BRK.forEach(b => { b.feed.style.transitionDelay = ''; b.ref.power.style.transitionDelay = ''; }), 1200);
+  // power drains/returns along the bus in sequence
+  refresh(); say(mainOn ? 'Main breaker on. Permissions restored.' : 'Main breaker off. The app has no permissions.');
+}
+
+/* ---------- input ---------- */
+function svgScale(){ const r = svg.getBoundingClientRect(); return Math.max(L.vw / r.width, L.vh / r.height); }
+function wire(r, onFlip){
+  let st = null;
+  r.g.addEventListener('pointerdown', e => {
+    audio(); st = {y: e.clientY, base: r.y, moved: false, id: e.pointerId};
+    try { r.g.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  r.g.addEventListener('pointermove', e => {
+    if (!st || e.pointerId !== st.id) return;
+    const dy = (e.clientY - st.y) * svgScale();
+    if (Math.abs(dy) > 5) st.moved = true;
+    if (st.moved) { r.drag = Math.max(r.yOn, Math.min(r.yOff, st.base + dy)); }
+  });
+  const up = e => {
+    if (!st || e.pointerId !== st.id) return;
+    if (!st.moved) onFlip(undefined);
+    else { const mid = (r.yOn + r.yOff) / 2; const wantOn = r.drag < mid; r.drag = null; onFlip(wantOn); }
+    r.drag = null; st = null;
+  };
+  r.g.addEventListener('pointerup', up);
+  r.g.addEventListener('pointercancel', () => { r.drag = null; st = null; });
+  r.g.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onFlip(undefined); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); onFlip(true); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); onFlip(false); }
+  });
+}
+function wireAll(){
+  BRK.forEach(b => wire(b.ref, w => flip(b, w)));
+  wire(refs.main, w => flipMain(w));
+}
+
+/* ---------- lever springs ---------- */
+let last = performance.now(), raf = 0;
+function loop(now){
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  const all = BRK.map(b => b.ref).concat([refs.main]);
+  for (const r of all) {
+    if (r.drag != null) { r.y += (r.drag - r.y) * .5; r.v = 0; }
+    else if (reduced) { r.y = r.target; }
+    else { r.v += ((r.target - r.y) * 900 - r.v * 30) * dt; r.y += r.v * dt; }
+    r.lever.setAttribute('transform', `translate(0 ${f1(r.y)})`);
+  }
+  raf = requestAnimationFrame(loop);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(loop); } });
+let rt = 0, lastPortrait = null;
+function build(){ draw(); wireAll(); }
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const p = innerWidth / innerHeight < .9; if (p !== lastPortrait || p) { lastPortrait = p; build(); } }, 150); });
+build(); lastPortrait = portrait;
+raf = requestAnimationFrame(loop);
+window.__breaker = {flip: id => flip(byId[id]), main: () => flipMain()};
+})();
+</script>
+</body>
+</html>

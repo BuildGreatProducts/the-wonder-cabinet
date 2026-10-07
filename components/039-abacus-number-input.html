@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Abacus Number Input</title>
+<meta name="description" content="A quantity input built as an inlaid wood marquetry soroban: slide or tap the beads to set each digit, type a number and the beads move to match, sweep along the bar to clear.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Abacus Number Input","reimagines":"Number input","category":"Text & Data Entry","description":"A restock quantity set on a soroban rendered as wood marquetry: every bead, rod and border is an inlaid veneer with its own grain. Push beads to the bar, tap to flick them, type a number and watch them slide into place, or sweep along the bar to clear the whole thing like a real abacus.","hint":"Push beads to the bar, or type a number; sweep along the bar to clear"}
+</script>
+<style>
+  :root{
+    --holly:#f3ead2;
+    --ebony:#1d140e;
+    --walnut:#5a3a22;
+    --padauk:#b4472a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#cfae7c;color:var(--holly);font-family:"Zen Old Mincho","Hiragino Mincho ProN",Georgia,serif}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .panel{position:fixed;z-index:3;padding:22px 24px 22px;background-color:#5a3a22;background-size:1100px 380px;border:3px solid #1d140e;
+    box-shadow:inset 0 0 0 2px #e9dcbc,inset 0 0 0 5px #1d140e,0 1px 0 rgba(255,255,255,.2),0 18px 30px -16px rgba(40,20,5,.7)}
+  .panel .eb{font-size:12px;letter-spacing:.3em;font-weight:700;color:#e2c27c}
+  .panel h1{font-weight:700;font-size:26px;line-height:1.15;margin:8px 0 2px;color:var(--holly)}
+  .panel .jp{font-size:14px;color:#d8c49a;letter-spacing:.1em}
+  .panel .row{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;padding-top:10px;border-top:1px solid rgba(233,220,188,.35);font-size:15px;color:#e6d6b2}
+  .panel .row b{font-weight:700;color:var(--holly)}
+  .qty{margin-top:12px;display:flex;align-items:center;gap:12px}
+  .qty label{font-size:13px;letter-spacing:.24em;font-weight:700;color:#e2c27c}
+  .well{flex:1;min-width:0;background-color:#1d140e;background-size:300px;border:2px solid #e9dcbc;box-shadow:inset 0 0 0 2px #1d140e,inset 0 0 0 3px #b4472a;padding:4px 12px}
+  #qty{width:100%;border:0;background:transparent;color:var(--holly);font-family:inherit;font-weight:900;font-size:40px;letter-spacing:.12em;text-align:right;outline:none;font-variant-numeric:tabular-nums;padding:0}
+  .well:focus-within{box-shadow:inset 0 0 0 2px #1d140e,inset 0 0 0 3px #f0c75e}
+  .total{margin-top:14px;display:flex;justify-content:space-between;align-items:baseline}
+  .total span{font-size:13px;letter-spacing:.24em;font-weight:700;color:#e2c27c}
+  .total b{font-size:30px;font-weight:900;color:var(--holly)}
+  .order{margin-top:16px;width:100%;font-family:inherit;font-weight:700;font-size:17px;letter-spacing:.1em;color:#fff3dc;cursor:pointer;padding:13px 16px;border:2px solid #1d140e;background-color:#b4472a;background-size:300px;box-shadow:inset 0 0 0 2px #f3ead2,inset 0 0 0 4px #1d140e}
+  .order:hover{filter:brightness(1.08)}
+  .order:active{transform:translateY(1px)}
+  .order:focus-visible{outline:3px solid #f0c75e;outline-offset:3px}
+  .order[disabled]{filter:grayscale(.6) brightness(.85);cursor:not-allowed}
+  .note{margin-top:12px;font-size:14px;line-height:1.45;color:#e6d6b2;min-height:40px}
+  .hint{position:fixed;z-index:3;font-size:14px;line-height:1.4;color:#3a2412;letter-spacing:.04em;pointer-events:none;transition:opacity .6s;text-align:center;font-weight:600;background:rgba(243,234,210,.82);padding:6px 12px;border:1px solid #5a3a22}
+  .hint.gone{opacity:0}
+  .rods{position:fixed;inset:0;pointer-events:none;z-index:2}
+  .rods div{position:absolute;pointer-events:auto;outline:none;background:transparent}
+  .rods div:focus-visible{box-shadow:0 0 0 3px #f0c75e,0 0 0 5px #1d140e}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (max-width:760px){
+    .panel{padding:14px 16px 14px}
+    .panel h1{font-size:19px;margin:4px 0 0}
+    .panel .jp,.panel .row{display:none}
+    .qty{margin-top:8px}
+    #qty{font-size:30px}
+    .total{margin-top:6px}
+    .total b{font-size:22px}
+    .note{display:none}
+    .order{margin-top:0}
+  }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-hidden="true"></canvas>
+<div class="rods" id="rods" aria-label="Abacus rods"></div>
+<div class="hint" id="hint">Push beads to the bar · tap a bead to flick it<br>sweep along the bar to clear</div>
+<section class="panel" id="panel" aria-labelledby="ttl">
+  <div class="eb">HOSHINO TEA HOUSE · STOCKROOM</div>
+  <h1 id="ttl">Restock ceremonial matcha</h1>
+  <div class="jp">宇治 抹茶 · 30 g tins · ¥2,400 each</div>
+  <div class="row"><span>On the shelf</span><b>14 tins</b></div>
+  <div class="row"><span>Sold last month</span><b>212 tins</b></div>
+  <div class="qty"><label for="qty">QTY</label><div class="well"><input id="qty" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-describedby="note" value="0"></div></div>
+  <div class="total"><span>TOTAL</span><b id="total">¥0</b></div>
+  <button class="order" id="order" type="button" disabled>Place restock order</button>
+  <div class="note" id="note" aria-live="polite">Set how many tins to order. Up to 9,999.</div>
+</section>
+<div class="sr" id="live" aria-live="polite"></div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const input = $('qty');
+  let W = 0, H = 0, dpr = 1, mobile = false;
+  const PRICE = 2400, RODS = 4;
+
+  /* ---------------- veneers ---------------- */
+  function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const SPEC = {
+    maple:    { base: '#e9d3a6', lines: ['#c9a874', '#f6e6c4'], amp: 3, wav: 2, spacing: 3.2, seed: 1, curl: .5 },
+    holly:    { base: '#f1e8d2', lines: ['#ddd0b0', '#fbf5e6'], amp: 1.5, wav: 1, spacing: 4.5, seed: 2 },
+    walnut:   { base: '#5e3b22', lines: ['#3e2414', '#7a5233'], amp: 9, wav: 2, spacing: 3, seed: 3, cath: 1 },
+    oak:      { base: '#c79a5c', lines: ['#a3773f', '#ddb57a'], amp: 4, wav: 1, spacing: 3.6, seed: 4, ray: 1 },
+    padauk:   { base: '#b4472a', lines: ['#8e321b', '#cf6340'], amp: 2, wav: 3, spacing: 2.6, seed: 5 },
+    ebony:    { base: '#1f1610', lines: ['#120c08', '#33261b'], amp: 1.5, wav: 1, spacing: 2.4, seed: 6 },
+    rosewood: { base: '#5b2a24', lines: ['#3a1612', '#7c3e33'], amp: 6, wav: 2, spacing: 2.8, seed: 7, cath: 1 },
+    sycamore: { base: '#efe0c0', lines: ['#d8c39a', '#fbf1db'], amp: 2, wav: 4, spacing: 3, seed: 8, curl: 1 },
+    boxwood:  { base: '#e3c27a', lines: ['#c79f53', '#f2d999'], amp: 1.6, wav: 2, spacing: 3.4, seed: 9 }
+  };
+  const tiles = {};
+  function makeVeneer(name) {
+    const sp = SPEC[name], N = 512, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d'), r = rng(sp.seed * 977);
+    g.fillStyle = sp.base; g.fillRect(0, 0, N, N);
+    // broad colour variation bands
+    for (let k = 0; k < 7; k++) { const y = r() * N, h = 30 + r() * 90; const gr = g.createLinearGradient(0, y - h, 0, y + h); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(.5, r() < .5 ? 'rgba(0,0,0,.09)' : 'rgba(255,240,210,.08)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, y - h, N, h * 2); }
+    // grain lines (wrap seamlessly in x: integer cycles)
+    const cyc = [1, 2, 3, 5];
+    for (let y0 = -20; y0 < N + 20; y0 += sp.spacing * (.6 + r() * .8)) {
+      const a1 = sp.amp * (.4 + r()), c1 = cyc[(r() * cyc.length) | 0] * sp.wav, p1 = r() * 6.28, a2 = sp.amp * .4 * r(), c2 = cyc[(r() * cyc.length) | 0] * 3, p2 = r() * 6.28;
+      g.beginPath();
+      for (let x = 0; x <= N; x += 4) { const t = x / N * Math.PI * 2; const y = y0 + a1 * Math.sin(t * c1 + p1) + a2 * Math.sin(t * c2 + p2); x ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.strokeStyle = sp.lines[r() < .65 ? 0 : 1]; g.globalAlpha = .25 + r() * .5; g.lineWidth = .5 + r() * (sp.cath ? 2.2 : 1.2); g.stroke();
+    }
+    g.globalAlpha = 1;
+    if (sp.cath) { // cathedral figure
+      for (let k = 0; k < 5; k++) { const cx = r() * N, cy = r() * N; for (let j = 0; j < 9; j++) { g.beginPath(); g.ellipse(cx, cy, 30 + j * 14, 8 + j * 5, 0, Math.PI * 1.05, Math.PI * 1.95); g.strokeStyle = sp.lines[0]; g.globalAlpha = .35; g.lineWidth = 1.2; g.stroke(); } }
+      g.globalAlpha = 1;
+    }
+    if (sp.ray) { for (let k = 0; k < 160; k++) { g.fillStyle = 'rgba(255,235,195,.35)'; g.fillRect(r() * N, r() * N, 4 + r() * 18, 1 + r() * 1.5); } }
+    if (sp.curl) { for (let x = 0; x < N; x += 7 + r() * 5) { g.fillStyle = `rgba(255,250,235,${.06 + r() * .08})`; g.fillRect(x, 0, 2 + r() * 3, N); } }
+    for (let k = 0; k < 2500; k++) { g.fillStyle = `rgba(0,0,0,${r() * .08})`; g.fillRect(r() * N, r() * N, 1, 1 + r() * 2); }
+    tiles[name] = c;
+  }
+  Object.keys(SPEC).forEach(makeVeneer);
+  const pats = {};
+  function pat(name, angle, scale) {
+    const key = name;
+    if (!pats[key]) pats[key] = ctx.createPattern(tiles[name], 'repeat');
+    const p = pats[key];
+    p.setTransform(new DOMMatrix().rotateSelf(0, 0, angle || 0).scaleSelf(scale || .5, scale || .5));
+    return p;
+  }
+  // CSS backgrounds for the HTML panel
+  $('panel').style.backgroundImage = `url(${tiles.walnut.toDataURL('image/jpeg', .8)})`;
+  document.querySelector('.well').style.backgroundImage = `url(${tiles.ebony.toDataURL('image/jpeg', .8)})`;
+  $('order').style.backgroundImage = `url(${tiles.padauk.toDataURL('image/jpeg', .8)})`;
+
+  /* ---------------- marquetry piece drawing ---------------- */
+  function poly(g, pts) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); }
+  function piece(g, pts, name, angle, scale, shade, knife) {
+    poly(g, pts);
+    const p = g.createPattern(tiles[name], 'repeat'); p.setTransform(new DOMMatrix().translateSelf(pts[0][0] * .37, pts[0][1] * .53).rotateSelf(0, 0, angle || 0).scaleSelf(scale || .5, scale || .5));
+    g.fillStyle = p; g.fill();
+    if (shade) { // hot-sand shading toward one edge
+      g.save(); poly(g, pts); g.clip();
+      const [x0, y0, x1, y1, a] = shade; const gr = g.createLinearGradient(x0, y0, x1, y1);
+      gr.addColorStop(0, `rgba(40,18,4,${a})`); gr.addColorStop(1, 'rgba(40,18,4,0)'); g.fillStyle = gr; g.fill(); g.restore();
+    }
+    poly(g, pts); g.strokeStyle = knife || 'rgba(28,14,4,.7)'; g.lineWidth = 1; g.stroke();
+  }
+
+  /* ---------------- background: tumbling-blocks parquetry ---------------- */
+  let bg = null;
+  function buildBg() {
+    bg = document.createElement('canvas'); bg.width = W * dpr; bg.height = H * dpr;
+    const g = bg.getContext('2d'); g.scale(dpr, dpr);
+    const s = mobile ? 28 : 38, hw = s * Math.sqrt(3) / 2;
+    for (let row = -1, y = -s; y < H + s * 2; row++, y += s * 1.5) {
+      for (let x = (row % 2 ? hw : 0) - hw * 2; x < W + hw * 2; x += hw * 2) {
+        const top = [[x, y - s], [x + hw, y - s / 2], [x, y], [x - hw, y - s / 2]];
+        const left = [[x - hw, y - s / 2], [x, y], [x, y + s], [x - hw, y + s / 2]];
+        const right = [[x, y], [x + hw, y - s / 2], [x + hw, y + s / 2], [x, y + s]];
+        piece(g, top, 'sycamore', 0, .35, null, 'rgba(60,35,15,.55)');
+        piece(g, left, 'walnut', 60, .35, null, 'rgba(30,15,5,.6)');
+        piece(g, right, 'oak', -60, .35, null, 'rgba(40,20,5,.55)');
+      }
+    }
+    // soft vignette so the abacus reads
+    const vg = g.createRadialGradient(W * .45, H * .5, Math.min(W, H) * .2, W * .45, H * .5, Math.max(W, H) * .8);
+    vg.addColorStop(0, 'rgba(30,15,5,0)'); vg.addColorStop(1, 'rgba(30,15,5,.45)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  }
+
+  /* ---------------- abacus geometry & state ---------------- */
+  const G = {}; // geometry
+  const rods = [];
+  for (let i = 0; i < RODS; i++) rods.push({ h: 0, e: 0, hy: 0, hv: 0, ey: [0, 0, 0, 0], ev: [0, 0, 0, 0], flash: 0 });
+  function layoutAbacus() {
+    if (mobile) { G.s = Math.min((W - 40) / 4.5, (H - 300) / 7.4 / .46 / .88 * .9, 92); }
+    else { G.s = Math.min(118, (H - 120) / (9.2 * .46 * .88), (W * .55) / 4.6); }
+    G.bw = G.s * .86; G.bh = G.bw * .46; G.ft = G.s * .38;
+    G.innerW = G.s * RODS; G.w = G.innerW + G.ft * 2;
+    const pad = G.bh * .15;
+    G.heavenH = G.bh * 2 + pad * 2; G.barH = G.bh * .62; G.earthH = G.bh * 5 + pad * 2;
+    G.h = G.ft * 2 + G.heavenH + G.barH + G.earthH;
+    G.x = mobile ? (W - G.w) / 2 : Math.max(24, W * .42 - G.w / 2 - 40);
+    G.y = mobile ? Math.max(H - G.h - 92, 200) : (H - G.h) / 2;
+    G.top = G.y + G.ft + pad; G.barY = G.y + G.ft + G.heavenH; G.barB = G.barY + G.barH; G.bot = G.barB + G.earthH - pad;
+    G.rodX = i => G.x + G.ft + G.s * (i + .5);
+  }
+  // targets
+  const hTarget = r => r.h ? G.barY - G.bh : G.top;          // top edge of heaven bead
+  const eTarget = (r, i) => i < r.e ? G.barB + i * G.bh : G.bot - (4 - i) * G.bh; // top edge of earth bead i
+  const eRange = i => [G.barB + i * G.bh, G.bot - (4 - i) * G.bh];
+  function snapAll() { rods.forEach(r => { r.hy = hTarget(r); r.hv = 0; for (let i = 0; i < 4; i++) { r.ey[i] = eTarget(r, i); r.ev[i] = 0; } }); }
+  const value = () => rods.reduce((a, r, i) => a + (r.h * 5 + r.e) * Math.pow(10, RODS - 1 - i), 0);
+
+  /* ---------------- audio ---------------- */
+  let ac = null;
+  function A() { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; } }
+  let lastClack = 0;
+  function clack(v, pitch) {
+    if (!A()) return; const t = ac.currentTime; if (t - lastClack < .012) return; lastClack = t;
+    const g0 = Math.min(.22, .04 + v / 4000);
+    // hollow wooden knock: two short resonant partials + a tick of noise
+    [1, 2.7].forEach((m, k) => { const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = (pitch || 900) * m; const g = ac.createGain(); g.gain.setValueAtTime(g0 / (k + 1), t); g.gain.exponentialRampToValueAtTime(.0003, t + .06 / (k + 1)); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .08); });
+    const len = Math.floor(ac.sampleRate * .012), b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2500; const g = ac.createGain(); g.gain.value = g0 * .7; s.connect(f).connect(g).connect(ac.destination); s.start(t);
+  }
+
+  /* ---------------- render ---------------- */
+  function bead(g, cx, y, i, kind, flash) {
+    const bw = G.bw, bh = G.bh, x0 = cx - bw / 2, x1 = cx + bw / 2, ym = y + bh / 2;
+    const tip = bw * .1;
+    const upper = [[x0 + tip, ym], [cx - bw * .2, y + 1], [cx + bw * .2, y + 1], [x1 - tip, ym]];
+    const lower = [[x0 + tip, ym], [x1 - tip, ym], [cx + bw * .2, y + bh - 1], [cx - bw * .2, y + bh - 1]];
+    const name = kind === 'h' ? 'padauk' : 'rosewood';
+    piece(g, upper, name, 0, .3, [cx, y, cx, ym, .05]);
+    piece(g, lower, name, 0, .3, [cx, y + bh, cx, ym, .55]);
+    // holly inlay line through the waist
+    g.strokeStyle = 'rgba(243,234,210,.75)'; g.lineWidth = Math.max(1, bh * .06); g.beginPath(); g.moveTo(x0 + tip + 3, ym); g.lineTo(x1 - tip - 3, ym); g.stroke();
+    if (flash > 0) { poly(g, upper.concat([])); g.fillStyle = `rgba(255,236,190,${flash * .35})`; g.fill(); poly(g, lower); g.fill(); }
+  }
+  function render() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(bg, 0, 0, W, H);
+    const { x, y, w, h, ft } = G;
+    // drop shadow of the abacus
+    ctx.fillStyle = 'rgba(30,12,2,.45)'; ctx.fillRect(x + 8, y + 12, w, h);
+    // frame: four mitred walnut pieces
+    const ix = x + ft, iy = y + ft, iw = w - 2 * ft, ih = h - 2 * ft;
+    piece(ctx, [[x, y], [x + w, y], [ix + iw, iy], [ix, iy]], 'walnut', 0, .45, [0, y, 0, iy, .0]);
+    piece(ctx, [[x, y + h], [ix, iy + ih], [ix + iw, iy + ih], [x + w, y + h]], 'walnut', 0, .45, [0, y + h, 0, iy + ih, .35]);
+    piece(ctx, [[x, y], [ix, iy], [ix, iy + ih], [x, y + h]], 'walnut', 90, .45, [x, 0, ix, 0, .15]);
+    piece(ctx, [[x + w, y], [x + w, y + h], [ix + iw, iy + ih], [ix + iw, iy]], 'walnut', 90, .45, [x + w, 0, ix + iw, 0, .4]);
+    // stringing: holly + ebony lines around the frame
+    [[3, '#1d140e', 2], [6, '#f1e8d2', 2], [ft - 5, '#f1e8d2', 1.5], [ft - 3, '#1d140e', 1.5]].forEach(([o, c, lw]) => { ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.strokeRect(x + o, y + o, w - 2 * o, h - 2 * o); });
+    // corner rosettes (small inlaid lozenges)
+    [[x + ft / 2, y + ft / 2], [x + w - ft / 2, y + ft / 2], [x + ft / 2, y + h - ft / 2], [x + w - ft / 2, y + h - ft / 2]].forEach(([cx, cy]) => { const r = ft * .26; piece(ctx, [[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]], 'holly', 45, .3); piece(ctx, [[cx, cy - r * .5], [cx + r * .5, cy], [cx, cy + r * .5], [cx - r * .5, cy]], 'padauk', 0, .3); });
+    // inner field: maple
+    piece(ctx, [[ix, iy], [ix + iw, iy], [ix + iw, iy + ih], [ix, iy + ih]], 'maple', 90, .4, [ix, iy, ix, iy + 30, .35]);
+    // rods (ebony)
+    for (let i = 0; i < RODS; i++) { const rx = G.rodX(i), rw = Math.max(3, G.s * .06); piece(ctx, [[rx - rw / 2, iy], [rx + rw / 2, iy], [rx + rw / 2, iy + ih], [rx - rw / 2, iy + ih]], 'ebony', 90, .3, [rx - rw / 2, 0, rx + rw / 2, 0, .3]); }
+    // reckoning bar (boxwood with ebony edges and unit dots)
+    piece(ctx, [[ix, G.barY], [ix + iw, G.barY], [ix + iw, G.barB], [ix, G.barB]], 'boxwood', 0, .4, [0, G.barB, 0, G.barY, .3]);
+    ctx.fillStyle = '#1d140e'; ctx.fillRect(ix, G.barY - 1, iw, 2); ctx.fillRect(ix, G.barB - 1, iw, 2);
+    for (let i = 0; i < RODS; i++) { if (i === 0 || i === 3) { const cx = G.rodX(i), cy = (G.barY + G.barB) / 2, r = G.barH * .16; ctx.fillStyle = '#1d140e'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill(); ctx.fillStyle = '#f1e8d2'; ctx.beginPath(); ctx.arc(cx, cy, r * .45, 0, 7); ctx.fill(); } }
+    // beads
+    rods.forEach((r, i) => {
+      const cx = G.rodX(i);
+      bead(ctx, cx, r.hy, 0, 'h', r.flash);
+      for (let k = 0; k < 4; k++) bead(ctx, cx, r.ey[k], k, 'e', r.flash);
+    });
+    // place-value plaques under the frame
+    const labels = ['千', '百', '十', '一'], en = ['thousands', 'hundreds', 'tens', 'ones'];
+    rods.forEach((r, i) => {
+      const cx = G.rodX(i), py = y + h + 10, pw = G.s * .62, ph = mobile ? 42 : 52;
+      piece(ctx, [[cx - pw / 2, py], [cx + pw / 2, py], [cx + pw / 2, py + ph], [cx - pw / 2, py + ph]], 'ebony', 90, .3);
+      ctx.strokeStyle = '#f1e8d2'; ctx.lineWidth = 1; ctx.strokeRect(cx - pw / 2 + 3, py + 3, pw - 6, ph - 6);
+      ctx.fillStyle = '#f1e8d2'; ctx.textAlign = 'center';
+      ctx.font = `900 ${mobile ? 20 : 26}px "Zen Old Mincho", serif`; ctx.fillText(String(r.h * 5 + r.e), cx, py + (mobile ? 26 : 32));
+      ctx.font = `600 ${mobile ? 9 : 10}px "Zen Old Mincho", serif`; ctx.fillStyle = '#d9c39a'; ctx.fillText(mobile ? labels[i] : `${labels[i]} ${en[i]}`, cx, py + ph - 7);
+    });
+    // sweep trail
+    if (sweep && sweep.active) { ctx.strokeStyle = 'rgba(255,240,200,.5)'; ctx.lineWidth = G.barH * .5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(sweep.x0, (G.barY + G.barB) / 2); ctx.lineTo(sweep.x, (G.barY + G.barB) / 2); ctx.stroke(); }
+  }
+
+  /* ---------------- physics ---------------- */
+  let raf = 0, last = 0;
+  function kick() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  document.addEventListener('visibilitychange', kick);
+  function springStep(pos, vel, target, dt) { const k = 900, c = 34; const a = -k * (pos - target) - c * vel; vel += a * dt; pos += vel * dt; return [pos, vel]; }
+  function loop(now) {
+    const dt = Math.min(.03, (now - last) / 1000); last = now;
+    let busy = false;
+    rods.forEach((r, ri) => {
+      r.flash = Math.max(0, r.flash - dt * 3); if (r.flash > 0) busy = true;
+      const dragging = drag && drag.rod === ri;
+      if (!(dragging && drag.kind === 'h')) {
+        const t = hTarget(r), before = r.hy - t;
+        if (reduce) { r.hy = t; r.hv = 0; }
+        else { for (let s = 0; s < 2; s++) [r.hy, r.hv] = springStep(r.hy, r.hv, t, dt / 2); }
+        if (Math.sign(before) !== Math.sign(r.hy - t) && Math.abs(r.hv) > 40) { clack(Math.abs(r.hv), 760 + ri * 40); r.hv *= -.25; r.hy = t; }
+        if (Math.abs(r.hy - t) > .2 || Math.abs(r.hv) > 1) busy = true; else { r.hy = t; r.hv = 0; }
+      }
+      if (!(dragging && drag.kind === 'e')) {
+        for (let k = 0; k < 4; k++) {
+          const t = eTarget(r, k), before = r.ey[k] - t;
+          if (reduce) { r.ey[k] = t; r.ev[k] = 0; continue; }
+          for (let s = 0; s < 2; s++) [r.ey[k], r.ev[k]] = springStep(r.ey[k], r.ev[k], t, dt / 2);
+          if (Math.sign(before) !== Math.sign(r.ey[k] - t) && Math.abs(r.ev[k]) > 40) { clack(Math.abs(r.ev[k]), 860 + k * 30 + ri * 40); r.ev[k] *= -.25; r.ey[k] = t; }
+          if (Math.abs(r.ey[k] - t) > .2 || Math.abs(r.ev[k]) > 1) busy = true; else { r.ey[k] = t; r.ev[k] = 0; }
+        }
+        // never let beads overlap while springing
+        for (let k = 1; k < 4; k++) if (r.ey[k] < r.ey[k - 1] + G.bh) r.ey[k] = r.ey[k - 1] + G.bh;
+      }
+    });
+    if (drag || (sweep && sweep.active)) busy = true;
+    render();
+    raf = busy && !document.hidden ? requestAnimationFrame(loop) : 0;
+  }
+
+  /* ---------------- interaction ---------------- */
+  let drag = null, sweep = null;
+  function hit(x, y) {
+    for (let i = 0; i < RODS; i++) {
+      const cx = G.rodX(i); if (Math.abs(x - cx) > G.bw / 2 + 4) continue;
+      const r = rods[i];
+      if (y >= r.hy - 4 && y <= r.hy + G.bh + 4) return { rod: i, kind: 'h' };
+      for (let k = 0; k < 4; k++) if (y >= r.ey[k] - 2 && y <= r.ey[k] + G.bh + 2) return { rod: i, kind: 'e', k };
+      // tap on empty rod section: nearest bead
+      return { rod: i, kind: y < G.barY ? 'h' : 'e', k: Math.max(0, Math.min(3, Math.round((y - G.barB) / G.bh))), empty: true };
+    }
+    return null;
+  }
+  cv.addEventListener('pointerdown', e => {
+    A();
+    const x = e.clientX, y = e.clientY;
+    if (y > G.barY - 4 && y < G.barB + 4 && x > G.x && x < G.x + G.w) { sweep = { x0: x, x, t: performance.now(), active: false, cleared: new Set(), id: e.pointerId, startY: y }; }
+    const h = hit(x, y);
+    if (!h || h.empty) { if (sweep) cv.setPointerCapture(e.pointerId); kick(); return; }
+    e.preventDefault();
+    drag = Object.assign(h, { y0: y, y, moved: 0, t: performance.now(), vy: 0, id: e.pointerId });
+    const r = rods[h.rod];
+    if (h.kind === 'h') drag.off = y - r.hy; else drag.off = y - r.ey[h.k];
+    cv.setPointerCapture(e.pointerId); kick(); hideHint();
+  });
+  cv.addEventListener('pointermove', e => {
+    const x = e.clientX, y = e.clientY;
+    if (sweep) {
+      sweep.x = x;
+      if (!sweep.active && Math.abs(x - sweep.x0) > G.s * .6 && Math.abs(y - sweep.startY) < G.bh * 1.5) { sweep.active = true; if (drag) { releaseDragNoCommit(); } }
+      if (sweep.active) {
+        for (let i = 0; i < RODS; i++) { const cx = G.rodX(i); if (!sweep.cleared.has(i) && ((sweep.x0 <= cx && x >= cx) || (sweep.x0 >= cx && x <= cx))) { sweep.cleared.add(i); clearRod(i, true); } }
+        kick(); return;
+      }
+    }
+    if (!drag) { const h = hit(x, y); cv.style.cursor = h && !h.empty ? 'grab' : 'default'; return; }
+    const r = rods[drag.rod], now = performance.now();
+    drag.vy = drag.vy * .5 + (y - drag.y) / Math.max(.001, (now - drag.t) / 1000) * .5; drag.t = now; drag.y = y;
+    drag.moved = Math.max(drag.moved, Math.abs(y - drag.y0));
+    const want = y - drag.off;
+    if (drag.kind === 'h') { r.hy = Math.max(G.top, Math.min(G.barY - G.bh, want)); }
+    else {
+      const k = drag.k, [lo, hi] = eRange(k);
+      r.ey[k] = Math.max(lo, Math.min(hi, want));
+      for (let j = k - 1; j >= 0; j--) r.ey[j] = Math.max(eRange(j)[0], Math.min(r.ey[j], r.ey[j + 1] - G.bh));
+      for (let j = k + 1; j < 4; j++) r.ey[j] = Math.min(eRange(j)[1], Math.max(r.ey[j], r.ey[j - 1] + G.bh));
+    }
+    cv.style.cursor = 'grabbing'; kick();
+  });
+  function releaseDragNoCommit() { drag = null; }
+  function endPointer() {
+    if (sweep) { const s = sweep; sweep = null; if (s.active) { commit('sweep'); kick(); drag = null; return; } }
+    if (!drag) return;
+    const d = drag; drag = null; cv.style.cursor = '';
+    const r = rods[d.rod];
+    if (d.moved < 5) { // tap = flick that bead
+      if (d.kind === 'h') r.h = r.h ? 0 : 1;
+      else r.e = d.k < r.e ? d.k : d.k + 1;
+    } else if (Math.abs(d.vy) > 1600 && ((d.kind === 'e' && d.vy > 0) || (d.kind === 'h' && d.vy < 0))) {
+      // flicked away from the bar: clear that part of the rod
+      if (d.kind === 'e') r.e = 0; else r.h = 0;
+      if (d.kind === 'e') r.ev = r.ev.map(() => 600); else r.hv = -600;
+    } else {
+      if (d.kind === 'h') r.h = (r.hy - G.top) > (G.barY - G.bh - G.top) / 2 ? 1 : 0;
+      else { let e = 0; for (let k = 0; k < 4; k++) { const [lo, hi] = eRange(k); if (r.ey[k] < (lo + hi) / 2) e = k + 1; } r.e = e; }
+      // carry velocity into the spring
+      if (d.kind === 'h') r.hv = d.vy * .3; else r.ev = r.ev.map(() => d.vy * .3);
+    }
+    commit('bead'); kick();
+  }
+  cv.addEventListener('pointerup', endPointer);
+  cv.addEventListener('pointercancel', endPointer);
+  function clearRod(i, sound) { const r = rods[i]; if (r.h || r.e) { r.h = 0; r.e = 0; r.hv = -300; r.ev = r.ev.map(() => 300); if (sound) clack(900, 700); } }
+
+  /* ---------------- value sync ---------------- */
+  let lastVal = -1;
+  function fmt(n) { return n.toLocaleString('en-GB'); }
+  function commit(src) {
+    const v = value();
+    if (src !== 'input') input.value = String(v);
+    $('total').textContent = '¥' + fmt(v * PRICE);
+    $('order').disabled = v === 0;
+    $('order').textContent = v ? `Order ${fmt(v)} tin${v === 1 ? '' : 's'}` : 'Place restock order';
+    const note = $('note');
+    if (v === 0) note.textContent = 'Set how many tins to order. Up to 9,999.';
+    else if (v > 2000) note.textContent = `That’s nearly ${Math.round(v / 212)} months of sales. Sure?`;
+    else note.textContent = `Lasts about ${Math.max(1, Math.round((v + 14) / 212 * 30))} days at last month’s pace.`;
+    if (v !== lastVal) { rods.forEach((r, i) => { const d = r.h * 5 + r.e; if (d !== r._last) { r.flash = .8; r._last = d; } }); lastVal = v; }
+    syncRodAria();
+  }
+  function setValue(n, stagger) {
+    n = Math.max(0, Math.min(9999, n | 0));
+    const s = String(n).padStart(4, '0');
+    rods.forEach((r, i) => {
+      const d = +s[i];
+      const apply = () => { r.h = d >= 5 ? 1 : 0; r.e = d % 5; kick(); };
+      if (stagger && !reduce) setTimeout(apply, i * 70); else apply();
+    });
+    setTimeout(() => commit('input'), stagger && !reduce ? 300 : 0);
+  }
+  input.addEventListener('input', () => {
+    const clean = input.value.replace(/\D/g, '').slice(0, 4);
+    if (clean !== input.value) input.value = clean;
+    A(); setValue(+clean || 0, true); hideHint();
+  });
+  input.addEventListener('blur', () => { if (!input.value) input.value = '0'; });
+  input.addEventListener('focus', () => { if (input.value === '0') input.select(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); const v = Math.max(0, Math.min(9999, value() + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1))); input.value = v; A(); setValue(v, false); }
+    if (e.key === 'Enter') { e.preventDefault(); $('order').click(); }
+  });
+
+  /* ---------------- rod focus proxies (sliders) ---------------- */
+  const rodBox = $('rods');
+  const names = ['Thousands', 'Hundreds', 'Tens', 'Ones'];
+  rods.forEach((r, i) => {
+    const d = document.createElement('div'); d.tabIndex = 0; d.setAttribute('role', 'slider'); d.setAttribute('aria-valuemin', '0'); d.setAttribute('aria-valuemax', '9'); d.setAttribute('aria-label', names[i] + ' rod');
+    d.addEventListener('keydown', e => {
+      let dv = 0; if (e.key === 'ArrowUp' || e.key === 'ArrowRight') dv = 1; else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') dv = -1; else if (/^[0-9]$/.test(e.key)) { const n = +e.key; r.h = n >= 5 ? 1 : 0; r.e = n % 5; A(); commit('bead'); kick(); e.preventDefault(); return; } else if (e.key === 'Delete' || e.key === 'Backspace') { clearRod(i, true); commit('bead'); kick(); e.preventDefault(); return; } else return;
+      e.preventDefault(); const cur = r.h * 5 + r.e, n = Math.max(0, Math.min(9, cur + dv)); r.h = n >= 5 ? 1 : 0; r.e = n % 5; A(); commit('bead'); kick();
+    });
+    d.addEventListener('pointerdown', e => { e.preventDefault(); });
+    rodBox.appendChild(d); r.el = d;
+  });
+  function syncRodAria() { rods.forEach(r => { const v = r.h * 5 + r.e; r.el.setAttribute('aria-valuenow', v); r.el.setAttribute('aria-valuetext', String(v)); }); }
+  function placeRodProxies() { rods.forEach((r, i) => { const d = r.el; d.style.left = (G.rodX(i) - G.s / 2 + 3) + 'px'; d.style.top = (G.y + G.ft - 2) + 'px'; d.style.width = (G.s - 6) + 'px'; d.style.height = (G.h - G.ft * 2 + 4) + 'px'; d.style.pointerEvents = 'none'; }); }
+
+  /* ---------------- ordering ---------------- */
+  $('order').addEventListener('click', () => {
+    const v = value(); if (!v) return;
+    A(); [0, 90, 180].forEach((t, k) => setTimeout(() => clack(1200, 600 + k * 220), t));
+    const d = new Date(); d.setDate(d.getDate() + 9);
+    const when = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    $('note').textContent = `Ordered ${fmt(v)} tins (¥${fmt(v * PRICE)}). Uji says they arrive ${when}.`;
+    $('live').textContent = `Order placed for ${v} tins.`;
+    $('order').textContent = 'Order placed · 発注済';
+    rods.forEach(r => r.flash = 1); kick();
+    setTimeout(() => { $('order').textContent = `Order ${fmt(v)} more`; }, 2400);
+  });
+  let hintGone = false; function hideHint() { if (!hintGone) { hintGone = true; $('hint').classList.add('gone'); } }
+
+  /* ---------------- layout ---------------- */
+  function layout() {
+    W = innerWidth; H = innerHeight; dpr = Math.min(2, devicePixelRatio || 1); mobile = W < 760;
+    cv.width = W * dpr; cv.height = H * dpr;
+    layoutAbacus(); buildBg(); snapAll();
+    const p = $('panel'), hint = $('hint');
+    if (mobile) {
+      p.style.left = '10px'; p.style.right = '10px'; p.style.top = '10px'; p.style.width = 'auto';
+      const ph = p.getBoundingClientRect().height;
+      G.y = Math.max(ph + 22, Math.min(H - G.h - 70, ph + 22)); G.top = G.y + G.ft + G.bh * .15; G.barY = G.y + G.ft + G.heavenH; G.barB = G.barY + G.barH; G.bot = G.barB + G.earthH - G.bh * .15;
+      snapAll();
+      hint.style.left = '10px'; hint.style.right = '10px'; hint.style.bottom = '8px'; hint.style.top = 'auto'; hint.style.fontSize = '12px';
+    } else {
+      const px = G.x + G.w + Math.max(40, (W - G.x - G.w - 360) / 2.4);
+      p.style.left = Math.min(px, W - 380) + 'px'; p.style.width = '350px'; p.style.right = 'auto';
+      p.style.top = Math.max(20, (H - p.getBoundingClientRect().height) / 2) + 'px';
+      hint.style.left = (G.x) + 'px'; hint.style.width = G.w + 'px'; hint.style.right = 'auto'; hint.style.top = Math.max(6, G.y - 58) + 'px'; hint.style.bottom = 'auto'; hint.style.fontSize = '';
+    }
+    placeRodProxies(); render();
+  }
+  addEventListener('resize', layout);
+  layout();
+  if (document.fonts) document.fonts.ready.then(() => { layout(); });
+  // a sensible starting suggestion: last month's sales minus what's on the shelf
+  setValue(198, false); snapAll(); commit('init'); render();
+  window.__ab = { set: n => { input.value = n; input.dispatchEvent(new Event('input')); }, value };
+})();
+</script>
+</body>
+</html>

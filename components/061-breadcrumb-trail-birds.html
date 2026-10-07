@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breadcrumb Trail Birds</title>
+<meta name="description" content="Breadcrumbs as a cut-paper silhouette fairytale: every page you visit drops a crumb on a forest path, and going back sends birds down to eat the crumbs behind you.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Fondamento:ital@0;1&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Breadcrumb Trail Birds","reimagines":"Breadcrumbs","category":"Navigation & Wayfinding","description":"A field guide whose breadcrumb trail is literal: Gretel drops a crumb on the forest path for every page you open, and jumping back sends silhouette birds swooping down to peck up the crumbs past that point. Drawn as a Lotte Reiniger cut-paper shadow play.","hint":"Follow a signpost to go deeper, then tap an earlier crumb to head back"}
+</script>
+<style>
+  :root{
+    --ink:#0c0907; --light:#f6d58f; --glow:#fbe9bf; --amber:#e3a75a;
+    --cardTop:360px; --cardL:16px; --cardW:960px; --cardH:400px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--ink);overflow:hidden}
+  body{font-family:"Fondamento", "Palatino Linotype", Palatino, Georgia, serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;user-select:none;-webkit-user-select:none}
+  canvas{position:absolute;inset:0;display:block}
+  #fx{pointer-events:none;z-index:4}
+  .flicker{position:absolute;inset:0;pointer-events:none;z-index:6;background:radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%);}
+  .flicker::after{content:"";position:absolute;inset:0;background:#fff3d6;opacity:0;animation:flick 3.2s steps(1) infinite;mix-blend-mode:soft-light}
+  @keyframes flick{0%{opacity:.0}7%{opacity:.07}9%{opacity:0}31%{opacity:.04}33%{opacity:0}58%{opacity:.06}61%{opacity:.01}83%{opacity:.05}86%{opacity:0}}
+  .grain{position:absolute;inset:-50%;pointer-events:none;z-index:6;opacity:.16;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation:grain 0.6s steps(3) infinite}
+  @keyframes grain{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}}
+
+  header.bar{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:flex-start;justify-content:space-between;padding:18px 84px 0 84px;pointer-events:none}
+  .brand{font-family:"Cinzel Decorative", Georgia, serif;font-weight:900;font-size:22px;line-height:1.05;letter-spacing:.02em;color:var(--ink);text-shadow:0 0 18px rgba(255,236,190,.35)}
+  .brand small{display:block;font-family:"Fondamento",serif;font-weight:400;font-style:italic;font-size:14px;letter-spacing:.04em;margin-top:4px;opacity:.85}
+  .tools{display:flex;gap:12px;align-items:center;pointer-events:auto;color:var(--ink);font-style:italic;font-size:14px}
+  .fed{white-space:nowrap}
+  .mute{width:38px;height:38px;border:0;background:none;padding:0;cursor:pointer;color:var(--ink)}
+  .mute svg{width:100%;height:100%;display:block}
+  .mute:focus-visible{outline:2px dashed var(--ink);outline-offset:3px}
+
+  /* breadcrumb tags, cut out of the black ground */
+  nav.trail{position:absolute;inset:0;z-index:3;pointer-events:none}
+  nav.trail ol{list-style:none;margin:0;padding:0}
+  .tag{position:absolute;transform:translateX(-50%);pointer-events:auto;display:flex;flex-direction:column;align-items:center}
+  .tag::before{content:"";width:1px;height:12px;background:linear-gradient(var(--light),rgba(246,213,143,.2));margin-bottom:2px}
+  .tag button,.tag span.here{font:inherit;font-size:16px;line-height:1.05;color:var(--light);background:transparent;border:1.5px solid var(--light);
+    padding:4px 10px 5px;cursor:pointer;white-space:nowrap;position:relative;
+    clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 50%,calc(100% - 7px) 100%,7px 100%,0 50%);
+    transition:transform .25s cubic-bezier(.3,1.6,.5,1), background .2s,color .2s}
+  .tag button{border:none;padding:5px 13px 6px;background:
+    linear-gradient(var(--light),var(--light)) top/100% 1.5px no-repeat,
+    linear-gradient(var(--light),var(--light)) bottom/100% 1.5px no-repeat}
+  .tag button:hover{transform:translateY(-3px)}
+  .tag button:hover,.tag button:focus-visible{background:var(--light);color:var(--ink)}
+  .tag button:focus-visible{outline:none;filter:drop-shadow(0 0 6px rgba(246,213,143,.8))}
+  .tag span.here{border:none;padding:5px 13px 6px;background:radial-gradient(ellipse at 50% 40%, var(--glow), var(--amber));color:var(--ink);font-weight:400;cursor:default}
+  .tag small{display:block;font-size:11px;font-style:italic;color:rgba(246,213,143,.65);margin-top:4px;letter-spacing:.03em}
+  .tag.ghost{pointer-events:none;transition:opacity 1.4s ease .5s;}
+  .tag.ghost.gone{opacity:0}
+  .tag.enter{animation:tagIn .7s cubic-bezier(.2,1.4,.4,1) both}
+  @keyframes tagIn{from{opacity:0;transform:translate(-50%,-10px) scale(.8)}to{opacity:1;transform:translateX(-50%)}}
+
+  /* intertitle card */
+  .card{position:absolute;z-index:2;left:var(--cardL);top:var(--cardTop);width:var(--cardW);height:var(--cardH);padding:40px 54px 34px;
+    display:grid;grid-template-columns:190px 1fr;gap:30px;align-items:start;overflow:hidden}
+  .illo{align-self:center;justify-self:center;width:170px;height:200px;color:var(--ink)}
+  .illo svg{width:100%;height:100%;display:block;filter:drop-shadow(0 0 1px rgba(0,0,0,.4))}
+  .txt{min-width:0}
+  .kicker{margin:0 0 4px;font-style:italic;font-size:15px;letter-spacing:.06em;opacity:.8}
+  h1{font-family:"Cinzel Decorative",Georgia,serif;font-weight:900;font-size:34px;line-height:1.02;margin:0;letter-spacing:.01em}
+  .latin{margin:4px 0 0;font-style:italic;font-size:18px}
+  .body{margin:12px 0 0;font-size:18px;line-height:1.42;max-width:58ch}
+  dl.facts{display:flex;flex-wrap:wrap;gap:6px 26px;margin:14px 0 0;padding:10px 0 0;border-top:1.5px solid var(--ink)}
+  dl.facts div{display:flex;flex-direction:column}
+  dt{font-family:"Cinzel Decorative",serif;font-weight:700;font-size:11px;letter-spacing:.08em}
+  dd{margin:0;font-size:17px}
+  .ways{margin-top:16px}
+  .ways h2{font-family:"Cinzel Decorative",serif;font-size:13px;letter-spacing:.1em;margin:0 0 8px;font-weight:700}
+  .boards{display:flex;flex-wrap:wrap;gap:10px 12px}
+  .board{font:inherit;font-size:17px;border:0;cursor:pointer;color:var(--light);background:var(--ink);padding:7px 30px 8px 16px;position:relative;
+    clip-path:polygon(0 12%, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 0 88%, 6px 50%);
+    transition:transform .3s cubic-bezier(.3,1.7,.5,1)}
+  .board:nth-child(2n){transform:rotate(-1.5deg)}
+  .board:nth-child(3n){transform:rotate(1.2deg)}
+  .board:hover{transform:translateX(5px) rotate(0)}
+  .board:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--light);transform:translateX(5px)}
+  .board small{font-style:italic;font-size:13px;opacity:.7;margin-left:6px}
+  .end{font-style:italic;font-size:17px;margin:0;opacity:.85}
+  .page{transition:opacity .45s ease, transform .55s cubic-bezier(.2,.8,.2,1)}
+  .page.out-l{opacity:0;transform:translateX(-28px)}
+  .page.out-r{opacity:0;transform:translateX(28px)}
+  .hint{position:absolute;z-index:5;left:50%;transform:translateX(-50%);bottom:calc(100dvh - var(--cardTop) + 8px);color:var(--light);font-style:italic;font-size:14px;pointer-events:none;opacity:.0;white-space:nowrap}
+  .hint .sm{display:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  #say{position:absolute;z-index:5;right:22px;bottom:8px;color:var(--light);font-style:italic;font-size:14px;opacity:0;transition:opacity .6s;pointer-events:none}
+  #say.on{opacity:.9}
+
+  @media (max-width:700px){
+    header.bar{padding:12px 40px 0 36px}
+    .brand{font-size:16px}
+    .brand small{font-size:12px}
+    .fed{display:none}
+    .mute{width:32px;height:32px}
+    .tag button,.tag span.here{font-size:13px;padding:4px 9px 5px;white-space:normal;text-align:center;max-width:84px}
+    .tag small{display:none}
+    .card{grid-template-columns:1fr;padding:30px 28px 22px;gap:0}
+    .illo{position:absolute;right:24px;top:24px;width:64px;height:76px}
+    .kicker{font-size:13px;padding-right:70px}
+    h1{font-size:23px;padding-right:66px}
+    .latin{font-size:15px}
+    .body{font-size:15.5px;line-height:1.38;margin-top:8px}
+    dl.facts{gap:4px 16px;margin-top:10px;padding-top:8px}
+    dd{font-size:15px}
+    .ways{margin-top:12px}
+    .board{font-size:15px;padding:6px 26px 7px 13px}
+    #say{left:16px;right:16px;text-align:center}
+    .hint{font-size:13px;bottom:auto;top:calc(var(--cardTop) - 24px)}
+    .hint .lg{display:none}.hint .sm{display:inline}
+    .card{overflow-y:auto;scrollbar-width:none}
+    .boards{gap:8px 8px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .flicker::after,.grain{animation:none}
+    .page{transition:opacity .2s}
+    .page.out-l,.page.out-r{transform:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <header class="bar">
+    <div class="brand">The Wyre Forest<br>Field Guide<small>A walking companion · spring 2026</small></div>
+    <div class="tools">
+      <span class="fed" id="fed">The birds are waiting</span>
+      <button class="mute" id="mute" aria-pressed="false" aria-label="Mute birdsong">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><g fill="currentColor"><path d="M9 25c2-6 7-10 13-10 3 0 5 1 6 3l5-1-4 3c0 6-5 11-12 11-4 0-6-1-8-3l-6 1 4-3c0-.4 1-.7 2-1z"/><path d="M15 21c3-3 7-4 10-2-3 0-6 2-8 5z" fill="#f6d58f"/><circle cx="27.5" cy="19.5" r="1" fill="#f6d58f"/><path d="M24 29l1 5M20 30l-1 5" stroke="currentColor" stroke-width="1.2"/></g><path id="muteX" d="M6 6l28 28" stroke="currentColor" stroke-width="2.5" opacity="0"/></svg>
+      </button>
+    </div>
+  </header>
+  <nav class="trail" aria-label="Breadcrumb"><ol id="crumbs"></ol></nav>
+  <div id="ghosts" aria-hidden="true"></div>
+  <main class="card" id="card" aria-live="polite"></main>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="hint" id="hint"><span class="lg">Follow a signpost to drop a crumb · tap an earlier crumb to head back</span><span class="sm">Follow a signpost · tap a crumb to go back</span></div>
+  <div id="say" aria-hidden="true"></div>
+  <div class="flicker" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const INK = '#0c0907';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TAU = Math.PI * 2;
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), bg = $('#bg'), fx = $('#fx');
+const bx = bg.getContext('2d'), cx = fx.getContext('2d');
+
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let rnd = Math.random;
+
+/* ---------------- field-guide data ---------------- */
+const N = (label, title, o) => Object.assign({label, title}, o || {});
+const english = N('English oak','English oak',{latin:'Quercus robur',body:'Acorns hang on long stalks while the leaves sit almost stalkless, with two small ear-shaped lobes at the base. Prefers the heavier soils down by Dowles Brook.',facts:[['Height','20 – 40 m'],['Lifespan','up to 1,000 yrs'],['Flowers','Apr – May']]});
+const sessile = N('Sessile oak','Sessile oak',{latin:'Quercus petraea',body:'The forest’s signature tree. Acorns sit straight on the twig and the leaves have a clear stalk. Coppiced for charcoal and tanbark until the 1930s.',facts:[['Height','20 – 40 m'],['Status','Dominant'],['Flowers','Apr – May']]});
+const oaks = N('Oaks','Oaks',{body:'Two native oaks grow here and they hybridise freely. Check where the acorn stalk is, and whether the leaf has one.',facts:[['Species','2'],['Acorns','Sep – Oct']],kids:[english,sessile]});
+const beech = N('Beech','Beech',{latin:'Fagus sylvatica',body:'Smooth grey bark like an elephant’s leg and wavy-edged leaves. Its dense shade leaves the floor almost bare beneath.',facts:[['Height','up to 40 m'],['Nuts','Sep – Oct'],['Mast years','every 5 – 10']]});
+const birch = N('Silver birch','Silver birch',{latin:'Betula pendula',body:'White, papery bark with black diamonds and drooping twigs. First to colonise the clearings after felling.',facts:[['Height','15 – 25 m'],['Catkins','April'],['Lifespan','80 – 100 yrs']]});
+const broad = N('Broadleaf','Broadleaf trees',{body:'Trees that drop their leaves each autumn. Read the leaf shape and the bark first; buds and seeds settle the close calls.',facts:[['Species','24'],['Best month','May']],kids:[oaks,beech,birch]});
+const pine = N('Scots pine','Scots pine',{latin:'Pinus sylvestris',icon:'pine',body:'Orange-red upper bark and blue-green needles in pairs. Crossbills work the cones in late winter.',facts:[['Height','up to 35 m'],['Needles','in pairs'],['Cones','2 years to ripen']]});
+const yew = N('Yew','Yew',{latin:'Taxus baccata',icon:'pine',body:'Dark flat needles and red fleshy arils. Every part but the aril flesh is poisonous; some yews here predate the Normans.',facts:[['Height','10 – 20 m'],['Arils','Sep – Nov'],['Lifespan','2,000+ yrs']]});
+const conifers = N('Conifers','Conifers',{icon:'pine',body:'Mostly planted in the 1950s and now being thinned to let the oaks return. Two natives are worth finding.',facts:[['Native','2 species'],['Planted','1950s']],kids:[pine,yew]});
+const trees = N('Trees','Trees',{icon:'leaf',body:'Sessile oak rules the canopy, with birch, rowan and the rare wild service tree along the old charcoal rides.',facts:[['Species','31'],['Oldest','~420 years']],kids:[broad,conifers]});
+
+const robin = N('Robin','Robin',{latin:'Erithacus rubecula',body:'Orange-red face and breast, and fiercely territorial. Follows walkers along the path, hoping for disturbed insects — or crumbs.',facts:[['Length','14 cm'],['Song','all year'],['Nests','Mar – Jun']]});
+const wren = N('Wren','Wren',{latin:'Troglodytes troglodytes',body:'Tiny, round and loud, with a cocked tail. Its song is astonishingly long and powerful for a bird of ten grams.',facts:[['Length','10 cm'],['Weight','10 g'],['Song','all year']]});
+const fly = N('Pied flycatcher','Pied flycatcher',{latin:'Ficedula hypoleuca',body:'A black-and-white summer visitor from West Africa. The Wyre is an English stronghold; look for the nest boxes on the Dowles trail.',facts:[['Length','13 cm'],['Arrives','mid April'],['Status','Amber list']]});
+const song = N('Songbirds','Songbirds',{body:'Small perching birds with complex songs. Walk the oak rides at dawn in May for the full chorus.',facts:[['Breeding','58 species'],['Chorus','04:50 in May']],kids:[robin,wren,fly]});
+const gsw = N('Spotted woodpecker','Great spotted woodpecker',{latin:'Dendrocopos major',body:'Black and white with a red vent. Drums in short, fast bursts that fade away at the end.',facts:[['Length','23 cm'],['Drums','Feb – May'],['Status','Common']]});
+const green = N('Green woodpecker','Green woodpecker',{latin:'Picus viridis',body:'Green with a red crown, feeding on ants on the ground. Its laughing call gave it the old name “yaffle”.',facts:[['Length','32 cm'],['Call','“yaffle”'],['Feeds','on ants']]});
+const peckers = N('Woodpeckers','Woodpeckers',{body:'Listen for drumming in March and April; each species keeps its own rhythm.',facts:[['Species','3'],['Drumming','Mar – Apr']],kids:[gsw,green]});
+const birdSec = N('Birds','Birds',{icon:'bird',body:'Over a hundred species breed in the Wyre. Listen first: most woodland birds are heard long before they are seen.',facts:[['Breeding','106 species'],['Best hour','dawn']],kids:[song,peckers]});
+
+const agaric = N('Fly agaric','Fly agaric',{latin:'Amanita muscaria',body:'The fairytale toadstool: scarlet cap with white warts, always under birch or pine. Poisonous — admire, never pick.',facts:[['Cap','8 – 20 cm'],['Season','Aug – Nov'],['Edible','No']]});
+const chicken = N('Chicken of the woods','Chicken of the woods',{latin:'Laetiporus sulphureus',body:'Bright sulphur-yellow shelves on old oaks and willows. Edible when young, but only with an expert’s say-so.',facts:[['Width','up to 40 cm'],['Season','May – Oct'],['Host','Oak, willow']]});
+const turkey = N('Turkey tail','Turkey tail',{latin:'Trametes versicolor',body:'Thin, banded brackets in rings of brown and grey, on dead hardwood all year round.',facts:[['Width','3 – 8 cm'],['Season','all year'],['Host','Dead wood']]});
+const fungi = N('Fungi','Fungi',{icon:'shroom',body:'Over six hundred species recorded. Photograph, don’t pick: deadly species grow here alongside the edible ones.',facts:[['Recorded','612 species'],['Peak','Sep – Nov']],kids:[agaric,chicken,turkey]});
+
+const bluebell = N('Bluebell','Bluebell',{latin:'Hyacinthoides non-scripta',body:'Nodding violet-blue bells on one side of a drooping stem. Carpets the ancient wood in late April — keep to the path.',facts:[['Height','20 – 50 cm'],['Flowers','Apr – May'],['Status','Protected']]});
+const anemone = N('Wood anemone','Wood anemone',{latin:'Anemone nemorosa',body:'Starry white flowers that spread barely two metres a century — a sure sign of ancient woodland.',facts:[['Height','5 – 15 cm'],['Flowers','Mar – May'],['Spreads','2 m / century']]});
+const garlic = N('Wild garlic','Wild garlic',{latin:'Allium ursinum',body:'Broad leaves and white star flowers; you will smell it before you see it. Grows in damp ground along the brook.',facts:[['Height','to 45 cm'],['Flowers','Apr – Jun'],['Edible','Leaves']]});
+const flowers = N('Wildflowers','Wildflowers',{icon:'bell',body:'Spring flowers race to bloom before the oak canopy closes overhead in late May.',facts:[['Recorded','230 species'],['Peak','Apr – May']],kids:[bluebell,anemone,garlic]});
+
+const root = N('Trailhead','The Wyre Forest field guide',{icon:'post',kicker:'Spring survey · April 2026',body:'Two and a half thousand hectares of ancient oak wood on the Shropshire border. Choose a trail to begin — your crumbs will show the way home.',facts:[['Area','2,634 ha'],['Species logged','2,140'],['Guide','Dr Amara Okafor']],kids:[trees,birdSec,fungi,flowers]});
+(function link(n, p){ n.parent = p; if(!n.icon) n.icon = p ? p.icon : 'post'; (n.kids||[]).forEach(k => link(k, n)); })(root, null);
+function count(n){ return n.kids ? n.kids.reduce((a,k)=>a+count(k),0) : 1; }
+
+const ICONS = {
+  post:'<svg viewBox="0 0 100 120"><path fill="currentColor" d="M47 118V30h6v88z"/><path fill="currentColor" d="M20 30h52l12 10-12 10H20l4-10z"/><path fill="currentColor" d="M80 56H30l-12 10 12 10h50l-4-10z"/><path d="M30 40h34M40 66h30" stroke="#f6d58f" stroke-width="2" stroke-dasharray="3 4"/><path fill="currentColor" d="M50 26c-6-8-2-16 6-18-2 6 0 10 4 12-4 0-8 2-10 6zM50 26c4-10 14-12 20-8-6 0-10 4-12 10z"/><path fill="currentColor" d="M30 118c4-10 10-14 20-14s16 4 20 14z"/></svg>',
+  leaf:'<svg viewBox="0 0 100 120"><path fill="currentColor" d="M50 112c-1-14-1-24 0-34-10 2-20-2-20-8 6-2 8-6 4-10-8 0-12-6-8-12 6 0 10-2 8-8-4-6 2-12 8-8 2-6 6-10 8-12 2 2 6 6 8 12 6-4 12 2 8 8-2 6 2 8 8 8 4 6 0 12-8 12-4 4-2 8 4 10 0 6-10 10-20 8"/><path d="M50 100V24M50 46l-10-8M50 58l12-9M50 70l-12-6" stroke="#f6d58f" stroke-width="1.6" fill="none" stroke-linecap="round"/><g fill="currentColor"><ellipse cx="78" cy="96" rx="6" ry="8"/><path d="M71 92c2-5 12-5 14 0z"/><ellipse cx="24" cy="100" rx="5.5" ry="7.5"/><path d="M17 96c2-5 12-5 14 0z"/></g><path d="M78 87c-6-6-14-4-20 0M24 92c4-6 12-6 20-2" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>',
+  pine:'<svg viewBox="0 0 100 120"><path fill="currentColor" d="M47 118v-16h6v16z"/><path fill="currentColor" d="M50 6l12 20h-6l14 20h-8l16 22h-10l18 26c-20 6-52 6-72 0l18-26H22l16-22h-8l14-20h-6z"/><path d="M50 30l-6 8M50 52l8 8M50 74l-10 8M50 90l12 4" stroke="#f6d58f" stroke-width="1.4" fill="none"/></svg>',
+  bird:'<svg viewBox="0 0 100 120"><path fill="currentColor" d="M18 70c4-16 18-28 36-28 6 0 10-4 14-10 6-6 16-6 20 2l8 3-8 3c0 26-18 44-44 44-8 0-14-2-18-6L6 82l10-8c0-1 1-3 2-4z"/><circle cx="80" cy="36" r="2" fill="#f6d58f"/><path d="M26 66c10-14 26-18 42-10-14-2-28 6-36 18z" fill="#f6d58f" opacity=".9"/><path d="M30 70c8-8 20-10 30-6M34 76c8-6 16-7 24-4" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M44 86l-2 20m10-20 3 20M36 106h12m4 0h10" stroke="currentColor" stroke-width="2" fill="none"/><path fill="currentColor" d="M2 104c30-6 66-6 96 0v4H2z"/></svg>',
+  shroom:'<svg viewBox="0 0 100 120"><path fill="currentColor" d="M8 58C10 30 30 14 50 14s40 16 42 44c-12 6-28 8-42 8S20 64 8 58z"/><path fill="currentColor" d="M42 64h16c2 16 4 32 8 46H34c4-14 6-30 8-46z"/><g fill="#f6d58f"><circle cx="30" cy="40" r="4"/><circle cx="50" cy="28" r="4.5"/><circle cx="68" cy="42" r="3.5"/><circle cx="42" cy="50" r="3"/><circle cx="78" cy="54" r="2.5"/><circle cx="20" cy="54" r="2.5"/></g><path d="M40 76c6 3 14 3 20 0" stroke="#f6d58f" stroke-width="1.6" fill="none"/><path fill="currentColor" d="M6 116c10-8 26-10 44-10s34 2 44 10z"/><path fill="currentColor" d="M78 112c0-8 2-14 6-18 4 4 6 10 6 18z"/></svg>',
+  bell:'<svg viewBox="0 0 100 120"><path d="M30 118C30 70 40 30 76 14" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/><g fill="currentColor"><path d="M64 26c-6 0-10 6-10 14l-3 6 5-2 3 4 3-4 4 4 2-5 4 2-2-6c0-8-2-13-6-13z"/><path d="M50 40c-6 0-10 6-10 14l-3 6 5-2 3 4 3-4 4 4 2-5 4 2-2-6c0-8-2-13-6-13z"/><path d="M40 58c-6 0-9 6-9 14l-3 6 5-2 3 4 3-4 3 4 2-5 4 2-2-6c0-8-2-13-6-13z"/><path d="M34 80c-5 0-8 5-8 12l-3 5 4-2 3 4 3-4 3 4 2-4 3 1-2-5c0-7-2-11-5-11z"/></g><path fill="currentColor" d="M22 118c2-20 6-40 14-52-4 18-6 36-6 52zM40 118c0-14 4-26 12-34-4 12-6 22-6 34z"/></svg>'
+};
+
+/* ---------------- layout ---------------- */
+let W, H, DPR, mobile, pathY, amp, cardRect, perches = [], crumbXs = [], BS = 1;
+function groundY(x){ return pathY + amp * (Math.sin(x / W * TAU * 1.35 + 0.9) * 0.62 + Math.sin(x / W * TAU * 3.3 + 2.1) * 0.22); }
+function crumbX(i){ return W * (mobile ? 0.1 + i * 0.2 : 0.09 + i * 0.205); }
+
+function layout(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = stage.clientWidth; H = stage.clientHeight; mobile = W < 700;
+  for (const c of [bg, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); c.style.width = W + 'px'; c.style.height = H + 'px'; }
+  pathY = mobile ? Math.round(Math.min(330, Math.max(220, H * 0.365))) : Math.round(Math.min(340, Math.max(220, H * 0.38)));
+  amp = mobile ? 12 : 20;
+  BS = mobile ? 0.95 : 1.25;
+  const top = pathY + (mobile ? 76 : 96);
+  const cw = Math.min(1000, W - (mobile ? 20 : 64));
+  const avail = H - top - (mobile ? 12 : 22), ch = Math.max(240, Math.min(avail, mobile ? 470 : 400));
+  cardRect = { x: Math.round((W - cw) / 2), y: Math.round(top + (avail - ch) / 2), w: cw, h: ch };
+  const s = stage.style;
+  s.setProperty('--cardTop', cardRect.y + 'px'); s.setProperty('--cardL', cardRect.x + 'px');
+  s.setProperty('--cardW', cardRect.w + 'px'); s.setProperty('--cardH', cardRect.h + 'px');
+  drawBG();
+  placeTags();
+  for (const c of crumbs) { c.x = crumbX(c.i); c.y = groundY(c.x); }
+  for (const b of birds) if (b.perch && b.st === 'perch') { const p = perches[b.perch.idx % perches.length]; b.perch = p; p.taken = b; b.x = p.x; b.y = p.y; }
+  walker.x = walker.tx = crumbX(trail.length - 1) + (mobile ? 16 : 24);
+}
+
+/* ---------------- background: layered cut paper ---------------- */
+function tendril(g, x, y, r, dir, a0, turns, w){
+  g.beginPath();
+  const n = 26; let px = x, py = y;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, ang = a0 + dir * t * turns * TAU, rr = r * (1 - t * 0.88);
+    const qx = x + Math.cos(ang) * rr - Math.cos(a0) * r, qy = y + Math.sin(ang) * rr - Math.sin(a0) * r;
+    g.lineWidth = Math.max(0.6, w * (1 - t)); g.beginPath(); g.moveTo(px, py); g.lineTo(qx, qy); g.stroke(); px = qx; py = qy;
+  }
+}
+function leaf(g, x, y, ang, len){
+  g.save(); g.translate(x, y); g.rotate(ang); g.beginPath(); g.moveTo(0, 0);
+  g.quadraticCurveTo(len * 0.5, -len * 0.32, len, 0); g.quadraticCurveTo(len * 0.5, len * 0.32, 0, 0); g.fill(); g.restore();
+}
+function twig(g, x, y, ang, len, w, depth, R){
+  const ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len;
+  const mx = (x + ex) / 2 + Math.cos(ang + 1.57) * len * 0.12 * (R() - 0.5) * 2, my = (y + ey) / 2 + Math.sin(ang + 1.57) * len * 0.12;
+  g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(mx, my, ex, ey); g.stroke();
+  if (depth <= 0) {
+    if (R() < 0.45) tendril(g, ex, ey, 4 + R() * 6, R() < 0.5 ? 1 : -1, ang, 1.4, Math.max(1, w));
+    else for (let k = 0; k < 3; k++) leaf(g, ex, ey, ang + (k - 1) * 0.7, 7 + R() * 7);
+    return;
+  }
+  const n = 2 + (R() < 0.3 ? 1 : 0);
+  for (let i = 0; i < n; i++) twig(g, ex, ey, ang + (R() - 0.5) * 1.5, len * (0.55 + R() * 0.25), w * 0.62, depth - 1, R);
+  for (let k = 0; k < 2; k++) leaf(g, mx, my, ang + (k ? 0.9 : -0.9), 6 + R() * 5);
+}
+function quadPt(p0, p1, p2, t){ const u = 1 - t; return { x: u*u*p0.x + 2*u*t*p1.x + t*t*p2.x, y: u*u*p0.y + 2*u*t*p1.y + t*t*p2.y }; }
+function bough(g, p0, p1, p2, w0, w1, R, collect){
+  // tapered filled bough
+  const n = 40, top = [], bot = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, p = quadPt(p0, p1, p2, t), q = quadPt(p0, p1, p2, Math.min(1, t + 0.01)), r = quadPt(p0, p1, p2, Math.max(0, t - 0.01));
+    const dx = q.x - r.x, dy = q.y - r.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, w = (w0 + (w1 - w0) * t) / 2;
+    top.push({ x: p.x - nx * w, y: p.y - ny * w }); bot.push({ x: p.x + nx * w, y: p.y + ny * w });
+    if (collect && t > 0.28 && t < 0.97 && i % 4 === 0) {
+      const up = ny > 0 ? -1 : 1;
+      collect.push({ x: p.x, y: p.y - w * 0.95 * (up < 0 ? 1 : 1), idx: collect.length, taken: null });
+    }
+  }
+  g.beginPath(); g.moveTo(top[0].x, top[0].y); top.forEach(p => g.lineTo(p.x, p.y)); for (let i = bot.length - 1; i >= 0; i--) g.lineTo(bot[i].x, bot[i].y); g.closePath(); g.fill();
+  // twigs hanging below and curling above (avoid perch tops: draw below mostly)
+  for (let i = 3; i < n - 2; i += 3) {
+    const t = i / n, p = quadPt(p0, p1, p2, t), w = (w0 + (w1 - w0) * t);
+    const below = R() < 0.72;
+    twig(g, p.x, p.y + (below ? w * 0.3 : -w * 0.3), below ? 1.1 + R() * 1.0 : -1.57 + (R() - 0.5) * 0.8, 10 + R() * 18, Math.max(1, w * 0.3), 1 + (R() < 0.4 ? 1 : 0), R);
+  }
+}
+function trunk(g, x, w, R){
+  g.beginPath(); const steps = 30;
+  g.moveTo(x - w * 0.9, H + 10);
+  for (let i = 0; i <= steps; i++) { const y = H + 10 - (H + 30) * i / steps; g.lineTo(x - w / 2 + Math.sin(i * 0.9) * 3 + R() * 2, y); }
+  for (let i = steps; i >= 0; i--) { const y = H + 10 - (H + 30) * i / steps; g.lineTo(x + w / 2 + Math.sin(i * 1.3 + 1) * 3 + R() * 2, y); }
+  g.closePath(); g.fill();
+}
+function drawBG(){
+  const g = bx; const R = rng(1987);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  // backlight: tinted paper, brightest at the horizon
+  let gr = g.createLinearGradient(0, 0, 0, pathY + 10);
+  gr.addColorStop(0, '#24393b'); gr.addColorStop(0.38, '#6b6248'); gr.addColorStop(0.72, '#d9a25d'); gr.addColorStop(1, '#fbe2a6');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  const sun = g.createRadialGradient(W * 0.64, pathY - 8, 4, W * 0.64, pathY - 8, Math.max(W, H) * 0.55);
+  sun.addColorStop(0, 'rgba(255,246,214,.95)'); sun.addColorStop(0.18, 'rgba(255,226,160,.45)'); sun.addColorStop(1, 'rgba(255,200,120,0)');
+  g.fillStyle = sun; g.fillRect(0, 0, W, H);
+  // translucent paper layers: far hills with pines, then lacy trees
+  const off = document.createElement('canvas'); off.width = bg.width; off.height = bg.height;
+  const o = off.getContext('2d');
+  const layer = (alpha, fn) => { o.setTransform(DPR, 0, 0, DPR, 0, 0); o.clearRect(0, 0, W, H); o.fillStyle = INK; o.strokeStyle = INK; fn(o); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = alpha; g.drawImage(off, 0, 0); g.restore(); };
+  const hillY = x => pathY - 58 - Math.sin(x / W * 5 + 1) * 22 - Math.sin(x / 60) * 5;
+  layer(0.2, o => {
+    o.beginPath(); o.moveTo(0, H); for (let x = 0; x <= W + 10; x += 8) o.lineTo(x, hillY(x)); o.lineTo(W, H); o.fill();
+    for (let x = 6; x < W; x += 9 + R() * 16) { const y = hillY(x), h = 10 + R() * 16; o.beginPath(); o.moveTo(x, y - h); o.lineTo(x + h * 0.28, y + 2); o.lineTo(x - h * 0.28, y + 2); o.fill(); }
+  });
+  const lacy = (o, x, base, h, sc) => {
+    o.beginPath(); o.moveTo(x - 3 * sc, base); o.quadraticCurveTo(x - 1, base - h * 0.3, x - 1 * sc, base - h * 0.55); o.lineTo(x + 1 * sc, base - h * 0.55); o.quadraticCurveTo(x + 1, base - h * 0.3, x + 3 * sc, base); o.fill();
+    const n = 3 + (R() * 2 | 0);
+    for (let i = 0; i < n; i++) twig(o, x, base - h * 0.5, -1.57 + (i - (n - 1) / 2) * 0.55 + (R() - 0.5) * 0.3, h * (0.22 + R() * 0.12), 2.6 * sc, 2, R);
+  };
+  layer(0.26, o => { o.beginPath(); o.moveTo(0, H); for (let x = 0; x <= W + 6; x += 6) o.lineTo(x, groundY(x) - 18 - Math.sin(x / 90) * 6); o.lineTo(W, H); o.fill();
+    for (let x = -10; x < W + 20; x += 26 + R() * 34) lacy(o, x, groundY(x) - 14, 60 + R() * 50, 0.8); });
+  layer(0.5, o => { for (let x = 30; x < W; x += 70 + R() * 90) lacy(o, x, groundY(x) + 2, 90 + R() * 70, 1.1); });
+  // foreground: black ground whose top edge is the path
+  g.fillStyle = INK; g.strokeStyle = INK;
+  g.beginPath(); g.moveTo(-5, H + 5);
+  for (let x = -5; x <= W + 5; x += 3) g.lineTo(x, groundY(x));
+  g.lineTo(W + 5, H + 5); g.closePath(); g.fill();
+  // grass, ferns and flowers along the edge, leaving clearings where crumbs fall
+  const clear = []; for (let i = 0; i < 5; i++) clear.push(crumbX(i));
+  const near = x => clear.some(c => Math.abs(c - x) < (mobile ? 22 : 30));
+  for (let x = 0; x < W; x += 3 + R() * 5) {
+    if (near(x)) continue;
+    const y = groundY(x) + 1, h = 3 + R() * (R() < 0.15 ? 18 : 9), lean = (R() - 0.5) * 6;
+    g.beginPath(); g.moveTo(x - 1.6, y); g.quadraticCurveTo(x + lean * 0.3, y - h * 0.6, x + lean, y - h); g.quadraticCurveTo(x + lean * 0.4, y - h * 0.5, x + 1.6, y); g.fill();
+    if (R() < 0.05) { g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 4, y - 12, x + 2, y - 20); g.stroke(); for (let p = 0; p < 6; p++) leaf(g, x + 2, y - 20, p / 6 * TAU, 4); }
+    if (R() < 0.035) { g.lineWidth = 1.2; tendril(g, x, y - 2, 5 + R() * 4, R() < 0.5 ? 1 : -1, -1.57, 1.3, 1.6); }
+  }
+  // trees framing the scene, with boughs for the birds
+  perches = [];
+  const tw = mobile ? 26 : 46, bY = Math.round(pathY * (mobile ? 0.44 : 0.42));
+  trunk(g, mobile ? 6 : 14, tw, R); trunk(g, W - (mobile ? 6 : 16), tw * 1.1, R);
+  bough(g, { x: 0, y: bY + 46 }, { x: W * 0.2, y: bY - 22 }, { x: W * (mobile ? 0.5 : 0.44), y: bY + 6 }, mobile ? 16 : 24, 3, R, perches);
+  bough(g, { x: W, y: bY + 24 }, { x: W * 0.8, y: bY - 40 }, { x: W * (mobile ? 0.58 : 0.6), y: bY - 18 }, mobile ? 16 : 24, 3, R, perches);
+  // upper twigs on trunks
+  for (let k = 0; k < 6; k++) {
+    const left = k % 2 === 0, x = left ? (mobile ? 12 : 26) : W - (mobile ? 12 : 28), y = left ? bY + 50 + R() * 60 : (mobile ? 80 : 96) + R() * Math.max(10, bY - 60);
+    twig(g, x, y, left ? -0.4 - R() * 0.6 : Math.PI + 0.4 + R() * 0.6, 26 + R() * 30, 4, 2, R);
+  }
+  // hanging tendrils from the canopy edge
+  g.lineWidth = 1.4;
+  for (let k = 0; k < 7; k++) { const x = (mobile ? 0.55 : 0.32) * W + R() * W * (mobile ? 0.3 : 0.45), len = 10 + R() * 30; g.beginPath(); g.moveTo(x, -2); g.quadraticCurveTo(x + 6, len / 2, x, len); g.stroke(); tendril(g, x, len, 4 + R() * 3, R() < .5 ? 1 : -1, 1.57, 1.2, 1.4); }
+  // intertitle panel: backlit paper with a scalloped edge and corner sprigs
+  const c = cardRect, sc = mobile ? 9 : 12;
+  g.save();
+  g.beginPath();
+  const sx = Math.max(1, Math.round(c.w / (sc * 2))), sy = Math.max(1, Math.round(c.h / (sc * 2)));
+  const stx = c.w / sx, sty = c.h / sy;
+  g.moveTo(c.x, c.y);
+  for (let i = 0; i < sx; i++) g.arc(c.x + stx * (i + 0.5), c.y, stx / 2, Math.PI, 0, false);
+  for (let i = 0; i < sy; i++) g.arc(c.x + c.w, c.y + sty * (i + 0.5), sty / 2, -Math.PI / 2, Math.PI / 2, false);
+  for (let i = sx - 1; i >= 0; i--) g.arc(c.x + stx * (i + 0.5), c.y + c.h, stx / 2, 0, Math.PI, false);
+  for (let i = sy - 1; i >= 0; i--) g.arc(c.x, c.y + sty * (i + 0.5), sty / 2, Math.PI / 2, Math.PI * 1.5, false);
+  g.closePath();
+  const pg = g.createRadialGradient(c.x + c.w * 0.42, c.y + c.h * 0.42, 10, c.x + c.w / 2, c.y + c.h / 2, Math.max(c.w, c.h) * 0.72);
+  pg.addColorStop(0, '#fcefcb'); pg.addColorStop(0.55, '#f1cf8e'); pg.addColorStop(1, '#c98a45');
+  g.fillStyle = pg; g.shadowColor = 'rgba(255,214,140,.35)'; g.shadowBlur = 40; g.fill(); g.shadowBlur = 0;
+  g.clip();
+  // paper fibres
+  g.globalAlpha = 0.08; g.strokeStyle = '#6a4318'; g.lineWidth = 0.6;
+  for (let i = 0; i < 340; i++) { const x = c.x + R() * c.w, y = c.y + R() * c.h, a = R() * TAU, l = 3 + R() * 10; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+  g.globalAlpha = 1;
+  // inner ruled border with corner ornaments
+  g.strokeStyle = INK; g.fillStyle = INK; g.lineWidth = 2;
+  const ins = mobile ? 12 : 16;
+  g.strokeRect(c.x + ins, c.y + ins, c.w - ins * 2, c.h - ins * 2);
+  g.lineWidth = 1; g.strokeRect(c.x + ins + 4, c.y + ins + 4, c.w - ins * 2 - 8, c.h - ins * 2 - 8);
+  const corners = [[c.x + ins, c.y + ins, 1, 1], [c.x + c.w - ins, c.y + ins, -1, 1], [c.x + ins, c.y + c.h - ins, 1, -1], [c.x + c.w - ins, c.y + c.h - ins, -1, -1]];
+  for (const [x, y, dx, dy] of corners) {
+    g.save(); g.translate(x, y); g.scale(dx, dy);
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(26, 0); g.quadraticCurveTo(10, 4, 4, 18); g.lineTo(0, 26); g.closePath(); g.fill();
+    g.lineWidth = 1.6; tendril(g, 22, 8, 7, 1, 0, 1.25, 2); tendril(g, 8, 22, 7, -1, Math.PI / 2, 1.25, 2);
+    leaf(g, 10, 10, 0.78, 16);
+    g.restore();
+  }
+  g.restore();
+}
+
+/* ---------------- state ---------------- */
+let trail = [root];
+let crumbs = [];           // {i, node, x, y, size, dropped, dropT, bird, shape, gone}
+let eaten = [];            // crumbs being pecked
+const birds = [];
+const parts = [];
+let fed = 0, preview = -1, lastT = 0, time = 0, running = true, everBack = false;
+const walker = { x: 0, tx: 0, face: 1, phase: 0, moving: false, bob: 0 };
+const KINDS = ['robin', 'wren', 'tit', 'sparrow', 'finch'];
+
+function crumbShape(){ const n = 7 + (Math.random() * 3 | 0), pts = []; for (let i = 0; i < n; i++) { const a = i / n * TAU, r = 0.65 + Math.random() * 0.4; pts.push([Math.cos(a) * r, Math.sin(a) * r * 0.72]); } return pts; }
+function makeCrumb(i, node, dropped){
+  const x = crumbX(i);
+  return { i, node, x, y: groundY(x), size: 1, dropped, dropT: dropped ? 1 : 0, bird: null, shape: crumbShape(), frags: [[-9, 0.4, Math.random() * TAU], [8, 0.35, Math.random() * TAU], [13, 0.25, Math.random() * TAU]], gone: false };
+}
+
+/* ---------------- audio ---------------- */
+let AC = null, master = null, muted = false, noiseBuf = null;
+function audio(){
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.16; master.connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.05, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function chirp(base, n, delay){
+  if (!AC || muted) return;
+  let t = AC.currentTime + (delay || 0);
+  for (let k = 0; k < n; k++) {
+    const o = AC.createOscillator(), g = AC.createGain(), f = base * (0.92 + Math.random() * 0.2);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.55, t + 0.035); o.frequency.exponentialRampToValueAtTime(f * 0.85, t + 0.085);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 0.12); t += 0.11 + Math.random() * 0.05;
+  }
+}
+function peckSound(){
+  if (!AC || muted) return;
+  const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = 2600 + Math.random() * 1400; f.Q.value = 3; g.gain.value = 0.55;
+  s.connect(f).connect(g).connect(master); s.start();
+}
+function dropSound(){
+  if (!AC || muted) return;
+  const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+  o.type = 'triangle'; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(260, t + 0.08);
+  g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.connect(g).connect(master); o.start(t); o.stop(t + 0.14);
+}
+function flutter(){
+  if (!AC || muted) return;
+  for (let k = 0; k < 5; k++) {
+    const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0.35;
+    s.connect(f).connect(g).connect(master); s.start(AC.currentTime + k * 0.045);
+  }
+}
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').setAttribute('aria-pressed', muted); $('#mute').setAttribute('aria-label', muted ? 'Unmute birdsong' : 'Mute birdsong'); $('#muteX').setAttribute('opacity', muted ? 1 : 0); if (!muted) { audio(); chirp(3600, 2); } });
+
+/* ---------------- tags (the accessible breadcrumb) ---------------- */
+const ol = $('#crumbs'), ghosts = $('#ghosts');
+function tagPos(el, i){
+  const x = crumbX(i), y = groundY(x);
+  const half = mobile ? 44 : 80;
+  el.style.left = Math.max(half * 0.5 + 4, Math.min(W - half * 0.5 - 4, x)) + 'px';
+  el.style.top = (y + (mobile ? 12 : 14)) + 'px';
+}
+function placeTags(){
+  [...ol.children].forEach((li, i) => tagPos(li, i));
+  [...ghosts.children].forEach(g => tagPos(g, +g.dataset.i));
+}
+function renderTags(newIndex){
+  ol.innerHTML = '';
+  trail.forEach((n, i) => {
+    const li = document.createElement('li'); li.className = 'tag' + (i === newIndex ? ' enter' : '');
+    if (i === trail.length - 1) {
+      li.innerHTML = `<span class="here" aria-current="page">${n.label}</span><small>you are here</small>`;
+    } else {
+      const lost = trail.length - 1 - i;
+      li.innerHTML = `<button type="button" data-i="${i}" aria-label="Back to ${n.title} (birds will eat ${lost} crumb${lost > 1 ? 's' : ''})">${n.label}</button><small>${lost} crumb${lost > 1 ? 's' : ''} ahead</small>`;
+    }
+    tagPos(li, i); ol.appendChild(li);
+  });
+}
+ol.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) back(+b.dataset.i); });
+ol.addEventListener('pointerover', e => { const b = e.target.closest('button[data-i]'); setPreview(b ? +b.dataset.i : -1); });
+ol.addEventListener('pointerout', e => { if (!e.relatedTarget || !ol.contains(e.relatedTarget)) setPreview(-1); });
+ol.addEventListener('focusin', e => { const b = e.target.closest('button[data-i]'); setPreview(b ? +b.dataset.i : -1); });
+ol.addEventListener('focusout', () => setPreview(-1));
+function setPreview(i){
+  if (i === preview) return; preview = i;
+  if (i >= 0) { audio(); for (const b of birds) if (b.st === 'perch') { b.alert = 1; } chirp(3900, 2); }
+}
+
+/* ---------------- the card ---------------- */
+const card = $('#card');
+function renderCard(dir){
+  const n = trail[trail.length - 1];
+  const kicker = n.kicker || (n.parent ? (n.parent === root ? 'A trail from the trailhead' : n.parent.title) : '');
+  const html = `<div class="illo" aria-hidden="true">${ICONS[n.icon] || ICONS.post}</div>
+  <div class="txt page" id="pg">
+    <p class="kicker">${kicker}</p>
+    <h1>${n.title}</h1>${n.latin ? `<p class="latin">${n.latin}</p>` : ''}
+    <p class="body">${n.body}</p>
+    <dl class="facts">${(n.facts || []).map(f => `<div><dt>${f[0]}</dt><dd>${f[1]}</dd></div>`).join('')}</dl>
+    <div class="ways">${n.kids ? `<h2 id="waysH">Follow the path to</h2><div class="boards" role="group" aria-labelledby="waysH">${n.kids.map((k, i) => `<button class="board" type="button" data-k="${i}">${k.label}<small>${k.kids ? count(k) + ' entries' : ''}</small></button>`).join('')}</div>` : `<p class="end">The path ends here. Tap a crumb on the trail above to wander back.</p>`}</div>
+  </div>`;
+  const old = card.querySelector('.page');
+  if (old && dir && !RM) {
+    old.classList.add(dir > 0 ? 'out-l' : 'out-r');
+    setTimeout(() => { card.innerHTML = html; const p = card.querySelector('.page'); p.classList.add(dir > 0 ? 'out-r' : 'out-l'); requestAnimationFrame(() => requestAnimationFrame(() => p.classList.remove('out-l', 'out-r'))); }, 260);
+  } else card.innerHTML = html;
+}
+card.addEventListener('click', e => { const b = e.target.closest('.board'); if (!b) return; go(trail[trail.length - 1].kids[+b.dataset.k]); });
+
+/* ---------------- navigation ---------------- */
+function say(t){ const s = $('#say'); s.textContent = t; s.classList.add('on'); clearTimeout(say.t); say.t = setTimeout(() => s.classList.remove('on'), 2600); }
+function go(node){
+  audio();
+  trail.push(node);
+  const i = trail.length - 1;
+  crumbs.push(makeCrumb(i, node, false));
+  walker.tx = crumbX(i) + (mobile ? 16 : 24);
+  if (RM) { walker.x = walker.tx; crumbs[i].dropped = true; crumbs[i].dropT = 1; }
+  renderTags(i); renderCard(1);
+  $('#live').textContent = `Now viewing ${node.title}. A crumb marks the way back.`;
+  hideHint();
+}
+function back(k){
+  if (k >= trail.length - 1) return;
+  audio(); everBack = true;
+  const lost = crumbs.slice(k + 1);
+  // ghost tags fade as the crumbs are eaten
+  lost.forEach(c => {
+    const g = document.createElement('div'); g.className = 'tag ghost'; g.dataset.i = c.i;
+    g.innerHTML = `<button type="button" tabindex="-1">${c.node.label}</button>`; tagPos(g, c.i); ghosts.appendChild(g); c.ghost = g;
+  });
+  crumbs.length = k + 1; trail.length = k + 1;
+  // crumbs never dropped (Gretel hadn't reached them) simply vanish
+  lost.filter(c => !c.dropped).forEach(c => { c.gone = true; if (c.ghost) { const g = c.ghost; g.classList.add('gone'); setTimeout(() => g.remove(), 2000); } });
+  const real = lost.filter(c => c.dropped);
+  eaten.push(...real);
+  // send birds, farthest crumb first
+  real.sort((a, b) => b.x - a.x).forEach((c, idx) => dispatch(c, idx * (RM ? 0 : 0.2)));
+  walker.tx = crumbX(k) + (mobile ? 16 : 24);
+  if (RM) walker.x = walker.tx;
+  preview = -1;
+  renderTags(-1); renderCard(-1);
+  const n = trail[k];
+  $('#live').textContent = `Back to ${n.title}. Birds ate ${lost.length} crumb${lost.length > 1 ? 's' : ''}.`;
+  // keep focus somewhere sensible
+  const first = card.querySelector('.board'); setTimeout(() => { const b = card.querySelector('.board'); if (b && document.activeElement && document.activeElement.tagName === 'BODY') b.focus({ preventScroll: true }); }, 300);
+  hideHint();
+}
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Backspace' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) || (e.altKey && e.key === 'ArrowLeft')) {
+    if (trail.length > 1) { e.preventDefault(); back(trail.length - 2); }
+  }
+});
+let hintShown = true;
+function hideHint(){ if (!hintShown) return; hintShown = false; $('#hint').style.transition = 'opacity 1s'; $('#hint').style.opacity = 0; }
+
+/* ---------------- birds ---------------- */
+function freePerch(nearX){
+  let best = null, bd = 1e9;
+  for (const p of perches) if (!p.taken) { const d = Math.abs(p.x - nearX) + Math.random() * 40; if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+function makeBird(kind, perch){
+  const b = { kind, perch, x: perch ? perch.x : -30, y: perch ? perch.y : 40, face: Math.random() < 0.5 ? 1 : -1, st: 'perch', t: 0, idle: 1 + Math.random() * 3,
+    hop: 0, flapP: Math.random() * 6, headDown: 0, alert: 0, crumb: null, delay: 0, from: null, c1: null, c2: null, to: null, dur: 1, bites: 0, peckT: 0, cyc: 0 };
+  if (perch) perch.taken = b;
+  birds.push(b); return b;
+}
+function flyTo(b, to, arc){
+  b.from = { x: b.x, y: b.y }; b.to = to;
+  const dx = to.x - b.x, dy = to.y - b.y, dist = Math.hypot(dx, dy);
+  if (arc === 'down') { b.c1 = { x: b.x + dx * 0.12, y: b.y + 50 }; b.c2 = { x: to.x - dx * 0.4, y: to.y - 80 }; }
+  else { b.c1 = { x: b.x + Math.sign(dx || 1) * 30, y: b.y - 70 }; b.c2 = { x: to.x - dx * 0.3, y: to.y + 40 }; }
+  b.dur = 0.8 + dist / 900; b.t = 0;
+}
+function dispatch(crumb, delay){
+  let b = null, bd = 1e9;
+  for (const q of birds) if (q.st === 'perch') { const d = Math.abs(q.x - crumb.x); if (d < bd) { bd = d; b = q; } }
+  if (!b) { b = makeBird(KINDS[birds.length % KINDS.length], null); b.x = crumb.x + (Math.random() < 0.5 ? -1 : 1) * W * 0.5; b.y = -30; }
+  if (b.perch) { b.perch.taken = null; b.perch = null; }
+  b.st = 'wait'; b.delay = delay; b.crumb = crumb; crumb.bird = b;
+}
+function cubic(a, b, c, d, t){ const u = 1 - t; return { x: u*u*u*a.x + 3*u*u*t*b.x + 3*u*t*t*c.x + t*t*t*d.x, y: u*u*u*a.y + 3*u*u*t*b.y + 3*u*t*t*c.y + t*t*t*d.y }; }
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function updateBird(b, dt){
+  b.hop = Math.max(0, b.hop - dt * 3); b.alert = Math.max(0, b.alert - dt * 0.4);
+  if (b.st === 'perch') {
+    b.flapP = 0; b.headDown += ((preview >= 0 ? 0.35 : 0) - b.headDown) * Math.min(1, dt * 6);
+    if (preview >= 0) b.face = crumbX(preview + 1) > b.x ? 1 : -1;
+    b.idle -= dt;
+    if (b.idle < 0) {
+      b.idle = 1.4 + Math.random() * 3.5; const r = Math.random();
+      if (r < 0.4) b.hop = 1; else if (r < 0.75) b.face *= -1; else if (AC && !muted && Math.random() < 0.4) chirp(3200 + Math.random() * 1500, 1 + (Math.random() * 3 | 0));
+    }
+  } else if (b.st === 'wait') {
+    b.delay -= dt;
+    if (b.delay <= 0) {
+      const c = b.crumb, side = b.x < c.x ? -1 : 1, lx = c.x + side * (mobile ? 9 : 12);
+      if (RM) { c.size = 0; finishCrumb(c); b.st = 'perch'; const p = freePerch(b.x); if (p) { b.perch = p; p.taken = b; b.x = p.x; b.y = p.y; } return; }
+      flyTo(b, { x: lx, y: groundY(lx) }, 'down'); b.st = 'fly'; flutter(); chirp(4200, 1);
+    }
+  } else if (b.st === 'fly' || b.st === 'leave') {
+    b.t += dt / b.dur; const t = Math.min(1, b.t), e = ease(t);
+    const p = cubic(b.from, b.c1, b.c2, b.to, e);
+    if (Math.abs(p.x - b.x) > 0.2) b.face = p.x > b.x ? 1 : -1;
+    b.x = p.x; b.y = p.y; b.flapP += dt * (t > 0.82 && b.st === 'fly' ? 10 : 30);
+    if (t >= 1) {
+      if (b.st === 'fly') { b.st = 'peck'; b.peckT = 0; b.cyc = 0; b.bites = 3 + (Math.random() * 2 | 0); b.face = b.crumb.x > b.x ? 1 : -1; b.hop = 1; }
+      else { b.st = 'perch'; b.hop = 1; b.idle = 1 + Math.random() * 2; if (!b.perch) { const i = birds.indexOf(b); if (i >= 0) birds.splice(i, 1); } }
+    }
+  } else if (b.st === 'peck') {
+    b.peckT += dt; const period = 0.3, ph = (b.peckT % period) / period;
+    b.headDown = ph < 0.4 ? Math.sin(ph / 0.4 * Math.PI / 2) : Math.max(0, 1 - (ph - 0.4) / 0.6);
+    const cyc = Math.floor(b.peckT / period + 0.6);
+    if (cyc > b.cyc) {
+      b.cyc = cyc; const c = b.crumb;
+      if (c && c.size > 0) {
+        c.size = Math.max(0, c.size - 1 / b.bites); peckSound();
+        for (let k = 0; k < 3; k++) parts.push({ x: c.x, y: c.y - 3, vx: (Math.random() - 0.5) * 90, vy: -60 - Math.random() * 90, life: 0.5 + Math.random() * 0.3, gy: c.y });
+        if (c.size <= 0.001) finishCrumb(c);
+      } else {
+        // fly home
+        const p = freePerch(b.x); b.perch = p; if (p) p.taken = b;
+        flyTo(b, p ? { x: p.x, y: p.y } : { x: b.x < W / 2 ? -40 : W + 40, y: -40 }, 'up'); b.st = 'leave'; b.headDown = 0; chirp(3400, 2, 0.05); flutter();
+      }
+    }
+  }
+}
+function finishCrumb(c){
+  c.gone = true; fed++;
+  if (c.ghost) { c.ghost.classList.add('gone'); const g = c.ghost; setTimeout(() => g.remove(), 2200); }
+  const i = eaten.indexOf(c); if (i >= 0) eaten.splice(i, 1);
+  $('#fed').textContent = `${fed} crumb${fed > 1 ? 's' : ''} pecked`;
+  // the flock grows as you feed it
+  if (fed % 4 === 0 && birds.length < Math.min(perches.length - 1, mobile ? 8 : 11)) {
+    const p = freePerch(Math.random() * W);
+    if (p) { const nb = makeBird(KINDS[birds.length % KINDS.length], null); nb.x = Math.random() < 0.5 ? -30 : W + 30; nb.y = 20 + Math.random() * 60; nb.perch = p; p.taken = nb; flyTo(nb, { x: p.x, y: p.y }, 'up'); nb.st = 'leave';
+      const names = { robin: 'A robin', wren: 'A wren', tit: 'A blue tit', sparrow: 'A sparrow', finch: 'A chaffinch' }; setTimeout(() => say(`${names[nb.kind]} has joined the flock`), 700); chirp(4400, 3, 0.4); }
+  }
+}
+
+/* ---------------- drawing silhouettes ---------------- */
+function punch(g, fn){ g.save(); g.globalCompositeOperation = 'destination-out'; fn(); g.restore(); }
+function drawBird(g, b){
+  const k = b.kind, sz = (k === 'wren' ? 0.82 : k === 'tit' ? 0.9 : 1) * BS;
+  const flying = b.st === 'fly' || b.st === 'leave';
+  const hopY = Math.sin(b.hop * Math.PI) * 5;
+  g.save(); g.translate(b.x, b.y - hopY); g.scale(b.face * sz, sz); g.fillStyle = INK; g.strokeStyle = INK;
+  const tilt = flying ? -0.05 : -0.28 + b.headDown * 0.3;
+  g.rotate(tilt * 0.6);
+  // tail
+  g.beginPath();
+  if (k === 'wren') { g.moveTo(-4, -9); g.lineTo(-9, -19); g.lineTo(-6, -20); g.lineTo(-1, -11); }
+  else if (k === 'tit') { g.moveTo(-5, -8); g.lineTo(-16, -6); g.lineTo(-15, -10); g.lineTo(-4, -11); }
+  else { g.moveTo(-5, -7); g.lineTo(-15, -3); g.lineTo(-16, -7); g.lineTo(-13, -8); g.lineTo(-4, -11); }
+  g.fill();
+  // body
+  g.beginPath(); g.ellipse(0, -9, k === 'wren' ? 6.8 : 7.6, k === 'wren' ? 6.2 : 5.8, 0, 0, TAU); g.fill();
+  // head
+  const hd = b.headDown, hx = 5.6 + hd * 3.6, hy = -14 + hd * 9 - b.alert * 1.2;
+  g.beginPath(); g.arc(hx, hy, k === 'robin' ? 4.6 : 4.2, 0, TAU); g.fill();
+  if (k === 'tit') { g.beginPath(); g.moveTo(hx - 3, hy - 3.6); g.lineTo(hx - 1, hy - 6.4); g.lineTo(hx + 1, hy - 3.8); g.fill(); }
+  // beak
+  g.beginPath(); g.moveTo(hx + 3.2, hy - 1.2); g.lineTo(hx + (k === 'finch' ? 6.6 : 7.4), hy + 0.3 + hd * 0.8); g.lineTo(hx + 3.2, hy + 1.4); g.fill();
+  // legs
+  if (!flying) { g.lineWidth = 1.1; g.beginPath(); g.moveTo(-1.2, -4); g.lineTo(-2, 0); g.moveTo(1.5, -4); g.lineTo(2.4, 0); g.stroke(); }
+  else { g.lineWidth = 1; g.beginPath(); g.moveTo(-1, -4); g.lineTo(-5, -1.5); g.stroke(); }
+  // wing
+  if (flying) {
+    const a = Math.sin(b.flapP), ang = -1.9 + a * 1.0;
+    g.save(); g.translate(-0.5, -11); g.rotate(ang);
+    for (let i = 0; i < 6; i++) { g.save(); g.rotate(i * 0.16 - 0.3); g.beginPath(); g.moveTo(0, -1.5); g.quadraticCurveTo(7, -2.5, 15 - Math.abs(i - 2) * 1.6, 0); g.quadraticCurveTo(7, 2, 0, 2); g.fill(); g.restore(); }
+    g.restore();
+  }
+  // cut-outs: eye, wing lines, breast lace
+  punch(g, () => {
+    g.beginPath(); g.arc(hx + 1.3, hy - 1.1, 0.95, 0, TAU); g.fill();
+    if (!flying) { g.lineWidth = 0.7; g.beginPath(); g.moveTo(-5, -10); g.quadraticCurveTo(-1, -12.5, 2.5, -9.5); g.moveTo(-5.5, -8); g.quadraticCurveTo(-1.5, -10, 2, -7.5); g.stroke(); }
+    if (k === 'robin') { for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(3.4 + i * 0.4, -10 + i * 2.3, 0.6, 0, TAU); g.fill(); } }
+    if (k === 'finch') { g.lineWidth = 0.9; g.beginPath(); g.moveTo(-3, -11); g.lineTo(1, -11.6); g.stroke(); }
+  });
+  g.restore();
+}
+function drawGretel(g){
+  const w = walker, s = BS * (mobile ? 0.95 : 1.05);
+  const y = groundY(w.x);
+  const sw = w.moving ? Math.sin(w.phase) : 0;
+  g.save(); g.translate(w.x, y); g.rotate(Math.atan2(groundY(w.x + 4) - groundY(w.x - 4), 8) * 0.5); g.scale(w.face * s, s);
+  g.fillStyle = INK; g.strokeStyle = INK; g.lineCap = 'round';
+  const bob = w.moving ? Math.abs(Math.cos(w.phase)) * 1.4 : 0;
+  g.translate(0, -bob);
+  // legs (jointed puppet limbs)
+  g.lineWidth = 2.4;
+  for (const sgn of [1, -1]) {
+    const a = sgn * sw * 0.55; g.save(); g.translate(0, -13); g.rotate(a); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 6.5); g.stroke();
+    g.translate(0, 6.5); g.rotate(Math.max(0, -a) * 0.8); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 6); g.stroke(); g.beginPath(); g.ellipse(1.4, 6.4, 2.6, 1.3, 0, 0, TAU); g.fill(); g.restore();
+  }
+  // dress with scalloped hem
+  g.beginPath(); g.moveTo(-3.6, -30); g.lineTo(3.6, -30); g.lineTo(9.5, -13);
+  for (let i = 0; i < 6; i++) { const x0 = 9.5 - i * 3.17; g.quadraticCurveTo(x0 - 1.6, -10.4, x0 - 3.17, -13); }
+  g.closePath(); g.fill();
+  // basket arm
+  g.lineWidth = 1.8; g.beginPath(); g.moveTo(1.6, -27); g.lineTo(6.5 + sw * 0.6, -21); g.lineTo(9.5, -22); g.stroke();
+  g.beginPath(); g.moveTo(6, -21); g.lineTo(14.5, -21); g.lineTo(13, -16); g.lineTo(7.5, -16); g.closePath(); g.fill();
+  g.lineWidth = 1.2; g.beginPath(); g.arc(10.3, -21, 3.8, Math.PI, 0); g.stroke();
+  // back arm
+  g.lineWidth = 1.8; g.beginPath(); g.moveTo(-1.5, -27); g.lineTo(-4.5 - sw * 2, -20); g.stroke();
+  // head, nose, braid with bow
+  g.beginPath(); g.arc(0.5, -34.5, 4.6, 0, TAU); g.fill();
+  g.beginPath(); g.moveTo(4.6, -35.5); g.lineTo(6.6, -33.6); g.lineTo(4.6, -32.6); g.fill();
+  g.lineWidth = 2; g.beginPath(); g.moveTo(-3.4, -35); g.quadraticCurveTo(-7 - sw, -31, -6 - sw * 1.5, -25); g.stroke();
+  g.beginPath(); g.moveTo(-6 - sw * 1.5, -25); g.lineTo(-9 - sw * 1.5, -27); g.lineTo(-9 - sw * 1.5, -23); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-6 - sw * 1.5, -25); g.lineTo(-3 - sw * 1.5, -27); g.lineTo(-3 - sw * 1.5, -23); g.closePath(); g.fill();
+  // cut-out lace on the dress
+  punch(g, () => {
+    for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(-5.6 + i * 2.8, -15.6, 0.75, 0, TAU); g.fill(); }
+    g.beginPath(); g.moveTo(0, -28); g.lineTo(1.4, -24.5); g.lineTo(0, -21); g.lineTo(-1.4, -24.5); g.closePath(); g.fill();
+    g.beginPath(); g.arc(2.6, -35.2, 0.8, 0, TAU); g.fill();
+  });
+  g.restore();
+}
+function drawCrumb(g, c){
+  if (c.gone) return;
+  const s = (mobile ? 7 : 9.5) * Math.max(0, c.size);
+  let y = c.y, x = c.x;
+  if (!c.dropped) return;
+  if (c.dropT < 1) { const t = c.dropT; const b = t < 0.6 ? 1 - Math.pow(t / 0.6, 2) : Math.abs(Math.sin((t - 0.6) / 0.4 * Math.PI)) * 0.18 * (1 - t); y = c.y - 24 * BS * b; }
+  if (preview >= 0 && c.i > preview && !c.bird) { x += Math.sin(time * 38 + c.i) * 0.9; y -= Math.abs(Math.sin(time * 9 + c.i)) * 1.5; }
+  // warm glint behind so the crumb reads as bread
+  const hg = g.createRadialGradient(x, y - 4, 1, x, y - 4, 20 * BS);
+  hg.addColorStop(0, 'rgba(255,240,200,' + (0.55 * c.size) + ')'); hg.addColorStop(1, 'rgba(255,230,170,0)');
+  g.fillStyle = hg; g.fillRect(x - 24 * BS, y - 28 * BS, 48 * BS, 48 * BS);
+  g.fillStyle = INK;
+  g.save(); g.translate(x, y - s * 0.55);
+  g.beginPath(); c.shape.forEach((p, k) => k ? g.lineTo(p[0] * s, p[1] * s) : g.moveTo(p[0] * s, p[1] * s)); g.closePath(); g.fill();
+  for (const f of c.frags) { const fs = s * f[1]; if (fs < 0.6) continue; g.save(); g.translate(f[0] * (mobile ? 0.75 : 1) * Math.max(0.4, c.size), s * 0.45 - fs * 0.3); g.rotate(f[2]); g.fillRect(-fs, -fs * 0.6, fs * 2, fs * 1.2); g.restore(); }
+  punch(g, () => { if (s > 3) { g.beginPath(); g.arc(-s * 0.25, -s * 0.1, s * 0.12, 0, TAU); g.arc(s * 0.3, s * 0.05, s * 0.09, 0, TAU); g.fill(); } });
+  g.restore();
+}
+
+/* ---------------- loop ---------------- */
+function frame(ts){
+  if (!running) return;
+  const dt = Math.min(0.05, (ts - (lastT || ts)) / 1000); lastT = ts; time += dt;
+  // walker
+  const d = walker.tx - walker.x, spd = (mobile ? 150 : 230);
+  if (Math.abs(d) > 0.5) { const step = Math.sign(d) * Math.min(Math.abs(d), spd * dt); walker.x += step; walker.face = Math.sign(d); walker.phase += Math.abs(step) * 0.16; walker.moving = true; }
+  else { walker.moving = false; walker.face = 1; }
+  for (const c of crumbs) {
+    if (!c.dropped && walker.face > 0 && walker.x >= c.x - 4) { c.dropped = true; c.dropT = 0; dropSound(); }
+    if (c.dropped && c.dropT < 1) c.dropT = Math.min(1, c.dropT + dt / 0.55);
+  }
+  for (const b of birds.slice()) updateBird(b, dt);
+  for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; p.vy += 520 * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y > p.gy) { p.y = p.gy; p.vy *= -0.3; p.vx *= 0.6; } if (p.life <= 0) parts.splice(i, 1); }
+  // draw
+  const g = cx; g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  for (const c of eaten) drawCrumb(g, c);
+  for (const c of crumbs) drawCrumb(g, c);
+  g.fillStyle = INK; for (const p of parts) { g.globalAlpha = Math.min(1, p.life * 3); g.fillRect(p.x - 1.2, p.y - 1.2, 2.4, 2.2); } g.globalAlpha = 1;
+  drawGretel(g);
+  for (const b of birds) drawBird(g, b);
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { lastT = 0; requestAnimationFrame(frame); } });
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 60); });
+
+/* ---------------- boot ---------------- */
+crumbs = [makeCrumb(0, root, true)];
+layout();
+const startBirds = mobile ? 4 : 6;
+for (let i = 0; i < startBirds; i++) { const p = perches[Math.floor((i + 0.5) / startBirds * perches.length)]; if (p && !p.taken) makeBird(KINDS[i % KINDS.length], p); }
+renderTags(-1); renderCard(0);
+setTimeout(() => { $('#hint').style.transition = 'opacity 1.2s'; if (hintShown) $('#hint').style.opacity = 0.85; }, 700);
+requestAnimationFrame(frame);
+
+// test hooks for automated screenshots
+window.__trail = { go: path => { let n = trail[trail.length - 1]; for (const i of path) { n = n.kids[i]; go(n); } }, back };
+})();
+</script>
+</body>
+</html>

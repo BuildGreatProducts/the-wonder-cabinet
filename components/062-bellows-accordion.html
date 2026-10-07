@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bellows Accordion</title>
+<meta name="description" content="An FAQ accordion that opens on pleated bellows and plays a reed chord driven by how fast you pull, styled as a 1920s Art Deco Parisian cabaret poster.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Poiret+One&family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Bellows Accordion","reimagines":"Accordion / FAQ disclosure","category":"Navigation & Wayfinding","description":"Each answer unfolds on real pleated bellows, and the air you move plays it: pull fast for a full musette chord, pump the handle to play, close it for a wheeze. The cabaret's accordionist on the poster breathes in time.","hint":"Tap a question, or drag its handle down and pump it to play"}
+</script>
+<style>
+  :root{
+    --paper:#efe3c6; --paper2:#e5d1a6; --ink:#151210; --red:#c3362b; --red2:#8f2219; --teal:#1c4d5a; --teal2:#2f7180; --gold:#c9993c; --gold2:#ecc96f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+  body{font-family:"Josefin Sans","Futura","Century Gothic",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;display:grid;grid-template-columns:minmax(360px,42%) 1fr;overflow:hidden;
+    background:radial-gradient(ellipse at 70% 30%, #f4ead2, var(--paper) 50%, var(--paper2))}
+  .grain{position:absolute;inset:0;pointer-events:none;z-index:20;mix-blend-mode:multiply;opacity:.35;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .28 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  /* ---------- poster panel ---------- */
+  .poster{position:relative;overflow:hidden;background:var(--ink)}
+  .poster svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .poster .mtitle{display:none}
+  /* ---------- FAQ column ---------- */
+  .faq{position:relative;display:flex;flex-direction:column;padding:38px 56px 22px 52px;min-height:0;overflow:hidden}
+  .faq::before{content:"";position:absolute;left:18px;top:24px;bottom:24px;width:6px;border-left:2px solid var(--ink);border-right:1px solid var(--ink)}
+  .eyebrow{font-family:"Poiret One",sans-serif;font-size:17px;letter-spacing:.32em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:12px}
+  .eyebrow::after{content:"";flex:1;height:0;border-top:2px solid var(--ink);border-bottom:1px solid var(--ink);padding-top:3px}
+  h1{font-family:"Limelight",serif;font-weight:400;font-size:50px;line-height:.98;margin:10px 0 8px;letter-spacing:.01em}
+  h1 em{font-style:normal;color:var(--red)}
+  .lede{font-size:16px;line-height:1.45;margin:0 0 16px;max-width:52ch}
+  .regs{display:flex;align-items:center;gap:8px;margin:0;border:0;padding:0}
+  .regs legend{float:left;font-family:"Poiret One",sans-serif;font-size:14px;letter-spacing:.2em;text-transform:uppercase;margin-right:8px;padding:0}
+  .reg{appearance:none;-webkit-appearance:none;margin:0;width:46px;height:30px;cursor:pointer;background:var(--ink);position:relative;
+    clip-path:polygon(0 0,100% 0,100% 70%,50% 100%,0 70%);transition:transform .15s, background .2s}
+  .reg::after{content:"";position:absolute;left:50%;top:5px;width:16px;height:16px;transform:translateX(-50%);border:1.5px solid var(--gold2);border-radius:50%;
+    background:var(--dots) center/100% 100% no-repeat}
+  .reg:checked{background:var(--red);transform:translateY(3px)}
+  .reg:focus-visible{outline:none;background:var(--teal)}
+  .reg-name{font-family:"Poiret One",sans-serif;font-size:14px;letter-spacing:.14em;text-transform:uppercase;margin-left:6px;min-width:6.2em}
+  .list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin;scrollbar-color:var(--ink) transparent}
+  .item{margin:0 0 7px}
+  .item h2{margin:0}
+  .head{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:16px;width:100%;min-height:52px;padding:7px 18px 7px 26px;cursor:pointer;background:var(--ink);color:var(--paper);
+    clip-path:polygon(0 8px,8px 8px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 8px) calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 8px),0 calc(100% - 8px));
+    touch-action:none;user-select:none;-webkit-user-select:none;transition:background .3s}
+  .head:hover{background:#262019}
+  .head:focus-visible{background:var(--teal)}
+  .item.open .head{background:var(--red)}
+  .num{font-family:"Limelight",serif;color:var(--gold2);font-size:20px;width:34px;height:34px;flex:none;display:grid;place-items:center;border:1.5px solid var(--gold);border-radius:50%;line-height:1}
+  .q{flex:1;font-weight:600;font-size:16px;letter-spacing:.09em;text-transform:uppercase;line-height:1.25}
+  .grip{flex:none;width:30px;height:30px;display:grid;place-items:center;cursor:grab}
+  .grip svg{width:22px;height:22px;transition:transform .5s cubic-bezier(.3,1.6,.5,1)}
+  .item.open .grip svg{transform:rotate(180deg)}
+  .bellows{position:relative;height:0;overflow:visible;margin:0 10px}
+  .bellows[hidden]{display:block}
+  .ans{position:absolute;left:0;right:0;top:0;padding:18px 26px 20px;background:linear-gradient(#f6eddb,#eddcb8);font-size:16.5px;line-height:1.5;visibility:hidden;
+    border-left:2px solid var(--gold);border-right:2px solid var(--gold)}
+  .ans p{margin:0}
+  .ans .meta{margin-top:10px;font-family:"Poiret One",sans-serif;font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:var(--red2)}
+  .ans.show{visibility:visible}
+  .face{position:absolute;left:0;right:0;overflow:hidden;will-change:height,top}
+  .face .clone{position:absolute;left:0;right:0;top:0;transform-origin:0 0;visibility:visible}
+  .face .shade{position:absolute;inset:0;pointer-events:none}
+  .guard{position:absolute;width:12px;height:12px;background:linear-gradient(135deg,var(--gold2),var(--gold) 60%,#8a6420);pointer-events:none}
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:10px;padding-top:12px;border-top:2px solid var(--ink)}
+  .foot .regs{margin:0}
+  .hint .sm{display:none}
+  .eyebrow .sm2{display:none}
+  .hint{margin:0;max-width:330px;line-height:1.35;font-family:"Poiret One",sans-serif;font-size:15px;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;gap:10px;transition:opacity .8s}
+  .hint b{color:var(--red);font-weight:400}
+  .hint.dim{opacity:.35}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:860px){
+    #stage{grid-template-columns:1fr;grid-template-rows:190px 1fr}
+    .faq{padding:16px 16px 10px 26px}
+    .faq::before{left:8px;top:14px;bottom:10px}
+    .eyebrow{font-size:12px;letter-spacing:.24em}
+    h1{font-size:31px;margin:6px 0 4px}
+    .lede{display:none}
+    .regs{margin:6px 0 10px;gap:6px}
+    .regs legend{font-size:12px;letter-spacing:.12em}
+    .reg{width:38px;height:26px}.reg::after{width:13px;height:13px;top:4px}
+    .reg-name{font-size:12px}
+    .head{min-height:50px;padding:6px 10px 6px 16px;gap:10px}
+    .num{width:28px;height:28px;font-size:16px}
+    .q{font-size:13.5px;letter-spacing:.06em}
+    .ans{font-size:15px;padding:14px 16px 16px}
+    .hint{font-size:11.5px;letter-spacing:.06em}
+    .hint .lg{display:none}.hint .sm{display:inline}
+    .foot{gap:8px;margin-top:6px;padding-top:8px}
+    .regs legend{display:none}
+    .reg-name{display:none}
+    .eyebrow .lg{display:none}.eyebrow .sm2{display:inline}
+  }
+  @media (prefers-reduced-motion:reduce){ .grip svg{transition:none} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="poster" aria-hidden="true">
+    <div class="mtitle">L’Accordéon Bleu<span>Montmartre · saison 2026</span></div>
+    <svg id="poster" viewBox="0 0 500 800" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="sun" cx="50%" cy="38%" r="60%"><stop offset="0" stop-color="#e44a33"/><stop offset=".55" stop-color="#c3362b"/><stop offset="1" stop-color="#7d1d16"/></radialGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14343c"/><stop offset=".55" stop-color="#1c4d5a"/><stop offset="1" stop-color="#0d1f24"/></linearGradient>
+        <linearGradient id="suit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2420"/><stop offset=".5" stop-color="#151210"/><stop offset="1" stop-color="#050404"/></linearGradient>
+        <linearGradient id="face" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d9c29a"/><stop offset=".6" stop-color="#f4e7cb"/><stop offset="1" stop-color="#fbf3e2"/></linearGradient>
+        <linearGradient id="box" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e44a33"/><stop offset="1" stop-color="#8f2219"/></linearGradient>
+        <linearGradient id="spot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbeec5" stop-opacity=".55"/><stop offset="1" stop-color="#fbeec5" stop-opacity="0"/></linearGradient>
+        <filter id="litho"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" result="n"/><feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>
+      </defs>
+      <rect width="500" height="800" fill="url(#sky)"/>
+      <g id="rays" opacity=".55"></g>
+      <polygon points="250,-20 120,800 380,800" fill="url(#spot)"/>
+      <circle cx="250" cy="300" r="182" fill="url(#sun)"/>
+      <circle cx="250" cy="300" r="196" fill="none" stroke="#c9993c" stroke-width="2"/>
+      <circle cx="250" cy="300" r="204" fill="none" stroke="#c9993c" stroke-width="1"/>
+      <!-- title -->
+      <text x="250" y="78" text-anchor="middle" font-family="Limelight, serif" font-size="58" fill="#efe3c6" letter-spacing="1">L’ACCORDÉON</text>
+      <text x="250" y="128" text-anchor="middle" font-family="Limelight, serif" font-size="46" fill="#ecc96f" letter-spacing="14">BLEU</text>
+      <!-- stage floor -->
+      <polygon points="0,690 500,650 500,800 0,800" fill="#0b1a1e"/>
+      <polygon points="0,690 500,650 500,662 0,702" fill="#c9993c"/>
+      <!-- stool -->
+      <g fill="#0a0807"><rect x="200" y="600" width="120" height="14"/><rect x="214" y="614" width="10" height="70"/><rect x="296" y="614" width="10" height="66"/><rect x="216" y="650" width="88" height="6"/></g>
+      <!-- legs -->
+      <path d="M210 560 L330 560 L352 600 L392 690 L364 690 L330 616 L250 612 L246 690 L218 690 L206 600 Z" fill="url(#suit)"/>
+      <path d="M364 690 L404 690 L404 700 L360 700 Z M218 690 L252 690 L252 700 L212 700 Z" fill="#0a0807"/>
+      <!-- torso -->
+      <path d="M160 300 Q250 280 340 300 L322 570 L198 570 Z" fill="url(#suit)"/>
+      <path d="M232 300 L268 300 L250 380 Z" fill="#efe3c6"/>
+      <path d="M236 304 L250 296 L264 304 L250 314 Z" fill="#c3362b"/>
+      <path d="M184 312 L214 310 L206 360 Z" fill="#2c2621" opacity=".8"/>
+      <!-- neck and head -->
+      <path d="M236 266 L264 266 L262 300 L238 300 Z" fill="#d9c29a"/>
+      <ellipse cx="258" cy="226" rx="42" ry="50" fill="url(#face)"/>
+      <path d="M216 230 Q206 168 262 168 Q300 168 304 206 Q284 190 256 196 Q236 200 232 236 Q226 256 216 230 Z" fill="#0d0a08"/>
+      <path d="M232 186 Q262 172 292 190" fill="none" stroke="#ecc96f" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M270 222 q8 -5 16 0" fill="none" stroke="#151210" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M298 228 L310 246 L296 248 Z" fill="#e8d6b1"/>
+      <path d="M284 262 q6 3 12 0" fill="none" stroke="#c3362b" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="268" cy="248" r="7" fill="#c3362b" opacity=".18"/>
+      <!-- accordion (dynamic) -->
+      <g id="acc">
+        <path id="armL" d="M168 312 L150 420 L182 430 L196 330 Z" fill="url(#suit)"/>
+        <g id="treble">
+          <rect x="112" y="350" width="76" height="190" fill="url(#box)"/>
+          <rect x="120" y="358" width="30" height="174" fill="#f3e9d2"/>
+          <g id="keys" fill="#151210"></g>
+          <rect x="112" y="350" width="76" height="190" fill="none" stroke="#ecc96f" stroke-width="2"/>
+          <path d="M156 362 h26 M156 528 h26" stroke="#ecc96f" stroke-width="2"/>
+          <path d="M160 380 l8 10 l8 -10 M160 400 l8 10 l8 -10" stroke="#ecc96f" stroke-width="1.5" fill="none"/>
+        </g>
+        <g id="pleats"></g>
+        <g id="bass">
+          <rect x="0" y="350" width="74" height="190" fill="url(#box)"/>
+          <g id="buttons" fill="#ecc96f"></g>
+          <rect x="0" y="350" width="74" height="190" fill="none" stroke="#ecc96f" stroke-width="2"/>
+        </g>
+        <path id="armR" d="" fill="url(#suit)"/>
+        <ellipse cx="134" cy="430" rx="16" ry="22" fill="#e8d6b1"/>
+        <ellipse id="handR" cx="0" cy="446" rx="14" ry="20" fill="#e8d6b1"/>
+      </g>
+      <!-- notes rising -->
+      <g id="notes" fill="#ecc96f"></g>
+      <!-- bottom banner -->
+      <rect x="0" y="722" width="500" height="78" fill="#151210"/>
+      <rect x="0" y="726" width="500" height="2" fill="#c9993c"/>
+      <text x="250" y="760" text-anchor="middle" font-family="Poiret One, sans-serif" font-size="19" fill="#ecc96f" letter-spacing="5">MONTMARTRE · SAISON 2026</text>
+      <text x="250" y="785" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-size="13" fill="#efe3c6" letter-spacing="4">CHAQUE SOIR · 20H30 · 12 RUE LEPIC</text>
+      <rect width="500" height="800" fill="#efe3c6" filter="url(#litho)" opacity=".18"/>
+    </svg>
+  </div>
+
+  <section class="faq" aria-labelledby="faqTitle">
+    <p class="eyebrow"><span class="lg">Questions &amp; réponses</span><span class="sm2">L’Accordéon Bleu · Montmartre</span></p>
+    <h1 id="faqTitle">Before the <em>show</em></h1>
+    <p class="lede">Everything to know before your evening at L’Accordéon Bleu. Pull a question open — our house accordion answers in its own voice.</p>
+    <div class="list" id="list"></div>
+    <div class="foot">
+      <p class="hint" id="hint"><b>☛</b> <span class="lg">Tap a question · drag a handle and pump to play</span><span class="sm">Tap, or drag a handle and pump</span></p>
+      <fieldset class="regs" id="regs">
+        <legend>Register</legend>
+      </fieldset>
+    </div>
+    <p class="sr" id="live" aria-live="polite"></p>
+  </section>
+  <div class="grain" aria-hidden="true"></div>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const ROMAN = ['I','II','III','IV','V','VI'];
+const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+const FAQ = [
+  { q:'What time should we arrive?', a:'Doors open at 19:30 and the first set starts at 20:30 sharp. Latecomers are seated quietly between songs, so you won’t miss the overture by much.', meta:'Doors 19:30 · Show 20:30 · Last set 23:00', pull:[60,64,67], push:[55,59,62,65] },
+  { q:'Is there a dress code?', a:'Smart, not stiff. Jackets are welcome, trainers are fine and costumes are celebrated — every Saturday the best-dressed table is sent a single red rose.', meta:'No ties required', pull:[57,60,64], push:[52,56,59] },
+  { q:'Can I change or cancel my booking?', a:'Change your date free of charge up to 48 hours before the show. Cancel inside 48 hours and we refund you as a credit, valid for twelve months.', meta:'Manage booking · ref. LAB-2026-0418', pull:[62,65,69], push:[57,61,64] },
+  { q:'Do you cater for dietary needs?', a:'Yes. The three-course dinner comes in vegetarian and vegan versions, and if you note an allergy when booking, our chef Lucien Ferrand will call you to plan your plate.', meta:'Menu €68 · wine pairing €32', pull:[55,59,62,65], push:[60,64,67] },
+  { q:'Is the salon accessible?', a:'The main salon is step-free from Rue Lepic, with an accessible toilet beside the cloakroom. The mezzanine tables are up fourteen stairs.', meta:'Hearing loop at the bar', pull:[52,55,59], push:[57,60,64] },
+  { q:'Can I request a song?', a:'Write it on the card at your table. Mireille Dauvergne plays requests in the final set and knows more than four hundred tunes — “La Vie en rose” is asked for nightly.', meta:'Requests close at 22:15', pull:[53,57,60], push:[60,64,67] }
+];
+const REGS = [
+  { id:'bassoon', name:'Bassoon', det:[0, 7], oct:-1, cut:900, dots:'<circle cx=\'8\' cy=\'12\' r=\'1.6\' fill=\'%23ecc96f\'/>' },
+  { id:'clarinet', name:'Clarinet', det:[0], oct:0, cut:1600, dots:'<circle cx=\'8\' cy=\'8\' r=\'1.6\' fill=\'%23ecc96f\'/>' },
+  { id:'musette', name:'Musette', det:[-15, 0, 14], oct:0, cut:2200, dots:'<circle cx=\'4.5\' cy=\'8\' r=\'1.4\' fill=\'%23ecc96f\'/><circle cx=\'8\' cy=\'8\' r=\'1.4\' fill=\'%23ecc96f\'/><circle cx=\'11.5\' cy=\'8\' r=\'1.4\' fill=\'%23ecc96f\'/>' },
+  { id:'mute', name:'Silent', det:[], oct:0, cut:0, dots:'' }
+];
+let reg = REGS[2];
+
+/* ---------- register switches ---------- */
+const regsEl = $('#regs');
+REGS.forEach(r => {
+  const i = document.createElement('input'); i.type = 'radio'; i.name = 'reg'; i.className = 'reg'; i.value = r.id; i.checked = r === reg;
+  i.setAttribute('aria-label', r.name + (r.id === 'mute' ? ' (sound off)' : ' register'));
+  i.style.setProperty('--dots', `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E${r.dots}%3C/svg%3E")`);
+  i.addEventListener('change', () => { reg = r; $('#regName').textContent = r.name; killAll(); if (r.id !== 'mute') { audio(); demoChord(); } });
+  regsEl.appendChild(i);
+});
+const rn = document.createElement('span'); rn.className = 'reg-name'; rn.id = 'regName'; rn.textContent = reg.name; regsEl.appendChild(rn);
+
+/* ---------- build list ---------- */
+const list = $('#list');
+const items = FAQ.map((f, i) => {
+  const el = document.createElement('div'); el.className = 'item';
+  el.innerHTML = `<h2><button class="head" id="h${i}" aria-expanded="false" aria-controls="b${i}"><span class="num" aria-hidden="true">${ROMAN[i]}</span><span class="q">${f.q}</span>
+    <span class="grip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 6l7 6 7-6M5 12l7 6 7-6" fill="none" stroke="#ecc96f" stroke-width="2"/></svg></span></button></h2>
+    <div class="bellows" id="b${i}" role="region" aria-labelledby="h${i}" aria-hidden="true"><div class="ans"><p>${f.a}</p><p class="meta">${f.meta}</p></div><div class="faces" aria-hidden="true"></div></div>`;
+  list.appendChild(el);
+  return { i, f, el, head: el.querySelector('.head'), bel: el.querySelector('.bellows'), ans: el.querySelector('.ans'), facesEl: el.querySelector('.faces'),
+    p: 0, v: 0, target: 0, h: 100, faces: [], dragging: false, voice: null, quiet: 0, lastShown: null };
+});
+
+function buildFaces(it){
+  it.h = it.ans.offsetHeight;
+  const F = Math.max(4, Math.round(it.h / 24)), fh = it.h / F;
+  it.fh = fh; it.facesEl.innerHTML = ''; it.faces = [];
+  const html = it.ans.innerHTML;
+  for (let k = 0; k < F; k++) {
+    const face = document.createElement('div'); face.className = 'face';
+    face.innerHTML = `<div class="clone ans">${html}</div><i class="shade"></i>`;
+    const cl = face.firstChild; cl.classList.remove('show');
+    it.facesEl.appendChild(face);
+    const gl = document.createElement('i'), gr = document.createElement('i'); gl.className = gr.className = 'guard';
+    it.facesEl.appendChild(gl); it.facesEl.appendChild(gr);
+    it.faces.push({ face, clone: cl, shade: face.lastChild, gl, gr });
+  }
+}
+function renderItem(it){
+  const p = Math.max(0, it.p), pc = Math.min(1.06, p), H = it.h * pc;
+  it.bel.style.height = H + 'px';
+  const full = p > 0.995 && p < 1.005 && !it.dragging && Math.abs(it.v) < 0.02;
+  const state = full ? 'full' : (p < 0.002 ? 'shut' : 'fold');
+  if (state !== it.lastShown) {
+    it.ans.classList.toggle('show', state === 'full');
+    it.facesEl.style.display = state === 'fold' ? 'block' : 'none';
+    it.lastShown = state;
+  }
+  if (state !== 'fold') return;
+  const c = pc, fold = 1 - Math.min(1, p), n = it.faces.length;
+  for (let k = 0; k < n; k++) {
+    const F = it.faces[k], odd = k % 2;
+    const inset = odd ? fold * 18 : fold * 3;
+    const top = k * it.fh * c, hh = it.fh * c + 0.6;
+    F.face.style.cssText = `top:${top}px;height:${hh}px;left:${inset}px;right:${inset}px`;
+    F.clone.style.transform = `translateX(${-inset}px) scaleY(${c}) translateY(${-k * it.fh}px)`;
+    F.clone.style.width = `calc(100% + ${inset * 2}px)`;
+    F.shade.style.background = odd
+      ? `linear-gradient(rgba(21,18,16,${0.62 * fold}), rgba(21,18,16,${0.2 * fold}) 72%, rgba(201,153,60,${0.65 * fold}) calc(100% - 2px), rgba(21,18,16,${0.8 * fold}))`
+      : `linear-gradient(rgba(255,250,236,${0.7 * fold}), rgba(255,250,236,${0.1 * fold}) 40%, rgba(21,18,16,${0.35 * fold}) calc(100% - 2px), rgba(21,18,16,${0.8 * fold}))`;
+    const gy = top + hh - 6, go = fold > 0.05 ? 1 : 0;
+    F.gl.style.cssText = `top:${gy}px;left:${inset - 8}px;opacity:${go};transform:rotate(45deg) scale(${0.5 + fold * 0.6})`;
+    F.gr.style.cssText = `top:${gy}px;right:${inset - 8}px;opacity:${go};transform:rotate(45deg) scale(${0.5 + fold * 0.6})`;
+  }
+}
+
+/* ---------- audio: reeds driven by airflow ---------- */
+let AC = null, master = null, noiseBuf = null;
+function audio(){
+  if (!AC) { try {
+    AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.18;
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -18; master.connect(comp).connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume();
+}
+function bank(notes, lp){
+  const g = AC.createGain(); g.gain.value = 0; g.connect(lp);
+  const oscs = [];
+  notes.forEach(n => reg.det.forEach(c => { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz(n + 12 * reg.oct); o.detune.value = c; o.connect(g); o.start(); oscs.push(o); }));
+  return { g, oscs, n: Math.max(1, oscs.length) };
+}
+function makeVoice(it){
+  if (!AC || reg.id === 'mute') return null;
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = reg.cut; lp.Q.value = 1.2;
+  const body = AC.createBiquadFilter(); body.type = 'peaking'; body.frequency.value = 1100; body.gain.value = 5; body.Q.value = 1;
+  const out = AC.createGain(); out.gain.value = 1; lp.connect(body).connect(out).connect(master);
+  const pull = bank(it.f.pull, lp), push = bank(it.f.push, lp);
+  const ns = AC.createBufferSource(); ns.buffer = noiseBuf; ns.loop = true;
+  const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.8;
+  const ng = AC.createGain(); ng.gain.value = 0; ns.connect(bp).connect(ng).connect(master); ns.start();
+  return { lp, out, pull, push, ns, ng, bp };
+}
+function killVoice(it){
+  const v = it.voice; if (!v) return; it.voice = null;
+  const t = AC.currentTime;
+  [v.pull.g, v.push.g, v.ng].forEach(g => { g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 0.03); });
+  setTimeout(() => { try { [...v.pull.oscs, ...v.push.oscs].forEach(o => o.stop()); v.ns.stop(); v.out.disconnect(); v.ng.disconnect(); } catch (e) {} }, 300);
+}
+function killAll(){ items.forEach(killVoice); }
+function voiceUpdate(it, dt){
+  if (!AC) return;
+  const air = Math.min(1.2, Math.abs(it.v) / 4.5);
+  if (air < 0.02) { it.quiet += dt; if (it.quiet > 0.35) killVoice(it); }
+  else { it.quiet = 0; if (!it.voice) it.voice = makeVoice(it); }
+  const v = it.voice; if (!v) return;
+  const t = AC.currentTime, opening = it.v > 0;
+  const amp = Math.pow(air, 0.8) * 0.22;
+  v.pull.g.gain.setTargetAtTime(opening ? amp / Math.sqrt(v.pull.n) : 0, t, 0.025);
+  v.push.g.gain.setTargetAtTime(!opening ? amp * 0.8 / Math.sqrt(v.push.n) : 0, t, 0.025);
+  v.ng.gain.setTargetAtTime(air * (opening ? 0.05 : 0.16), t, 0.03);
+  v.bp.frequency.setTargetAtTime(opening ? 1400 : 700 + air * 500, t, 0.05);
+  v.lp.frequency.setTargetAtTime(reg.cut * (0.45 + air * 0.75), t, 0.04);
+}
+function demoChord(){
+  if (!AC || reg.id === 'mute') return;
+  const fake = { f: FAQ[0] }; const v = makeVoice(fake); if (!v) return;
+  const t = AC.currentTime, a = 0.2 / Math.sqrt(v.pull.n);
+  v.pull.g.gain.setValueAtTime(0, t); v.pull.g.gain.linearRampToValueAtTime(a, t + 0.08); v.pull.g.gain.setTargetAtTime(0, t + 0.35, 0.08);
+  setTimeout(() => { try { [...v.pull.oscs, ...v.push.oscs].forEach(o => o.stop()); v.ns.stop(); v.out.disconnect(); } catch (e) {} }, 1200);
+}
+
+/* ---------- interaction ---------- */
+let anyUsed = false;
+function setTarget(it, open){
+  it.target = open ? 1 : 0;
+  if (open) items.forEach(o => { if (o !== it && o.target === 1) { o.target = 0; setAria(o, false); } });
+  setAria(it, open);
+  if (RM) { items.forEach(o => { o.p = o.target; o.v = 0; }); }
+  if (!anyUsed) { anyUsed = true; $('#hint').classList.add('dim'); }
+}
+function setAria(it, open){
+  it.head.setAttribute('aria-expanded', open); it.bel.setAttribute('aria-hidden', !open); it.el.classList.toggle('open', open);
+  if (open) { $('#live').textContent = it.f.q + ' — ' + it.f.a; setTimeout(() => { const lr = list.getBoundingClientRect(), r = it.el.getBoundingClientRect(); if (r.bottom > lr.bottom || r.top < lr.top) list.scrollBy({ top: r.bottom > lr.bottom ? Math.min(r.bottom - lr.bottom + 8, r.top - lr.top) : r.top - lr.top - 4, behavior: RM ? 'auto' : 'smooth' }); }, 420); }
+}
+items.forEach(it => {
+  const h = it.head; let sy = 0, sp = 0, moved = false, lastY = 0, lastT = 0, vel = 0, pid = null;
+  h.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return; audio();
+    pid = e.pointerId; h.setPointerCapture(pid); sy = lastY = e.clientY; sp = it.p; moved = false; lastT = performance.now(); vel = 0;
+  });
+  h.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return;
+    const dy = e.clientY - sy;
+    if (!moved && Math.abs(dy) > 5) { moved = true; it.dragging = true; if (sp < 0.01) items.forEach(o => { if (o !== it && o.target === 1) { o.target = 0; setAria(o, false); } }); }
+    if (moved) {
+      const now = performance.now(), np = Math.max(0, Math.min(1.08, sp + dy / Math.max(80, it.h)));
+      const dtm = Math.max(1, now - lastT) / 1000; vel = vel * 0.5 + ((np - it.p) / dtm) * 0.5;
+      it.v = vel; it.p = np; lastT = now; lastY = e.clientY;
+    }
+  });
+  const end = e => {
+    if (e.pointerId !== pid) return; pid = null;
+    if (moved) { it.dragging = false; const open = it.p > 0.5 ? (vel > -2.5) : vel > 2.5; it.v = vel; setTarget(it, open); }
+  };
+  h.addEventListener('pointerup', end); h.addEventListener('pointercancel', end);
+  h.addEventListener('click', e => { if (moved) { moved = false; e.preventDefault(); return; } audio(); setTarget(it, it.target !== 1); });
+  h.addEventListener('keydown', e => {
+    const idx = it.i; let j = -1;
+    if (e.key === 'ArrowDown') j = (idx + 1) % items.length; else if (e.key === 'ArrowUp') j = (idx - 1 + items.length) % items.length;
+    else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = items.length - 1;
+    if (j >= 0) { e.preventDefault(); items[j].head.focus(); }
+  });
+});
+
+/* ---------- poster: the accordionist breathes with the FAQ ---------- */
+const svg = $('#poster');
+(function rays(){ const g = $('#rays'); for (let i = 0; i < 28; i++) { const a0 = i / 28 * Math.PI * 2, a1 = a0 + Math.PI / 28, R = 900;
+  const p = document.createElementNS(NS, 'polygon'); p.setAttribute('points', `250,300 ${250 + Math.cos(a0) * R},${300 + Math.sin(a0) * R} ${250 + Math.cos(a1) * R},${300 + Math.sin(a1) * R}`); p.setAttribute('fill', i % 2 ? '#2f7180' : '#c9993c'); p.setAttribute('opacity', i % 2 ? '.5' : '.22'); g.appendChild(p); } })();
+(function keys(){ const g = $('#keys'); for (let k = 0; k < 14; k++) { const y = 358 + k * 12.4; const l = document.createElementNS(NS, 'rect'); l.setAttribute('x', 120); l.setAttribute('y', y); l.setAttribute('width', 30); l.setAttribute('height', 0.8); g.appendChild(l);
+  if ([0, 1, 3, 4, 5].includes(k % 7) && k < 13) { const b = document.createElementNS(NS, 'rect'); b.setAttribute('x', 120); b.setAttribute('y', y + 8); b.setAttribute('width', 17); b.setAttribute('height', 7); g.appendChild(b); } } })();
+(function buttons(){ const g = $('#buttons'); for (let r = 0; r < 8; r++) for (let c = 0; c < 4; c++) { const ci = document.createElementNS(NS, 'circle'); ci.setAttribute('cx', 14 + c * 15 + (r % 2) * 4); ci.setAttribute('cy', 372 + r * 21); ci.setAttribute('r', c === 1 && r === 4 ? 4.6 : 3.8); g.appendChild(ci); } })();
+const pleatsG = $('#pleats'), bass = $('#bass'), armR = $('#armR'), handR = $('#handR'), notesG = $('#notes');
+const PLEATS = 10;
+const pleatEls = [];
+for (let k = 0; k < PLEATS * 2; k++) { const p = document.createElementNS(NS, 'polygon'); pleatsG.appendChild(p); pleatEls.push(p); }
+const edgeEls = [];
+for (let k = 0; k <= PLEATS * 2; k++) { const l = document.createElementNS(NS, 'line'); l.setAttribute('stroke', '#ecc96f'); l.setAttribute('stroke-width', '1.6'); pleatsG.appendChild(l); edgeEls.push(l); }
+let squeeze = 0.25, notes = [];
+function drawAccordion(open, wob){
+  const x0 = 188, bw = 54 + open * 150 + wob, x1 = x0 + bw, step = bw / (PLEATS * 2), top = 350, bot = 540;
+  for (let k = 0; k < PLEATS * 2; k++) {
+    const xa = x0 + k * step, xb = xa + step, inA = k % 2 ? 10 : 0, inB = k % 2 ? 0 : 10, depth = 10 * (1 - open * 0.6);
+    const ia = k % 2 ? depth : 0, ib = k % 2 ? 0 : depth;
+    pleatEls[k].setAttribute('points', `${xa},${top + ia} ${xb},${top + ib} ${xb},${bot - ib} ${xa},${bot - ia}`);
+    pleatEls[k].setAttribute('fill', k % 2 ? '#1c4d5a' : '#2f7180');
+  }
+  for (let k = 0; k <= PLEATS * 2; k++) { const x = x0 + k * step, d = k % 2 ? 10 * (1 - open * 0.6) : 0; const l = edgeEls[k]; l.setAttribute('x1', x); l.setAttribute('x2', x); l.setAttribute('y1', top + d); l.setAttribute('y2', bot - d); }
+  bass.setAttribute('transform', `translate(${x1},0)`);
+  handR.setAttribute('cx', x1 + 52); armR.setAttribute('d', `M332 312 L${x1 + 60} 420 L${x1 + 40} 446 L318 340 Z`);
+}
+
+/* ---------- loop ---------- */
+let last = 0, running = true, t = 0;
+function frame(ts){
+  if (!running) return;
+  const dt = Math.min(0.04, (ts - (last || ts)) / 1000); last = ts; t += dt;
+  let total = 0, air = 0;
+  for (const it of items) {
+    if (!it.dragging) {
+      const k = 150, d = 15;
+      const a = k * (it.target - it.p) - d * it.v;
+      it.v += a * dt; it.p += it.v * dt;
+      if (Math.abs(it.target - it.p) < 0.0005 && Math.abs(it.v) < 0.003) { it.p = it.target; it.v = 0; }
+      if (it.p < 0) { it.p = 0; it.v = Math.abs(it.v) * 0.2; }
+    } else { it.v *= Math.pow(0.02, dt); }
+    renderItem(it); voiceUpdate(it, dt);
+    total = Math.max(total, Math.min(1, it.p)); air = Math.max(air, Math.abs(it.v));
+  }
+  squeeze += (total - squeeze) * Math.min(1, dt * 8);
+  drawAccordion(squeeze, Math.sin(t * 2.2) * 3);
+  // rising notes when air flows
+  if (air > 1.5 && Math.random() < dt * 14 && !RM) {
+    const e = document.createElementNS(NS, 'text'); e.textContent = Math.random() < 0.5 ? '♪' : '♫'; e.setAttribute('font-size', 22 + Math.random() * 14); e.setAttribute('font-family', 'serif');
+    notesG.appendChild(e); notes.push({ e, x: 200 + squeeze * 150 + Math.random() * 60, y: 340, vx: (Math.random() - 0.3) * 30, life: 1 });
+  }
+  for (let i = notes.length - 1; i >= 0; i--) { const n = notes[i]; n.life -= dt * 0.5; n.y -= 60 * dt; n.x += n.vx * dt + Math.sin(t * 3 + i) * 0.4;
+    n.e.setAttribute('x', n.x); n.e.setAttribute('y', n.y); n.e.setAttribute('opacity', Math.max(0, n.life)); if (n.life <= 0) { n.e.remove(); notes.splice(i, 1); } }
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { last = 0; requestAnimationFrame(frame); } else if (AC) killAll(); });
+function measure(){ items.forEach(buildFaces); items.forEach(it => { it.lastShown = null; }); }
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(measure, 80); });
+function mobileView(){ svg.setAttribute('viewBox', innerWidth <= 860 ? '40 168 420 205' : '0 0 500 800'); }
+mobileView(); window.addEventListener('resize', mobileView);
+(document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(measure);
+measure();
+requestAnimationFrame(frame);
+window.__acc = { open: i => setTarget(items[i], true), items };
+})();
+</script>
+</body>
+</html>

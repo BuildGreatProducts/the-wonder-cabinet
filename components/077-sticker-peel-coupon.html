@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sticker Peel Coupon</title>
+<meta name="description" content="A checkout where the promo code hides under a holographic die-cut sticker. Peel it from any edge — the curl and shadow follow your finger — let go early and it sticks back down, peel it all the way and slap it anywhere.">
+<script type="application/json" id="component-meta">
+{"name":"Sticker Peel Coupon","reimagines":"Coupon / promo-code reveal","category":"Overlays & Reveals","description":"The discount code is printed on the backing under a holographic vinyl sticker in a sticker-bombed checkout. Pick at any edge to peel: the flap reflects along a real fold line with its own shadow and shiny backside. Let go early and it sticks back; peel past halfway and it comes off in your hand, ready to slap anywhere on the page.","hint":"Pick at the sticker's edge and peel it back"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Bowlby+One&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#141218; --pink:#ff4fa3; --lime:#c6f24a; --cyan:#3fd6ff; --yellow:#ffd23f; --orange:#ff7a2f; --violet:#7b5cff; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;font-family:'Archivo',system-ui,sans-serif;color:var(--ink);background:#26232b}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:3px solid var(--cyan);outline-offset:3px;border-radius:12px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* the sticker-bombed laptop lid */
+  .bomb{position:fixed;inset:0;overflow:hidden;background:
+    radial-gradient(80% 60% at 30% 20%,#3a3540,#26232b 60%,#1b1920),#26232b}
+  .bomb::after{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");pointer-events:none}
+  .stk{position:absolute;filter:drop-shadow(0 2px 1px rgba(0,0,0,.45)) drop-shadow(0 6px 8px rgba(0,0,0,.25));transform:translate(-50%,-50%) rotate(var(--r));transform-origin:50% 50%}
+  .stk svg{display:block;overflow:visible}
+  .holo{--hx:30%;--hy:30%}
+
+  /* the basket: one big white vinyl sticker */
+  .order{position:absolute;left:50%;top:50%;width:min(520px,calc(100% - 28px));transform:translate(-50%,-50%) rotate(-1.2deg);
+    background:#fff;border-radius:34px;padding:26px 30px 24px;
+    box-shadow:0 0 0 6px #fff,0 2px 2px rgba(0,0,0,.35),0 22px 40px -12px rgba(0,0,0,.6);}
+  .order::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.7) 48%,rgba(255,255,255,0) 56%);mix-blend-mode:overlay}
+  .brand{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand b{font-family:'Bowlby One',sans-serif;font-weight:400;font-size:15px;letter-spacing:.06em;background:var(--ink);color:var(--lime);padding:6px 12px 5px;border-radius:999px;transform:rotate(-2deg)}
+  .brand span{font-size:13px;font-weight:700;color:#77707f}
+  h1{font-family:'Bowlby One',sans-serif;font-weight:400;font-size:40px;line-height:1;margin:12px 0 10px;letter-spacing:.005em}
+  .items{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .items li{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;font-size:15.5px;font-weight:700}
+  .items li small{display:block;font-weight:500;font-size:13px;color:#77707f}
+  .items svg{width:44px;height:44px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
+  .num{font-variant-numeric:tabular-nums}
+  .promo{position:relative;margin:16px 0 12px;height:150px;border-radius:20px;
+    background:repeating-linear-gradient(0deg,rgba(20,18,24,.05) 0 1px,transparent 1px 16px),repeating-linear-gradient(90deg,rgba(20,18,24,.05) 0 1px,transparent 1px 16px),linear-gradient(135deg,#f3f1ec,#e7e4dc);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center}
+  .promo .lbl{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#77707f}
+  .promo .code{font-family:'Bowlby One',sans-serif;font-size:40px;line-height:1;letter-spacing:.08em;color:var(--ink)}
+  .promo .apply{font-weight:800;font-size:14px;padding:9px 16px;border-radius:999px;background:var(--ink);color:#fff;box-shadow:0 0 0 3px #fff,0 0 0 5px var(--ink)}
+  .promo .apply:disabled{opacity:.35;cursor:default}
+  .promo .applied{display:none;font-weight:800;color:#1f9d55}
+  .promo.done .apply{display:none}.promo.done .applied{display:block}
+  .totals{display:flex;flex-direction:column;gap:4px;font-size:14.5px;font-weight:600;color:#4b4552}
+  .totals div{display:flex;justify-content:space-between}
+  .totals .disc{color:#1f9d55;display:none}
+  .totals .disc.on{display:flex}
+  .pay{margin-top:14px;width:100%;min-height:54px;border-radius:999px;font-family:'Bowlby One',sans-serif;font-size:20px;letter-spacing:.03em;color:#fff;background:var(--ink);
+    box-shadow:0 0 0 4px #fff,0 0 0 6px var(--ink),0 8px 18px -6px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;gap:12px;transition:transform .12s}
+  .pay:active{transform:scale(.98)}
+  .pay .tot{background:linear-gradient(100deg,var(--lime),var(--cyan),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .note{font-size:12.5px;color:#77707f;text-align:center;margin-top:10px;min-height:16px}
+
+  #peel{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+  .grab{position:fixed;z-index:6;border-radius:22px;touch-action:none;cursor:grab;background:transparent}
+  .grab.held{cursor:grabbing}
+  .grab[hidden]{display:none}
+  .tip{white-space:nowrap;position:fixed;z-index:7;pointer-events:none;font-family:'Bowlby One',sans-serif;font-size:14px;letter-spacing:.04em;color:var(--ink);background:var(--yellow);padding:6px 10px 5px;border-radius:999px;box-shadow:0 0 0 3px #fff,0 4px 8px rgba(0,0,0,.35);transform:rotate(6deg);transition:opacity .5s}
+  .tip.gone{opacity:0}
+  .mute{position:fixed;right:14px;top:14px;z-index:8;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#fff;box-shadow:0 0 0 3px var(--ink)}
+  .mute svg{width:17px;height:17px}
+  .mute[aria-pressed="true"] .w{display:none}
+  .mute:not([aria-pressed="true"]) .x{display:none}
+  @media (max-width:560px){
+    .order{padding:20px 18px 18px;border-radius:26px}
+    h1{font-size:31px}
+    .items li{font-size:14px;grid-template-columns:38px 1fr auto;gap:10px}
+    .items svg{width:38px;height:38px}
+    .promo{height:136px}
+    .promo .code{font-size:32px}
+    .brand b{font-size:12px;padding:5px 10px 4px}
+    .brand span{font-size:11.5px;white-space:nowrap}
+  }
+</style>
+</head>
+<body>
+  <div class="bomb" id="bomb" aria-hidden="true"></div>
+
+  <main class="order" id="order" aria-labelledby="t">
+    <div class="brand"><b>KICKFLIP SUPPLY CO.</b><span>Step 2 of 3</span></div>
+    <h1 id="t">Your basket</h1>
+    <ul class="items">
+      <li><svg viewBox="0 0 44 44" aria-hidden="true"><rect x="6" y="15" width="32" height="14" rx="7" fill="#fff" transform="rotate(-20 22 22)"/><rect x="8" y="17" width="28" height="10" rx="5" fill="#2b2d6e" transform="rotate(-20 22 22)"/><circle cx="16" cy="25" r="2" fill="#ffd23f"/><circle cx="25" cy="20" r="1.5" fill="#fff"/><circle cx="29" cy="17" r="1" fill="#fff"/></svg><span>Orbit deck, 8.25″<small>Night Sky print · Qty 1</small></span><span class="num">£64.00</span></li>
+      <li><svg viewBox="0 0 44 44" aria-hidden="true"><rect x="9" y="12" width="26" height="20" rx="4" fill="#fff"/><rect x="11" y="14" width="22" height="16" rx="3" fill="#e8434a"/><path d="M15 22h14" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg><span>Hard wax block<small>Cherry scent · Qty 1</small></span><span class="num">£6.00</span></li>
+      <li><svg viewBox="0 0 44 44" aria-hidden="true"><path d="M22 6l4.5 9.5 10.5 1.5-7.6 7.3 1.8 10.4L22 29.8l-9.2 4.9 1.8-10.4L7 17l10.5-1.5z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><path d="M22 6l4.5 9.5 10.5 1.5-7.6 7.3 1.8 10.4L22 29.8l-9.2 4.9 1.8-10.4L7 17l10.5-1.5z" fill="#ffd23f"/></svg><span>Sticker pack<small>Obviously · Qty 1</small></span><span class="num">£5.00</span></li>
+    </ul>
+    <section class="promo" id="promo" aria-label="Promo code">
+      <span class="lbl">Your code</span>
+      <span class="code" id="code" aria-hidden="true">ORBIT20</span>
+      <button class="apply" id="apply" disabled>Peel the sticker first</button>
+      <span class="applied" id="applied">ORBIT20 applied · 20% off your gear</span>
+    </section>
+    <div class="totals" aria-live="polite">
+      <div><span>Items</span><span class="num">£75.00</span></div>
+      <div class="disc" id="discRow"><span>Sticker discount (ORBIT20)</span><span class="num">−£15.00</span></div>
+      <div><span>Delivery</span><span class="num">£3.95</span></div>
+    </div>
+    <button class="pay" id="pay">Pay <span class="tot num" id="total">£78.95</span></button>
+    <p class="note" id="note" role="status"></p>
+  </main>
+
+  <canvas id="peel" aria-hidden="true"></canvas>
+  <button class="grab" id="grab" aria-label="Holographic 20% off sticker. Press to peel it off and reveal your promo code"></button>
+  <span class="tip" id="tip" aria-hidden="true">pick at the edge!</span>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sticker sounds"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="#141218"/><path class="w" d="M11 5.5c1 .8 1 4.2 0 5M13 4c2 1.8 2 6.2 0 8" fill="none" stroke="#141218" stroke-width="1.4" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" stroke="#ff4fa3" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rng = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+
+  /* ——————————— sticker-bomb background ——————————— */
+  const holoGrad = id => `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9de2"/><stop offset=".25" stop-color="#9ee7ff"/><stop offset=".5" stop-color="#d6ff9e"/><stop offset=".75" stop-color="#ffe29e"/><stop offset="1" stop-color="#c6a6ff"/></linearGradient>`;
+  const die = (d, fill, extra = '', w = 9) => `<path d="${d}" fill="#fff" stroke="#fff" stroke-width="${w}" stroke-linejoin="round"/><path d="${d}" fill="${fill}"/>${extra}`;
+  const DESIGNS = [
+    (id) => [90, 90, die('M45 5l11 25 27 3-20 18 6 27-24-14-24 14 6-27L7 33l27-3z', '#ffd23f', '<circle cx="37" cy="42" r="3.5" fill="#141218"/><circle cx="53" cy="42" r="3.5" fill="#141218"/><path d="M36 52q9 8 18 0" fill="none" stroke="#141218" stroke-width="3" stroke-linecap="round"/>')],
+    (id) => [70, 110, die('M40 4L8 62h22l-8 44 40-62H38l12-40z', '#ff7a2f', '<path d="M40 4L8 62h22l-8 44" fill="none" stroke="#ffd23f" stroke-width="4"/>')],
+    (id) => [130, 70, `<rect x="4" y="4" width="122" height="62" rx="31" fill="#fff"/><rect x="9" y="9" width="112" height="52" rx="26" fill="#ff4fa3"/><text x="65" y="47" text-anchor="middle" font-family="Bowlby One" font-size="30" fill="#fff" stroke="#141218" stroke-width="2" paint-order="stroke">RAD</text>`],
+    (id) => [84, 84, die('M42 4a38 38 0 1 0 0.1 0z', '#c6f24a', '<circle cx="30" cy="36" r="5" fill="#141218"/><circle cx="54" cy="36" r="5" fill="#141218"/><path d="M24 50q18 18 36 0" fill="none" stroke="#141218" stroke-width="4.5" stroke-linecap="round"/>')],
+    (id) => [96, 64, die('M4 32Q48 -12 92 32Q48 76 4 32z', '#fff', '<circle cx="48" cy="32" r="18" fill="#3fd6ff"/><circle cx="48" cy="32" r="9" fill="#141218"/><circle cx="43" cy="27" r="4" fill="#fff"/>')],
+    (id) => [74, 100, die('M37 4C50 24 66 34 64 60c-2 22-16 34-27 34S10 82 10 60C10 44 24 40 28 22c6 10 10 14 14 16C44 26 42 14 37 4z', '#ff4f3a', '<path d="M37 50c8 10 14 16 12 28-2 8-8 12-12 12s-12-4-12-14c0-8 8-12 12-26z" fill="#ffd23f"/>')],
+    (id) => [86, 92, die('M10 46C10 20 76 20 76 46c0 8-6 10-16 10H26C16 56 10 54 10 46zM32 56h22v28H32z', '#e8434a', '<circle cx="30" cy="38" r="6" fill="#fff"/><circle cx="52" cy="32" r="5" fill="#fff"/><circle cx="62" cy="44" r="4" fill="#fff"/>')],
+    (id) => [120, 78, `<rect x="4" y="4" width="112" height="70" rx="10" fill="#fff"/><rect x="9" y="9" width="102" height="60" rx="7" fill="#141218"/><rect x="18" y="16" width="84" height="28" rx="4" fill="#ffd23f"/><circle cx="40" cy="30" r="8" fill="#141218"/><circle cx="80" cy="30" r="8" fill="#141218"/><text x="60" y="62" text-anchor="middle" font-family="Archivo" font-weight="800" font-size="10" fill="#fff">SIDE B · 90 MIN</text>`],
+    (id) => [160, 52, `<path d="M4 8h152l-10 18 10 18H4l10-18z" fill="#fff" stroke="#fff" stroke-width="6" stroke-linejoin="round"/><path d="M8 11h141l-8 15 8 15H8l8-15z" fill="#7b5cff"/><text x="80" y="33" text-anchor="middle" font-family="Bowlby One" font-size="15" fill="#fff">NO BAD DAYS</text>`],
+    (id) => [110, 80, `<defs>${holoGrad(id)}</defs>` + die('M55 10a30 30 0 1 0 .1 0z', `url(#${id})`, `<ellipse cx="55" cy="40" rx="52" ry="12" fill="none" stroke="#fff" stroke-width="8"/><ellipse cx="55" cy="40" rx="52" ry="12" fill="none" stroke="#7b5cff" stroke-width="4"/>`)],
+    (id) => [84, 78, `<defs>${holoGrad(id)}</defs>` + die('M42 74C10 50 4 34 8 22 12 8 32 4 42 20 52 4 72 8 76 22c4 12-2 28-34 52z', `url(#${id})`)],
+    (id) => [100, 100, `<circle cx="50" cy="50" r="46" fill="#fff"/><circle cx="50" cy="50" r="41" fill="#141218"/><path id="${id}a" d="M50 50m-30 0a30 30 0 1 1 60 0a30 30 0 1 1 -60 0" fill="none"/><text font-family="Bowlby One" font-size="12" fill="#c6f24a" letter-spacing="2"><textPath href="#${id}a">KICKFLIP · SUPPLY · CO ·</textPath></text><path d="M38 56l12-16 12 16z" fill="#ff4fa3"/>`],
+    (id) => [80, 80, `<rect x="4" y="4" width="72" height="72" rx="10" fill="#fff"/><rect x="9" y="9" width="62" height="62" rx="6" fill="#fff"/>` + Array.from({ length: 16 }, (_, i) => `<rect x="${9 + (i % 4) * 15.5}" y="${9 + Math.floor(i / 4) * 15.5}" width="15.5" height="15.5" fill="${(i + Math.floor(i / 4)) % 2 ? '#141218' : '#fff'}"/>`).join('')],
+    (id) => [92, 90, die('M8 16L84 10 50 84z', '#ffd23f', '<path d="M12 18L82 13" stroke="#ff9a3a" stroke-width="7" stroke-linecap="round"/><circle cx="40" cy="32" r="6" fill="#e8434a"/><circle cx="58" cy="38" r="5" fill="#e8434a"/><circle cx="48" cy="56" r="5" fill="#e8434a"/>')],
+    (id) => [104, 60, `<rect x="4" y="4" width="96" height="52" rx="12" fill="#fff"/><rect x="9" y="9" width="86" height="42" rx="9" fill="#3fd6ff"/><text x="52" y="40" text-anchor="middle" font-family="Bowlby One" font-size="24" fill="#141218">SK8</text>`],
+    (id) => [80, 96, die('M40 6c20 0 32 16 32 34 0 26-20 50-32 50S8 66 8 40C8 22 20 6 40 6z', '#7ee36b', '<ellipse cx="27" cy="40" rx="9" ry="13" fill="#141218" transform="rotate(20 27 40)"/><ellipse cx="53" cy="40" rx="9" ry="13" fill="#141218" transform="rotate(-20 53 40)"/>')],
+  ];
+  function bombIt() {
+    const bomb = $('#bomb'); bomb.innerHTML = '';
+    const R = rng(77), W = innerWidth, H = innerHeight, n = Math.round(W * H / 26000) + 10;
+    for (let i = 0; i < n; i++) {
+      const d = DESIGNS[i % DESIGNS.length], id = 'g' + i, [w, h, svg] = d(id), s = .8 + R() * .7;
+      const el = document.createElement('div'); el.className = 'stk' + (svg.includes('url(#') ? ' holo' : '');
+      el.style.left = (R() * 110 - 5) + '%'; el.style.top = (R() * 110 - 5) + '%'; el.style.setProperty('--r', ((R() - .5) * 70).toFixed(1) + 'deg');
+      el.innerHTML = `<svg width="${w * s}" height="${h * s}" viewBox="0 0 ${w} ${h}">${svg}</svg>`;
+      bomb.appendChild(el);
+    }
+  }
+
+  /* ——————————— the coupon sticker ——————————— */
+  const cv = $('#peel'), ctx = cv.getContext('2d'), grab = $('#grab'), promo = $('#promo'), tip = $('#tip');
+  let W = 0, H = 0, DPR = 1;
+  // sticker geometry (local coords, origin = centre)
+  let SW = 300, SH = 120, shape = null, outline = [];
+  const ST = { mode: 'stuck', x: 0, y: 0, rot: -.05, P0: null, P: null, Pv: { x: 0, y: 0 }, target: null, hold: false, free: { x: 0, y: 0, rot: 0, vr: 0 }, slap: 0, hx: .3, hy: .3 };
+  function ticketPath(w, h) {
+    const p = new Path2D(), r = 18, n = 11, notch = h * .16;
+    p.moveTo(-w / 2 + r, -h / 2);
+    p.lineTo(w / 2 - r, -h / 2); p.arcTo(w / 2, -h / 2, w / 2, -h / 2 + r, r);
+    p.lineTo(w / 2, -notch); p.arc(w / 2, 0, notch, -Math.PI / 2, Math.PI / 2, true);
+    p.lineTo(w / 2, h / 2 - r); p.arcTo(w / 2, h / 2, w / 2 - r, h / 2, r);
+    p.lineTo(-w / 2 + r, h / 2); p.arcTo(-w / 2, h / 2, -w / 2, h / 2 - r, r);
+    p.lineTo(-w / 2, notch); p.arc(-w / 2, 0, notch, Math.PI / 2, -Math.PI / 2, true);
+    p.lineTo(-w / 2, -h / 2 + r); p.arcTo(-w / 2, -h / 2, -w / 2 + r, -h / 2, r);
+    p.closePath();
+    // sampled outline for picking at an edge
+    const pts = [];
+    for (let i = 0; i <= 60; i++) { const t = i / 60; pts.push([-w / 2 + r + (w - 2 * r) * t, -h / 2], [-w / 2 + r + (w - 2 * r) * t, h / 2]); }
+    for (let i = 0; i <= 20; i++) { const t = i / 20; pts.push([w / 2, -h / 2 + r + (h / 2 - r - notch) * t], [w / 2, notch + (h / 2 - r - notch) * t], [-w / 2, -h / 2 + r + (h / 2 - r - notch) * t], [-w / 2, notch + (h / 2 - r - notch) * t]); }
+    for (const [cx, cy] of [[w / 2 - r, -h / 2 + r], [w / 2 - r, h / 2 - r], [-w / 2 + r, h / 2 - r], [-w / 2 + r, -h / 2 + r]]) for (let a = 0; a < 6.28; a += .2) { const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; if (Math.abs(x) >= w / 2 - r - .1 && Math.abs(y) >= h / 2 - r - .1 && (x - cx) * Math.sign(cx) >= 0 && (y - cy) * Math.sign(cy) >= 0) pts.push([x, y]); }
+    outline = pts;
+    return p;
+  }
+  function layout() {
+    W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1);
+    cv.width = W * DPR; cv.height = H * DPR;
+    const r = promo.getBoundingClientRect();
+    SW = r.width + 8; SH = r.height + 8;
+    shape = ticketPath(SW, SH);
+    if (ST.mode === 'stuck') { ST.x = r.left + r.width / 2; ST.y = r.top + r.height / 2; ST.rot = -.035; }
+    restCorner();
+    placeGrab();
+    dirty = true;
+  }
+  function toWorld(lx, ly, x = ST.x, y = ST.y, rot = ST.rot) { const c = Math.cos(rot), s = Math.sin(rot); return { x: x + lx * c - ly * s, y: y + lx * s + ly * c }; }
+  function toLocal(wx, wy) { const c = Math.cos(-ST.rot), s = Math.sin(-ST.rot), dx = wx - ST.x, dy = wy - ST.y; return { x: dx * c - dy * s, y: dx * s + dy * c }; }
+  function restCorner() {
+    // a dog-eared corner invites you in
+    const c = toWorld(SW / 2 - 10, SH / 2 - 10); ST.dog = toWorld(SW / 2 - 2, SH / 2 - 2);
+    if (ST.mode === 'stuck' && !ST.hold) { ST.P0 = { ...ST.dog }; ST.P = { x: ST.dog.x - 22, y: ST.dog.y - 18 }; ST.restP = { ...ST.P }; }
+  }
+  function placeGrab() {
+    if (ST.mode !== 'stuck') { grab.hidden = true; return; }
+    grab.hidden = false;
+    Object.assign(grab.style, { left: (ST.x - SW / 2 - 14) + 'px', top: (ST.y - SH / 2 - 14) + 'px', width: (SW + 28) + 'px', height: (SH + 28) + 'px' });
+    if (W > 700) { tip.style.left = (ST.x + SW / 2 + 22) + 'px'; tip.style.top = (ST.y + SH / 2 - 26) + 'px'; }
+    else { tip.style.left = (ST.x + SW / 2 - 150) + 'px'; tip.style.top = (ST.y - SH / 2 - 34) + 'px'; }
+  }
+
+  /* the holographic front, drawn in local coords */
+  function drawFront(c, lift = 0) {
+    const w = SW, h = SH, inset = 7;
+    c.save();
+    // white vinyl die-cut margin
+    c.fillStyle = '#ffffff'; c.fill(shape);
+    c.save(); c.clip(shape);
+    // holographic foil: two rainbow sweeps that shift with your pointer
+    const a = Math.atan2(ST.hy - .5, ST.hx - .5), dx = Math.cos(a) * w, dy = Math.sin(a) * h;
+    const g = c.createLinearGradient(-dx, -dy, dx, dy);
+    const sh = (ST.hx + ST.hy) * .5;
+    const cols = ['#ff9de2', '#9ee7ff', '#d6ff9e', '#ffe29e', '#c6a6ff', '#9ee7ff', '#ff9de2'];
+    cols.forEach((col, i) => g.addColorStop(clamp(((i / (cols.length - 1)) + sh) % 1, 0, 1), col));
+    c.fillStyle = g; c.beginPath(); c.roundRect(-w / 2 + inset, -h / 2 + inset, w - inset * 2, h - inset * 2, 13); c.fill();
+    const g2 = c.createLinearGradient(-w / 2, h / 2, w / 2, -h / 2);
+    g2.addColorStop(clamp(ST.hx - .25, 0, 1), 'rgba(255,255,255,0)'); g2.addColorStop(clamp(ST.hx, 0, 1), 'rgba(255,255,255,.75)'); g2.addColorStop(clamp(ST.hx + .25, 0, 1), 'rgba(255,255,255,0)');
+    c.globalCompositeOperation = 'overlay'; c.fillStyle = g2; c.fillRect(-w / 2, -h / 2, w, h); c.globalCompositeOperation = 'source-over';
+    // diffraction grain
+    c.globalAlpha = .18; for (let i = 0; i < 70; i++) { const px = ((i * 97) % 100 / 100 - .5) * w, py = ((i * 57) % 100 / 100 - .5) * h; c.fillStyle = i % 2 ? '#fff' : '#7b5cff'; c.fillRect(px, py, 2, 2); } c.globalAlpha = 1;
+    c.restore();
+    // print: big chunky words with a die-cut outline
+    const fs = Math.min(h * .42, w * .17);
+    c.font = `${fs}px 'Bowlby One', sans-serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+    c.lineJoin = 'round'; c.strokeStyle = '#141218'; c.lineWidth = 7; c.strokeText('20% OFF', 0, fs * .25);
+    c.fillStyle = '#fff'; c.fillText('20% OFF', 0, fs * .25);
+    c.font = `800 ${Math.max(11, fs * .27)}px Archivo, sans-serif`; c.fillStyle = '#141218';
+    c.fillText('YOUR WHOLE BASKET · PEEL FOR CODE', 0, fs * .25 + fs * .55);
+    // stars
+    const star = (x, y, r, col) => { c.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * .45 : r, an = i * Math.PI / 5 - Math.PI / 2; c.lineTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr); } c.closePath(); c.fillStyle = col; c.fill(); c.strokeStyle = '#141218'; c.lineWidth = 2; c.stroke(); };
+    star(-w * .38, -h * .22, h * .1, '#ffd23f'); star(w * .4, -h * .25, h * .07, '#ff4fa3'); star(w * .33, h * .26, h * .05, '#c6f24a');
+    // gloss
+    const gl = c.createLinearGradient(0, -h / 2, 0, h / 2); gl.addColorStop(0, 'rgba(255,255,255,.45)'); gl.addColorStop(.45, 'rgba(255,255,255,0)');
+    c.save(); c.clip(shape); c.fillStyle = gl; c.fillRect(-w / 2, -h / 2, w, h * .5); c.restore();
+    c.restore();
+  }
+
+  /* reflection across the fold line (perpendicular bisector of P0→P) */
+  function foldInfo() {
+    const P0 = ST.P0, P = ST.P, dx = P.x - P0.x, dy = P.y - P0.y, L = Math.hypot(dx, dy);
+    if (L < .5) return null;
+    const nx = dx / L, ny = dy / L, mx = (P0.x + P.x) / 2, my = (P0.y + P.y) / 2, md = mx * nx + my * ny;
+    return { nx, ny, mx, my, L, R: [1 - 2 * nx * nx, -2 * nx * ny, -2 * nx * ny, 1 - 2 * ny * ny, 2 * md * nx, 2 * md * ny] };
+  }
+  function halfPlane(c, f, sign) {
+    // big polygon covering the side where sign * ((X - M)·n) > 0
+    const tx = -f.ny, ty = f.nx, B = 5000;
+    c.beginPath();
+    c.moveTo(f.mx + tx * B, f.my + ty * B); c.lineTo(f.mx - tx * B, f.my - ty * B);
+    c.lineTo(f.mx - tx * B + f.nx * B * sign, f.my - ty * B + f.ny * B * sign); c.lineTo(f.mx + tx * B + f.nx * B * sign, f.my + ty * B + f.ny * B * sign);
+    c.closePath();
+  }
+  const D = () => DPR;
+  function setT(c, m) { const d = D(); c.setTransform(m[0] * d, m[1] * d, m[2] * d, m[3] * d, m[4] * d, m[5] * d); }
+  function mul(A, B) { return [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1], A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3], A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]]; }
+  function stickerM(x = ST.x, y = ST.y, rot = ST.rot, s = 1) { const c = Math.cos(rot) * s, sn = Math.sin(rot) * s; return [c, sn, -sn, c, x, y]; }
+
+  function render() {
+    const c = ctx; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    if (ST.mode === 'stuck') {
+      const f = foldInfo(), M = stickerM();
+      if (!f) { setT(c, M); shadowUnder(c); drawFront(c); return; }
+      // 1. the part still stuck down
+      c.save(); setT(c, [1, 0, 0, 1, 0, 0]); halfPlane(c, f, 1); c.clip();
+      setT(c, M); c.save(); c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 3; c.shadowOffsetY = 1; c.fillStyle = '#fff'; c.fill(shape); c.restore(); drawFront(c);
+      c.restore();
+      // 2. the flap's shadow, cast onto the page and the stuck part
+      const lift = clamp(f.L / 260, 0, 1);
+      c.save();
+      setT(c, mul([1, 0, 0, 1, f.nx * (4 + lift * 10), f.ny * (4 + lift * 10)], f.R));
+      halfPlane(c, f, -1); c.clip();
+      setT(c, mul(mul([1, 0, 0, 1, f.nx * (4 + lift * 10), f.ny * (4 + lift * 10)], f.R), M));
+      c.filter = `blur(${(4 + lift * 8) * DPR}px)`; c.fillStyle = `rgba(10,8,20,${.28 + lift * .15})`; c.fill(shape); c.filter = 'none';
+      c.restore();
+      // 3. the flap itself: the sticker's glossy backside, reflected across the fold
+      c.save(); setT(c, f.R); halfPlane(c, f, -1); c.clip();
+      setT(c, mul(f.R, M)); c.clip(shape);
+      setT(c, f.R);
+      const g = c.createLinearGradient(f.mx, f.my, f.mx - f.nx * f.L * .6, f.my - f.ny * f.L * .6);
+      g.addColorStop(0, '#b9b4bf'); g.addColorStop(.08, '#e9e6ee'); g.addColorStop(.28, '#ffffff'); g.addColorStop(.5, '#f2f0f5'); g.addColorStop(1, '#dcd8e2');
+      c.fillStyle = g; c.fillRect(-W, -H, W * 3, H * 3);
+      // faint mirrored print showing through the vinyl
+      setT(c, mul(f.R, M)); c.globalAlpha = .07; drawFront(c); c.globalAlpha = 1;
+      setT(c, f.R);
+      const sp = c.createLinearGradient(f.mx, f.my, f.mx - f.nx * 40, f.my - f.ny * 40);
+      sp.addColorStop(0, 'rgba(255,255,255,0)'); sp.addColorStop(.5, 'rgba(255,255,255,.9)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = sp; c.fillRect(-W, -H, W * 3, H * 3);
+      c.restore();
+      // 4. a crisp crease line along the fold, where it meets the sticker
+      c.save(); setT(c, M); c.clip(shape); setT(c, [1, 0, 0, 1, 0, 0]);
+      c.strokeStyle = 'rgba(40,30,60,.35)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(f.mx - f.ny * 2000, f.my + f.nx * 2000); c.lineTo(f.mx + f.ny * 2000, f.my - f.nx * 2000); c.stroke();
+      c.restore();
+    } else {
+      // off the backing: carried in your hand, or slapped down somewhere new
+      const F = ST.free, s = 1 + (ST.mode === 'carry' ? .06 : 0) + ST.slap * .08, M = stickerM(F.x, F.y, F.rot, s);
+      setT(c, M);
+      c.save(); c.shadowColor = ST.mode === 'carry' ? 'rgba(0,0,0,.45)' : 'rgba(0,0,0,.4)'; c.shadowBlur = (ST.mode === 'carry' ? 26 : 4) * DPR; c.shadowOffsetY = (ST.mode === 'carry' ? 18 : 2) * DPR; c.fillStyle = '#fff'; c.fill(shape); c.restore();
+      drawFront(c);
+    }
+  }
+  function shadowUnder(c) { c.save(); c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 3; c.shadowOffsetY = 1; c.fillStyle = '#fff'; c.fill(shape); c.restore(); }
+
+  /* ——————————— peeling ——————————— */
+  let dirty = true;
+  function local(e) { return { x: e.clientX, y: e.clientY }; }
+  function nearestEdge(p) {
+    const l = toLocal(p.x, p.y); let best = null, bd = 1e9;
+    for (const [x, y] of outline) { const d = Math.hypot(x - l.x, y - l.y); if (d < bd) { bd = d; best = [x, y]; } }
+    return { pt: toWorld(best[0], best[1]), d: bd };
+  }
+  let grabOff = null, peeledMax = 0;
+  grab.addEventListener('pointerdown', e => {
+    audio(); const p = local(e);
+    try { grab.setPointerCapture(e.pointerId); } catch (_) {}
+    const ne = nearestEdge(p);
+    if (ne.d < 34) { ST.P0 = ne.pt; }
+    else { ST.P0 = { ...ST.dog }; if (ne.d > 40) wiggleTip(); }
+    grabOff = { x: ST.P0.x - p.x, y: ST.P0.y - p.y };
+    ST.hold = true; ST.P = { x: p.x + grabOff.x, y: p.y + grabOff.y }; grab.classList.add('held');
+    tip.classList.add('gone'); peeledMax = 0; peelSound(0); wake(); e.preventDefault();
+  });
+  grab.addEventListener('pointermove', e => {
+    const r = cv.getBoundingClientRect(); ST.hx = clamp((e.clientX - ST.x + SW / 2) / SW, 0, 1); ST.hy = clamp((e.clientY - ST.y + SH / 2) / SH, 0, 1); dirty = true;
+    if (ST.mode === 'carry') { moveCarry(e); return; }
+    if (!ST.hold) { wake(); return; }
+    const p = local(e), np = { x: p.x + grabOff.x, y: p.y + grabOff.y };
+    const v = Math.hypot(np.x - ST.P.x, np.y - ST.P.y);
+    ST.P = np; peelSound(v);
+    const f = foldInfo(); const amt = f ? f.L / Math.hypot(SW, SH) : 0; peeledMax = Math.max(peeledMax, amt);
+    if (amt > .72) detach(p);
+    wake();
+  });
+  const release = () => {
+    if (ST.mode === 'carry') { slapDown(); return; }
+    if (!ST.hold) return; ST.hold = false; grab.classList.remove('held');
+    const f = foldInfo(), amt = f ? f.L / Math.hypot(SW, SH) : 0;
+    if (amt > .5) { detach({ x: ST.P.x, y: ST.P.y }, true); return; }
+    // it sticks back down: the flap springs home from wherever you let go
+    restCorner(); ST.target = { ...ST.restP }; ST.Pv = { x: 0, y: 0 }; stickSound(amt);
+    if (peeledMax > .25) say('Almost! Peel past halfway and it comes off.');
+    wake();
+  };
+  grab.addEventListener('pointerup', release); grab.addEventListener('pointercancel', release);
+
+  // keyboard: an animated peel straight off the backing, flicked onto the laptop
+  grab.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && ST.mode === 'stuck') {
+      e.preventDefault(); audio(); tip.classList.add('gone');
+      ST.P0 = { ...ST.dog }; ST.anim = { t: 0 }; ST.kb = true; wake();
+    }
+  });
+  grab.addEventListener('click', e => { if (e.detail === 0 && ST.mode === 'stuck' && !ST.anim) { ST.P0 = { ...ST.dog }; ST.anim = { t: 0 }; ST.kb = true; wake(); } });
+
+  function detach(p, flung) {
+    ST.mode = 'carry'; ST.hold = false; ST.target = null;
+    ST.free = { x: ST.x, y: ST.y, rot: ST.rot, vr: 0, vx: 0, vy: 0 };
+    ST.carryOff = { x: ST.x - p.x, y: ST.y - p.y };
+    grab.hidden = false; grab.classList.add('held');
+    Object.assign(grab.style, { left: '0px', top: '0px', width: W + 'px', height: H + 'px', borderRadius: '0' });
+    rip(); reveal();
+    if (flung) { ST.flingTo = randomSpot(); }
+    wake();
+  }
+  function moveCarry(e) { const p = local(e); const nx = p.x + ST.carryOff.x, ny = p.y + ST.carryOff.y; ST.free.vr += (nx - ST.free.x) * .0009; ST.free.x = nx; ST.free.y = ny; wake(); }
+  function randomSpot() {
+    const o = $('#order').getBoundingClientRect(), side = Math.random() < .5 ? -1 : 1;
+    const x = side < 0 ? Math.max(SW * .4, o.left - SW * .2) : Math.min(W - SW * .4, o.right + SW * .2);
+    return { x: W < 600 ? W / 2 + (Math.random() - .5) * 60 : x, y: W < 600 ? H - SH * .28 : clamp(o.top + Math.random() * o.height, SH, H - SH), rot: (Math.random() - .5) * .9 };
+  }
+  function slapDown() {
+    ST.mode = 'placed'; grab.hidden = true; grab.classList.remove('held'); ST.slap = 1; slapSound();
+    // dropped back over the code: it sticks right back where it came from
+    const r = promo.getBoundingClientRect();
+    if (Math.hypot(ST.free.x - (r.left + r.width / 2), ST.free.y - (r.top + r.height / 2)) < 50 && !applied) { reStick(); return; }
+    say(applied ? 'Stuck it. Very punk.' : 'Stuck it. Your code is uncovered — apply it below.');
+    if (ST.kb && !applied) { ST.kb = false; apply.focus({ preventScroll: true }); }
+    wake();
+  }
+  function reStick() {
+    ST.mode = 'stuck'; const r = promo.getBoundingClientRect(); ST.x = r.left + r.width / 2; ST.y = r.top + r.height / 2; ST.rot = -.035; restCorner(); ST.P = { ...ST.restP };
+    placeGrab(); grab.style.borderRadius = '22px'; hide(); say('Back on. The code is covered again.'); dirty = true;
+  }
+
+  /* ——————————— the code underneath ——————————— */
+  const apply = $('#apply'); let applied = false;
+  function reveal() { apply.disabled = false; apply.textContent = 'Apply ORBIT20'; $('#code').removeAttribute('aria-hidden'); $('#note').textContent = 'Code revealed: ORBIT20'; }
+  function hide() { if (applied) return; apply.disabled = true; apply.textContent = 'Peel the sticker first'; $('#code').setAttribute('aria-hidden', 'true'); }
+  apply.addEventListener('click', () => {
+    if (applied) return; applied = true; promo.classList.add('done'); $('#discRow').classList.add('on'); rollTotal(78.95, 63.95); slapSound(.6); say('20% off applied. You saved £15.00.');
+    $('#pay').focus({ preventScroll: true });
+  });
+  function rollTotal(a, b) {
+    const el = $('#total'), t0 = performance.now(), dur = reduce ? 1 : 700;
+    const step = now => { const k = clamp((now - t0) / dur, 0, 1), e = 1 - Math.pow(1 - k, 3); el.textContent = '£' + lerp(a, b, e).toFixed(2); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  $('#pay').addEventListener('click', () => say(`Paying ${$('#total').textContent} — this is a demo, so nothing is charged.`));
+  let sayT = 0; function say(t) { const n = $('#note'); n.textContent = t; clearTimeout(sayT); sayT = setTimeout(() => { if (n.textContent === t) n.textContent = ''; }, 3200); }
+  function wiggleTip() { tip.classList.remove('gone'); tip.animate([{ transform: 'rotate(6deg) scale(1)' }, { transform: 'rotate(-4deg) scale(1.15)' }, { transform: 'rotate(6deg) scale(1)' }], { duration: 400 }); }
+
+  /* ——————————— sound: vinyl peel crackle, re-stick, slap ——————————— */
+  let AC = null, master = null, muted = false, crackle = null;
+  function audio() { try { if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : .18; master.connect(AC.destination); } if (AC.state === 'suspended') AC.resume(); } catch (e) { AC = null; } }
+  function peelSound(v) {
+    if (!AC || muted) return;
+    if (!crackle) {
+      const b = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() < .03 ? (Math.random() * 2 - 1) : (Math.random() * 2 - 1) * .08;
+      const s = AC.createBufferSource(); s.buffer = b; s.loop = true; const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2500;
+      const g = AC.createGain(); g.gain.value = 0; s.connect(hp).connect(g).connect(master); s.start(); crackle = g;
+    }
+    crackle.gain.setTargetAtTime(clamp(v / 18, 0, 1) * .6, AC.currentTime, .03);
+    clearTimeout(peelSound.t); peelSound.t = setTimeout(() => crackle && crackle.gain.setTargetAtTime(0, AC.currentTime, .05), 90);
+  }
+  function tone(f0, f1, dur, vol, type = 'sine') { if (!AC || muted) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur); o.connect(g).connect(master); o.start(t); o.stop(t + dur + .02); }
+  function stickSound(a) { tone(260 + a * 200, 120, .12, .25, 'triangle'); }
+  function slapSound(v = 1) { if (!AC || muted) return; const t = AC.currentTime, b = AC.createBuffer(1, AC.sampleRate * .08, AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); const s = AC.createBufferSource(); s.buffer = b; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; const g = AC.createGain(); g.gain.value = .9 * v; s.connect(lp).connect(g).connect(master); s.start(t); tone(140, 60, .1, .3 * v); }
+  function rip() { if (!AC || muted) return; const t = AC.currentTime, b = AC.createBuffer(1, AC.sampleRate * .3, AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() < .2 ? 1 : .2) * (Math.random() * 2 - 1) * (1 - i / d.length); const s = AC.createBufferSource(); s.buffer = b; const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1500; const g = AC.createGain(); g.gain.value = .5; s.connect(hp).connect(g).connect(master); s.start(t); }
+  $('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Turn sticker sounds on' : 'Mute sticker sounds'); if (master) master.gain.value = muted ? 0 : .18; });
+
+  /* ——————————— loop ——————————— */
+  let raf = 0, last = 0;
+  function wake() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0; const dt = Math.min(.033, (now - last) / 1000); last = now; let busy = false;
+    if (ST.mode === 'stuck') {
+      if (ST.anim) {
+        // keyboard peel: sweep the corner up and across, then off it comes
+        ST.anim.t += dt / (reduce ? .2 : .9); const t = Math.min(1, ST.anim.t), e = t * t * (3 - 2 * t);
+        const far = toWorld(-SW * .55, -SH * .7);
+        ST.P = { x: lerp(ST.dog.x, far.x, e), y: lerp(ST.dog.y, far.y, e) - Math.sin(e * Math.PI) * 40 };
+        peelSound(14);
+        if (t >= 1) { ST.anim = null; detach(ST.P, true); }
+        busy = true;
+      } else if (!ST.hold && ST.target) {
+        const k = 260, cd = 16;
+        ST.Pv.x += (k * (ST.target.x - ST.P.x) - cd * ST.Pv.x) * dt; ST.Pv.y += (k * (ST.target.y - ST.P.y) - cd * ST.Pv.y) * dt;
+        ST.P.x += ST.Pv.x * dt; ST.P.y += ST.Pv.y * dt;
+        if (Math.hypot(ST.P.x - ST.target.x, ST.P.y - ST.target.y) < .3 && Math.hypot(ST.Pv.x, ST.Pv.y) < 2) { ST.P = { ...ST.target }; ST.target = null; }
+        busy = true;
+      } else if (!ST.hold && !reduce) {
+        // the dog-ear breathes a little, asking to be picked
+        const b = Math.sin(now / 520) * 3; ST.P = { x: ST.restP.x - b, y: ST.restP.y - b * .8 }; busy = true;
+      }
+      busy = busy || ST.hold;
+    } else {
+      const F = ST.free;
+      if (ST.flingTo && ST.mode === 'carry') {
+        const T = ST.flingTo; F.x = lerp(F.x, T.x, Math.min(1, dt * 7)); F.y = lerp(F.y, T.y, Math.min(1, dt * 7)); F.rot = lerp(F.rot, T.rot, Math.min(1, dt * 6));
+        if (Math.hypot(F.x - T.x, F.y - T.y) < 3) { ST.flingTo = null; slapDown(); }
+        busy = true;
+      } else if (ST.mode === 'carry') {
+        F.vr *= .9; F.rot += F.vr; F.rot = clamp(F.rot, -.9, .9); busy = true;
+      }
+      if (ST.slap > 0) { ST.slap = Math.max(0, ST.slap - dt * 5); busy = true; }
+    }
+    render();
+    if (busy) raf = requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  addEventListener('pointermove', e => { if (ST.mode !== 'stuck') return; ST.hx = clamp((e.clientX / W), 0, 1); ST.hy = clamp((e.clientY / H), 0, 1); document.querySelectorAll('.holo svg linearGradient').forEach(g => g.setAttribute('gradientTransform', `rotate(${(ST.hx * 180).toFixed(0)} .5 .5)`)); wake(); });
+  addEventListener('resize', () => { bombIt(); if (ST.mode === 'placed' || ST.mode === 'carry') { ST.free.x = clamp(ST.free.x, 40, innerWidth - 40); ST.free.y = clamp(ST.free.y, 40, innerHeight - 40); } layout(); wake(); });
+  function init() { bombIt(); layout(); wake(); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(init); else init();
+  window.__stk = { ST, peelTo: (fx, fy) => { const a = toWorld(fx * SW / 2, fy * SH / 2); ST.P = a; dirty = true; wake(); } };
+})();
+</script>
+</body>
+</html>

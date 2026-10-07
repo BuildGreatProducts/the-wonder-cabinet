@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rolodex Contact Select</title>
+<meta name="description" content="A contact select built as a 3D rolodex on a perfectly symmetrical pastel hotel concierge desk: flip the cards with momentum, type a letter to jump, and pull a card out to choose who gets the message.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Rolodex Contact Select","reimagines":"Select / dropdown","category":"Pickers & Selection","description":"A dropdown becomes a rolodex on a symmetrical, pastel grand-hotel concierge desk. Flick the cards with real momentum and detent clicks, type a letter to spin straight to it, and pull a card out to choose — the desk bell rings and the brass plaque updates.","hint":"Flick the cards, type a letter to jump, press the front card to choose"}
+</script>
+<style>
+:root{
+  --pink:#f3b9c2;--pink2:#e9a3b0;--rose:#d9808f;--burg:#7d2f42;--burg2:#64233a;--mint:#a8d8c8;--mint2:#7fbfaa;
+  --mustard:#e9c46a;--cream:#f8eedc;--cream2:#efe0c4;--lav:#c8b7dc;--ink:#3a2a33;--gold:#d6aa4c;--gold2:#f1d38a;
+  --futura:"Jost","Futura","Century Gothic","Avenir Next",sans-serif;--type:"Courier Prime","Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--pink);color:var(--ink);font-family:var(--futura);overflow:hidden;-webkit-font-smoothing:antialiased}
+.set{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(ellipse 70% 55% at 50% 42%,rgba(255,240,230,.55),rgba(255,240,230,0) 70%),
+  linear-gradient(#f5c2ca,#f0b3bd 70%,#e9a5b1)}
+/* wall panelling */
+.panels{position:absolute;left:0;right:0;top:118px;bottom:200px;display:flex;justify-content:center;gap:22px;padding:0 26px}
+.panel{flex:1;max-width:170px;border:3px solid rgba(180,90,108,.35);border-radius:4px;box-shadow:inset 0 0 0 7px rgba(255,235,235,.25),inset 0 0 0 9px rgba(180,90,108,.22)}
+.panel.mid{flex:0 0 440px;max-width:none;border-color:transparent;box-shadow:none}
+/* frieze + sign */
+.frieze{position:absolute;left:0;right:0;top:0;height:104px;background:var(--burg);box-shadow:0 6px 0 var(--gold),0 9px 0 var(--burg2),0 14px 18px rgba(80,20,40,.25)}
+.frieze::before{content:"";position:absolute;left:0;right:0;bottom:12px;height:10px;background:repeating-linear-gradient(90deg,var(--gold) 0 10px,transparent 10px 20px);opacity:.75}
+.sign{position:absolute;left:50%;top:14px;transform:translateX(-50%);text-align:center;color:var(--pink);white-space:nowrap}
+.sign b{display:block;font-weight:600;font-size:34px;letter-spacing:.32em;padding-left:.32em;line-height:1.1}
+.sign i{display:block;font-style:normal;font-weight:500;font-size:12px;letter-spacing:.5em;padding-left:.5em;color:var(--gold2);margin-top:4px}
+/* cubbies */
+.cubbies{position:absolute;top:150px;display:grid;grid-template-columns:repeat(4,46px);grid-auto-rows:46px;gap:6px;padding:10px;background:var(--burg2);border-radius:6px;box-shadow:0 0 0 4px var(--gold),0 10px 24px rgba(80,20,40,.25)}
+.cubbies.l{right:calc(50% + 250px)}.cubbies.r{left:calc(50% + 250px)}
+.cub{background:#4e1a2d;border-radius:3px;position:relative;box-shadow:inset 0 6px 8px rgba(0,0,0,.35)}
+.cub span{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:8.5px;letter-spacing:.15em;color:var(--gold2);font-weight:600}
+.cub i{position:absolute;left:50%;top:6px;width:2px;height:14px;background:var(--gold);transform:translateX(-50%)}
+.cub i::after{content:"";position:absolute;left:-5px;top:12px;width:12px;height:12px;border-radius:50%;border:3px solid var(--gold);box-sizing:border-box}
+.cub.empty i{display:none}
+/* desk */
+.desk{position:absolute;left:0;right:0;bottom:0;height:200px}
+.desk .top{position:absolute;left:4%;right:4%;top:0;height:22px;background:linear-gradient(var(--cream),var(--cream2));border-radius:4px 4px 0 0;box-shadow:0 4px 0 var(--gold)}
+.desk .front{position:absolute;left:6%;right:6%;top:26px;bottom:0;background:var(--burg);box-shadow:inset 0 0 0 6px var(--burg2),inset 0 0 0 9px var(--gold);display:flex;justify-content:center;align-items:flex-start;padding-top:30px}
+.desk .front::before,.desk .front::after{content:"";position:absolute;top:30px;bottom:24px;width:22%;border:3px solid rgba(214,170,76,.55);border-radius:6px}
+.desk .front::before{left:5%}.desk .front::after{right:5%}
+.plaque{position:relative;width:min(520px,82%);background:linear-gradient(#f3d792,#d9ae55 55%,#c39540);border-radius:8px;padding:12px 22px 13px;text-align:center;color:var(--burg2);box-shadow:0 0 0 2px #a67c2c,0 6px 10px rgba(40,10,20,.35),inset 0 1px 0 rgba(255,255,255,.6)}
+.plaque::before,.plaque::after{content:"";position:absolute;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff3c8,#9a7224)}
+.plaque::before{left:8px}.plaque::after{right:8px}
+.plaque small{display:block;font-size:11px;letter-spacing:.38em;font-weight:600}
+.plaque strong{display:block;font-size:22px;letter-spacing:.14em;font-weight:600;margin-top:3px;text-transform:uppercase;line-height:1.15}
+.plaque em{display:block;font-family:var(--type);font-style:normal;font-size:14px;margin-top:2px;color:#5b2333}
+/* lamps */
+.lamp{position:absolute;bottom:196px;width:110px;height:170px}
+.lamp.l{left:calc(50% - 470px)}.lamp.r{right:calc(50% - 470px)}
+.lamp .shade{position:absolute;left:0;right:0;top:0;height:62px;background:var(--mint);clip-path:polygon(22% 0,78% 0,100% 100%,0 100%);box-shadow:inset 0 -6px 0 var(--mint2)}
+.lamp .shade::after{content:"";position:absolute;left:0;right:0;bottom:0;height:8px;background:repeating-linear-gradient(90deg,var(--cream) 0 6px,var(--mint2) 6px 12px)}
+.lamp .stem{position:absolute;left:50%;top:62px;width:8px;height:84px;margin-left:-4px;background:linear-gradient(90deg,#b98a2e,var(--gold2),#b98a2e)}
+.lamp .foot{position:absolute;left:18%;right:18%;bottom:0;height:24px;border-radius:50% 50% 6px 6px;background:linear-gradient(90deg,#b98a2e,var(--gold2),#b98a2e)}
+.lamp .glow{position:absolute;left:-60%;right:-60%;top:58px;height:150px;background:radial-gradient(ellipse at 50% 0,rgba(255,244,200,.55),rgba(255,244,200,0) 65%);pointer-events:none}
+/* bell + tray */
+.bell{position:absolute;bottom:196px;left:calc(50% - 330px);width:76px;height:64px;cursor:pointer;border:0;background:none}
+.bell svg,.tray svg{width:100%;height:100%;overflow:visible}
+.bell.ring svg{animation:ring .5s ease}
+@keyframes ring{20%{transform:rotate(-7deg)}45%{transform:rotate(6deg)}70%{transform:rotate(-3deg)}}
+.tray{position:absolute;bottom:196px;right:calc(50% - 334px);width:84px;height:50px}
+/* rolodex */
+.rolo{position:absolute;left:50%;bottom:190px;width:440px;height:330px;margin-left:-220px;perspective:1100px;perspective-origin:50% 20%;touch-action:none;cursor:grab;outline:none}
+.rolo:active{cursor:grabbing}
+.rolo:focus-visible .frame{box-shadow:0 0 0 4px var(--cream),0 0 0 7px var(--burg)}
+.wheel{position:absolute;left:0;right:0;bottom:92px;height:0;transform-style:preserve-3d;transform:rotateX(-10deg)}
+.card{position:absolute;left:50%;bottom:0;width:340px;height:196px;margin-left:-170px;transform-origin:50% 100%;transform-style:preserve-3d;will-change:transform}
+.card .face,.card .back{position:absolute;inset:0;border-radius:6px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.card .face{background:var(--cream);box-shadow:inset 0 0 0 1px rgba(120,80,60,.18);padding:30px 26px 0;overflow:visible}
+.card .face::before{content:"";position:absolute;left:50%;bottom:10px;width:70px;height:12px;margin-left:-35px;border-radius:7px;background:var(--pink);opacity:.65;box-shadow:-120px 0 0 -2px rgba(0,0,0,0),120px 0 0 -2px rgba(0,0,0,0)}
+.card .back{transform:rotateX(180deg);background:repeating-linear-gradient(var(--cream2) 0 23px,#e6cfae 23px 24px);box-shadow:inset 0 0 0 1px rgba(120,80,60,.2)}
+.card .tab{position:absolute;top:-24px;width:44px;height:26px;border-radius:7px 7px 0 0;display:grid;place-items:center;font-weight:700;font-size:15px;color:var(--cream);letter-spacing:.05em}
+.card .rule{position:absolute;left:26px;right:26px;top:72px;height:2px;background:var(--rose);opacity:.55}
+.card h3{font-family:var(--type);font-weight:700;font-size:21px;letter-spacing:.02em;color:var(--ink);white-space:nowrap}
+.card h3 span{font-weight:400}
+.card p{font-family:var(--type);font-size:15px;line-height:1.45;color:#5a4650;margin-top:16px}
+.card .ext{position:absolute;right:24px;bottom:30px;font-family:var(--futura);font-weight:600;font-size:11px;letter-spacing:.3em;color:var(--burg)}
+.card .stamp{position:absolute;right:20px;top:20px;font-family:var(--futura);font-size:10px;font-weight:700;letter-spacing:.22em;color:var(--burg);border:2px solid var(--burg);padding:3px 6px 2px;transform:rotate(8deg);opacity:0;transition:opacity .3s}
+.card.chosen .stamp{opacity:.85}
+.frame{position:absolute;left:30px;right:30px;bottom:0;height:108px;border-radius:14px 14px 10px 10px;pointer-events:none}
+.frame .base{position:absolute;left:0;right:0;bottom:0;height:46px;border-radius:10px;background:linear-gradient(var(--mint),var(--mint2));box-shadow:0 10px 16px rgba(80,20,40,.25),inset 0 3px 0 rgba(255,255,255,.4)}
+.frame .cradle{position:absolute;left:22px;right:22px;bottom:30px;height:60px;border-radius:0 0 50% 50%/0 0 100% 100%;border:10px solid var(--mint2);border-top:0}
+.frame .hub{position:absolute;bottom:72px;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--cream),var(--pink2) 60%,var(--rose));box-shadow:0 4px 0 var(--burg),0 8px 10px rgba(80,20,40,.3)}
+.frame .hub.l{left:-12px}.frame .hub.r{right:-12px}
+.frame .hub::after{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--burg)}
+.knob{position:absolute;right:-64px;bottom:70px;width:50px;height:50px;border-radius:50%;background:conic-gradient(from 0deg,var(--mustard) 0 25%,#d8ae4a 0 50%,var(--mustard) 0 75%,#d8ae4a 0);box-shadow:0 4px 0 #a9802b,0 8px 12px rgba(80,20,40,.3);pointer-events:none}
+.knob::after{content:"";position:absolute;inset:13px;border-radius:50%;background:var(--cream)}
+.hint{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);background:var(--cream);color:var(--burg);font-size:11px;letter-spacing:.28em;font-weight:600;padding:7px 14px 6px;border-radius:3px;box-shadow:0 0 0 2px var(--burg),0 3px 0 2px var(--burg2);white-space:nowrap;z-index:5;transition:opacity .8s}
+.hint.gone{opacity:0}
+.mute{position:absolute;right:16px;top:116px;width:36px;height:36px;border-radius:50%;border:0;background:var(--cream);box-shadow:0 0 0 2px var(--burg);cursor:pointer;display:grid;place-items:center}
+.mute:focus-visible,.bell:focus-visible{outline:3px solid var(--burg);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:720px){
+  .frieze{height:84px}.sign{top:12px}.sign b{font-size:23px;letter-spacing:.24em;padding-left:.24em}.sign i{font-size:9.5px;letter-spacing:.4em}
+  .panels{top:98px;bottom:250px;gap:12px;padding:0 14px}.panel.mid{flex:0 0 46%}
+  .cubbies{top:112px;grid-template-columns:repeat(2,30px);grid-auto-rows:30px;gap:4px;padding:6px}
+  .cubbies.l{right:auto;left:14px}.cubbies.r{left:auto;right:14px}
+  .cub span{font-size:6.5px}.cub i{top:3px;height:9px}.cub i::after{width:9px;height:9px;left:-3.5px;top:8px;border-width:2px}
+  .lamp{display:none}
+  .desk{height:230px}.desk .top{left:2%;right:2%}.desk .front{left:3%;right:3%;padding-top:50px}
+  .desk .front::before,.desk .front::after{display:none}
+  .plaque{width:90%;padding:10px 14px}.plaque strong{font-size:18px}.plaque em{font-size:12.5px}
+  .rolo{bottom:218px;width:360px;margin-left:-180px;height:300px;transform:scale(.8);transform-origin:50% 100%}
+  .card{width:300px;margin-left:-150px;height:180px}.card .face{padding:26px 20px 0}.card h3{font-size:18px}.card p{font-size:13.5px;margin-top:12px}.card .rule{left:20px;right:20px;top:62px}
+  .frame{left:18px;right:18px}
+  .bell{left:6px;bottom:226px;width:44px;height:38px}.tray{right:6px;bottom:226px;width:46px;height:30px}
+  .cub:nth-child(n+9){display:none}
+  .plaque small{letter-spacing:.2em;font-size:10px}
+  .hint{font-size:9.5px;letter-spacing:.2em;bottom:182px}
+  .panels{bottom:230px}
+  .mute{top:94px;right:10px;width:30px;height:30px}
+}
+@media (max-width:720px) and (max-height:700px){.cubbies{display:none}}
+@media (prefers-reduced-motion:reduce){.bell.ring svg{animation:none}}
+</style>
+</head>
+<body>
+<div class="set" id="set">
+  <div class="frieze"><div class="sign"><b>HOTEL MENDELHEIM</b><i>CONCIERGE · EST. 1932</i></div></div>
+  <div class="panels" aria-hidden="true"><div class="panel"></div><div class="panel"></div><div class="panel mid"></div><div class="panel"></div><div class="panel"></div></div>
+  <div class="cubbies l" id="cubL" aria-hidden="true"></div>
+  <div class="cubbies r" id="cubR" aria-hidden="true"></div>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute sound"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6.5h3l4-3.5v12l-4-3.5H2z" fill="#7d2f42"/><path id="mw" d="M12 5.5c1.8 1.8 1.8 5.2 0 7" stroke="#7d2f42" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></button>
+
+  <div class="lamp l" aria-hidden="true"><div class="glow"></div><div class="shade"></div><div class="stem"></div><div class="foot"></div></div>
+  <div class="lamp r" aria-hidden="true"><div class="glow"></div><div class="shade"></div><div class="stem"></div><div class="foot"></div></div>
+
+  <div class="desk">
+    <div class="top"></div>
+    <div class="front">
+      <div class="plaque" aria-live="polite" id="plaque">
+        <small>FORWARD ROOM 214’S REQUEST TO</small>
+        <strong id="pName">— choose a card —</strong>
+        <em id="pRole">Late check-out, Saturday 10 October 2026</em>
+      </div>
+    </div>
+  </div>
+
+  <button class="bell" id="bell" aria-label="Ring the desk bell">
+    <svg viewBox="0 0 76 64" aria-hidden="true"><ellipse cx="38" cy="58" rx="34" ry="5" fill="#c99a3e"/><rect x="6" y="52" width="64" height="7" rx="3" fill="#e6c26f"/>
+      <path d="M12 52C12 30 24 20 38 20S64 30 64 52Z" fill="#e9c46a"/><path d="M18 50C18 34 26 26 36 24" stroke="#fff3c8" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8"/>
+      <rect x="35" y="10" width="6" height="11" fill="#b98a2e"/><ellipse cx="38" cy="9" rx="7" ry="4" fill="#d6aa4c"/></svg>
+  </button>
+  <div class="tray" aria-hidden="true">
+    <svg viewBox="0 0 84 50"><path d="M4 22H80L74 48H10Z" fill="#d6aa4c"/><path d="M4 22H80" stroke="#f1d38a" stroke-width="3"/>
+      <rect x="16" y="8" width="52" height="20" fill="#f8eedc" transform="rotate(-4 42 18)"/><rect x="18" y="12" width="50" height="18" fill="#a8d8c8" transform="rotate(3 42 20)"/>
+      <path d="M22 14L43 24 66 14" stroke="#7fbfaa" stroke-width="1.5" fill="none" transform="rotate(3 42 20)"/></svg>
+  </div>
+
+  <div class="rolo" id="rolo" tabindex="0" role="listbox" aria-label="Hotel staff contacts" aria-activedescendant="">
+    <div class="wheel" id="wheel"></div>
+    <div class="frame" aria-hidden="true"><div class="cradle"></div><div class="base"></div><div class="hub l"></div><div class="hub r"></div><div class="knob" id="knob"></div></div>
+  </div>
+  <div class="hint" id="hint">FLICK THE CARDS · TYPE A LETTER · PRESS TO CHOOSE</div>
+</div>
+<p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(()=>{
+'use strict';
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const C=[
+ ['Arnaud','Céleste','Head of housekeeping','Linen, turndown, lost property','214'],
+ ['Bianchi','Teodoro','Pastry chef','Courtesan au chocolat orders','118'],
+ ['Brandt','Ottilie','Night manager','Anything after 11 pm','101'],
+ ['Castellanos','Inés','Florist, Blumenhaus Kalt','Arrangements, 48 h notice','+43 512 88 21'],
+ ['Dubois','Henri','Bellhop captain','Luggage, umbrellas, errands','105'],
+ ['Eriksen','Mads','Funicular operator','Runs 7:00 to 22:30','330'],
+ ['Fontaine','Agathe','Telephone exchange','Wake-up calls, trunk lines','100'],
+ ['Gruber','Lukas','Head porter','Trunks over 20 kg','104'],
+ ['Haddad','Samir','Sommelier','Cellar tours on Thursdays','122'],
+ ['Ishikawa','Rei','Baths & spa','Steam room bookings','240'],
+ ['Janáček','Pavel','Lift attendant','Lift 2 out until Monday','106'],
+ ['Kowalski','Zofia','Laundry & pressing','Same-day before 9 am','216'],
+ ['Lindqvist','Elsa','Guest relations','Complaints, compliments','102'],
+ ['Moreau','Gustave','Concierge','Tickets, tables, discretion','100'],
+ ['Nakamura','Hana','Pianist, Grand Salon','Requests from 18:00','150'],
+ ['Okonkwo','Chidi','Chauffeur','The pink Daimler','107'],
+ ['Petrov','Anya','Seamstress','Hems, buttons, emergencies','218'],
+ ['Quiroga','Mateo','Locksmith','Safes and stuck doors','309'],
+ ['Rossi','Lucia','Breakfast room','Trays to rooms until 11','120'],
+ ['Schmidt','Wilhelmina','Accounts','Invoices and deposits','160'],
+ ['Tanaka','Yuki','Head gardener','Conservatory key','312'],
+ ['Usman','Bilal','Maintenance','Radiators, the boiler','310'],
+ ['Vasquez','Rosa','Reservations','Room moves, extensions','103'],
+ ['Weber','Klara','Mountain guide','Departs 6:30 from the porch','340'],
+ ['Yilmaz','Deniz','Room service','Hot chocolate after midnight','121'],
+ ['Zeller','Anton','Doorman','Taxis and the weather','108']
+];
+const N=C.length, PAL=['#d9808f','#7fbfaa','#e0a83f','#a48bc6','#7d2f42','#79a6c9'];
+const wheel=$('wheel'),rolo=$('rolo');
+const cards=C.map((c,i)=>{
+  const d=document.createElement('div');d.className='card';d.id='card'+i;d.setAttribute('role','option');d.setAttribute('aria-selected','false');
+  d.setAttribute('aria-label',`${c[1]} ${c[0]}, ${c[2]}`);
+  const L=c[0][0],li=L.charCodeAt(0)-65,showTab=i===0||C[i-1][0][0]!==L;
+  d.innerHTML=`<div class="face">${showTab?`<div class="tab" style="left:${18+(li%7)*40}px;background:${PAL[li%PAL.length]}">${L}</div>`:''}
+    <h3>${c[0].toUpperCase()}, <span>${c[1]}</span></h3><div class="rule"></div><p>${c[2]}<br>${c[3]}</p>
+    <div class="ext">${/^\+/.test(c[4])?c[4]:'EXT. '+c[4]}</div><div class="stamp">FORWARDED</div></div><div class="back"></div>`;
+  wheel.appendChild(d);return d;});
+
+/* cubbies */
+for(const [id,start] of [['cubL',301],['cubR',401]]){const g=$(id);for(let k=0;k<16;k++){const n=start+k;const c=document.createElement('div');c.className='cub'+((k*7+start)%5===0?' empty':'');c.innerHTML=`<i></i><span>${n}</span>`;g.appendChild(c);}}
+
+/* sound */
+let AC=null,master=null,muted=false;
+function audio(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}master=AC.createGain();master.gain.value=muted?0:.18;master.connect(AC.destination);}if(AC.state==='suspended')AC.resume();return AC}
+function tick(v=1){const a=audio();if(!a)return;const t=a.currentTime,n=Math.floor(a.sampleRate*.03),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=2400+Math.random()*900;f.Q.value=1.4;
+  const g=a.createGain();g.gain.value=.5*v;s.connect(f).connect(g).connect(master);s.start(t);}
+function ding(){const a=audio();if(!a)return;const t=a.currentTime;[[2093,.32,2.4],[2637,.12,1.6],[5280,.05,.6],[1046,.08,1.2]].forEach(([f,v,d])=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(master);o.start(t);o.stop(t+d+.05);});}
+function thunk(){const a=audio();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.setValueAtTime(180,t);o.frequency.exponentialRampToValueAtTime(80,t+.08);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.4,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+.12);o.connect(g).connect(master);o.start(t);o.stop(t+.14);}
+$('mute').addEventListener('click',()=>{muted=!muted;$('mute').setAttribute('aria-pressed',muted);$('mute').setAttribute('aria-label',muted?'Unmute sound':'Mute sound');$('mw').style.opacity=muted?.15:1;if(master)master.gain.value=muted?0:.18;});
+$('bell').addEventListener('click',()=>{ding();ringBell();});
+function ringBell(){const b=$('bell');b.classList.remove('ring');void b.offsetWidth;b.classList.add('ring');}
+
+/* physics state */
+let pos=0, vel=0, target=null, dragging=false, lastTick=0, pulled=-1, pullT=0, chosen=-1;
+function angleFor(d){
+  if(d>=0)return Math.min(d,1)*14+Math.max(0,d-1)*5.6;
+  const a=-d;return -(a<1?a*96:96+(a-1)*4);
+}
+function render(){
+  const cur=Math.round(pos);
+  for(let i=0;i<N;i++){const d=i-pos,c=cards[i];
+    if(d<-1.05||d>11){if(c.style.display!=='none')c.style.display='none';continue}
+    if(c.style.display==='none')c.style.display='';
+    const ang=angleFor(d),lift=(i===pulled?pullT:0);
+    const shade=d>=0?Math.max(.55,1-d*.06):Math.max(.45,1+d*.25);
+    c.style.transform=`translateY(${-lift*120}px) translateZ(${lift*40}px) rotateX(${ang*(1-lift)}deg)`;
+    c.style.filter=`brightness(${shade.toFixed(3)})`;c.style.opacity=d<-.55?Math.max(0,1-(-d-.55)/.45).toFixed(3):'1';c.style.zIndex=String(100-Math.round(Math.abs(d)*4));
+  }
+  $('knob').style.transform=`rotate(${pos*28}deg)`;
+  if(cur!==lastTick){const id='card'+Math.max(0,Math.min(N-1,cur));rolo.setAttribute('aria-activedescendant',id);
+    cards.forEach((c,i)=>c.setAttribute('aria-selected',String(i===chosen)));tick(Math.min(1,.4+Math.abs(vel)*.08));lastTick=cur;}
+}
+function clampPos(p){return Math.max(-.35,Math.min(N-1+.35,p))}
+let lt=performance.now();
+function step(now){
+  const dt=Math.min(.033,(now-lt)/1000);lt=now;
+  if(!document.hidden){
+    if(!dragging){
+      if(target!==null){const f=(target-pos);vel+=f*120*dt;vel*=Math.pow(.0008,dt);if(Math.abs(f)<.002&&Math.abs(vel)<.01){pos=target;vel=0;target=null;}}
+      else{vel*=Math.pow(.12,dt);if(Math.abs(vel)<.9){const t=Math.round(clampPos(pos));target=Math.max(0,Math.min(N-1,t));}}
+      pos+=vel*dt;if(pos<-.35){pos=-.35;vel=Math.abs(vel)*.3;}if(pos>N-1+.35){pos=N-1+.35;vel=-Math.abs(vel)*.3;}
+    }
+    const want=pulled>=0?1:0;pullT+=(want-pullT)*Math.min(1,dt*(RM?30:9));
+    if(pulled>=0&&Math.round(pos)!==pulled&&!dragging){pulled=-1;}
+    render();
+  }
+  requestAnimationFrame(step);
+}
+/* pointer */
+let sy=0,sp=0,lastY=0,lastT=0,moved=0,downCard=-1;
+rolo.addEventListener('pointerdown',e=>{audio();dragging=true;target=null;moved=0;sy=lastY=e.clientY;sp=pos;lastT=performance.now();vel=0;try{rolo.setPointerCapture(e.pointerId)}catch(_){}
+  const c=e.target.closest('.card');downCard=c?+c.id.slice(4):-1;});
+rolo.addEventListener('pointermove',e=>{if(!dragging)return;const now=performance.now(),dy=e.clientY-lastY;moved+=Math.abs(dy);
+  if(moved>4&&pulled>=0){pulled=-1;}
+  pos=clampPos(sp+(e.clientY-sy)/-46);const v=(dy/-46)/Math.max(.008,(now-lastT)/1000);vel=vel*.6+v*.4;lastY=e.clientY;lastT=now;});
+const up=e=>{if(!dragging)return;dragging=false;
+  if(moved<6){const cur=Math.round(pos);if(downCard===cur||downCard<0)choose(cur);else{target=downCard;}vel=0;}
+  else{vel=Math.max(-30,Math.min(30,vel));$('hint').classList.add('gone');}};
+rolo.addEventListener('pointerup',up);rolo.addEventListener('pointercancel',up);
+rolo.addEventListener('wheel',e=>{e.preventDefault();audio();target=null;pulled=-1;vel+=(e.deltaY>0?1:-1)*Math.min(14,Math.abs(e.deltaY)*.06+3);},{passive:false});
+/* keyboard */
+rolo.addEventListener('keydown',e=>{
+  const cur=Math.round(pos);let t=null;
+  if(e.key==='ArrowDown'||e.key==='ArrowRight')t=cur+1;else if(e.key==='ArrowUp'||e.key==='ArrowLeft')t=cur-1;
+  else if(e.key==='PageDown')t=cur+5;else if(e.key==='PageUp')t=cur-5;else if(e.key==='Home')t=0;else if(e.key==='End')t=N-1;
+  else if(e.key==='Enter'||e.key===' '){e.preventDefault();choose(cur);return}
+  else if(/^[a-z]$/i.test(e.key)&&!e.metaKey&&!e.ctrlKey){jump(e.key.toUpperCase());e.preventDefault();return}
+  if(t!==null){e.preventDefault();audio();pulled=-1;target=Math.max(0,Math.min(N-1,t));}
+});
+addEventListener('keydown',e=>{if(document.activeElement===document.body&&/^[a-z]$/i.test(e.key)&&!e.metaKey&&!e.ctrlKey){rolo.focus();jump(e.key.toUpperCase());}});
+function jump(L){audio();pulled=-1;let i=C.findIndex(c=>c[0][0]>=L);if(i<0)i=N-1;target=i;$('live').textContent=`${C[i][1]} ${C[i][0]}, ${C[i][2]}`;$('hint').classList.add('gone');}
+function choose(i){
+  audio();if(pulled===i){pulled=-1;thunk();return}
+  pulled=i;chosen=i;target=i;vel=0;thunk();setTimeout(()=>{ding();ringBell();},RM?0:260);
+  cards.forEach((c,k)=>{c.classList.toggle('chosen',k===i);c.setAttribute('aria-selected',String(k===i));});
+  const c=C[i];$('pName').textContent=`${c[1]} ${c[0]}`;$('pRole').textContent=`${c[2]} · ${/^\+/.test(c[4])?c[4]:'ext. '+c[4]}`;
+  $('live').textContent=`Chosen: ${c[1]} ${c[0]}, ${c[2]}.`;$('hint').classList.add('gone');
+}
+render();requestAnimationFrame(step);
+window.__rolo={spin:v=>{vel=v;target=null},jump,choose:()=>choose(Math.round(pos)),get pos(){return pos}};
+})();
+</script>
+</body>
+</html>

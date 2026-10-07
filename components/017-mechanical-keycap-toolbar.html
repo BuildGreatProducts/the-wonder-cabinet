@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mechanical Keycap Toolbar</title>
+<meta name="description" content="A text formatting toolbar as a hyperreal macro pad of beige, grey and orange IBM-era keycaps with latching switches and LEDs.">
+<script type="application/json" id="component-meta">
+{"name":"Mechanical Keycap Toolbar","reimagines":"Toggle button group / formatting toolbar","category":"Toggles & Switches","description":"Bold, italic, underline, strike and code live on a studio-lit macro pad of sculpted PBT keycaps. Each press has real travel and a buckling-spring clack; active styles latch halfway down with a glowing LED, and the keys follow your cursor through the text and your keyboard shortcuts.","hint":"Select some text, then press a key (or use Ctrl/⌘ + B, I, U)"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+:root{--u:108px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"IBM Plex Sans",system-ui,sans-serif;color:#2c2a26;-webkit-font-smoothing:antialiased;
+  background:radial-gradient(90% 70% at 50% 18%, #ece7de 0%, #d6d0c4 45%, #b9b2a5 100%)}
+/* seamless sweep: wall bends into the floor */
+.sweep{position:fixed;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,0) 52%,rgba(80,70,55,.07) 70%,rgba(255,255,255,.06) 78%,rgba(60,50,40,.12) 100%)}
+.noise{position:fixed;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .48 0 0 0 0 .44 0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+.stage{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;padding:24px}
+/* the document: a real sheet lying on the set */
+.paper{position:relative;width:min(760px,100%);background:#fbfaf6;padding:30px 40px 24px;transform:rotate(-.5deg);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px rgba(60,50,35,.18),0 8px 14px -6px rgba(60,50,35,.25),0 30px 50px -24px rgba(60,50,35,.4)}
+.paper::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.12),rgba(255,255,255,0) 40%,rgba(120,100,70,.07) 100%)}
+.paper::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .6 0 0 0 0 .58 0 0 0 0 .52 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23p)'/%3E%3C/svg%3E")}
+.meta{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.08em;color:#8a8478;text-transform:uppercase;margin-bottom:10px}
+.doc{font-family:"IBM Plex Serif",Georgia,serif;font-size:17px;line-height:1.62;color:#24221e;outline:none;min-height:150px;caret-color:#d4561c}
+.doc h2{font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:24px;margin:0 0 8px;letter-spacing:-.01em}
+.doc p{margin:0 0 10px}
+.doc code{font-family:"IBM Plex Mono",monospace;font-size:.88em;background:#ece6d8;padding:1px 5px;border-radius:3px;color:#7a3a14}
+.doc ::selection{background:#f6c9a8}
+.status{display:flex;gap:18px;margin-top:10px;padding-top:10px;border-top:1px solid #e6e1d6;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:#8a8478}
+.status b{font-weight:500;color:#2c2a26}
+/* the macro pad */
+.pad{position:relative;padding:26px 30px 0;border-radius:18px 18px 10px 10px;
+  background:linear-gradient(180deg,#e9e2d2 0%,#ddd5c3 60%,#d2c9b5 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.75),inset 0 -1px 0 rgba(0,0,0,.08),0 2px 3px rgba(40,30,20,.2),0 22px 40px -16px rgba(40,30,20,.55),0 60px 70px -50px rgba(40,30,20,.6)}
+.pad::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.55;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .5 0 0 0 0 .42 0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23t)'/%3E%3C/svg%3E")}
+.plate{display:flex;gap:8px;padding:12px 12px 0;border-radius:10px 10px 0 0;background:linear-gradient(180deg,#1e1b17,#2b2620 60%,#3a342b);box-shadow:inset 0 3px 8px rgba(0,0,0,.65)}
+.front{height:44px;margin:0 -30px;border-radius:0 0 10px 10px;background:linear-gradient(180deg,#c8bea8 0%,#bcb19a 40%,#a99d85 100%);position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 3px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:space-between;padding:0 30px}
+.badge{display:flex;align-items:center;gap:10px;font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:12px;letter-spacing:.24em;color:#5d5444;text-shadow:0 1px 0 rgba(255,255,255,.45)}
+.badge i{display:block;width:34px;height:8px;background:linear-gradient(180deg,#f08a46,#d6561c);border-radius:1px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.badge small{font-weight:400;letter-spacing:.12em;color:#7a6f5c}
+.leds{display:flex;gap:16px;align-items:center;font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:#6a604f;letter-spacing:.06em}
+.leds span{display:flex;align-items:center;gap:6px}
+.leds span i{width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#7d7466,#3e3830);box-shadow:inset 0 1px 1px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.4)}
+.leds span.on i{background:radial-gradient(circle at 35% 30%,#fff3c4,#ffb53a 45%,#d96a0a);box-shadow:0 0 6px 2px rgba(255,170,60,.65),0 0 14px rgba(255,140,40,.4)}
+.screw{position:absolute;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f3eee4,#a69c88 70%);box-shadow:0 1px 1px rgba(0,0,0,.3)}
+.screw::after{content:"";position:absolute;left:1px;right:1px;top:4px;height:1.5px;background:#6a604f;transform:rotate(35deg)}
+.key{position:relative;width:var(--u);height:calc(var(--u) * 1.06);border:0;padding:0;background:none;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;outline:none;flex:none}
+.key.wide{width:calc(var(--u) * 1.5 + 8px)}
+.key svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;display:block}
+.key:focus-visible .focus{opacity:1}
+.focus{opacity:0}
+.hint{font-family:"IBM Plex Mono",monospace;font-size:12px;color:#6d6658;letter-spacing:.04em;margin-top:-18px;transition:opacity .8s;text-align:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  :root{--u:94px}
+  .stage{gap:22px;padding:14px;justify-content:flex-start}
+  .paper{padding:18px 18px 14px}
+  .doc{font-size:15px;min-height:0}
+  .doc h2{font-size:19px}
+  .doc p.more{display:none}
+  .pad{padding:18px 16px 0}
+  .plate{display:grid;grid-template-columns:repeat(3,var(--u));gap:8px}
+  .front{margin:0 -16px;padding:0 16px;height:40px}
+  .leds{display:none}
+  .key.wide{width:var(--u)}
+  .status span:nth-child(3){display:none}
+  .hint{margin-top:-8px}
+}
+@media (max-height:720px) and (min-width:761px){ :root{--u:88px} .doc{min-height:0} .stage{gap:24px} }
+@media (max-width:760px){ .meta span:last-child{display:none} }
+</style>
+</head>
+<body>
+<div class="sweep"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="pbt" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="2.4" numOctaves="2" seed="5" result="n"/>
+      <feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0" result="d"/>
+      <feComposite in="d" in2="SourceGraphic" operator="in" result="dn"/>
+      <feBlend in="SourceGraphic" in2="dn" mode="multiply"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>
+    <filter id="glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <clipPath id="lip"><rect x="-20" y="-60" width="200" height="164"/></clipPath>
+  </defs>
+</svg>
+<main class="stage">
+  <article class="paper">
+    <div class="meta"><span>Draft · Q4 offsite agenda</span><span>Rev 3 · 7 Oct 2026</span></div>
+    <div class="doc" id="doc" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document" spellcheck="false">
+      <h2>Lisbon offsite, 12–14 November</h2>
+      <p>Arrive by <b>Wednesday 18:00</b> for dinner at the hotel. Thursday is for <i>strategy</i>, Friday for the roadmap and the <u>hiring plan</u>. Leave Saturday free — <s>no team hike this year</s>.</p>
+      <p class="more">Bring laptops with the <code>ops-dashboard</code> branch checked out. Rafa will run the budget review; Imogen has the room booking.</p>
+    </div>
+    <div class="status" aria-live="polite"><span id="stSel">Selection: <b>plain</b></span><span id="stWords">42 words</span><span>Autosaved</span></div>
+  </article>
+  <div class="pad" role="toolbar" aria-label="Text formatting" id="pad">
+    <span class="screw" style="left:10px;top:9px"></span><span class="screw" style="right:10px;top:9px"></span>
+    <div class="plate" id="plate"></div>
+    <div class="front">
+      <div class="badge"><i aria-hidden="true"></i>FORMWERK<small>5251 FORMAT PAD</small></div>
+      <div class="leds" aria-hidden="true" id="leds"></div>
+    </div>
+  </div>
+  <div class="hint" id="hint">Select some text, then press a key — or use <span id="modk">Ctrl</span> + B, I, U</div>
+</main>
+<div class="noise"></div>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const doc = $('doc'), plate = $('plate'), ledsEl = $('leds'), live = $('live'), hint = $('hint');
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const MOD = isMac ? '⌘' : 'Ctrl';
+$('modk').textContent = MOD;
+
+/* ---------- key definitions ---------- */
+const KEYS = [
+  {id: 'bold', glyph: 'B', sub: `${MOD} B`, label: 'Bold', color: 'beige', latch: true, gstyle: 'font-family:"IBM Plex Serif",serif;font-weight:600'},
+  {id: 'italic', glyph: 'I', sub: `${MOD} I`, label: 'Italic', color: 'beige', latch: true, gstyle: 'font-family:"IBM Plex Serif",serif;font-style:italic'},
+  {id: 'underline', glyph: 'U', sub: `${MOD} U`, label: 'Underline', color: 'beige', latch: true, gstyle: 'font-family:"IBM Plex Sans",sans-serif;text-decoration:underline', under: true},
+  {id: 'strikeThrough', glyph: 'S', sub: `${MOD} ⇧ X`, label: 'Strikethrough', color: 'beige', latch: true, gstyle: 'font-family:"IBM Plex Sans",sans-serif', strike: true},
+  {id: 'code', glyph: '</>', sub: `${MOD} E`, label: 'Inline code', color: 'grey', latch: true, gstyle: 'font-family:"IBM Plex Mono",monospace;font-weight:500'},
+  {id: 'clear', glyph: 'CLEAR', sub: 'formatting', label: 'Clear formatting', color: 'orange', latch: false, wide: true, gstyle: 'font-family:"IBM Plex Sans",sans-serif;font-weight:600;letter-spacing:2px'},
+];
+const PAL = {
+  beige: {top: ['#d9d1bf', '#e7e0cf', '#f1ebdd', '#fbf7ee'], skirt: ['#d3c9b3', '#b9ad93'], side: '#a99d84', legend: '#3c3934', sub: '#7b7466', rim: '#fffaf0'},
+  grey: {top: ['#8b867d', '#9a958b', '#a8a398', '#bdb8ad'], skirt: ['#8f8a80', '#6f6a61'], side: '#5f5a52', legend: '#f3eee4', sub: '#d8d2c5', rim: '#d9d4c9'},
+  orange: {top: ['#d9631f', '#e8763a', '#f08848', '#f9a26a'], skirt: ['#df6c2c', '#b84d14'], side: '#a2420f', legend: '#fff1e2', sub: '#ffd8bb', rim: '#ffc79d'},
+};
+
+/* ---------- audio: buckling spring ---------- */
+let ac = null, master = null, muted = false;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function burst(dur, f, q, gain, type = 'bandpass', when = 0){
+  if (!ac || muted) return; const t = ac.currentTime + when, n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+  const s = ac.createBufferSource(); s.buffer = b; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ac.createGain(); g.gain.value = gain; s.connect(fl); fl.connect(g); g.connect(master); s.start(t);
+}
+function ring(f, dur, gain, when = 0){
+  if (!ac || muted) return; const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+}
+const pitch = k => 1 + (KEYS.indexOf(k) - 2.5) * .03;
+function sDown(k){ const p = pitch(k); burst(.03, 3400 * p, 1.3, 1.1); burst(.05, 900 * p, .9, .9, 'lowpass', .004); ring(2650 * p, .11, .05, .006); ring(4100 * p, .06, .025, .006); }
+function sUp(k){ const p = pitch(k); burst(.025, 2600 * p, 1.4, .55); ring(2300 * p, .08, .03); }
+function sLatch(k){ burst(.018, 5200, 2, .45, 'bandpass', .02); }
+
+/* ---------- build keys (SVG renders) ---------- */
+function mk(tag, a, p){ const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; }
+const state = {};
+KEYS.forEach((k, idx) => {
+  const P = PAL[k.color], btn = document.createElement('button');
+  btn.className = 'key' + (k.wide ? ' wide' : ''); btn.type = 'button'; btn.dataset.id = k.id;
+  btn.setAttribute('aria-label', `${k.label} (${k.sub})`);
+  if (k.latch) btn.setAttribute('aria-pressed', 'false');
+  const W = k.wide ? 158 : 100, vb = `0 0 ${W} 106`;
+  const svg = mk('svg', {viewBox: vb, 'aria-hidden': 'true', preserveAspectRatio: 'none'});
+  const uid = 'k' + idx;
+  const defs = mk('defs', {}, svg);
+  const lg = (id, x2, y2, stops) => { const g = mk('linearGradient', {id: uid + id, x1: 0, y1: 0, x2, y2}, defs); stops.forEach(([o, c, op]) => mk('stop', {offset: o, 'stop-color': c, 'stop-opacity': op == null ? 1 : op}, g)); };
+  lg('top', 0, 1, [[0, P.top[0]], [.5, P.top[1]], [.86, P.top[2]], [1, P.top[3]]]);
+  lg('skirt', 0, 1, [[0, P.skirt[0]], [1, P.skirt[1]]]);
+  lg('sideL', 1, 0, [[0, '#ffffff', .28], [.12, '#ffffff', 0], [.88, '#000000', 0], [1, '#000000', .28]]);
+  lg('dish', 1, 0, [[0, '#000', .06], [.18, '#fff', .12], [.5, '#fff', 0], [1, '#000', .1]]);
+  const rg = mk('radialGradient', {id: uid + 'led', cx: .5, cy: .5, r: .5}, defs);
+  mk('stop', {offset: 0, 'stop-color': '#fff6d0'}, rg); mk('stop', {offset: .45, 'stop-color': '#ffb43a'}, rg); mk('stop', {offset: 1, 'stop-color': '#d8660a'}, rg);
+  // well (the hole in the plate)
+  mk('rect', {x: 1, y: 2, width: W - 2, height: 104, rx: 7, fill: '#15120f'}, svg);
+  mk('rect', {x: 1, y: 2, width: W - 2, height: 104, rx: 7, fill: 'none', stroke: 'rgba(255,255,255,.08)'}, svg);
+  // switch stem glimpsed when pressed
+  mk('rect', {x: W / 2 - 7, y: 70, width: 14, height: 30, fill: '#3a3530'}, svg);
+  const clip = mk('g', {'clip-path': 'url(#lip)'}, svg);
+  const cap = mk('g', {}, clip);
+  // ambient occlusion / shadow beneath the cap inside the well
+  mk('ellipse', {cx: W / 2 + 3, cy: 100, rx: W * .46, ry: 6, fill: '#000', opacity: .6, filter: 'url(#soft)'}, cap);
+  const L = 4, R = W - 4, tL = 13, tR = W - 13;
+  const body = `M${tL + 4},6 L${tR - 4},6 Q${tR},6 ${tR + 1},10 L${R},94 Q${R + .5},101 ${R - 6},101 L${L + 6},101 Q${L - .5},101 ${L},94 L${tL - 1},10 Q${tL},6 ${tL + 4},6 Z`;
+  const bodyG = mk('g', {filter: 'url(#pbt)'}, cap);
+  mk('path', {d: body, fill: `url(#${uid}skirt)`}, bodyG);
+  mk('path', {d: body, fill: `url(#${uid}sideL)`}, bodyG);
+  // top face (cylindrical dish)
+  const top = `M${tL + 9},8 L${tR - 9},8 Q${tR - 1},8 ${tR - 1},16 L${tR - 2},66 Q${tR - 2},74 ${tR - 10},74 L${tL + 10},74 Q${tL + 2},74 ${tL + 2},66 L${tL + 1},16 Q${tL + 1},8 ${tL + 9},8 Z`;
+  mk('path', {d: top, fill: `url(#${uid}top)`}, bodyG);
+  mk('path', {d: top, fill: `url(#${uid}dish)`}, bodyG);
+  // soft-box specular across the far half of the dish, and a shaded right skirt
+  const spec = mk('radialGradient', {id: uid + 'spec', cx: .3, cy: .18, r: .7}, defs);
+  mk('stop', {offset: 0, 'stop-color': '#fff', 'stop-opacity': .38}, spec); mk('stop', {offset: .55, 'stop-color': '#fff', 'stop-opacity': .06}, spec); mk('stop', {offset: 1, 'stop-color': '#fff', 'stop-opacity': 0}, spec);
+  mk('path', {d: top, fill: `url(#${uid}spec)`}, bodyG);
+  mk('path', {d: `M${tR + 1},10 L${R},94 Q${R + .5},101 ${R - 6},101 L${R - 10},101 L${tR - 3},74 Z`, fill: '#000', opacity: .16}, bodyG);
+  // front rim highlight and top-left key light
+  mk('path', {d: `M${tL + 9},74.3 L${tR - 10},74.3`, stroke: P.rim, 'stroke-width': 1.4, opacity: .85, 'stroke-linecap': 'round'}, cap);
+  mk('path', {d: `M${tL + 2},62 L${tL + 1.4},17 Q${tL + 1.4},9 ${tL + 9},8.6`, stroke: '#fff', 'stroke-width': 1, opacity: .45, fill: 'none'}, cap);
+  mk('path', {d: `M${L + 2},94 L${tL},12`, stroke: '#fff', 'stroke-width': .8, opacity: .25}, cap);
+  // legends (dye-sublimated)
+  const lx = W / 2, ly = 47;
+  const t = mk('text', {x: lx, y: ly, 'text-anchor': 'middle', 'font-size': k.glyph.length > 2 ? (k.wide ? 17 : 22) : 30, fill: P.legend, style: k.gstyle}, cap);
+  t.textContent = k.glyph;
+  if (k.strike) mk('rect', {x: lx - 12, y: ly - 11, width: 24, height: 2.6, fill: P.legend}, cap);
+  if (k.under) mk('rect', {x: lx - 11, y: ly + 4, width: 22, height: 2.2, fill: P.legend}, cap);
+  const st = mk('text', {x: tL + 8, y: 68, 'font-size': 8.5, fill: P.sub, style: 'font-family:"IBM Plex Mono",monospace;letter-spacing:.3px'}, cap);
+  st.textContent = k.sub;
+  // LED lens in the front skirt
+  let led = null, ledGlow = null;
+  if (k.latch) {
+    mk('rect', {x: W / 2 - 7, y: 82, width: 14, height: 6, rx: 2, fill: '#3b3229', opacity: .8}, cap);
+    led = mk('rect', {x: W / 2 - 6, y: 82.8, width: 12, height: 4.4, rx: 1.6, fill: `url(#${uid}led)`, opacity: 0}, cap);
+    ledGlow = mk('ellipse', {cx: W / 2, cy: 85, rx: 14, ry: 6, fill: '#ffae3a', opacity: 0, filter: 'url(#glow)'}, cap);
+    mk('rect', {x: W / 2 - 5, y: 83, width: 5, height: 1.2, rx: .6, fill: '#fff', opacity: .55}, cap);
+  }
+  // plate lip in front (occludes the cap as it sinks)
+  mk('rect', {x: -2, y: 103, width: W + 4, height: 5, fill: '#2b2620'}, svg);
+  // focus ring
+  mk('rect', {class: 'focus', x: -3, y: -2, width: W + 6, height: 110, rx: 10, fill: 'none', stroke: '#d4561c', 'stroke-width': 2.5, 'stroke-dasharray': '6 4'}, svg);
+  btn.appendChild(svg); plate.appendChild(btn);
+  state[k.id] = {k, btn, cap, led, ledGlow, p: 0, v: 0, tilt: 0, tv: 0, held: false, latched: false, target: 0};
+  if (k.latch) {
+    const span = document.createElement('span'); span.innerHTML = `<i></i>${k.glyph === '</>' ? 'code' : k.glyph}`; ledsEl.appendChild(span); state[k.id].caseLed = span;
+  }
+});
+
+/* ---------- editor commands ---------- */
+let savedRange = null;
+function inCode(node){ while (node && node !== doc) { if (node.nodeName === 'CODE') return node; node = node.parentNode; } return null; }
+function selInDoc(){ const s = getSelection(); return s.rangeCount && doc.contains(s.getRangeAt(0).commonAncestorContainer) ? s : null; }
+function restoreSel(){
+  if (selInDoc()) return true;
+  if (savedRange) { doc.focus({preventScroll: true}); const s = getSelection(); s.removeAllRanges(); s.addRange(savedRange); return true; }
+  doc.focus({preventScroll: true}); return false;
+}
+function selectWordAtCaret(){
+  const s = getSelection(); if (!s.isCollapsed || !s.modify) return;
+  s.modify('move', 'backward', 'word'); s.modify('extend', 'forward', 'word');
+  // trim trailing whitespace
+  const r = s.getRangeAt(0), txt = r.toString(), trim = txt.length - txt.trimEnd().length;
+  if (trim && r.endContainer.nodeType === 3) { r.setEnd(r.endContainer, Math.max(0, r.endOffset - trim)); s.removeAllRanges(); s.addRange(r); }
+}
+function toggleCode(){
+  const s = getSelection(); if (!s.rangeCount) return;
+  const c = inCode(s.anchorNode) || inCode(s.focusNode);
+  if (c) { const f = document.createDocumentFragment(); while (c.firstChild) f.appendChild(c.firstChild); const first = f.firstChild, last = f.lastChild; c.replaceWith(f); const r = document.createRange(); r.setStartBefore(first); r.setEndAfter(last); s.removeAllRanges(); s.addRange(r); return; }
+  if (s.isCollapsed) selectWordAtCaret();
+  const r = s.getRangeAt(0); if (r.collapsed) return;
+  const code = document.createElement('code');
+  try { code.appendChild(r.extractContents()); r.insertNode(code); const nr = document.createRange(); nr.selectNodeContents(code); s.removeAllRanges(); s.addRange(nr); } catch (e) {}
+}
+function run(id){
+  restoreSel();
+  if (id === 'code') toggleCode();
+  else if (id === 'clear') {
+    const s = getSelection(); if (s.isCollapsed) selectWordAtCaret();
+    document.execCommand('removeFormat'); document.execCommand('unlink');
+    const c = inCode(s.anchorNode); if (c) toggleCode();
+    doc.querySelectorAll('u,s,strike').forEach(e => { if (s.containsNode(e, true)) e.replaceWith(...e.childNodes); });
+  } else {
+    const s = getSelection(); if (s.isCollapsed && id !== 'bold' && id !== 'italic') selectWordAtCaret();
+    document.execCommand('styleWithCSS', false, false); document.execCommand(id);
+  }
+  syncFromSelection(true);
+}
+
+/* ---------- state sync: keys follow the caret ---------- */
+const names = {bold: 'bold', italic: 'italic', underline: 'underline', strikeThrough: 'strikethrough', code: 'code'};
+function activeSet(){
+  const s = selInDoc(); const on = {};
+  if (!s) return null;
+  ['bold', 'italic', 'underline', 'strikeThrough'].forEach(c => { try { on[c] = document.queryCommandState(c); } catch (e) { on[c] = false; } });
+  on.code = !!(inCode(s.anchorNode) || inCode(s.focusNode));
+  return on;
+}
+let lastSummary = '';
+function syncFromSelection(fromKey){
+  const on = activeSet(); if (!on) return;
+  const sel = getSelection(); if (sel.rangeCount) savedRange = sel.getRangeAt(0).cloneRange();
+  Object.keys(names).forEach(id => {
+    const st = state[id]; const was = st.latched; st.latched = !!on[id];
+    st.btn.setAttribute('aria-pressed', String(st.latched));
+    if (st.caseLed) st.caseLed.classList.toggle('on', st.latched);
+    if (!st.held) { st.target = st.latched ? .52 : 0; if (was !== st.latched && !fromKey) { st.v += st.latched ? 4 : -3; } }
+    if (was !== st.latched && fromKey) sLatch(st.k);
+  });
+  const list = Object.keys(names).filter(id => on[id]).map(id => names[id]);
+  const summary = list.length ? list.join(', ') : 'plain';
+  $('stSel').innerHTML = `Selection: <b>${summary}</b>`;
+  if (fromKey && summary !== lastSummary) live.textContent = `Formatting: ${summary}`;
+  lastSummary = summary;
+  if (list.length === 5) { live.textContent = 'All five at once. Bold choice.'; $('stSel').innerHTML = 'Selection: <b>everything, all at once</b>'; }
+  const words = (doc.innerText.match(/\S+/g) || []).length; $('stWords').textContent = `${words} words`;
+}
+document.addEventListener('selectionchange', () => { if (selInDoc()) syncFromSelection(false); });
+doc.addEventListener('input', () => syncFromSelection(false));
+
+/* ---------- pressing ---------- */
+let used = false;
+function press(id, ev){
+  const st = state[id]; if (st.held) return;
+  audio(); st.held = true; st.target = 1; sDown(st.k);
+  // off-centre presses tip the cap a little
+  if (ev && ev.clientX != null) { const r = st.btn.getBoundingClientRect(); st.tv += ((ev.clientX - r.left) / r.width - .5) * -14; }
+  else st.tv += (Math.random() - .5) * 4;
+}
+function release(id, fire = true){
+  const st = state[id]; if (!st.held) return;
+  st.held = false; sUp(st.k);
+  if (fire) { run(id); if (!used) { used = true; hint.style.opacity = .0; } }
+  st.target = st.latched ? .52 : 0;
+}
+Object.values(state).forEach(st => {
+  const id = st.k.id;
+  st.btn.addEventListener('pointerdown', e => { e.preventDefault(); try { st.btn.setPointerCapture(e.pointerId); } catch (_) {} press(id, e); });
+  st.btn.addEventListener('pointerup', () => release(id, true));
+  st.btn.addEventListener('pointercancel', () => release(id, false));
+  st.btn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(id); } });
+  st.btn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); release(id, true); } });
+  st.btn.addEventListener('click', e => e.preventDefault());
+});
+// keyboard shortcuts drive the physical keys too
+const SHORT = {b: 'bold', i: 'italic', u: 'underline', e: 'code'};
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+  const k = e.key.toLowerCase(); let id = null;
+  if (e.shiftKey && k === 'x') id = 'strikeThrough';
+  else if (!e.shiftKey && SHORT[k]) id = SHORT[k];
+  else if (k === '\\') id = 'clear';
+  if (!id || !selInDoc()) return;
+  e.preventDefault(); if (e.repeat) return;
+  press(id); setTimeout(() => release(id, true), 90);
+});
+
+/* ---------- springs ---------- */
+let last = performance.now(), raf = 0;
+function frame(now){
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  for (const id in state) {
+    const st = state[id];
+    if (reduced) { st.p = st.target; st.v = 0; st.tilt = 0; }
+    else {
+      // stiff switch spring with a touch of bounce at the top (buckling spring rebound)
+      st.v += ((st.target - st.p) * 900 - st.v * 34) * dt; st.p += st.v * dt;
+      if (st.p > 1.04) { st.p = 1.04; st.v = 0; }
+      st.tv += (-st.tilt * 500 - st.tv * 22) * dt; st.tilt += st.tv * dt;
+    }
+    const y = st.p * 11, sq = 1 - st.p * .015;
+    st.cap.setAttribute('transform', `translate(0 ${y.toFixed(2)}) rotate(${(st.tilt * .25).toFixed(2)} 50 60) scale(1 ${sq.toFixed(4)})`);
+    if (st.led) {
+      const on = st.latched ? 1 : 0; st.lv = (st.lv || 0) + (on - (st.lv || 0)) * Math.min(1, dt * 12);
+      st.led.setAttribute('opacity', st.lv.toFixed(3)); st.ledGlow.setAttribute('opacity', (st.lv * .75).toFixed(3));
+    }
+  }
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frame); } });
+
+// start with the caret inside the bold time so the pad shows a latched key
+function initCaret(){
+  const b = doc.querySelector('b'); if (!b) return;
+  const r = document.createRange(); r.setStart(b.firstChild, 4); r.collapse(true);
+  doc.focus({preventScroll: true}); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  syncFromSelection(false);
+  for (const id in state) state[id].p = state[id].target;
+}
+initCaret();
+raf = requestAnimationFrame(frame);
+window.__keys = {select(text){ const w = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const i = n.data.indexOf(text); if (i >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + text.length); const s = getSelection(); s.removeAllRanges(); s.addRange(r); syncFromSelection(false); return; } } }, tap(id){ press(id); setTimeout(() => release(id, true), 120); }};
+})();
+</script>
+</body>
+</html>

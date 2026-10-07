@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domino Publish</title>
+<meta name="description" content="A publish button with a multi-step pipeline, drawn as a Bauhaus poster: each async step is a domino that only falls when its job finishes — and a flaky test can leave one standing until you nudge it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;700;800&family=Unbounded:wght@800;900&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Domino Publish","reimagines":"Publish button with a multi-step pipeline","category":"Buttons & Actions","description":"Publishing tips the first of a row of Bauhaus dominoes. Each later domino is a pipeline step — build, test, optimise, deploy — that trembles under the weight while its job runs and only falls when the job completes, with real rigid-body toppling. A flaky test leaves its domino standing; nudge it to retry.","hint":"Press Publish; if a domino refuses to fall, nudge it to retry"}
+</script>
+<style>
+:root{ --paper:#eee6d3; --red:#d6372a; --yellow:#f2b51c; --blue:#1f4fa3; --black:#161514; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:Jost,Futura,"Century Gothic",sans-serif;color:var(--black);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;touch-action:none}
+.grain{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.5;z-index:9;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23f)'/%3E%3C/svg%3E")}
+.head{position:fixed;z-index:3;pointer-events:none}
+.head h1{font-family:Unbounded,Jost,sans-serif;font-weight:900;margin:0;line-height:.86;letter-spacing:-.02em;text-transform:uppercase}
+.head h1 span{display:block}
+.head h1 .r{color:var(--red)}
+.head .meta{margin-top:16px;display:flex;gap:18px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;font-size:13px}
+.head .meta b{font-weight:800}
+.status{position:fixed;z-index:3;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:13px;display:flex;align-items:center;gap:10px}
+.status i{width:14px;height:14px;border-radius:50%;background:var(--black)}
+.status.run i{background:var(--yellow);animation:pulse 1s infinite}
+.status.ok i{background:var(--red)}
+.status.bad i{border-radius:0;width:0;height:0;background:none;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid var(--black)}
+@keyframes pulse{50%{transform:scale(.6)}}
+.publish{position:fixed;z-index:4;border:0;border-radius:50%;background:var(--blue);color:var(--paper);cursor:pointer;display:grid;place-items:center;font:800 15px Jost,sans-serif;letter-spacing:.2em;text-transform:uppercase;
+  box-shadow:8px 8px 0 var(--black);transition:transform .1s,box-shadow .1s,background .3s}
+.publish:active{transform:translate(6px,6px);box-shadow:2px 2px 0 var(--black)}
+.publish:focus-visible{outline:4px solid var(--yellow);outline-offset:6px}
+.publish[disabled]{cursor:default;background:#8c8a84}
+.publish small{display:block;font-weight:500;letter-spacing:.12em;font-size:10px;margin-top:2px;opacity:.85}
+.log{position:fixed;z-index:3;list-style:none;margin:0;padding:0;font-size:14px;display:grid;gap:0}
+.log li{display:grid;grid-template-columns:34px 18px 1fr auto;align-items:center;gap:10px;padding:8px 0;border-top:3px solid var(--black)}
+.log li:last-child{border-bottom:3px solid var(--black)}
+.log .n{font-weight:800;font-size:16px}
+.log .s{font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.log .t{font-variant-numeric:tabular-nums;font-weight:500;opacity:.8;text-align:right;min-width:62px}
+.log .ic{width:14px;height:14px;border:3px solid var(--black);border-radius:50%}
+.log li.run .ic{background:var(--yellow);border-color:var(--yellow)}
+.log li.done .ic{background:var(--red);border-color:var(--red);border-radius:0}
+.log li.fail .ic{border:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid var(--black);border-radius:0;width:0;height:0}
+.log li .retry{display:none;font:800 11px Jost,sans-serif;letter-spacing:.14em;text-transform:uppercase;background:var(--yellow);border:3px solid var(--black);padding:3px 8px;cursor:pointer;color:var(--black)}
+.log li.fail .retry{display:inline-block}
+.log li.fail .t{display:none}
+.log .retry:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.hint{position:fixed;z-index:3;font-weight:500;font-size:14px;letter-spacing:.06em;transition:opacity .4s;pointer-events:none}
+.hint b{font-weight:800;color:var(--red)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mute{position:fixed;right:14px;top:12px;z-index:6;width:34px;height:34px;border:3px solid var(--black);border-radius:50%;background:var(--paper);cursor:pointer;padding:5px;color:var(--black)}
+.mute svg{width:100%;height:100%;display:block}
+@media (max-width:760px){
+  .head .meta{font-size:10px;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .log{font-size:12px}
+  .log li{grid-template-columns:26px 16px 1fr auto;padding:5px 0;gap:8px}
+  .log .n{font-size:13px}
+  .status{font-size:11px}
+  .publish{font-size:12px}
+}
+@media (prefers-reduced-motion:reduce){ .status.run i{animation:none} }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+<header class="head" id="head">
+  <h1 id="title"><span>Spring /</span><span class="r">Summer</span><span>Catalogue</span></h1>
+  <div class="meta"><span><b>48</b> pages</span><span><b>212</b> products</span><span>Northwind Studio</span></div>
+</header>
+<p class="status" id="status" role="status" aria-live="polite"><i></i><span id="statusT">Draft · ready to publish</span></p>
+<button class="publish" id="publish" type="button"><span>Publish<small>tip the first domino</small></span></button>
+<ol class="log" id="log" aria-label="Publish pipeline"></ol>
+<p class="hint" id="hint">Press <b>Publish</b> — each domino falls only when its step is done</p>
+<button class="mute" id="mute" type="button" aria-label="Mute sound" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor"/><path id="mw" d="M13 7c1.5 1.5 1.5 4.5 0 6M15.5 5c3 3 3 7 0 10"/></svg></button>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const C = { paper:'#eee6d3', red:'#d6372a', yellow:'#f2b51c', blue:'#1f4fa3', black:'#161514' };
+const cv = $('#cv'), ctx = cv.getContext('2d');
+let W, H, DPR, mobile, K = 1; // K: design scale
+
+/* ---------- pipeline ---------- */
+const DOMS = [
+  {key:'start', label:'GO', col:C.black, ink:C.paper, sym:'circle'},
+  {key:'build', label:'BUILD', col:C.red, ink:C.paper, sym:'square', dur:2.4, note:'48 pages · 212 SKUs'},
+  {key:'test', label:'TEST', col:C.yellow, ink:C.black, sym:'triangle', dur:1.9, note:'318 checks'},
+  {key:'optimise', label:'OPTIMISE', col:C.blue, ink:C.paper, sym:'circle', dur:1.5, note:'1,204 images'},
+  {key:'deploy', label:'DEPLOY', col:C.black, ink:C.paper, sym:'square', dur:2.2, note:'eu-west · us-east'},
+  {key:'live', label:'LIVE', col:C.red, ink:C.paper, sym:'circle'},
+];
+const DH = 172, DW = 36, GAP = 72;
+let run = 0, firstRun = true, finale = 0, confetti = [];
+function reset(hard){
+  DOMS.forEach((d, i) => Object.assign(d, {th:0, om:0, state:'up', prog:0, t0:0, elapsed:0, fail:false, shake:0, rise:hard ? 0 : 1}));
+}
+reset(true);
+
+/* ---------- audio ---------- */
+let ac = null, master = null, muted = false;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch(e){} } if (ac && ac.state==='suspended') ac.resume(); return ac && !muted; }
+function tone(f, d, v, type='triangle', at=0){ if (!audio()) return; const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f, t);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .005); g.gain.exponentialRampToValueAtTime(.001, t + d); o.connect(g).connect(master); o.start(t); o.stop(t + d + .02); }
+const clack = (k=1) => { tone(1150*k, .06, .4, 'square'); tone(420*k, .1, .35, 'triangle'); };
+const thud = () => { tone(110, .25, .6, 'sine'); tone(70, .3, .4, 'triangle'); };
+const buzz = () => { tone(140, .35, .25, 'sawtooth'); tone(147, .35, .2, 'sawtooth'); };
+const chord = () => { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 1.2, .18, 'sine', i*.08)); };
+let hum = null;
+function humOn(on, pitch){ if (!audio()){ return; } if (on && !hum){ const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = pitch; f.type = 'lowpass'; f.frequency.value = 380; g.gain.value = 0; g.gain.setTargetAtTime(.05, ac.currentTime, .1); o.connect(f).connect(g).connect(master); o.start(); hum = {o, g}; }
+  else if (!on && hum){ const h = hum; hum = null; h.g.gain.setTargetAtTime(0, ac.currentTime, .05); h.o.stop(ac.currentTime + .3); } }
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').setAttribute('aria-pressed', muted); $('#mw').style.display = muted ? 'none' : ''; if (muted) humOn(false); });
+
+/* ---------- log / status ---------- */
+const log = $('#log'), statusEl = $('#status'), statusT = $('#statusT'), pubBtn = $('#publish'), hint = $('#hint');
+function renderLog(){
+  log.innerHTML = DOMS.slice(1, 5).map((d, i) => `<li id="lg-${d.key}"><span class="n">0${i+1}</span><span class="ic"></span><span class="s">${d.label}<span class="sr"> — ${d.note}</span></span><span class="t" id="t-${d.key}">${d.note}</span><button class="retry" type="button" data-k="${d.key}">Retry</button></li>`).join('');
+  log.querySelectorAll('.retry').forEach(b => b.addEventListener('click', () => retry(DOMS.find(d => d.key === b.dataset.k))));
+}
+renderLog();
+function setRow(d, cls, text){ const li = $('#lg-' + d.key); if (!li) return; li.className = cls; if (text !== undefined) $('#t-' + d.key).textContent = text; }
+function status(cls, text){ statusEl.className = 'status ' + cls; statusT.textContent = text; }
+
+/* ---------- geometry ---------- */
+let G = {}; // layout in CSS px
+function layout(){
+  W = innerWidth; H = innerHeight; mobile = W < 760; DPR = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  if (!mobile){
+    K = Math.min(W/1280, H/800);
+    G = { ox: W/2 - 640*K, oy: H/2 - 400*K, angle: -.07, bar: {x: 120, y: 560}, start: 70 };
+    const head = $('#head'); head.style.left = (G.ox + 64*K) + 'px'; head.style.top = (G.oy + 58*K) + 'px'; $('#title').style.fontSize = (64*K) + 'px';
+    Object.assign(statusEl.style, {left: (G.ox + 66*K)+'px', top: (G.oy + 330*K)+'px'});
+    const pb = 150*K; Object.assign(pubBtn.style, {width: pb+'px', height: pb+'px', left: (G.ox + 108*K)+'px', top: (G.oy + 600*K)+'px'});
+    Object.assign(log.style, {left: (G.ox + 820*K)+'px', top: (G.oy + 590*K)+'px', width: (380*K)+'px'});
+    Object.assign(hint.style, {left: (G.ox + 300*K)+'px', top: (G.oy + 690*K)+'px', width: (440*K)+'px'});
+  } else {
+    K = Math.min(W/390, H/844);
+    G = { ox: W/2 - 195*K, oy: 0, angle: -.06, bar: {x: 4, y: 500}, start: 10 };
+    const head = $('#head'); head.style.left = (16*K) + 'px'; head.style.top = (18*K) + 'px'; $('#title').style.fontSize = (40*K) + 'px';
+    Object.assign(statusEl.style, {left: (18*K)+'px', top: (232*K)+'px'});
+    const pb = 108*K; Object.assign(pubBtn.style, {width: pb+'px', height: pb+'px', left: (18*K)+'px', top: (H - pb - 30*K)+'px'});
+    Object.assign(log.style, {left: (146*K)+'px', top: (H - 210*K)+'px', width: (W - 146*K - 16)+'px'});
+    Object.assign(hint.style, {left: (18*K)+'px', top: (540*K)+'px', width: (W - 36)+'px'});
+  }
+}
+// domino i: back-bottom corner at x_i along the bar (local units)
+const SP = DW + GAP;
+function dScale(){ return mobile ? .5 : 1; }
+function xi(i){ return G.start + i*SP; }
+
+// contact: angle for domino i so its top-front corner rests on domino j's back face (j tilted by thj)
+function topCorner(i, th){ const px = xi(i) + DW; return [px + DH*Math.sin(th), DH*Math.cos(th)]; }
+function backFace(j, thj){ const qx = xi(j) + DW; const bx = qx - DW*Math.cos(thj), by = DW*Math.sin(thj); return {b:[bx, by], d:[Math.sin(thj), Math.cos(thj)]}; }
+function gapFn(i, th, thj){ const p = topCorner(i, th), f = backFace(i+1, thj); return (p[0] - f.b[0])*f.d[1] - (p[1] - f.b[1])*f.d[0]; }
+function restAngle(i, thj){ let lo = 0, hi = Math.PI/2; if (gapFn(i, hi, thj) < 0) return hi; for (let k=0;k<22;k++){ const m = (lo+hi)/2; if (gapFn(i, m, thj) < 0) lo = m; else hi = m; } return lo; }
+
+/* ---------- control ---------- */
+function publish(){
+  if (run !== 0 && run !== 3) return;
+  audio();
+  if (run === 3){ standUp(); return; }
+  run = 1; pubBtn.disabled = true; hint.style.opacity = 0; pubBtn.querySelector('span').innerHTML = 'Publishing<small>watch the row</small>';
+  status('run', 'Publishing…');
+  const d0 = DOMS[0]; d0.state = 'falling'; d0.om = reduce ? 6 : 2.6; d0.th = .2;
+  clack(.8);
+}
+function startStep(d){
+  d.state = 'run'; d.t0 = performance.now(); d.prog = 0; d.fail = false;
+  setRow(d, 'run', 'running…'); status('run', `${d.label[0] + d.label.slice(1).toLowerCase()}ing…`.replace('Testing…','Testing…'));
+  statusT.textContent = {build:'Building pages…', test:'Running tests…', optimise:'Optimising images…', deploy:'Deploying to the edge…'}[d.key];
+  humOn(true, 70 + DOMS.indexOf(d)*12);
+}
+function finishStep(d){
+  humOn(false);
+  const secs = ((performance.now() - d.t0)/1000).toFixed(1) + ' s';
+  if (d.key === 'test' && (firstRun || Math.random() < .25) && !d.retried){
+    // flaky: the domino shrugs off the push and stays standing
+    d.state = 'flaky'; d.fail = true; d.om = -1.2; buzz(); firstRun = false;
+    setRow(d, 'fail'); status('bad', '2 tests flaky in checkout.spec — nudge TEST to retry');
+    say('Tests flaky: 2 of 318 failed. Nudge the yellow domino, or press Retry, to run them again.');
+    return;
+  }
+  setRow(d, 'done', secs);
+  d.state = 'falling'; d.om = 1.6; d.th = Math.max(d.th, .02);
+}
+function retry(d){
+  if (!d || d.state !== 'flaky') return; audio();
+  d.retried = true; d.om = 0; d.th = .03; clack(1.2);
+  startStep(d); statusT.textContent = 'Re-running 2 flaky tests…'; d.dur2 = 1.3;
+}
+function standUp(){
+  run = 4; finale = 0; confetti.length = 0; clack(.6);
+  DOMS.forEach((d, i) => { d.state = 'rising'; d.riseAt = performance.now() + (DOMS.length - 1 - i)*110; d.fail = false; d.retried = false; d.dur2 = 0; });
+  status('', 'Draft · ready to publish'); renderLog();
+  setTimeout(() => { reset(false); run = 0; pubBtn.disabled = false; pubBtn.querySelector('span').innerHTML = 'Publish<small>tip the first domino</small>'; hint.style.opacity = 1; }, reduce ? 50 : 1200);
+}
+function say(t){ const s = $('#sr') || Object.assign(document.body.appendChild(document.createElement('div')), {id:'sr', className:'sr'}); s.setAttribute('aria-live','polite'); s.textContent = ''; setTimeout(() => s.textContent = t, 30); }
+pubBtn.addEventListener('click', publish);
+
+/* nudge the flaky domino directly */
+function toLocal(cx, cy){ const m = baseMatrix().inverse(); const p = m.transformPoint(new DOMPoint(cx, cy)); return [p.x, -p.y]; }
+cv.addEventListener('pointerdown', e => {
+  const flaky = DOMS.find(d => d.state === 'flaky'); if (!flaky) return;
+  const [lx, ly] = toLocal(e.clientX, e.clientY), x0 = xi(DOMS.indexOf(flaky));
+  if (lx > x0 - 30 && lx < x0 + DW + 40 && ly > -20 && ly < DH + 30){ retry(flaky); }
+});
+cv.addEventListener('pointermove', e => {
+  const flaky = DOMS.find(d => d.state === 'flaky'); if (!flaky){ cv.style.cursor = ''; return; }
+  const [lx, ly] = toLocal(e.clientX, e.clientY), x0 = xi(DOMS.indexOf(flaky));
+  cv.style.cursor = (lx > x0 - 30 && lx < x0 + DW + 40 && ly > -20 && ly < DH + 30) ? 'pointer' : '';
+});
+
+/* ---------- physics ---------- */
+const g = 3400;
+function physics(dt){
+  const now = performance.now();
+  for (let i=0;i<DOMS.length;i++){
+    const d = DOMS[i], next = DOMS[i+1];
+    if (d.state === 'falling'){
+      const x = -DW/2*Math.cos(d.th) + DH/2*Math.sin(d.th);
+      d.om += 3*g*x/(DW*DW + DH*DH)*dt; d.th += d.om*dt;
+      if (d.th < 0){ d.th = 0; d.om = 0; d.state = 'up'; }
+      if (next && next.state !== 'down' && next.state !== 'falling' && gapFn(i, d.th, next.th) >= 0){
+        d.th = restAngle(i, next.th); d.om = 0; d.state = 'rest'; clack(1 + i*.08);
+        if (next.state === 'up'){ if (next.key === 'live'){ next.state = 'falling'; next.om = 2; next.th = .05; } else startStep(next); }
+      }
+      if (!next && d.th >= Math.PI/2 - .01){ d.th = Math.PI/2 - .01; if (d.om > .8){ d.om = -d.om*.25; thud(); } else { d.om = 0; d.state = 'down'; if (run === 1) complete(); } }
+    }
+    if (d.state === 'run'){
+      const dur = d.dur2 || d.dur;
+      d.prog = Math.min(1, (now - d.t0)/1000/dur);
+      d.th = reduce ? 0 : (.012 + Math.sin(now/24)*.006)*Math.min(1, d.prog*6); // trembling under the weight
+      $('#t-' + d.key) && ($('#t-' + d.key).textContent = ((now - d.t0)/1000).toFixed(1) + ' s');
+      if (d.prog >= 1) finishStep(d);
+    }
+    if (d.state === 'flaky'){ // rocks back upright, then fidgets
+      d.om += (-d.th*60 - d.om*6)*dt; d.th += d.om*dt; if (d.th < -.05) d.th = -.05;
+      if (Math.random() < dt*.6 && !reduce) d.om += .5;
+    }
+    if (d.state === 'rising'){
+      const u = clamp((now - d.riseAt)/500, 0, 1), e = 1 - Math.pow(1 - u, 3);
+      if (d.riseFrom === undefined) d.riseFrom = d.th;
+      d.th = d.riseFrom*(1 - e) + (u < 1 ? Math.sin(u*Math.PI)*-.04 : 0);
+      if (u >= 1){ d.th = 0; delete d.riseFrom; }
+    }
+  }
+  // resting dominoes follow the one they lean on (back to front)
+  for (let i = DOMS.length - 2; i >= 0; i--){ const d = DOMS[i]; if (d.state === 'rest' || d.state === 'down2'){ d.th = restAngle(i, DOMS[i+1].th); } }
+}
+function complete(){
+  run = 3; finale = .001; chord();
+  const t = new Date(), hh = String(t.getHours()).padStart(2,'0'), mm = String(t.getMinutes()).padStart(2,'0');
+  status('ok', `Live at ${hh}:${mm} · catalogue.northwind.studio`);
+  say(`Published. The spring summer catalogue went live at ${hh}:${mm}.`);
+  pubBtn.disabled = false; pubBtn.querySelector('span').innerHTML = 'Set up<small>stand them again</small>';
+  // geometric confetti
+  if (!reduce) for (let k=0;k<70;k++) confetti.push({x: Math.random()*W, y: -20 - Math.random()*H*.6, vx:(Math.random()-.5)*60, vy: 60 + Math.random()*120, r: 5 + Math.random()*9, a: Math.random()*6, va:(Math.random()-.5)*6, s:['c','s','t'][k%3], c:[C.red, C.yellow, C.blue, C.black][k%4]});
+}
+
+/* ---------- drawing ---------- */
+function baseMatrix(){
+  const s = K*dScale();
+  let m = new DOMMatrix().translate(G.ox + G.bar.x*K, G.oy + G.bar.y*K).rotate(G.angle*180/Math.PI).scale(s);
+  return m;
+}
+function sym(type, x, y, r, col){
+  ctx.fillStyle = col; ctx.beginPath();
+  if (type === 'circle') ctx.arc(x, y, r, 0, 7);
+  else if (type === 'square') ctx.rect(x - r*.86, y - r*.86, r*1.72, r*1.72);
+  else { ctx.moveTo(x, y - r); ctx.lineTo(x + r*1.05, y + r*.8); ctx.lineTo(x - r*1.05, y + r*.8); ctx.closePath(); }
+  ctx.fill();
+}
+function drawPoster(T){
+  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+  const k = K, ox = G.ox, oy = G.oy;
+  if (!mobile){
+    // big red sun, blue square, yellow triangle, black bars
+    const fr = finale > 0 ? Math.min(1, finale) : 0, e = 1 - Math.pow(1 - fr, 3);
+    ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(ox + 1010*k, oy + 230*k, (175 + e*60)*k, 0, 7); ctx.fill();
+    ctx.fillStyle = C.black; ctx.beginPath(); ctx.arc(ox + 1010*k, oy + 230*k, 60*k, 0, 7); ctx.fill();
+    ctx.fillStyle = C.blue; ctx.fillRect(ox + 690*k, oy + 120*k, 120*k, 120*k);
+    ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(ox + 0*k, oy + 800*k); ctx.lineTo(ox + 0*k, oy + 560*k); ctx.lineTo(ox + 260*k, oy + 800*k); ctx.fill();
+    ctx.fillStyle = C.black; ctx.save(); ctx.translate(ox + 1170*k, oy + 440*k); ctx.rotate(-.9); ctx.fillRect(-170*k, -6*k, 340*k, 12*k); ctx.restore();
+    ctx.strokeStyle = C.black; ctx.lineWidth = 3*k; ctx.beginPath(); ctx.arc(ox + 1010*k, oy + 230*k, 230*k, Math.PI*.9, Math.PI*1.6); ctx.stroke();
+    if (finale > 0){ ctx.fillStyle = C.paper; ctx.font = `900 ${54*k}px Unbounded, sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = e; ctx.fillText('LIVE', ox + 1010*k, oy + 400*k + 20*k*(1-e)); ctx.globalAlpha = 1; }
+  } else {
+    const fr = finale > 0 ? Math.min(1, finale) : 0, e = 1 - Math.pow(1 - fr, 3);
+    ctx.fillStyle = C.red; ctx.beginPath(); ctx.arc(ox + 312*k, oy + 340*k, (78 + e*22)*k, 0, 7); ctx.fill();
+    ctx.fillStyle = C.black; ctx.beginPath(); ctx.arc(ox + 312*k, oy + 340*k, 26*k, 0, 7); ctx.fill();
+    ctx.fillStyle = C.blue; ctx.fillRect(ox + 196*k, oy + 296*k, 54*k, 54*k);
+    if (finale > 0){ ctx.fillStyle = C.paper; ctx.font = `900 ${26*k}px Unbounded, sans-serif`; ctx.textAlign = 'center'; ctx.globalAlpha = e; ctx.fillText('LIVE', ox + 312*k, oy + 400*k); ctx.globalAlpha = 1; }
+    ctx.fillStyle = C.yellow; ctx.beginPath(); ctx.moveTo(ox + 390*k, oy + 844*k); ctx.lineTo(ox + 390*k, oy + 640*k); ctx.lineTo(ox + 220*k, oy + 844*k); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawRow(T){
+  const m = baseMatrix(); ctx.save(); ctx.setTransform(m.a*DPR, m.b*DPR, m.c*DPR, m.d*DPR, m.e*DPR, m.f*DPR);
+  ctx.scale(1, -1); // y up for the physics
+  const len = xi(DOMS.length - 1) + DH + 60;
+  // floor bar
+  ctx.fillStyle = C.black; ctx.fillRect(-40, -22, len + 40, 22);
+  // number ticks under each domino
+  ctx.save(); ctx.scale(1, -1); ctx.fillStyle = C.paper; ctx.font = `700 13px Jost, sans-serif`; ctx.textAlign = 'center';
+  DOMS.forEach((d, i) => { if (i > 0 && i < 5) ctx.fillText('0' + i, xi(i) + DW/2, 16); }); ctx.restore();
+  for (let i = DOMS.length - 1; i >= 0; i--){
+    const d = DOMS[i], px = xi(i) + DW;
+    ctx.save(); ctx.translate(px, 0); ctx.rotate(-d.th);
+    // flat poster shadow
+    ctx.fillStyle = 'rgba(22,21,20,.18)'; ctx.fillRect(-DW + 8, -6, DW, DH);
+    ctx.fillStyle = d.col; ctx.fillRect(-DW, 0, DW, DH);
+    if (d.col === C.black && i === 0){ ctx.fillStyle = C.paper; }
+    // symbol + vertical label
+    sym(d.sym, -DW/2, DH - 22, 10, d.state === 'flaky' ? C.black : d.ink);
+    ctx.save(); ctx.translate(-DW/2 + 5, DH - 44); ctx.scale(1, -1); ctx.rotate(Math.PI/2);
+    ctx.fillStyle = d.ink; ctx.font = `800 ${d.label.length > 6 ? 17 : 19}px Jost, sans-serif`; ctx.textAlign = 'left'; if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
+    ctx.fillText(d.label, 0, 0); ctx.restore();
+    // progress pie while the step runs
+    if (d.state === 'run'){ ctx.fillStyle = d.ink; ctx.globalAlpha = .9; ctx.beginPath(); ctx.moveTo(-DW/2, 24); ctx.arc(-DW/2, 24, 11, Math.PI/2, Math.PI/2 - d.prog*Math.PI*2, true); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = d.ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(-DW/2, 24, 11, 0, 7); ctx.stroke(); }
+    if (d.state === 'flaky'){ ctx.fillStyle = C.black; ctx.fillRect(-DW, 0, DW, 10); ctx.fillRect(-DW, DH - 10, DW, 10);
+      sym('triangle', -DW/2, 28, 11, C.black); }
+    ctx.restore();
+  }
+  // nudge marker for the flaky domino
+  const fl = DOMS.find(d => d.state === 'flaky');
+  if (fl){ const i = DOMS.indexOf(fl), cx = xi(i) + DW/2, y = DH + 22 + Math.abs(Math.sin(T*5))*12; ctx.fillStyle = C.red;
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx - 15, y + 22); ctx.lineTo(cx + 15, y + 22); ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.scale(1, -1); ctx.fillStyle = C.black; ctx.font = '800 15px Jost, sans-serif'; ctx.textAlign = 'center'; if ('letterSpacing' in ctx) ctx.letterSpacing = '3px';
+    ctx.fillText('NUDGE ME', cx, -(y + 34)); ctx.restore(); }
+  ctx.restore();
+}
+function drawConfetti(dt){
+  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+  for (const c of confetti){ c.vy += 160*dt; c.x += c.vx*dt; c.y += c.vy*dt; c.a += c.va*dt;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.a); sym(c.s === 'c' ? 'circle' : c.s === 's' ? 'square' : 'triangle', 0, 0, c.r, c.c); ctx.restore(); }
+  for (let i = confetti.length - 1; i >= 0; i--) if (confetti[i].y > H + 30) confetti.splice(i, 1);
+  ctx.restore();
+}
+
+let last = performance.now(), T = 0, acc = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden){ last = now; return; }
+  const dt = Math.min(.033, (now - last)/1000); last = now; T += dt;
+  acc += dt; let n = 0; while (acc > 1/240 && n < 12){ physics(1/240); acc -= 1/240; n++; }
+  if (finale > 0 && finale < 1) finale += dt*1.4;
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0, 0, cv.width, cv.height);
+  drawPoster(T); drawRow(T); drawConfetti(dt);
+}
+layout();
+addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 100); });
+requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>

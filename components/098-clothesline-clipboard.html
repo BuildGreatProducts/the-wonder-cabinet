@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clothesline Clipboard</title>
+<meta name="description" content="Clipboard history as linen tea towels pegged to a washing line across a sunlit Amalfi majolica wall. Copy something and it's pegged up; pull one down to copy it again.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..800,0..100,0..1;1,9..144,300..800,0..100,0..1&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Clothesline Clipboard","reimagines":"Clipboard history","category":"Novel Interactions","description":"Everything you copy is pegged up as a linen tea towel on a washing line across a sunlit majolica wall. The line sags as it fills, the sea breeze sways the cloths, and pulling one down copies it again — flick one upwards and the wind takes it.","hint":"Copy a line from the recipe; pull a cloth down to copy it again, flick it up to let it go"}
+</script>
+<style>
+:root{--cobalt:#1d4f9c;--cobalt-d:#14366e;--lemon:#f2c230;--leaf:#3f8a3c;--turq:#2aa3a8;--glaze:#f7f2e4;--grout:#d9cfba;--linen:#f3ead6;--ink:#1d2f55}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Fraunces",Georgia,serif;font-variation-settings:"SOFT" 80,"WONK" 1;color:var(--ink);background:#e9dfc8;-webkit-font-smoothing:antialiased}
+#wall{position:fixed;inset:0;overflow:hidden}
+#tiles{position:absolute;inset:0;width:100%;height:100%}
+.sun{position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(128deg, rgba(255,247,215,.42) 0%, rgba(255,247,215,.12) 38%, rgba(30,50,110,.0) 55%, rgba(30,50,110,.16) 100%),
+    radial-gradient(60% 50% at 18% 0%, rgba(255,236,170,.4), rgba(255,236,170,0) 70%)}
+.leafshadow{position:absolute;right:-60px;top:-40px;width:520px;height:420px;pointer-events:none;opacity:.22;filter:blur(3px);mix-blend-mode:multiply}
+#shadow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;filter:blur(2.5px);opacity:.32;mix-blend-mode:multiply}
+#line{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+#cloths{position:absolute;inset:0;z-index:4;pointer-events:none}
+#cloths .cloth{pointer-events:auto}
+.plaque{z-index:2}
+.toast{z-index:6}
+.hook{z-index:3}
+.hook{position:absolute;width:26px;height:34px;pointer-events:none}
+.cloth{position:absolute;left:0;top:0;width:var(--cw);height:var(--ch);transform-origin:50% 0;cursor:grab;touch-action:none;outline:none;user-select:none;-webkit-user-select:none;will-change:transform}
+.cloth.drag{cursor:grabbing;z-index:5}
+.cloth .fab{position:absolute;inset:14px 0 0 0;border-radius:2px 2px 4px 4px;padding:calc(var(--cw)*.1) calc(var(--cw)*.09) 10px;overflow:hidden;
+  background:
+    repeating-linear-gradient(0deg, rgba(120,95,50,.07) 0 1px, rgba(255,255,255,0) 1px 3px),
+    repeating-linear-gradient(90deg, rgba(120,95,50,.06) 0 1px, rgba(255,255,255,0) 1px 3px),
+    var(--bg, var(--linen));
+  box-shadow: inset 0 -6px 10px rgba(80,60,20,.10), inset 0 6px 6px rgba(255,255,255,.4)}
+.cloth .fab::before{content:"";position:absolute;inset:7px;border:2.5px solid var(--edge, var(--cobalt));border-radius:2px;opacity:.85;
+  box-shadow: inset 0 0 0 3px var(--bg, var(--linen)), inset 0 0 0 5px var(--edge2, var(--lemon))}
+.cloth .fab::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:9px;background:
+  repeating-linear-gradient(90deg, var(--edge, var(--cobalt)) 0 2px, rgba(0,0,0,0) 2px 5px);opacity:.55}
+.cloth .kind{position:relative;font-style:italic;font-size:calc(var(--cw)*.085);color:var(--edge, var(--cobalt));letter-spacing:.02em;display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.cloth .kind svg{width:calc(var(--cw)*.13);height:calc(var(--cw)*.13);flex:none}
+.cloth .txt{position:relative;font-family:"Caveat",cursive;font-weight:700;font-size:calc(var(--cw)*.13);line-height:1.02;color:var(--ink);word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.cloth.color .txt{font-family:"Fraunces";font-weight:600;font-size:calc(var(--cw)*.11);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.3)}
+.cloth .now{position:absolute;left:50%;bottom:-10px;transform:translateX(-50%) rotate(-3deg);white-space:nowrap;font-style:italic;font-size:calc(var(--cw)*.075);color:#fff;background:var(--cobalt);padding:2px 10px 3px;border-radius:2px;box-shadow:0 2px 3px rgba(0,0,0,.25);opacity:0;transition:opacity .3s}
+.cloth.current .now{opacity:1}
+.cloth .peg{position:absolute;left:50%;top:-6px;width:16px;height:34px;margin-left:-8px;pointer-events:none}
+.cloth:focus-visible .fab{outline:3px solid var(--lemon);outline-offset:3px}
+/* the painted recipe plaque */
+.plaque{position:absolute;padding:30px 40px 26px;color:var(--cobalt-d);
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.65), rgba(255,255,255,0) 60%),
+    var(--glaze);
+  border-radius:6px;
+  box-shadow: 0 0 0 8px #f5efdf, 0 0 0 10px var(--cobalt), 0 0 0 16px var(--lemon), 0 0 0 18px var(--cobalt), 18px 26px 30px rgba(30,40,90,.28), 6px 8px 10px rgba(30,40,90,.18)}
+.plaque::before{content:"";position:absolute;inset:0;border-radius:6px;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.03' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .4 0 0 0 0 .35 0 0 0 0 .25 0 0 0 9 -4.4'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23c)' opacity='.25'/%3E%3C/svg%3E")}
+.plaque .corner{position:absolute;width:44px;height:44px}
+.plaque h1{margin:0;font-weight:600;font-style:italic;font-size:38px;line-height:1;letter-spacing:-.01em;font-variation-settings:"SOFT" 100,"WONK" 1}
+.plaque .by{font-style:italic;font-size:15px;margin:6px 0 12px;color:#3b5f9e}
+.plaque ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.plaque li{display:flex;align-items:center;gap:12px;font-size:18px;line-height:1.25}
+.plaque li span{flex:1;min-width:0}
+.lemon{flex:none;width:38px;height:30px;border:0;padding:0;background:none;cursor:pointer;transition:transform .25s cubic-bezier(.3,1.8,.5,1)}
+.lemon svg{width:100%;height:100%;display:block;overflow:visible}
+.lemon:hover{transform:rotate(-8deg) scale(1.08)}
+.lemon:active,.lemon.squeeze{transform:scale(.8,1.1)}
+.lemon:focus-visible{outline:2px dashed var(--cobalt);outline-offset:3px;border-radius:50%}
+.plaque .tip{margin:12px 0 0;font-style:italic;font-size:14px;color:#3b5f9e}
+.plaque .tip b{font-weight:600;font-style:normal}
+.toast{position:absolute;left:50%;padding:7px 16px 8px;background:var(--cobalt);color:#fff;font-style:italic;font-size:16px;border-radius:3px;transform:translate(-50%,10px);opacity:0;transition:opacity .3s, transform .3s;pointer-events:none;box-shadow:0 0 0 3px var(--glaze),0 0 0 5px var(--lemon), 0 8px 14px rgba(20,40,90,.3);white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.mute{position:absolute;right:12px;bottom:10px;border:0;background:rgba(247,242,228,.8);border-radius:50%;color:var(--cobalt);cursor:pointer;padding:6px}
+.mute svg{width:16px;height:16px;display:block}
+.mute:focus-visible{outline:2px solid var(--cobalt)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  .plaque{padding:18px 18px 16px}
+  .plaque h1{font-size:26px}
+  .plaque .by{font-size:13px;margin:4px 0 8px}
+  .plaque li{font-size:14.5px;gap:8px}
+  .lemon{width:30px;height:24px}
+  .plaque .tip{font-size:12.5px}
+  .toast{font-size:14px}
+}
+@media (prefers-reduced-motion: reduce){ .toast,.lemon{transition:none} }
+</style>
+</head>
+<body>
+<div id="wall">
+  <svg id="tiles" aria-hidden="true">
+    <defs>
+      <filter id="crackle" x="0" y="0" width="100%" height="100%"><feTurbulence type="turbulence" baseFrequency=".035" numOctaves="1" seed="9"/><feColorMatrix values="0 0 0 0 .45  0 0 0 0 .40  0 0 0 0 .30  0 0 0 -40 1.6"/></filter>
+      <filter id="glazeNoise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="2"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .35  0 0 0 .12 0"/></filter>
+      <filter id="brush"><feTurbulence type="fractalNoise" baseFrequency=".08" numOctaves="2" seed="5" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>
+      <pattern id="tile" width="132" height="132" patternUnits="userSpaceOnUse">
+        <rect width="132" height="132" fill="#d9cfba"/>
+        <rect x="2" y="2" width="128" height="128" rx="3" fill="#f7f2e4"/>
+        <g filter="url(#brush)">
+          <!-- cobalt quarter-arcs that join into circles across tiles -->
+          <path d="M2 30 A28 28 0 0 0 30 2 M102 2 A28 28 0 0 0 130 30 M130 102 A28 28 0 0 0 102 130 M30 130 A28 28 0 0 0 2 102" fill="none" stroke="#1d4f9c" stroke-width="9"/>
+          <path d="M2 18 A16 16 0 0 0 18 2 M114 2 A16 16 0 0 0 130 18 M130 114 A16 16 0 0 0 114 130 M18 130 A16 16 0 0 0 2 114" fill="none" stroke="#2aa3a8" stroke-width="4"/>
+          <circle cx="2" cy="2" r="7" fill="#f2c230"/><circle cx="130" cy="2" r="7" fill="#f2c230"/><circle cx="130" cy="130" r="7" fill="#f2c230"/><circle cx="2" cy="130" r="7" fill="#f2c230"/>
+          <!-- lemon branch -->
+          <path d="M46 92 C 56 74, 72 62, 92 52" fill="none" stroke="#5a4426" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M60 74 C 48 66, 40 70, 34 80 C 46 84, 54 82, 60 74Z" fill="#3f8a3c"/>
+          <path d="M78 60 C 76 46, 82 38, 94 34 C 94 48, 88 56, 78 60Z" fill="#4f9c46"/>
+          <path d="M86 56 C 98 60, 104 70, 102 80 C 92 76, 86 68, 86 56Z" fill="#3f8a3c"/>
+          <ellipse cx="62" cy="88" rx="17" ry="13" transform="rotate(-24 62 88)" fill="#f2c230"/>
+          <path d="M50 92 C 54 80, 70 76, 76 82" fill="none" stroke="#e0a21a" stroke-width="3" opacity=".7"/>
+          <circle cx="57" cy="84" r="3" fill="#fff6c8" opacity=".9"/>
+          <ellipse cx="96" cy="70" rx="11" ry="9" transform="rotate(30 96 70)" fill="#f2c230"/>
+          <path d="M66 22 l4 6 l-4 6 l-4 -6z M66 98 l4 6 l-4 6 l-4 -6z" fill="#1d4f9c" opacity=".8"/>
+        </g>
+      </pattern>
+      <pattern id="tileB" width="132" height="132" patternUnits="userSpaceOnUse">
+        <rect width="132" height="132" fill="#d9cfba"/>
+        <rect x="2" y="2" width="128" height="128" rx="3" fill="#f7f2e4"/>
+        <g filter="url(#brush)">
+          <path d="M2 30 A28 28 0 0 0 30 2 M102 2 A28 28 0 0 0 130 30 M130 102 A28 28 0 0 0 102 130 M30 130 A28 28 0 0 0 2 102" fill="none" stroke="#1d4f9c" stroke-width="9"/>
+          <path d="M2 18 A16 16 0 0 0 18 2 M114 2 A16 16 0 0 0 130 18 M130 114 A16 16 0 0 0 114 130 M18 130 A16 16 0 0 0 2 114" fill="none" stroke="#2aa3a8" stroke-width="4"/>
+          <circle cx="2" cy="2" r="7" fill="#f2c230"/><circle cx="130" cy="2" r="7" fill="#f2c230"/><circle cx="130" cy="130" r="7" fill="#f2c230"/><circle cx="2" cy="130" r="7" fill="#f2c230"/>
+          <g transform="translate(66 66)">
+            <circle r="24" fill="none" stroke="#1d4f9c" stroke-width="5"/>
+            <g fill="#2aa3a8"><path d="M0 -22 C 8 -12, 8 -6, 0 0 C -8 -6, -8 -12, 0 -22Z"/><path d="M0 -22 C 8 -12, 8 -6, 0 0 C -8 -6, -8 -12, 0 -22Z" transform="rotate(90)"/><path d="M0 -22 C 8 -12, 8 -6, 0 0 C -8 -6, -8 -12, 0 -22Z" transform="rotate(180)"/><path d="M0 -22 C 8 -12, 8 -6, 0 0 C -8 -6, -8 -12, 0 -22Z" transform="rotate(270)"/></g>
+            <g fill="#f2c230"><circle r="5"/><circle cx="16" cy="16" r="4"/><circle cx="-16" cy="16" r="4"/><circle cx="16" cy="-16" r="4"/><circle cx="-16" cy="-16" r="4"/></g>
+          </g>
+        </g>
+      </pattern>
+      <pattern id="tiles2" width="264" height="264" patternUnits="userSpaceOnUse">
+        <rect width="132" height="132" fill="url(#tile)"/><rect x="132" y="132" width="132" height="132" fill="url(#tile)"/>
+        <rect x="132" width="132" height="132" fill="url(#tileB)"/><rect y="132" width="132" height="132" fill="url(#tileB)"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#tiles2)"/>
+    <rect width="100%" height="100%" filter="url(#crackle)" opacity=".16"/>
+    <rect width="100%" height="100%" filter="url(#glazeNoise)"/>
+  </svg>
+  <svg class="leafshadow" viewBox="0 0 520 420" aria-hidden="true"><g fill="#1d2f55"><path d="M520 0 C 420 60, 330 120, 250 230" stroke="#1d2f55" stroke-width="7" fill="none"/>
+    <ellipse cx="300" cy="150" rx="60" ry="22" transform="rotate(-35 300 150)"/><ellipse cx="380" cy="110" rx="70" ry="24" transform="rotate(20 380 110)"/><ellipse cx="420" cy="40" rx="60" ry="20" transform="rotate(-50 420 40)"/><ellipse cx="270" cy="220" rx="55" ry="20" transform="rotate(30 270 220)"/><ellipse cx="350" cy="190" rx="60" ry="22" transform="rotate(-10 350 190)"/><circle cx="330" cy="260" r="24"/></g></svg>
+  <canvas id="shadow"></canvas>
+  <div class="sun"></div>
+  <svg id="line" aria-hidden="true"><path id="rope" fill="none" stroke="#c9b48a" stroke-width="3" stroke-linecap="round"/><path id="rope2" fill="none" stroke="#8f7a52" stroke-width="1" stroke-dasharray="3 4" stroke-linecap="round"/></svg>
+  <svg class="hook" id="hookL" viewBox="0 0 26 34" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="2" fill="#3a3a3a"/><path d="M13 12 v8 a6 6 0 1 0 6 6" fill="none" stroke="#2b2b2b" stroke-width="3.5" stroke-linecap="round"/></svg>
+  <svg class="hook" id="hookR" viewBox="0 0 26 34" aria-hidden="true"><rect x="2" y="2" width="22" height="10" rx="2" fill="#3a3a3a"/><path d="M13 12 v8 a6 6 0 1 1 -6 6" fill="none" stroke="#2b2b2b" stroke-width="3.5" stroke-linecap="round"/></svg>
+  <div id="cloths" role="list" aria-label="Clipboard history, newest first"></div>
+  <section class="plaque" id="plaque" aria-label="Recipe">
+    <h1>Delizia al limone</h1>
+    <div class="by">Nonna Rosa's recipe card · serves 8</div>
+    <ul id="recipe"></ul>
+    <p class="tip"><b>Squeeze a lemon</b> (or select text and copy) to peg it on the line. <b>Pull a cloth down</b> to copy it again · <b>flick it up</b> to let the breeze take it.</p>
+  </section>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <button class="mute" id="mute" aria-label="Mute garden sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const shadow = $('#shadow'), sx = shadow.getContext('2d'), rope = $('#rope'), rope2 = $('#rope2'), clothsEl = $('#cloths');
+let W = 0, H = 0, dpr = 1, mobile = false, CW = 150, CH = 178, MAX = 7;
+const SUN = {x: 16, y: 24}; // shadow offset on the wall
+
+/* ---------------- recipe ---------------- */
+const RECIPE = [
+  '4 unwaxed Amalfi lemons, zest and juice',
+  '200 ml whipping cream, very cold',
+  '60 ml limoncello for the syrup',
+  '6 eggs and 180 g caster sugar for the sponge',
+  'Bake at 175 °C for 25 minutes',
+];
+const ul = $('#recipe');
+const lemonSVG = `<svg viewBox="0 0 38 30" aria-hidden="true"><path d="M8 20 C 2 10, 12 2, 22 4 C 32 6, 38 14, 33 22 C 28 30, 14 30, 8 20Z" fill="#f2c230" stroke="#c98e0f" stroke-width="1.2"/><path d="M33 22 l4 2" stroke="#c98e0f" stroke-width="2" stroke-linecap="round"/><path d="M14 8 C 10 2, 4 4, 2 8 C 8 10, 12 10, 14 8Z" fill="#3f8a3c"/><circle cx="16" cy="11" r="2.5" fill="#fff6c8" opacity=".9"/></svg>`;
+RECIPE.forEach(t => {
+  const li = document.createElement('li'); li.innerHTML = `<button class="lemon" aria-label="Copy: ${t}">${lemonSVG}</button><span>${t}</span>`;
+  li.querySelector('button').addEventListener('click', e => { const b = e.currentTarget; b.classList.add('squeeze'); setTimeout(() => b.classList.remove('squeeze'), 180); copyText(t, b); });
+  ul.appendChild(li);
+});
+
+/* ---------------- clipboard items ---------------- */
+function kindOf(t){
+  if (/^https?:\/\//i.test(t.trim())) return 'link';
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(t.trim())) return 'color';
+  if (/\b(via|piazza|strada|largo)\b/i.test(t)) return 'place';
+  return 'text';
+}
+const KIND = {
+  text: {label:'Text', icon:'<svg viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>', bg:'#f3ead6', edge:'#1d4f9c', edge2:'#f2c230'},
+  link: {label:'Link', icon:'<svg viewBox="0 0 16 16"><path d="M7 9a3 3 0 0 0 4 0l2-2a3 3 0 0 0-4-4l-1 1M9 7a3 3 0 0 0-4 0L3 9a3 3 0 0 0 4 4l1-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>', bg:'repeating-linear-gradient(90deg,#f3ead6 0 10px,#dbe5f3 10px 20px)', edge:'#1d4f9c', edge2:'#2aa3a8'},
+  place: {label:'Place', icon:'<svg viewBox="0 0 16 16"><path d="M8 15s5-5 5-9a5 5 0 0 0-10 0c0 4 5 9 5 9z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="6" r="1.8" fill="currentColor"/></svg>', bg:'#f6e7c8', edge:'#2a7a3c', edge2:'#f2c230'},
+  color: {label:'Colour', icon:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="currentColor"/></svg>', bg:'#1d4f9c', edge:'#f7f2e4', edge2:'#f2c230'},
+};
+const PEG = `<svg class="peg" viewBox="0 0 16 34" aria-hidden="true"><defs><linearGradient id="pw" x1="0" x2="1"><stop offset="0" stop-color="#e9cf9c"/><stop offset=".5" stop-color="#d6b47a"/><stop offset="1" stop-color="#b8945a"/></linearGradient></defs><rect x="2" y="0" width="5.5" height="33" rx="2.5" fill="url(#pw)"/><rect x="8.5" y="0" width="5.5" height="33" rx="2.5" fill="url(#pw)"/><rect x="1" y="12" width="14" height="5" rx="1.5" fill="#9aa3a8"/><rect x="1" y="12" width="14" height="1.5" fill="#d6dde0"/></svg>`;
+let items = [];
+let uid = 0;
+function makeCloth(text){
+  const k = kindOf(text), K = KIND[k];
+  const el = document.createElement('div'); el.className = 'cloth ' + k; el.tabIndex = 0; el.setAttribute('role', 'listitem');
+  el.style.setProperty('--bg', k === 'color' ? text.trim() : K.bg); el.style.setProperty('--edge', K.edge); el.style.setProperty('--edge2', K.edge2);
+  el.innerHTML = `<div class="fab"><div class="kind">${K.icon}${K.label}</div><div class="txt"></div></div>${PEG}<div class="now">on your clipboard</div>`;
+  el.querySelector('.txt').textContent = k === 'link' ? text.replace(/^https?:\/\//, '') : text;
+  if (k === 'color'){ const h = text.trim().replace('#', ''), f = h.length === 3 ? h.split('').map(c => c + c).join('') : h, r = parseInt(f.slice(0,2),16), g = parseInt(f.slice(2,4),16), b = parseInt(f.slice(4,6),16);
+    if (0.299*r + 0.587*g + 0.114*b > 150){ el.style.setProperty('--edge', '#1d4f9c'); el.querySelector('.txt').style.color = '#1d2f55'; el.querySelector('.txt').style.textShadow = 'none'; } }
+  el.setAttribute('aria-label', `${K.label}: ${text}. Press Enter to copy again, Delete to let it blow away.`);
+  clothsEl.appendChild(el);
+  const it = {id: uid++, text, el, t: 0, tTarget: 0, x: 0, y: 0, th: 0, om: 0, state: 'hang', fly: null, mass: 1};
+  bindCloth(it);
+  return it;
+}
+
+/* ---------------- the line (verlet) ---------------- */
+const NP = 44; let L = [], A = {x: 0, y: 0}, B = {x: 0, y: 0}, restSeg = 0;
+function buildLine(){
+  L = []; for (let i = 0; i < NP; i++){ const t = i/(NP - 1), x = A.x + (B.x - A.x)*t, y = A.y + (B.y - A.y)*t + Math.sin(t*Math.PI)*20; L.push({x, y, ox: x, oy: y}); }
+  restSeg = Math.hypot(B.x - A.x, B.y - A.y)*1.012/(NP - 1);
+}
+function lineAt(t){ const f = t*(NP - 1), i = Math.max(0, Math.min(NP - 2, Math.floor(f))), k = f - i; return {x: L[i].x + (L[i+1].x - L[i].x)*k, y: L[i].y + (L[i+1].y - L[i].y)*k, i, k}; }
+
+/* ---------------- layout ---------------- */
+function layout(){
+  W = innerWidth; H = innerHeight; dpr = Math.min(2, devicePixelRatio || 1); mobile = W < 760;
+  shadow.width = Math.round(W*dpr); shadow.height = Math.round(H*dpr);
+  $('#line').setAttribute('viewBox', `0 0 ${W} ${H}`);
+  CW = mobile ? Math.min(124, (W - 34)/3) : 150; CH = CW*1.18; MAX = mobile ? 3 : Math.max(3, Math.min(7, Math.floor((W - 120)/(CW + 22))));
+  document.documentElement.style.setProperty('--cw', CW + 'px'); document.documentElement.style.setProperty('--ch', CH + 'px');
+  A = {x: mobile ? 8 : 46, y: mobile ? 118 : 70}; B = {x: W - (mobile ? 8 : 46), y: mobile ? 110 : 62};
+  const hl = $('#hookL'), hr = $('#hookR'); hl.style.left = (A.x - 13) + 'px'; hl.style.top = (A.y - 22) + 'px'; hr.style.left = (B.x - 13) + 'px'; hr.style.top = (B.y - 22) + 'px';
+  buildLine();
+  const pl = $('#plaque');
+  if (!mobile){ const pw = Math.min(760, W - 120); Object.assign(pl.style, {width: pw + 'px', left: ((W - pw)/2) + 'px', top: 'auto', bottom: Math.max(40, H*0.07) + 'px'}); }
+  else { Object.assign(pl.style, {width: (W - 44) + 'px', left: '22px', top: 'auto', bottom: '26px'}); }
+  requestAnimationFrame(() => { $('#toast').style.top = ($('#plaque').getBoundingClientRect().top - 52) + 'px'; });
+  trim(); retarget(true);
+  for (let k = 0; k < 160; k++) stepLine(1/60, true);
+}
+function retarget(snap){
+  const hanging = items.filter(i => i.state === 'hang' || i.state === 'pull' || i.state === 'arrive');
+  const n = hanging.length;
+  hanging.forEach((it, k) => { it.tTarget = n < 3 ? (k + 1)/(n + 1) : (k + .5)/n; if (snap) it.t = it.tTarget; });
+  items.forEach((it, k) => it.el.classList.toggle('current', k === 0 && it.state !== 'gone'));
+}
+function trim(){
+  const hanging = items.filter(i => i.state === 'hang' || i.state === 'pull');
+  while (hanging.length > MAX){ const old = hanging.pop(); blowAway(old, true); }
+}
+
+/* ---------------- copy / re-copy / blow away ---------------- */
+const toast = $('#toast'); let toastT = 0;
+function say(t){ toast.textContent = t; toast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove('on'), 1800); }
+async function writeClipboard(text){
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e){ try { const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; } catch (e2){ return false; } }
+}
+let suppressCopyEvent = false;
+function copyText(text, fromEl){
+  audio(); suppressCopyEvent = true; writeClipboard(text).finally(() => setTimeout(() => suppressCopyEvent = false, 50));
+  const existing = items.find(i => i.text === text && i.state !== 'gone');
+  if (existing){ recopy(existing, true); return; }
+  const it = makeCloth(text); items.unshift(it);
+  // it flies up from where it was copied and is pegged at the front of the line
+  const r = fromEl ? fromEl.getBoundingClientRect() : {left: W/2, top: H*.7, width: 0, height: 0};
+  it.state = 'arrive'; it.fly = {x0: r.left + r.width/2 - CW/2, y0: r.top - 10, t: 0, dur: reduce ? .01 : .75};
+  it.x = it.fly.x0; it.y = it.fly.y0; it.th = (Math.random() - .5)*.6;
+  trim(); retarget(false);
+  it.t = it.tTarget;
+  flap(.6); say('Copied — pegged on the line');
+}
+function recopy(it, viaCopy){
+  writeClipboard(it.text);
+  const idx = items.indexOf(it); if (idx > 0){ items.splice(idx, 1); items.unshift(it); }
+  if (it.state === 'pull' || it.state === 'hang'){ it.state = 'arrive'; it.fly = {x0: it.x, y0: it.y, t: 0, dur: reduce ? .01 : .7}; }
+  retarget(false); it.t = it.tTarget; clack(); say(`Copied again: ${it.text.length > 34 ? it.text.slice(0, 32) + '…' : it.text}`);
+}
+function blowAway(it, quiet){
+  if (it.state === 'gone') return;
+  it.state = 'gone'; it.vx = 260 + Math.random()*240; it.vy = -320 - Math.random()*200; it.spin = (Math.random() - .5)*6;
+  items = items.filter(i => i !== it); retarget(false);
+  if (!quiet){ whoosh(); say('Let go — the breeze took it'); }
+  setTimeout(() => it.el.remove(), 2400);
+}
+document.addEventListener('copy', () => {
+  if (suppressCopyEvent) return;
+  const t = String(getSelection() || '').trim(); if (!t) return;
+  setTimeout(() => copyText(t.slice(0, 200), null), 0);
+});
+
+/* ---------------- dragging cloths ---------------- */
+function bindCloth(it){
+  const el = it.el;
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0 || (it.state !== 'hang' && it.state !== 'pull')) return; audio();
+    el.setPointerCapture(e.pointerId); el.classList.add('drag');
+    it.state = 'pull'; it.grab = {sx: e.clientX, sy: e.clientY, px: e.clientX, py: e.clientY, hist: [[e.timeStamp, e.clientX, e.clientY]]};
+  });
+  el.addEventListener('pointermove', e => {
+    if (!it.grab) return; it.grab.px = e.clientX; it.grab.py = e.clientY;
+    it.grab.hist.push([e.timeStamp, e.clientX, e.clientY]); if (it.grab.hist.length > 6) it.grab.hist.shift();
+  });
+  const up = () => {
+    if (!it.grab) return; el.classList.remove('drag');
+    const g = it.grab, h = g.hist; it.grab = null;
+    const [t0, x0, y0] = h[0], [t1, x1, y1] = h[h.length - 1], dt = Math.max(1, t1 - t0), vy = (y1 - y0)/dt*1000;
+    const dy = g.py - g.sy;
+    if (vy < -900 || dy < -70){ blowAway(it); return; }
+    if (dy > (mobile ? 60 : 80)){ pop(); recopy(it); return; }
+    it.state = 'hang'; flap(.3);
+  };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); audio(); pop(); recopy(it); requestAnimationFrame(() => it.el.focus()); }
+    if (e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); audio(); const next = items[items.indexOf(it) + 1] || items[items.indexOf(it) - 1]; blowAway(it); next && next.el.focus(); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); const i = items.indexOf(it), n = items[i + (e.key === 'ArrowRight' ? 1 : -1)]; n && n.el.focus(); }
+  });
+}
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false, nb = null, windG = null, windF = null;
+function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .17; master.connect(ac.destination);
+    nb = ac.createBuffer(1, ac.sampleRate*2, ac.sampleRate); const d = nb.getChannelData(0); let b = 0; for (let i = 0; i < d.length; i++){ const w = Math.random()*2 - 1; b = .97*b + .03*w; d[i] = w*.4 + b*3; }
+    const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; windF = ac.createBiquadFilter(); windF.type = 'lowpass'; windF.frequency.value = 500; windG = ac.createGain(); windG.gain.value = 0; s.connect(windF).connect(windG).connect(master); s.start();
+  } catch(e){ ac = null; } }
+function noise(dur, f, q, g0, type = 'bandpass', when = 0){ if (!ac || muted) return; const t = ac.currentTime + when, s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; fl.type = type; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(g0, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(fl).connect(g).connect(master); s.start(t, Math.random(), dur + .05); }
+const clack = () => { noise(.03, 1600, 5, .6); noise(.05, 700, 2, .3, 'bandpass', .02); };
+const pop = () => { noise(.02, 2600, 3, .7); noise(.06, 1200, 1, .25, 'bandpass', .015); };
+const flap = k => { noise(.14*k + .05, 900, .7, .25*k); noise(.1, 1400, .8, .15*k, 'bandpass', .07); };
+const whoosh = () => { if (!ac || muted) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; f.type = 'bandpass'; f.Q.value = .8; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(1400, t + .5); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.4, t + .25); g.gain.exponentialRampToValueAtTime(.0001, t + 1); s.connect(f).connect(g).connect(master); s.start(t, 0, 1.1); };
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute garden sounds' : 'Mute garden sounds'); $('#mw').style.opacity = muted ? 0 : 1; if (muted && windG) windG.gain.value = 0; });
+
+/* ---------------- simulation ---------------- */
+let time = 0, gust = 0, gustT = 3, wind = 0;
+function stepLine(dt, settle){
+  const g = 900*dt*dt;
+  for (let i = 1; i < NP - 1; i++){ const p = L[i], vx = (p.x - p.ox)*.97, vy = (p.y - p.oy)*.97; p.ox = p.x; p.oy = p.y; p.x += vx + wind*0.4*dt*dt*60; p.y += vy + g; }
+  // the weight of each cloth hangs on the line where it's pegged
+  for (const it of items){
+    if (it.state !== 'hang' && it.state !== 'pull') continue;
+    const at = lineAt(it.t), w = (settle ? 1 : 1)*it.mass*1500*dt*dt;
+    let fy = w, fx = 0;
+    if (it.state === 'pull' && it.grab){ const pullY = Math.min(120, Math.max(-60, it.grab.py - it.grab.sy)), pullX = (it.grab.px - it.grab.sx)*.3; fy += pullY*0.0025; fx += pullX*0.002; }
+    L[at.i].y += fy*(1 - at.k); L[at.i + 1].y += fy*at.k; L[at.i].x += fx*(1 - at.k); L[at.i + 1].x += fx*at.k;
+  }
+  for (let k = 0; k < 14; k++){
+    L[0].x = A.x; L[0].y = A.y; L[NP - 1].x = B.x; L[NP - 1].y = B.y;
+    for (let i = 0; i < NP - 1; i++){ const p = L[i], q = L[i + 1], dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy) || 1e-6, stretch = (items.some(it => it.state === 'pull') ? 1.06 : 1), f = (d - restSeg*stretch)/d*.5;
+      if (f < 0) continue; // a rope pushes back only when taut
+      const ia = i === 0 ? 0 : 1, ib = i + 1 === NP - 1 ? 0 : 1, s = ia + ib || 1; p.x += dx*f*2*ia/s; p.y += dy*f*2*ia/s; q.x -= dx*f*2*ib/s; q.y -= dy*f*2*ib/s; }
+  }
+}
+function step(dt){
+  time += dt;
+  gustT -= dt; if (gustT < 0){ gust = (Math.random()*.8 + .4)*(Math.random() < .5 ? 1 : .7); gustT = 4 + Math.random()*5; if (ac && !muted) windF.frequency.setTargetAtTime(700, ac.currentTime, .4); }
+  gust *= Math.pow(.35, dt);
+  wind = reduce ? 0 : (Math.sin(time*.6)*.25 + Math.sin(time*1.7)*.08 + gust*1.4);
+  if (ac && windG){ windG.gain.setTargetAtTime(muted ? 0 : .015 + Math.abs(gust)*.06, ac.currentTime, .3); windF.frequency.setTargetAtTime(380 + Math.abs(gust)*500, ac.currentTime, .4); }
+  for (const it of items) if (it.state === 'hang' || it.state === 'pull'){ it.t += (it.tTarget - it.t)*Math.min(1, dt*3); }
+  stepLine(dt);
+  for (const it of [...items, ...gone]){
+    if (it.state === 'hang' || it.state === 'pull'){
+      const at = lineAt(it.t);
+      const lx = at.x, ly = at.y;
+      const ax = (lx - (it.px ?? lx))/Math.max(dt, 1e-3); it.px = lx;
+      if (it.state === 'pull' && it.grab){
+        const dx = it.grab.px - it.grab.sx, dy = it.grab.py - it.grab.sy;
+        it.x = lx - CW/2 + dx*.25; it.y = ly - 6 + Math.max(0, dy)*.55 + Math.min(0, dy)*.3; it.th += (-dx*.002 - it.th)*.3; it.om = 0;
+      } else {
+        // a damped pendulum swaying in the breeze
+        const torque = -9*Math.sin(it.th) + wind*1.8*(0.7 + (it.id % 3)*.15) - ax*.004;
+        it.om += torque*dt; it.om *= Math.pow(.25, dt); it.th += it.om*dt;
+        it.x = lx - CW/2; it.y = ly - 6;
+      }
+    } else if (it.state === 'arrive'){
+      const f = it.fly; f.t += dt/f.dur; const k = Math.min(1, f.t), e = 1 - Math.pow(1 - k, 3);
+      const at = lineAt(it.t), tx = at.x - CW/2, ty = at.y - 6;
+      it.x = f.x0 + (tx - f.x0)*e; it.y = f.y0 + (ty - f.y0)*e - Math.sin(k*Math.PI)*120; it.th *= .9;
+      if (k >= 1){ it.state = 'hang'; it.om = (Math.random() - .5)*2; clack(); const at2 = lineAt(it.t); L[at2.i].oy -= 6; }
+    } else if (it.state === 'gone'){
+      it.vy += 300*dt; it.vx += wind*120*dt + 60*dt; it.x += it.vx*dt; it.y += it.vy*dt; it.th += (it.spin || 1)*dt;
+    }
+    it.el.style.transform = `translate(${it.x.toFixed(1)}px, ${it.y.toFixed(1)}px) rotate(${it.th.toFixed(4)}rad)`;
+  }
+}
+const gone = []; // cloths in flight after the wind takes them
+const _blow = blowAway;
+function render(){
+  // the line itself
+  let d = `M${L[0].x.toFixed(1)} ${L[0].y.toFixed(1)}`; for (let i = 1; i < NP; i++) d += ` L${L[i].x.toFixed(1)} ${L[i].y.toFixed(1)}`;
+  rope.setAttribute('d', d); rope2.setAttribute('d', d);
+  // shadows thrown on the tiles by the afternoon sun
+  sx.setTransform(dpr, 0, 0, dpr, 0, 0); sx.clearRect(0, 0, W, H);
+  sx.strokeStyle = 'rgba(20,30,80,1)'; sx.lineWidth = 3; sx.beginPath(); sx.moveTo(L[0].x + SUN.x*.6, L[0].y + SUN.y*.6); for (let i = 1; i < NP; i++) sx.lineTo(L[i].x + SUN.x, L[i].y + SUN.y); sx.stroke();
+  sx.fillStyle = 'rgba(20,30,80,1)';
+  for (const it of [...items, ...gone]){
+    sx.save(); sx.translate(it.x + CW/2 + SUN.x*1.4, it.y + SUN.y*1.4); sx.rotate(it.th);
+    sx.beginPath(); sx.moveTo(-CW/2, 14); sx.lineTo(CW/2, 14); sx.quadraticCurveTo(CW/2 + 2, CH*.6, CW/2 - 2, CH); sx.lineTo(-CW/2 + 2, CH); sx.quadraticCurveTo(-CW/2 - 2, CH*.6, -CW/2, 14); sx.fill();
+    sx.restore();
+  }
+}
+let last = performance.now(), raf = 0;
+function frame(t){ const dt = Math.min(1/30, (t - last)/1000); last = t; step(dt); render(); raf = requestAnimationFrame(frame); }
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden){ cancelAnimationFrame(raf); if (windG) windG.gain.value = 0; } else start(); });
+// keep blown-away cloths animating until they leave
+const origBlow = blowAway;
+blowAway = function(it, quiet){ origBlow(it, quiet); gone.push(it); setTimeout(() => { const i = gone.indexOf(it); if (i >= 0) gone.splice(i, 1); }, 2400); };
+
+/* ---------------- seed ---------------- */
+['Via Pantaleone Comite 7, Amalfi', '#F2C230', 'https://ricette.example/delizia-al-limone', 'Grate the zest before you juice the lemons'].forEach(t => { items.push(makeCloth(t)); });
+layout(); items.forEach(it => { const at = lineAt(it.t); it.x = at.x - CW/2; it.y = at.y - 6; it.th = (Math.random() - .5)*.1; });
+start();
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+document.fonts && document.fonts.ready.then(() => layout());
+window.__line = {items: () => items.map(i => i.text), copyText};
+})();
+</script>
+</body>
+</html>

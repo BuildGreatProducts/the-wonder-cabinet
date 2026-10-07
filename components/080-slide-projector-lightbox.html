@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slide Projector Lightbox</title>
+<meta name="description" content="A lightbox for a box of 1960s colour slides: the show is already running in a dark den, dust drifting through the projector beam; step through the carousel, turn the focus knob, or switch the lights on to pick a slide off the glowing light table.">
+<script type="application/json" id="component-meta">
+{"name":"Slide Projector Lightbox","reimagines":"Lightbox / image viewer","category":"Overlays & Reveals","description":"Nana's slide box, being digitised, with the show already running: a dusty tungsten beam throws a Kodachrome slide onto the pull-down screen. Step through with the arrow keys and the carousel click-clacks, each new slide landing a little soft until you turn the focus knob. Esc or Lights on brings the room back up so you can pick any slide off the light table.","hint":"Turn the focus knob, press Next, or switch the lights on to pick another slide"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root{ --wall:#3b2a22; --wood:#4a2e1c; --cream:#efe4cc; --amber:#ffcf7a; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;background:#1c120d;color:#efe4cc;font-family:'Jost',system-ui,sans-serif}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  :focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* the den: patterned wallpaper, a lamp, a sideboard */
+  .room{position:fixed;inset:0;background:
+      radial-gradient(60% 60% at 12% 18%,rgba(255,196,120,.35),transparent 60%),
+      repeating-linear-gradient(90deg,rgba(0,0,0,.08) 0 28px,rgba(255,220,170,.03) 28px 56px),
+      linear-gradient(#5a4033,#3b2a22 60%,#2a1c15)}
+  .room::after{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cg fill='none' stroke='%23e8b878' stroke-opacity='.09' stroke-width='1.2'%3E%3Cpath d='M28 6c8 8 8 14 0 22-8-8-8-14 0-22zM28 28c8 8 8 14 0 22-8-8-8-14 0-22z'/%3E%3Ccircle cx='0' cy='28' r='5'/%3E%3Ccircle cx='56' cy='28' r='5'/%3E%3C/g%3E%3C/svg%3E")}
+  .table{position:fixed;left:0;right:0;bottom:0;height:var(--th,300px);background:
+      repeating-linear-gradient(88deg,rgba(0,0,0,.12) 0 2px,transparent 2px 13px,rgba(255,200,140,.05) 13px 15px,transparent 15px 31px),
+      linear-gradient(#6a4128,#4a2e1c 30%,#341f12);box-shadow:0 -2px 0 #7a4e30,0 -14px 30px rgba(0,0,0,.35)}
+  .dark{position:fixed;inset:0;background:#050302;opacity:0;pointer-events:none;transition:opacity .9s ease;z-index:4}
+  body.proj .dark{opacity:.9}
+
+  /* pull-down screen */
+  .screen{position:fixed;z-index:6;background:#eae6dc;border-radius:2px;box-shadow:0 0 0 6px #e8e3d8,0 14px 30px rgba(0,0,0,.45);overflow:hidden}
+  .screen::before{content:"";position:absolute;left:-6px;right:-6px;top:-18px;height:14px;border-radius:7px;background:linear-gradient(#2a2a2e,#0e0e10 60%,#3a3a40);box-shadow:0 2px 3px rgba(0,0,0,.5)}
+  .roller{position:fixed;z-index:6;height:14px;border-radius:7px;background:linear-gradient(#3a3a40,#0e0e10 60%,#2a2a2e);box-shadow:0 2px 3px rgba(0,0,0,.5)}
+  .pulltab{position:fixed;z-index:6;width:26px;height:22px;margin-left:-13px;border-radius:0 0 13px 13px;background:radial-gradient(circle at 50% 30%,#3a3a40,#0e0e10)}
+  body.proj .screen{background:#17140f;box-shadow:0 0 0 6px #24201a,0 14px 30px rgba(0,0,0,.45)}
+  .screen{transition:background .9s,box-shadow .9s}
+  .screen canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .25s}
+  .screen .beads{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.35;
+    background:radial-gradient(circle at 1px 1px,rgba(0,0,0,.25) .6px,transparent 1px) 0 0/3px 3px}
+  .screen .cap{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:'Special Elite',monospace;font-size:14px;color:rgba(30,20,10,.45);transition:opacity .4s}
+  body.proj .screen .cap{opacity:0}
+  #beam{position:fixed;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
+
+  /* the light table */
+  .lightbox{position:fixed;z-index:3;border-radius:10px;padding:18px 20px 16px;
+    background:linear-gradient(#3a3f45,#24282c);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 16px 30px rgba(0,0,0,.5)}
+  .glass{position:relative;border-radius:4px;padding:16px;display:grid;gap:14px;
+    background:radial-gradient(120% 100% at 50% 40%,#ffffff,#eef4ff 50%,#d6e2f2);box-shadow:0 0 40px rgba(210,230,255,.35),inset 0 0 0 1px rgba(255,255,255,.6);transition:filter .8s,box-shadow .8s}
+  body.proj .glass{filter:brightness(.35) saturate(.6);box-shadow:none}
+  .slide{position:relative;aspect-ratio:1;border-radius:5px;background:linear-gradient(145deg,#f6efdd,#e4d8bd);
+    box-shadow:0 2px 3px rgba(0,0,0,.25),0 6px 10px -4px rgba(0,0,0,.25);padding:15% 12% 22%;transform:rotate(var(--r));transition:transform .2s,box-shadow .2s}
+  .slide:hover{transform:rotate(var(--r)) translateY(-3px) scale(1.04);box-shadow:0 4px 6px rgba(0,0,0,.25),0 14px 18px -6px rgba(0,0,0,.35)}
+  .slide canvas{display:block;width:100%;height:100%;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+  .slide .lb{position:absolute;left:6%;right:6%;bottom:4%;font-family:'Special Elite',monospace;font-size:10px;line-height:1.05;color:#3b2a1c;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slide .no{position:absolute;left:7%;top:3%;font-family:'Special Elite',monospace;font-size:9px;color:#8a6a48}
+  .slide.out{visibility:hidden}
+  .tape{position:absolute;left:24px;top:-12px;padding:5px 12px 4px;background:rgba(240,228,190,.92);color:#3b2a1c;font-family:'Special Elite',monospace;font-size:13px;transform:rotate(-2deg);box-shadow:0 2px 3px rgba(0,0,0,.25);transition:opacity .5s}
+  .tape.gone{opacity:0}
+  .boxlabel{position:fixed;z-index:3;font-family:'Special Elite',monospace;font-size:13px;color:rgba(239,228,204,.75)}
+
+  /* the projector */
+  .proj{position:fixed;z-index:7}
+  .proj svg{width:100%;height:100%;overflow:visible}
+
+  .knob{position:fixed;z-index:8;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;touch-action:none;cursor:grab;
+    background:repeating-conic-gradient(from 0deg,#1b1b1e 0 6deg,#3a3a40 6deg 12deg);box-shadow:0 3px 6px rgba(0,0,0,.6),inset 0 0 0 4px rgba(0,0,0,.4)}
+  .knob::after{content:"";position:absolute;inset:11px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#6a6a72,#1e1e22);box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+  .knob i{position:absolute;left:50%;top:5px;width:3px;height:12px;margin-left:-1.5px;border-radius:2px;background:#ffcf7a;z-index:1}
+  .knob:active{cursor:grabbing}
+  .knoblbl{position:fixed;z-index:8;font-family:'Special Elite',monospace;font-size:11px;color:rgba(239,228,204,.7);transform:translateX(-50%);white-space:nowrap}
+
+  .deck{position:fixed;z-index:9;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(20,14,10,.75);box-shadow:0 0 0 1px rgba(255,207,122,.18);opacity:0;pointer-events:none;transition:opacity .5s}
+  body.proj .deck{opacity:1;pointer-events:auto}
+  .deck button{padding:8px 12px;border-radius:7px;background:#2c211a;color:#efe4cc;font-weight:500;font-size:14px;box-shadow:inset 0 0 0 1px rgba(255,207,122,.25)}
+  .deck button:hover{background:#3d2d22}
+  .deck .cnt{font-family:'Special Elite',monospace;font-size:13px;color:#ffcf7a;min-width:48px;text-align:center}
+  .deck .ttl{font-family:'Special Elite',monospace;font-size:14px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .flyer{position:fixed;z-index:10;pointer-events:none;border-radius:5px;background:linear-gradient(145deg,#f6efdd,#e4d8bd);padding:2%;box-shadow:0 10px 20px rgba(0,0,0,.5)}
+  .flyer canvas{width:100%;height:100%;display:block}
+  .mute{position:fixed;right:14px;top:14px;z-index:12;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(20,14,10,.6);color:#efe4cc;box-shadow:0 0 0 1px rgba(255,207,122,.25)}
+  .mute svg{width:16px;height:16px}
+  .mute[aria-pressed="true"] .w{display:none}
+  .mute:not([aria-pressed="true"]) .x{display:none}
+  @media (max-width:760px){
+    .lightbox{padding:12px 12px 10px}
+    .glass{padding:10px;gap:9px}
+    .slide .lb{font-size:8px}.slide .no{display:none}
+    .deck{gap:6px;padding:6px}.deck .ttl{display:none}.deck button{padding:7px 9px;font-size:13px}
+    .tape{font-size:11px;left:12px}
+  }
+</style>
+</head>
+<body class="proj">
+  <div class="room" aria-hidden="true"></div>
+  <div class="table" id="table" aria-hidden="true"></div>
+  <div class="roller" id="roller" aria-hidden="true"></div>
+  <div id="viewer" role="dialog" aria-modal="true" aria-label="Slide projector" aria-hidden="true">
+  <div class="screen" id="screen" role="img" aria-label="Projection screen">
+    <canvas id="projCv"></canvas><div class="beads"></div><p class="cap">pull-down screen, waiting</p>
+  </div>
+  <div class="pulltab" id="pulltab" aria-hidden="true"></div>
+  <button class="knob" id="knob" role="slider" aria-label="Focus" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Soft" tabindex="-1"><i></i></button>
+  <span class="knoblbl" id="knoblbl" aria-hidden="true">focus</span>
+  <div class="deck" id="deck">
+    <button id="prev" aria-label="Previous slide">◂ Back</button>
+    <span class="cnt" id="cnt">1 / 10</span>
+    <span class="ttl" id="deckTitle">Cape Cod, July</span>
+    <button id="next" aria-label="Next slide">Next ▸</button>
+    <button id="lights" aria-label="Lights on, back to the light table">Lights on</button>
+  </div>
+  </div>
+
+  <section class="lightbox" id="lightbox" aria-labelledby="lbTitle">
+    <span class="tape" id="tape">click a slide to project it</span>
+    <h1 class="sr" id="lbTitle">Nana’s slides, box 3</h1>
+    <div class="glass" id="glass"></div>
+  </section>
+  <p class="boxlabel" id="boxlabel">Nana’s slides · box 3 of 7 · scanned 12 Oct 2026</p>
+
+  <canvas id="beam" aria-hidden="true"></canvas>
+  <div class="dark" id="dark" aria-hidden="true"></div>
+
+  <div class="proj" id="proj" aria-hidden="true">
+    <svg viewBox="0 0 300 200" id="projSvg">
+      <defs>
+        <linearGradient id="pb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8a487"/><stop offset=".5" stop-color="#8c7a62"/><stop offset="1" stop-color="#4e4234"/></linearGradient>
+        <linearGradient id="pt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a4a3a"/><stop offset="1" stop-color="#2a2018"/></linearGradient>
+        <radialGradient id="lensg" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#7d94b8"/><stop offset=".4" stop-color="#1b2232"/><stop offset="1" stop-color="#05070c"/></radialGradient>
+      </defs>
+      <ellipse cx="160" cy="188" rx="130" ry="10" fill="rgba(0,0,0,.45)"/>
+      <path d="M40 92 Q40 80 52 80 H258 Q270 80 270 92 V176 Q270 186 258 186 H52 Q40 186 40 176z" fill="url(#pb)"/>
+      <path d="M40 140 H270 V176 Q270 186 258 186 H52 Q40 186 40 176z" fill="rgba(0,0,0,.18)"/>
+      <rect x="54" y="150" width="120" height="5" rx="2.5" fill="#2a2018"/><rect x="54" y="160" width="120" height="5" rx="2.5" fill="#2a2018"/><rect x="54" y="170" width="120" height="5" rx="2.5" fill="#2a2018"/>
+      <g id="tray"><ellipse cx="155" cy="72" rx="96" ry="24" fill="url(#pt)"/><ellipse cx="155" cy="66" rx="96" ry="24" fill="#3a2e24"/>
+        <g id="slots"></g>
+        <ellipse cx="155" cy="66" rx="30" ry="8" fill="#1e1610"/><ellipse cx="155" cy="64" rx="12" ry="3.5" fill="#6a5644"/></g>
+      <g id="lens"><rect x="2" y="104" width="52" height="34" rx="6" fill="#1b1b1e"/><rect x="6" y="106" width="8" height="30" rx="2" fill="#2e2e33"/><rect x="18" y="106" width="8" height="30" rx="2" fill="#2e2e33"/><rect x="30" y="106" width="8" height="30" rx="2" fill="#2e2e33"/>
+        <ellipse cx="3" cy="121" rx="7" ry="15" fill="url(#lensg)"/><ellipse id="lensGlow" cx="2" cy="121" rx="5" ry="11" fill="#fff3d6" opacity="0"/></g>
+      <rect x="226" y="110" width="30" height="18" rx="4" fill="#2a2018"/><circle id="lamp" cx="241" cy="119" r="4" fill="#5a3a1a"/>
+      <text x="70" y="128" font-family="Jost" font-weight="600" font-size="13" letter-spacing="3" fill="#2a2018" opacity=".7">CAROUSEL 600</text>
+    </svg>
+  </div>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute projector sounds"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path class="w" d="M11 5.5c1 .8 1 4.2 0 5M13 4c2 1.8 2 6.2 0 8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+  <p class="sr" id="live" aria-live="polite"></p>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const rng = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+
+  /* ———————————— Kodachrome-era scenes ———————————— */
+  const Wd = 480, Ht = 320;
+  function grad(c, y0, y1, stops) { const g = c.createLinearGradient(0, y0, 0, y1); stops.forEach(([o, col]) => g.addColorStop(o, col)); return g; }
+  function glow(c, x, y, r, col) { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); c.restore(); }
+  function hills(c, base, amp, col, R, f = .012) { c.fillStyle = col; c.beginPath(); c.moveTo(0, Ht); const ph = R() * 9; for (let x = 0; x <= Wd; x += 4) c.lineTo(x, base - amp * (.5 + .5 * Math.sin(x * f + ph)) - amp * .3 * Math.sin(x * f * 3.7 + ph)); c.lineTo(Wd, Ht); c.fill(); }
+  function pine(c, x, y, h, col) { c.fillStyle = col; c.beginPath(); c.moveTo(x, y - h); for (let k = 0; k < 4; k++) { const yy = y - h + h * (k + 1) / 4; c.lineTo(x + h * .18 * (k + 1) / 4 + 4, yy); c.lineTo(x + 2, yy - h * .05); } c.lineTo(x + 2, y); c.lineTo(x - 2, y); for (let k = 3; k >= 0; k--) { const yy = y - h + h * (k + 1) / 4; c.lineTo(x - 2, yy - h * .05); c.lineTo(x - h * .18 * (k + 1) / 4 - 4, yy); } c.closePath(); c.fill(); }
+  const SLIDES = [
+    ['Cape Cod, July', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .45, [[0, '#1f5fa8'], [1, '#8cc4e8']]); c.fillRect(0, 0, Wd, Ht);
+      c.fillStyle = '#1a4f8a'; c.fillRect(0, Ht * .42, Wd, Ht * .14); for (let i = 0; i < 30; i++) { c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(R() * Wd, Ht * .45 + R() * Ht * .1, 10 + R() * 30, 2); }
+      c.fillStyle = grad(c, Ht * .55, Ht, [[0, '#f0d79a'], [1, '#d9b06a']]); c.fillRect(0, Ht * .55, Wd, Ht * .45);
+      for (const [ux, uy, s, a, b] of [[120, 200, 1, '#d8262c', '#f4efe3'], [330, 180, .8, '#f2b81a', '#f4efe3'], [420, 230, 1.1, '#1d6fb8', '#f4efe3']]) {
+        c.fillStyle = 'rgba(90,60,20,.35)'; c.beginPath(); c.ellipse(ux + 20 * s, uy + 46 * s, 50 * s, 10 * s, 0, 0, 7); c.fill();
+        c.strokeStyle = '#eee'; c.lineWidth = 3 * s; c.beginPath(); c.moveTo(ux, uy - 30 * s); c.lineTo(ux + 6 * s, uy + 46 * s); c.stroke();
+        for (let k = 0; k < 8; k++) { c.fillStyle = k % 2 ? a : b; c.beginPath(); c.moveTo(ux, uy - 34 * s); c.arc(ux, uy - 34 * s, 62 * s, Math.PI + k * Math.PI / 8, Math.PI + (k + 1) * Math.PI / 8); c.fill(); }
+      }
+      for (let i = 0; i < 6; i++) { const x = 60 + i * 70 + R() * 20, y = 250 + R() * 30; c.fillStyle = '#c98a5a'; c.beginPath(); c.arc(x, y - 22, 6, 0, 7); c.fill(); c.fillStyle = ['#d8262c', '#1d6fb8', '#f2b81a', '#2a8a4a'][i % 4]; c.fillRect(x - 6, y - 16, 12, 18); }
+    }],
+    ['The new Impala', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .5, [[0, '#2a6fc0'], [1, '#bfe0f2']]); c.fillRect(0, 0, Wd, Ht);
+      c.fillStyle = '#b5512c'; c.beginPath(); c.moveTo(0, Ht * .5); c.lineTo(30, Ht * .3); c.lineTo(140, Ht * .3); c.lineTo(160, Ht * .5); c.fill(); c.beginPath(); c.moveTo(300, Ht * .5); c.lineTo(330, Ht * .26); c.lineTo(420, Ht * .26); c.lineTo(460, Ht * .5); c.fill();
+      c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(30, Ht * .3, 40, Ht * .2); c.fillRect(330, Ht * .26, 30, Ht * .24);
+      c.fillStyle = '#d8a060'; c.fillRect(0, Ht * .5, Wd, Ht * .5);
+      c.fillStyle = '#3a3a3e'; c.beginPath(); c.moveTo(Wd * .45, Ht * .5); c.lineTo(Wd * .55, Ht * .5); c.lineTo(Wd * .95, Ht); c.lineTo(Wd * .05, Ht); c.fill();
+      // red convertible
+      const x = 120, y = 210;
+      c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(x + 120, y + 58, 150, 12, 0, 0, 7); c.fill();
+      c.fillStyle = '#c4161c'; c.beginPath(); c.moveTo(x, y + 30); c.quadraticCurveTo(x + 10, y, x + 60, y + 4); c.lineTo(x + 190, y + 2); c.quadraticCurveTo(x + 240, y + 6, x + 250, y + 34); c.lineTo(x + 248, y + 50); c.lineTo(x + 2, y + 50); c.fill();
+      c.fillStyle = '#ff5a4a'; c.fillRect(x + 20, y + 14, 210, 4);
+      c.fillStyle = '#e8e8ea'; c.fillRect(x - 2, y + 40, 254, 6);
+      c.fillStyle = '#9ad0f0'; c.beginPath(); c.moveTo(x + 80, y + 4); c.lineTo(x + 92, y - 22); c.lineTo(x + 100, y + 4); c.fill();
+      c.fillStyle = '#f2e6d0'; c.fillRect(x + 104, y - 4, 70, 8);
+      for (const wx of [x + 50, x + 200]) { c.fillStyle = '#111'; c.beginPath(); c.arc(wx, y + 50, 20, 0, 7); c.fill(); c.fillStyle = '#e8e8ea'; c.beginPath(); c.arc(wx, y + 50, 10, 0, 7); c.fill(); }
+    }],
+    ['Lake Tahoe', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .5, [[0, '#2c6ab8'], [1, '#d7ecf5']]); c.fillRect(0, 0, Wd, Ht);
+      hills(c, Ht * .42, 60, '#5b6f8a', R); for (let i = 0; i < 4; i++) { c.fillStyle = '#fff'; c.beginPath(); c.moveTo(80 + i * 110, Ht * .3); c.lineTo(100 + i * 110, Ht * .24 + (i % 2) * 10); c.lineTo(120 + i * 110, Ht * .3); c.fill(); }
+      hills(c, Ht * .5, 30, '#2d4a2a', R, .03);
+      c.fillStyle = grad(c, Ht * .52, Ht, [[0, '#1f6fa8'], [1, '#0d3a64']]); c.fillRect(0, Ht * .52, Wd, Ht * .48);
+      for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(R() * Wd, Ht * .55 + R() * Ht * .4, 8 + R() * 22, 1.5); }
+      for (let i = 0; i < 9; i++) pine(c, 10 + i * 18, Ht * .62 - (i % 3) * 4, 70 + (i % 3) * 20, '#173a1c');
+      c.fillStyle = '#c4161c'; c.beginPath(); c.moveTo(250, 250); c.quadraticCurveTo(320, 262, 390, 250); c.quadraticCurveTo(320, 244, 250, 250); c.fill();
+      c.fillStyle = '#f2b81a'; c.beginPath(); c.arc(318, 240, 6, 0, 7); c.fill(); c.fillRect(314, 244, 8, 8);
+    }],
+    ['Patty is six!', (c, R) => {
+      c.fillStyle = '#1a0f0c'; c.fillRect(0, 0, Wd, Ht);
+      glow(c, Wd * .5, Ht * .55, 260, 'rgba(255,190,120,.55)');
+      c.fillStyle = '#e8e2d2'; c.beginPath(); c.ellipse(Wd * .5, Ht * .8, 230, 60, 0, 0, 7); c.fill();
+      c.fillStyle = '#7a1a2a'; for (let i = 0; i < 12; i++) c.fillRect(i * 40, Ht * .9, 20, Ht * .1);
+      c.fillStyle = '#f7f1e6'; c.fillRect(Wd * .32, Ht * .5, Wd * .36, Ht * .24); c.fillStyle = '#f58aa8'; c.fillRect(Wd * .32, Ht * .5, Wd * .36, 14);
+      for (let i = 0; i < 7; i++) { c.fillStyle = ['#f58aa8', '#86c5f2', '#f2d84a'][i % 3]; c.beginPath(); c.arc(Wd * .34 + i * 24, Ht * .62, 6, 0, 7); c.fill(); }
+      for (let i = 0; i < 6; i++) { const x = Wd * .37 + i * 22; c.fillStyle = ['#2a7ad8', '#f2d84a', '#e8434a'][i % 3]; c.fillRect(x - 2, Ht * .38, 5, Ht * .12); c.fillStyle = '#fff3c0'; c.beginPath(); c.ellipse(x + .5, Ht * .35, 4, 8, 0, 0, 7); c.fill(); glow(c, x, Ht * .35, 30, 'rgba(255,200,100,.6)'); }
+      c.fillStyle = '#e0a07a'; c.beginPath(); c.arc(Wd * .82, Ht * .4, 34, 0, 7); c.fill(); c.fillStyle = '#5a3018'; c.beginPath(); c.arc(Wd * .82, Ht * .36, 36, Math.PI, 0); c.fill();
+      c.fillStyle = '#f58aa8'; c.beginPath(); c.moveTo(Wd * .82, Ht * .2); c.lineTo(Wd * .79, Ht * .32); c.lineTo(Wd * .85, Ht * .32); c.fill();
+      c.fillStyle = '#86c5f2'; c.fillRect(Wd * .76, Ht * .48, 70, 60);
+    }],
+    ['Grand Canyon', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .4, [[0, '#1f5aa8'], [1, '#a8d2ee']]); c.fillRect(0, 0, Wd, Ht);
+      // mesas recede into blue haze: far ridges pale and violet, near ones deep rust
+      const cols = ['#c9a0a8', '#d08a6c', '#c9683e', '#b5502c', '#933c22', '#6a2814'];
+      for (let k = 0; k < 6; k++) {
+        const base = Ht * (.32 + k * .115), ph = R() * 9;
+        c.fillStyle = cols[k]; c.beginPath(); c.moveTo(0, Ht);
+        for (let x = 0; x <= Wd; x += 4) { const mesa = Math.max(0, Math.sin(x * .015 + ph)) > .55 ? 14 : 0; c.lineTo(x, base - 14 * Math.sin(x * .021 + ph) - mesa - 4 * Math.sin(x * .09 + ph)); }
+        c.lineTo(Wd, Ht); c.fill();
+        // sunlit faces and shadowed gullies
+        c.save(); c.clip(); c.fillStyle = 'rgba(255,215,170,.12)'; for (let x = 0; x < Wd; x += 26 + k * 4) { c.beginPath(); c.moveTo(x, base - 30); c.lineTo(x + 8, base - 30); c.lineTo(x + 20, Ht); c.lineTo(x + 12, Ht); c.fill(); }
+        c.fillStyle = 'rgba(60,20,40,.14)'; for (let x = 13; x < Wd; x += 30 + k * 5) { c.beginPath(); c.moveTo(x, base - 24); c.lineTo(x + 4, base - 24); c.lineTo(x + 10, Ht); c.lineTo(x + 6, Ht); c.fill(); }
+        c.restore();
+        c.fillStyle = `rgba(150,170,210,${.28 - k * .05})`; c.fillRect(0, base - 40, Wd, Ht);
+      }
+    }],
+    ['Times Square, December', (c, R) => {
+      c.fillStyle = '#05060f'; c.fillRect(0, 0, Wd, Ht);
+      for (let i = 0; i < 7; i++) { const x = i * 75 - 10, w = 70, h = 200 + R() * 80; c.fillStyle = '#12131e'; c.fillRect(x, Ht - h, w, h); for (let k = 0; k < 3; k++) { const col = ['#ff3a3a', '#ffd23a', '#3ae0ff', '#ff6ad5', '#7aff6a'][(i + k) % 5]; c.fillStyle = col; c.fillRect(x + 8, Ht - h + 20 + k * 50, w - 16, 26); glow(c, x + w / 2, Ht - h + 33 + k * 50, 60, 'rgba(255,200,120,.25)'); } }
+      for (let i = 0; i < 60; i++) { c.fillStyle = `rgba(255,${200 + R() * 55},${120 + R() * 100},.8)`; c.fillRect(R() * Wd, R() * Ht * .9, 3, 3); }
+      c.fillStyle = '#1a1a22'; c.fillRect(0, Ht * .85, Wd, Ht * .15);
+      for (let i = 0; i < 4; i++) { c.fillStyle = '#f2c21a'; c.fillRect(40 + i * 110, Ht * .83, 70, 24); c.fillStyle = '#111'; c.beginPath(); c.arc(56 + i * 110, Ht * .91, 7, 0, 7); c.arc(96 + i * 110, Ht * .91, 7, 0, 7); c.fill(); }
+      for (let i = 0; i < 30; i++) { c.fillStyle = 'rgba(255,60,60,.5)'; c.fillRect(R() * Wd, Ht * .9 + R() * 20, 2, 10); }
+    }],
+    ['Grandpa’s roses', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .5, [[0, '#4a8ad0'], [1, '#d2eaf6']]); c.fillRect(0, 0, Wd, Ht);
+      c.fillStyle = '#f2ead6'; c.fillRect(Wd * .5, Ht * .1, Wd * .5, Ht * .5); c.fillStyle = '#7a2a1a'; c.beginPath(); c.moveTo(Wd * .46, Ht * .14); c.lineTo(Wd * .75, 0); c.lineTo(Wd * 1.04, Ht * .14); c.fill();
+      c.fillStyle = '#3a6ab0'; c.fillRect(Wd * .58, Ht * .22, 40, 50); c.fillRect(Wd * .8, Ht * .22, 40, 50);
+      c.fillStyle = '#3e7a2a'; c.fillRect(0, Ht * .55, Wd, Ht * .45);
+      c.fillStyle = '#f7f4ec'; for (let i = 0; i < 16; i++) { c.beginPath(); c.moveTo(i * 32 + 4, Ht * .62); c.lineTo(i * 32 + 12, Ht * .56); c.lineTo(i * 32 + 20, Ht * .62); c.lineTo(i * 32 + 20, Ht * .8); c.lineTo(i * 32 + 4, Ht * .8); c.fill(); } c.fillRect(0, Ht * .66, Wd, 6); c.fillRect(0, Ht * .74, Wd, 6);
+      for (let i = 0; i < 70; i++) { const x = R() * Wd, y = Ht * .78 + R() * Ht * .2; c.fillStyle = '#2a5a1e'; c.beginPath(); c.arc(x, y, 8 + R() * 6, 0, 7); c.fill(); }
+      for (let i = 0; i < 40; i++) { const x = R() * Wd, y = Ht * .76 + R() * Ht * .22; c.fillStyle = R() < .7 ? '#d8162c' : '#f58aa8'; c.beginPath(); c.arc(x, y, 5 + R() * 3, 0, 7); c.fill(); c.strokeStyle = 'rgba(80,0,10,.5)'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 2.5, 0, 5); c.stroke(); }
+    }],
+    ['Santa Cruz pier, dusk', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .6, [[0, '#3a2a6a'], [.5, '#d8506a'], [1, '#ffb05a']]); c.fillRect(0, 0, Wd, Ht);
+      c.fillStyle = '#fff0b0'; c.beginPath(); c.arc(Wd * .7, Ht * .55, 26, 0, 7); c.fill(); glow(c, Wd * .7, Ht * .55, 160, 'rgba(255,160,80,.7)');
+      c.fillStyle = grad(c, Ht * .6, Ht, [[0, '#7a3a5a'], [1, '#2a1830']]); c.fillRect(0, Ht * .6, Wd, Ht * .4);
+      for (let i = 0; i < 50; i++) { c.fillStyle = 'rgba(255,190,110,.5)'; c.fillRect(Wd * .6 + (R() - .5) * 100, Ht * .62 + R() * Ht * .35, 6 + R() * 16, 2); }
+      c.fillStyle = '#1a0f14'; c.fillRect(0, Ht * .5, Wd * .55, 10); for (let i = 0; i < 12; i++) c.fillRect(8 + i * 20, Ht * .5, 4, Ht * .2);
+      c.strokeStyle = '#1a0f14'; c.lineWidth = 3; c.beginPath(); c.arc(Wd * .2, Ht * .3, 60, 0, 7); c.stroke(); for (let k = 0; k < 12; k++) { const a = k / 12 * 6.28; c.beginPath(); c.moveTo(Wd * .2, Ht * .3); c.lineTo(Wd * .2 + Math.cos(a) * 60, Ht * .3 + Math.sin(a) * 60); c.stroke(); }
+      for (let k = 0; k < 12; k++) { const a = k / 12 * 6.28; c.fillStyle = '#ffd23a'; c.beginPath(); c.arc(Wd * .2 + Math.cos(a) * 60, Ht * .3 + Math.sin(a) * 60, 3, 0, 7); c.fill(); }
+      c.beginPath(); c.moveTo(Wd * .2 - 30, Ht * .5); c.lineTo(Wd * .2, Ht * .3); c.lineTo(Wd * .2 + 30, Ht * .5); c.stroke();
+    }],
+    ['Yosemite campsite', (c, R) => {
+      c.fillStyle = grad(c, 0, Ht * .5, [[0, '#2a5ea8'], [1, '#c8e2f2']]); c.fillRect(0, 0, Wd, Ht);
+      c.fillStyle = '#b8b2a8'; c.beginPath(); c.moveTo(Wd * .35, Ht * .6); c.quadraticCurveTo(Wd * .45, Ht * .05, Wd * .75, Ht * .08); c.lineTo(Wd * .95, Ht * .6); c.fill();
+      c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.moveTo(Wd * .55, Ht * .1); c.quadraticCurveTo(Wd * .6, Ht * .4, Wd * .75, Ht * .6); c.lineTo(Wd * .95, Ht * .6); c.lineTo(Wd * .75, Ht * .08); c.fill();
+      for (let i = 0; i < 14; i++) pine(c, i * 36, Ht * .72, 90 + (i % 3) * 30, i % 2 ? '#1a3a1e' : '#22482a');
+      c.fillStyle = '#5a4a32'; c.fillRect(0, Ht * .72, Wd, Ht * .28);
+      c.fillStyle = '#e8a01a'; c.beginPath(); c.moveTo(Wd * .25, Ht * .9); c.lineTo(Wd * .38, Ht * .66); c.lineTo(Wd * .51, Ht * .9); c.fill(); c.fillStyle = '#8a5a10'; c.beginPath(); c.moveTo(Wd * .35, Ht * .9); c.lineTo(Wd * .38, Ht * .74); c.lineTo(Wd * .41, Ht * .9); c.fill();
+      c.fillStyle = '#ff8a2a'; c.beginPath(); c.moveTo(Wd * .7, Ht * .92); c.quadraticCurveTo(Wd * .69, Ht * .82, Wd * .72, Ht * .78); c.quadraticCurveTo(Wd * .75, Ht * .84, Wd * .74, Ht * .92); c.fill(); glow(c, Wd * .72, Ht * .86, 70, 'rgba(255,150,60,.6)');
+    }],
+    ['Christmas morning', (c, R) => {
+      c.fillStyle = '#3a1a14'; c.fillRect(0, 0, Wd, Ht); c.fillStyle = '#5a2a1e'; for (let i = 0; i < 12; i++) c.fillRect(i * 40, 0, 20, Ht * .75);
+      c.fillStyle = '#6a4a2a'; c.fillRect(0, Ht * .75, Wd, Ht * .25);
+      c.fillStyle = '#1a5a2a'; for (let k = 0; k < 4; k++) { const w = 60 + k * 45, y = Ht * (.15 + k * .15); c.beginPath(); c.moveTo(Wd * .5, y - 30); c.lineTo(Wd * .5 + w, y + 40); c.lineTo(Wd * .5 - w, y + 40); c.fill(); }
+      for (let i = 0; i < 40; i++) { const t = R(), y = Ht * (.15 + t * .6), w = (60 + t * 140) * R(); const x = Wd * .5 + (R() - .5) * 2 * w * .8, col = ['#ff3a3a', '#3ab0ff', '#ffd23a', '#6aff6a', '#ff8ad8'][i % 5]; c.fillStyle = col; c.beginPath(); c.arc(x, y, 3.5, 0, 7); c.fill(); glow(c, x, y, 16, 'rgba(255,220,150,.5)'); }
+      c.fillStyle = '#ffd23a'; c.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 7 : 16, a = i * Math.PI / 5 - Math.PI / 2; c.lineTo(Wd * .5 + Math.cos(a) * r, Ht * .07 + Math.sin(a) * r); } c.fill();
+      for (const [x, w, h, col, rib] of [[130, 70, 50, '#d8262c', '#f2d84a'], [300, 60, 40, '#2a7ad8', '#fff'], [350, 50, 60, '#2a8a4a', '#d8262c']]) { c.fillStyle = col; c.fillRect(x, Ht * .9 - h, w, h); c.fillStyle = rib; c.fillRect(x + w / 2 - 4, Ht * .9 - h, 8, h); c.fillRect(x, Ht * .9 - h * .6, w, 8); }
+    }],
+  ];
+  // the slide itself: Kodachrome punch, deep shadows, plus a little dust and a hair
+  function kodachrome(cv, seed) {
+    const c = cv.getContext('2d'), w = cv.width, h = cv.height, R = rng(seed);
+    const id = c.getImageData(0, 0, w, h), d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      let r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+      const l = .3 * r + .59 * g + .11 * b;
+      r = l + (r - l) * 1.35; g = l + (g - l) * 1.25; b = l + (b - l) * 1.3;
+      r = Math.pow(clamp(r, 0, 1), 1.12) * 1.04; g = Math.pow(clamp(g, 0, 1), 1.15); b = Math.pow(clamp(b, 0, 1), 1.1) * .97;
+      const n = (R() - .5) * .05;
+      d[i] = clamp(r + n, 0, 1) * 255; d[i + 1] = clamp(g + n, 0, 1) * 255; d[i + 2] = clamp(b + n, 0, 1) * 255;
+    }
+    c.putImageData(id, 0, 0);
+    const v = c.createRadialGradient(w / 2, h / 2, h * .3, w / 2, h / 2, w * .7); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.35)'); c.fillStyle = v; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 7; i++) { c.fillStyle = `rgba(10,6,4,${.35 + R() * .4})`; c.beginPath(); c.arc(R() * w, R() * h, .8 + R() * 1.8, 0, 7); c.fill(); }
+    if (R() < .7) { c.strokeStyle = 'rgba(10,6,4,.5)'; c.lineWidth = 1; c.beginPath(); let x = R() * w, y = R() * h; c.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - .5) * 30; y += (R() - .5) * 20; c.quadraticCurveTo(x + 8, y - 6, x, y); } c.stroke(); }
+    return cv;
+  }
+  const SHORT = { 'Times Square, December': 'Times Sq., Dec', 'Santa Cruz pier, dusk': 'Santa Cruz pier', 'Yosemite campsite': 'Yosemite camp', 'Christmas morning': 'Christmas' };
+  const IMG = SLIDES.map(([cap, fn], i) => { const cv = mk(Wd, Ht); fn(cv.getContext('2d'), rng(31 + i * 7)); return { cap, short: SHORT[cap], cv: kodachrome(cv, 5 + i), focusOff: ((i * 37) % 11 / 10 - .5) * 1.1 }; });
+
+  /* ———————————— light table ———————————— */
+  const glass = $('#glass'), slideEls = [], viewer = $('#viewer'); viewer.inert = true;
+  IMG.forEach((s, i) => {
+    const b = document.createElement('button'); b.className = 'slide'; b.style.setProperty('--r', (((i * 53) % 7) - 3) * .7 + 'deg');
+    b.setAttribute('aria-label', `Slide ${i + 1}: ${s.cap}. Project it`);
+    b.innerHTML = `<span class="no" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span><canvas width="160" height="107" aria-hidden="true"></canvas><span class="lb" aria-hidden="true">${s.short || s.cap}</span>`;
+    const cc = b.querySelector('canvas'); cc.getContext('2d').drawImage(s.cv, 0, 0, 160, 107);
+    b.addEventListener('click', () => project(i, b));
+    glass.appendChild(b); slideEls.push(b);
+  });
+
+  /* ———————————— layout ———————————— */
+  let W = 0, H = 0, L = {};
+  function layout() {
+    W = innerWidth; H = innerHeight; const mob = W < 760;
+    const th = mob ? H * .46 : H * .34; $('#table').style.setProperty('--th', th + 'px');
+    // screen high on the wall
+    const sw = mob ? W - 40 : Math.min(640, W * .5), sh = sw / 1.5, sx = mob ? 20 : (W - sw) / 2 - W * .06, sy = mob ? 66 : 40;
+    L.screen = { x: sx, y: sy, w: sw, h: sh };
+    Object.assign($('#screen').style, { left: sx + 'px', top: sy + 'px', width: sw + 'px', height: sh + 'px' });
+    Object.assign($('#roller').style, { left: (sx - 12) + 'px', top: (sy - 20) + 'px', width: (sw + 24) + 'px' });
+    Object.assign($('#pulltab').style, { left: (sx + sw / 2) + 'px', top: (sy + sh + 4) + 'px' });
+    // light table on the desk
+    const cols = mob ? 4 : 5, lbw = mob ? W - 24 - 120 + 120 : Math.min(620, W * .5);
+    const lb = $('#lightbox'); glass.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+    lb.style.width = (mob ? W - 24 : lbw) + 'px'; lb.style.left = (mob ? 12 : W * .06) + 'px';
+    lb.style.top = 'auto'; lb.style.bottom = (mob ? 152 : Math.max(16, th * .12)) + 'px';
+    const bl = $('#boxlabel'); bl.style.left = (mob ? 14 : W * .06 + 4) + 'px'; bl.style.bottom = (mob ? 132 : Math.max(16, th * .12) - 20) + 'px';
+    // projector on the right of the desk
+    const pw = mob ? 150 : Math.min(300, W * .24), ph = pw * 200 / 300;
+    const px = mob ? W - pw - 6 : W - pw - W * .05, py = H - ph - (mob ? 34 : th * .2);
+    Object.assign($('#proj').style, { left: px + 'px', top: py + 'px', width: pw + 'px', height: ph + 'px' });
+    const s = pw / 300; L.proj = { x: px, y: py, s };
+    L.lens = { x: px + 2 * s, y: py + 121 * s };
+    Object.assign($('#knob').style, { left: (px + 22 * s) + 'px', top: (py + 168 * s) + 'px' });
+    Object.assign($('#knoblbl').style, { left: (px + 22 * s) + 'px', top: (py + 168 * s + (mob ? 22 : 30)) + 'px' });
+    if (mob) { $('#knob').style.width = $('#knob').style.height = '44px'; $('#knob').style.margin = '-22px 0 0 -22px'; }
+    const deck = $('#deck'); deck.style.left = (mob ? 12 : sx) + 'px'; deck.style.top = (sy + sh + 26) + 'px';
+    // projector tray slots
+    $('#projSvg').style.setProperty('--tx', '155px'); $('#projSvg').style.setProperty('--ty', '66px');
+    sizeCanvas();
+  }
+  let slotsBuilt = false;
+  // the carousel turns in perspective: the slot dividers slide round the ellipse
+  function buildSlots(off = 0) {
+    slotsBuilt = true;
+    let h = ''; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2 + off * Math.PI / 180, sy = Math.sin(a); h += `<rect x="${(155 + Math.cos(a) * 80 - 2).toFixed(1)}" y="${(66 + sy * 19 - 4).toFixed(1)}" width="4" height="8" fill="#1a120c" opacity="${(.45 + .4 * (sy + 1) / 2).toFixed(2)}"/>`; }
+    $('#slots').innerHTML = h;
+  }
+
+  /* ———————————— beam & projection ———————————— */
+  const beam = $('#beam'), bctx = beam.getContext('2d'), pcv = $('#projCv'), pctx = pcv.getContext('2d');
+  let DPR = 1;
+  function sizeCanvas() {
+    DPR = Math.min(2, devicePixelRatio || 1);
+    beam.width = W * DPR; beam.height = H * DPR;
+    pcv.width = Math.round(L.screen.w * DPR); pcv.height = Math.round(L.screen.h * DPR);
+    if (state.cur >= 0) paintProjection();
+  }
+  const state = { on: false, cur: -1, focus: 0, light: 0, shutter: 0, busy: false, tray: 0, opener: null };
+  const motes = Array.from({ length: 110 }, () => ({ t: Math.random(), u: Math.random() - .5, v: Math.random() - .5, s: .5 + Math.random() * 1.5, ph: Math.random() * 6 }));
+  function paintProjection() {
+    const s = IMG[state.cur], w = pcv.width, h = pcv.height, c = pctx;
+    c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#000'; c.fillRect(0, 0, w, h);
+    // slide mount window: the image doesn't fill the whole screen
+    const iw = w * .9, ih = iw / 1.5 > h * .92 ? h * .92 : iw / 1.5, iwf = ih * 1.5, ix = (w - iwf) / 2, iy = (h - ih) / 2;
+    c.save(); c.beginPath(); c.roundRect(ix, iy, iwf, ih, w * .02); c.clip();
+    c.drawImage(s.cv, ix, iy, iwf, ih);
+    // tungsten hot spot and fall-off
+    const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * .62);
+    g.addColorStop(0, 'rgba(255,240,210,.18)'); g.addColorStop(.6, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.45)');
+    c.globalCompositeOperation = 'source-over'; c.fillStyle = g; c.fillRect(0, 0, w, h);
+    c.restore();
+  }
+  function applyFocus() {
+    const s = state.cur >= 0 ? IMG[state.cur] : null; if (!s) return;
+    const err = Math.abs(state.focus - s.focusOff), blur = err * (W < 760 ? 9 : 15);
+    pcv.style.filter = `blur(${blur.toFixed(2)}px) brightness(${(state.light * (1 - state.shutter)).toFixed(3)}) saturate(1.05)`;
+    pcv.style.opacity = state.light > .01 ? 1 : 0;
+    const knob = $('#knob'); knob.style.transform = `rotate(${(state.focus * 140).toFixed(1)}deg)`;
+    knob.setAttribute('aria-valuenow', Math.round(state.focus * 100)); knob.setAttribute('aria-valuetext', err < .05 ? 'Sharp' : err < .25 ? 'Nearly sharp' : 'Soft');
+    if (err < .04 && !state.sharp) { state.sharp = true; tick(1600); $('#live').textContent = 'In focus.'; }
+    else if (err > .08) state.sharp = false;
+  }
+  function drawBeam(dt, now) {
+    const c = bctx; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, beam.width, beam.height);
+    const k = state.light * (1 - state.shutter * .9); if (k < .01) return;
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const S = L.screen, o = L.lens, corners = [[S.x, S.y], [S.x + S.w, S.y], [S.x + S.w, S.y + S.h], [S.x, S.y + S.h]];
+    // the widest silhouette of the cone from the lens to the screen
+    const ang = corners.map(([x, y]) => Math.atan2(y - o.y, x - o.x)), lo = corners[ang.indexOf(Math.min(...ang))], hi = corners[ang.indexOf(Math.max(...ang))];
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const cx = S.x + S.w / 2, cy = S.y + S.h / 2;
+    const g = c.createLinearGradient(o.x, o.y, cx, cy); g.addColorStop(0, `rgba(255,236,200,${.34 * k})`); g.addColorStop(.3, `rgba(255,230,190,${.15 * k})`); g.addColorStop(1, `rgba(255,230,190,${.075 * k})`);
+    c.fillStyle = g; c.filter = 'blur(6px)';
+    c.beginPath(); c.moveTo(o.x, o.y - 3); c.lineTo(lo[0], lo[1]); c.lineTo(cx, cy); c.lineTo(hi[0], hi[1]); c.lineTo(o.x, o.y + 3); c.closePath(); c.fill();
+    c.filter = 'none';
+    // lens flare
+    const lg = c.createRadialGradient(o.x, o.y, 0, o.x, o.y, 60); lg.addColorStop(0, `rgba(255,245,220,${.9 * k})`); lg.addColorStop(.2, `rgba(255,220,160,${.35 * k})`); lg.addColorStop(1, 'rgba(255,200,120,0)');
+    c.fillStyle = lg; c.fillRect(o.x - 60, o.y - 60, 120, 120);
+    // dust: swirling motes only visible inside the beam
+    for (const m of motes) {
+      if (!reduce) { m.t += dt * .015; m.u += Math.sin(now / 1800 + m.ph) * dt * .01; m.v += (Math.random() - .5) * dt * .03 - dt * .004; if (m.t > 1) m.t -= 1; if (m.v < -.5) m.v += 1; if (m.v > .5) m.v -= 1; if (m.u < -.5) m.u += 1; if (m.u > .5) m.u -= 1; }
+      const t = .08 + m.t * .9, px = lerp(o.x, cx, t), py = lerp(o.y, cy, t);
+      // cross-section spans toward the screen size
+      const ex = (hi[0] - lo[0]) * t * .5, ey = (hi[1] - lo[1]) * t * .5;
+      const x = px + ex * m.u * 2 * .9, y = py + ey * m.u * 2 * .9 + m.v * 6 * t * 10;
+      const tw = .5 + .5 * Math.sin(now / 400 + m.ph * 7);
+      c.fillStyle = `rgba(255,240,215,${(.25 + .55 * tw) * k * (1 - t * .5)})`;
+      c.beginPath(); c.arc(x, y, m.s * (1.2 - t * .5), 0, 7); c.fill();
+    }
+    c.restore();
+  }
+
+  /* ———————————— projecting ———————————— */
+  let flyer = null;
+  function project(i, fromEl) {
+    if (state.busy) return;
+    audio();
+    const first = !state.on;
+    state.opener = state.opener && state.on ? state.opener : fromEl;
+    $('#tape').classList.add('gone');
+    if (first) {
+      state.on = true; document.body.classList.add('proj'); lampClick();
+      viewer.removeAttribute('aria-hidden'); viewer.inert = false; $('#knob').tabIndex = 0;
+      $('#lightbox').inert = true;
+      flySlide(i, fromEl, () => { load(i, true); });
+      setTimeout(() => $('#next').focus({ preventScroll: true }), 50);
+    } else load(i, false);
+  }
+  function flySlide(i, fromEl, done) {
+    if (reduce) { done(); return; }
+    const r = fromEl.getBoundingClientRect(), f = document.createElement('div'); f.className = 'flyer';
+    const c = mk(160, 107); c.getContext('2d').drawImage(IMG[i].cv, 0, 0, 160, 107); f.appendChild(c);
+    document.body.appendChild(f); fromEl.classList.add('out');
+    const tx = L.proj.x + 155 * L.proj.s - r.width * .3, ty = L.proj.y + 50 * L.proj.s;
+    f.animate([
+      { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', transform: 'rotate(0deg)', opacity: 1 },
+      { left: (r.left + tx) / 2 + 'px', top: Math.min(r.top, ty) - 80 + 'px', width: r.width * .8 + 'px', height: r.height * .8 + 'px', transform: 'rotate(-14deg)', opacity: 1, offset: .55 },
+      { left: tx + 'px', top: ty + 'px', width: r.width * .6 + 'px', height: r.height * .6 + 'px', transform: 'rotate(0deg) scaleY(.2)', opacity: 0 }
+    ], { duration: 700, easing: 'cubic-bezier(.4,0,.3,1)' }).onfinish = () => { f.remove(); fromEl.classList.remove('out'); done(); };
+  }
+  function load(i, first) {
+    state.busy = true;
+    const n = IMG.length; i = ((i % n) + n) % n;
+    // shutter drops, tray advances with a click-clack, new slide falls into the gate
+    state.shutterT = 1; clack();
+    state.tray += (i > state.cur || first ? 1 : -1) * 9;
+    setTimeout(() => {
+      state.cur = i; state.focus = state.focusKeep ?? 0; paintProjection(); state.shutterT = 0; state.lightT = 1;
+      $('#cnt').textContent = `${i + 1} / ${n}`; $('#deckTitle').textContent = IMG[i].cap; $('#screen').setAttribute('aria-label', `Projected slide ${i + 1} of ${n}: ${IMG[i].cap}`);
+      $('#live').textContent = `Slide ${i + 1}: ${IMG[i].cap}. Turn the focus knob to sharpen.`;
+      state.sharp = false; state.busy = false; state.jitter = 1; wake();
+    }, reduce ? 50 : 300);
+    wake();
+  }
+  function lightsOn() {
+    if (!state.on) return;
+    state.on = false; state.lightT = 0; document.body.classList.remove('proj'); lampClick(true);
+    viewer.setAttribute('aria-hidden', 'true'); viewer.inert = true; $('#knob').tabIndex = -1;
+    $('#lightbox').inert = false;
+    const o = state.cur >= 0 ? slideEls[state.cur] : state.opener; (o || slideEls[0]).focus({ preventScroll: true });
+    state.opener = null; wake();
+  }
+  $('#next').addEventListener('click', () => { if (state.on) load(state.cur + 1); });
+  $('#prev').addEventListener('click', () => { if (state.on) load(state.cur - 1); });
+  $('#lights').addEventListener('click', lightsOn);
+  $('#dark').addEventListener('click', lightsOn);
+  document.addEventListener('keydown', e => {
+    if (!state.on) return;
+    if (e.key === 'Escape') { e.preventDefault(); lightsOn(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); load(state.cur + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); load(state.cur - 1); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); turn(e.key === 'ArrowUp' ? .05 : -.05); }
+    else if (e.key === 'Tab') {
+      const f = [...document.querySelectorAll('#deck button'), $('#knob')];
+      const i = f.indexOf(document.activeElement); e.preventDefault();
+      f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+    }
+  });
+
+  /* ———————————— the focus knob ———————————— */
+  const knob = $('#knob'); let kd = null;
+  function turn(d) { state.focus = clamp(state.focus + d, -1, 1); state.focusKeep = state.focus; knobTick(); applyFocus(); }
+  knob.addEventListener('pointerdown', e => {
+    if (!state.on) return; audio(); kd = { a: Math.atan2(e.clientY - knobC().y, e.clientX - knobC().x), y: e.clientY };
+    try { knob.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault();
+  });
+  knob.addEventListener('pointermove', e => {
+    if (!kd) return; const c = knobC(), a = Math.atan2(e.clientY - c.y, e.clientX - c.x);
+    let da = a - kd.a; if (da > Math.PI) da -= Math.PI * 2; if (da < -Math.PI) da += Math.PI * 2;
+    kd.a = a; turn(da / (Math.PI * 1.55));
+  });
+  const kend = () => { kd = null; }; knob.addEventListener('pointerup', kend); knob.addEventListener('pointercancel', kend);
+  knob.addEventListener('wheel', e => { if (!state.on) return; e.preventDefault(); turn(-e.deltaY / 1200); }, { passive: false });
+  function knobC() { const r = knob.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }
+  addEventListener('wheel', e => { if (state.on && !e.target.closest('#knob')) { e.preventDefault(); turn(-e.deltaY / 1200); } }, { passive: false });
+
+  /* ———————————— sound: lamp click, carousel click-clack, fan hum ———————————— */
+  let AC = null, master = null, muted = false, fan = null;
+  function audio() { try { if (!AC) { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : .18; master.connect(AC.destination); } if (AC.state === 'suspended') AC.resume(); } catch (e) { AC = null; } }
+  function noiseHit(t, dur, f, q, vol) { const b = AC.createBuffer(1, Math.max(1, AC.sampleRate * dur | 0), AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); const s = AC.createBufferSource(); s.buffer = b; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; const g = AC.createGain(); g.gain.value = vol; s.connect(bp).connect(g).connect(master); s.start(t); }
+  function clack() { if (!AC || muted) return; const t = AC.currentTime; noiseHit(t, .04, 2400, 3, .9); noiseHit(t + .02, .08, 500, 2, .7); noiseHit(t + .24, .03, 2800, 3, .7); noiseHit(t + .26, .09, 380, 2, .8); }
+  function tick(f = 1200) { if (!AC || muted) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + .06); o.connect(g).connect(master); o.start(t); o.stop(t + .07); }
+  let lastKnobTick = 0; function knobTick() { const now = performance.now(); if (now - lastKnobTick > 45) { lastKnobTick = now; if (AC && !muted) noiseHit(AC.currentTime, .012, 3500, 4, .25); } }
+  function lampClick(off) {
+    if (!AC || muted) return; const t = AC.currentTime; noiseHit(t, .03, 1800, 2, .8); noiseHit(t + .015, .06, 300, 1.5, .5);
+    if (!off) {
+      if (!fan) { const b = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = AC.createBufferSource(); s.buffer = b; s.loop = true; const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; const o = AC.createOscillator(); o.frequency.value = 120; const og = AC.createGain(); og.gain.value = .02; const g = AC.createGain(); g.gain.value = 0; s.connect(lp).connect(g); o.connect(og).connect(g); g.connect(master); s.start(); o.start(); fan = g; }
+      fan.gain.setTargetAtTime(.22, t, .4);
+    } else if (fan) fan.gain.setTargetAtTime(0, t, .25);
+  }
+  $('#mute').addEventListener('click', e => { audio(); muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Turn projector sounds on' : 'Mute projector sounds'); if (master) master.gain.value = muted ? 0 : .18; });
+
+  /* ———————————— loop ———————————— */
+  let raf = 0, last = 0;
+  function wake() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0; const dt = Math.min(.05, (now - last) / 1000); last = now;
+    state.light += ((state.lightT || 0) - state.light) * Math.min(1, dt * (state.lightT ? 3 : 6));
+    state.shutter += ((state.shutterT || 0) - state.shutter) * Math.min(1, dt * 14);
+    if (reduce) { state.light = state.lightT || 0; state.shutter = state.shutterT || 0; }
+    // the new slide settles in the gate with a tiny jitter
+    if (state.jitter > 0) { state.jitter = Math.max(0, state.jitter - dt * 3); pcv.style.transform = `translateY(${(Math.sin(now / 22) * 2.5 * state.jitter).toFixed(2)}px)`; } else pcv.style.transform = '';
+    if (state.trayA == null) state.trayA = state.tray;
+    if (Math.abs(state.tray - state.trayA) > .05) { state.trayA += (state.tray - state.trayA) * Math.min(1, dt * (reduce ? 60 : 12)); buildSlots(state.trayA); }
+    applyFocus(); drawBeam(dt, now);
+    $('#lensGlow').setAttribute('opacity', (state.light * .9).toFixed(2)); $('#lamp').setAttribute('fill', state.on ? '#ffb84a' : '#5a3a1a');
+    const busy = state.on || state.light > .005 || state.shutter > .005;
+    if (busy) raf = requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  addEventListener('resize', () => { layout(); wake(); });
+  buildSlots();
+  // the show is already running when you walk in: room dark, first slide up and in focus
+  let started = false;
+  function startShow() {
+    if (started) return; started = true;
+    const i = 0;
+    state.on = true; state.cur = i; state.light = state.lightT = 1; state.shutter = state.shutterT = 0;
+    state.focus = state.focusKeep = IMG[i].focusOff; state.sharp = true;
+    viewer.removeAttribute('aria-hidden'); viewer.inert = false; $('#knob').tabIndex = 0; $('#lightbox').inert = true;
+    state.tray = 9; state.trayA = 9;
+    paintProjection();
+    $('#cnt').textContent = `${i + 1} / ${IMG.length}`; $('#deckTitle').textContent = IMG[i].cap;
+    $('#screen').setAttribute('aria-label', `Projected slide ${i + 1} of ${IMG.length}: ${IMG[i].cap}`);
+    $('#next').focus({ preventScroll: true });
+  }
+  function init() { layout(); startShow(); wake(); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(init); else init();
+  window.__proj = { project: i => project(i, slideEls[i]), focus: v => { state.focus = v; state.focusKeep = v; applyFocus(); }, sharpen: () => { state.focus = IMG[state.cur].focusOff; state.focusKeep = state.focus; applyFocus(); }, lightsOn };
+})();
+</script>
+</body>
+</html>

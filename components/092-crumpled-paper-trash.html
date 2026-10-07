@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crumpled Paper Trash</title>
+<meta name="description" content="Delete a note by crumpling it into a real 3D paper ball and tossing it into a felt bin; pull a ball back out and it unfolds onto the desk, creases and all.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600&family=Patrick+Hand&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Crumpled Paper Trash","reimagines":"Delete / restore","category":"Novel Interactions","description":"Hold a note and it crumples under your finger — a real cloth-style simulation of paper folding into a ball — then it is tossed into a felt bin on the floor. Pull a ball back out and it unfolds onto the desk, keeping the creases as an honest trace of having been deleted.","hint":"Hold a note to crumple it into the bin; drag a paper ball out of the bin to restore it"}
+</script>
+<style>
+:root{
+  --oak:#e4d3b8; --oak-deep:#cdb592; --floor:#d3d0ca; --felt:#8b8984; --ink:#2b2a27; --ink-soft:#6c675f; --tag:#b77d3f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--floor)}
+body{font-family:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+#stage{position:fixed;inset:0;overflow:hidden}
+.floor{position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 85% 60%, rgba(255,255,255,.25), rgba(0,0,0,0) 60%),
+  linear-gradient(180deg,#d6d3cd,#cbc7c0)}
+.floor svg,.desk svg.grain{position:absolute;inset:0;width:100%;height:100%}
+.desk{position:absolute;left:0;top:0;overflow:hidden;background:var(--oak);
+  box-shadow: 0 0 0 1px rgba(120,90,50,.25), 18px 26px 40px rgba(60,45,30,.28), 6px 8px 10px rgba(60,45,30,.18)}
+.desk::after{ /* the rounded oak edge catching window light */
+  content:"";position:absolute;pointer-events:none;inset:0;
+  box-shadow: inset -3px -3px 0 rgba(255,248,235,.55), inset -6px -6px 6px rgba(120,90,50,.18);
+}
+#shadows{position:absolute;inset:0;width:100%;height:100%;filter:blur(7px);opacity:.30;mix-blend-mode:multiply;pointer-events:none}
+#gl{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}
+#gl.grabbing{cursor:grabbing}
+.light{position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(118deg, rgba(255,251,242,.42) 0%, rgba(255,251,242,.0) 46%),
+    repeating-linear-gradient(118deg, rgba(0,0,0,0) 0 260px, rgba(70,58,44,.07) 260px 284px, rgba(0,0,0,0) 300px 560px),
+    radial-gradient(140% 120% at 10% 0%, rgba(0,0,0,0) 50%, rgba(50,40,30,.12) 100%);
+  mix-blend-mode:soft-light}
+.prop{position:absolute;pointer-events:none}
+.cup{width:128px;height:128px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, #fbfaf7 0 54%, #e9e6df 58%, #fbfaf7 63%, #f1eee8 100%);
+  box-shadow: 10px 14px 18px rgba(60,45,30,.22), inset -4px -6px 10px rgba(0,0,0,.06)}
+.cup::before{content:"";position:absolute;inset:26px;border-radius:50%;
+  background:radial-gradient(circle at 46% 44%, #b98b5c 0 14%, #8a5a33 40%, #5b3a20 70%, #3e2615 100%);
+  box-shadow: inset 0 0 0 5px #fbfaf7, inset 0 0 0 7px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.12)}
+.cup::after{content:"";position:absolute;left:96px;top:44px;width:42px;height:30px;border-radius:0 18px 18px 0;border:9px solid #f7f5f0;border-left:0;box-shadow:6px 6px 8px rgba(60,45,30,.18)}
+.card{position:absolute;padding:14px 44px 12px 18px;background:#fbfaf6;color:var(--ink);
+  box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 4px 6px 10px rgba(60,45,30,.16), 1px 1px 2px rgba(60,45,30,.12);transform:rotate(-1deg)}
+.card .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft)}
+.card h1{margin:2px 0 4px;font-size:26px;font-weight:600;letter-spacing:-.01em}
+.card .status{font-size:13px;color:var(--ink-soft)}
+.card .status b{font-weight:600;color:var(--ink)}
+.hint{position:absolute;font-size:13px;color:#5d5345;max-width:330px;line-height:1.4;transition:opacity .6s}
+.hint i{font-style:normal;font-weight:600}
+.tag{position:absolute;pointer-events:none;padding:4px 10px 5px 14px;border-radius:2px;background:linear-gradient(180deg,#c18849,#a96f33);
+  color:#fbf1e3;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;box-shadow:2px 4px 6px rgba(40,25,10,.35);transform:translate(-50%,-50%) rotate(-4deg)}
+.tag::before{content:"";position:absolute;left:5px;top:50%;width:4px;height:4px;margin-top:-2px;border-radius:50%;background:#6b4320;box-shadow:inset 0 1px 1px rgba(0,0,0,.4)}
+.mute{position:absolute;right:8px;top:8px;border:0;background:none;color:var(--ink-soft);cursor:pointer;padding:4px;pointer-events:auto}
+.mute svg{width:16px;height:16px;display:block}
+#a11y button{position:absolute;padding:0;margin:0;border:0;background:transparent;pointer-events:none;color:transparent;border-radius:4px}
+#a11y button:focus-visible{outline:3px solid #2f6f62;outline-offset:6px}
+.mute:focus-visible{outline:2px solid #2f6f62;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.nogl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fbfaf6;padding:16px 20px;font-size:14px;box-shadow:4px 6px 12px rgba(0,0,0,.15);display:none}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="floor"><svg aria-hidden="true"><filter id="fl"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .45  0 0 0 0 .43  0 0 0 0 .40  0 0 0 .22 0"/></filter><rect width="100%" height="100%" filter="url(#fl)"/></svg></div>
+  <div class="desk" id="desk">
+    <svg class="grain" aria-hidden="true" preserveAspectRatio="none"><filter id="oak" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".0025 .07" numOctaves="4" seed="9"/><feColorMatrix values="0 0 0 0 .62  0 0 0 0 .47  0 0 0 0 .30  0 0 0 -1.6 1.05"/></filter><rect width="100%" height="100%" filter="url(#oak)" opacity=".42"/><filter id="oak2"><feTurbulence type="fractalNoise" baseFrequency=".6 .02" numOctaves="2" seed="2"/><feColorMatrix values="0 0 0 0 .5  0 0 0 0 .38  0 0 0 0 .25  0 0 0 .18 0"/></filter><rect width="100%" height="100%" filter="url(#oak2)"/></svg>
+    <div class="prop cup" id="cup"></div>
+    <svg class="prop" id="pencil" width="260" height="22" viewBox="0 0 260 22" aria-hidden="true"><defs><linearGradient id="pw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0dcb8"/><stop offset=".5" stop-color="#e2c393"/><stop offset="1" stop-color="#c9a674"/></linearGradient></defs><rect x="30" y="4" width="216" height="14" fill="url(#pw)"/><rect x="236" y="4" width="20" height="14" rx="2" fill="#2f2e2c"/><path d="M30 4 L4 11 L30 18 Z" fill="#e8cfa6"/><path d="M12 8.8 L4 11 L12 13.2 Z" fill="#3a3936"/><path d="M30 11 h206" stroke="rgba(120,90,50,.25)"/></svg>
+    <svg class="prop" id="sprig" width="190" height="150" viewBox="0 0 190 150" aria-hidden="true"><path d="M10 140 C 60 100, 110 70, 182 18" stroke="#7d8a74" stroke-width="2" fill="none"/><g fill="#a9b8a0" stroke="#8c9c84" stroke-width=".8"><ellipse cx="40" cy="108" rx="15" ry="11" transform="rotate(-30 40 108)"/><ellipse cx="62" cy="104" rx="16" ry="12" transform="rotate(20 62 104)"/><ellipse cx="78" cy="80" rx="15" ry="11" transform="rotate(-40 78 80)"/><ellipse cx="102" cy="78" rx="16" ry="12" transform="rotate(15 102 78)"/><ellipse cx="118" cy="56" rx="14" ry="10" transform="rotate(-35 118 56)"/><ellipse cx="140" cy="52" rx="14" ry="11" transform="rotate(25 140 52)"/><ellipse cx="156" cy="32" rx="12" ry="9" transform="rotate(-30 156 32)"/><ellipse cx="174" cy="24" rx="10" ry="8"/></g></svg>
+    <div class="card" id="card">
+      <div class="eyebrow">Tuesday 7 October</div>
+      <h1>Notes</h1>
+      <div class="status" id="status"><b>5</b> on the desk · <b>0</b> in the bin</div>
+      <button class="mute" id="mute" aria-label="Mute paper sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+    </div>
+    <p class="hint" id="hint"><i>Hold a note</i> to crumple it and toss it in the bin. <i>Pull a paper ball out</i> of the bin to restore it.</p>
+  </div>
+  <canvas id="shadows"></canvas>
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <div class="tag" id="tag">Bin · 0</div>
+  <div class="light"></div>
+  <div id="a11y"></div>
+  <p class="nogl" id="nogl">This desk needs WebGL 2 to show paper in 3D.</p>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const cv = $('#gl'), shc = $('#shadows'), sx = shc.getContext('2d');
+const gl = cv.getContext('webgl2', {antialias: true, alpha: true, premultipliedAlpha: true});
+if (!gl){ $('#nogl').style.display = 'block'; return; }
+
+/* ---------------- scene layout ---------------- */
+const D = 1800;                      // camera height above the desk (px)
+let firstDone = false;
+const L3 = (() => { const v = [-0.45, -0.55, 0.75], m = Math.hypot(...v); return v.map(x => x/m); })();
+const LX = -L3[0]/L3[2], LY = -L3[1]/L3[2]; // shadow offset per unit height
+let VW = 0, VH = 0, dpr = 1, cam = {x:0, y:0}, mobile = false;
+let desk = {w:0, h:0}, bin = {x:0, y:0, r:150, zf:-700, h:340}, NW = 200, NH = 220, BALL_R = 44;
+const proj = (x, y, z) => { const k = D / (D - z); return [cam.x + (x - cam.x)*k, cam.y + (y - cam.y)*k, k]; };
+const unproj = (sx_, sy_, z) => { const k = (D - z) / D; return [cam.x + (sx_ - cam.x)*k, cam.y + (sy_ - cam.y)*k]; };
+const onDesk = (x, y, m = 0) => x > m && y > m && x < desk.w - m && y < desk.h - m;
+
+const NOTES = [
+  {text:'Call Astrid about the Malmö studio lease before Thursday', tag:'Calls', col:[247,245,240]},
+  {text:'Book the cabin in Åre for the Q4 offsite, 14–16 Nov', tag:'Team', col:[227,232,220]},
+  {text:'Return library books — due Friday 10 Oct', tag:'Errands', col:[239,230,214]},
+  {text:'Oat milk, rye bread, lingonberries, coffee beans', tag:'Shopping', col:[242,227,221]},
+  {text:'Send Fjord & Co. invoice — 12 400 kr, net 30', tag:'Work', col:[226,231,234]},
+];
+function slots(){
+  if (!mobile) return [[175,262,-3],[430,240,2.2],[690,282,-1.6],[300,560,1.6],[566,578,-2.4]];
+  const W = desk.w;
+  return [[W*0.27,218,-3],[W*0.73,214,2.5],[W*0.27,366,2],[W*0.73,370,-2],[W*0.5,512,-1.5]];
+}
+function layout(){
+  VW = innerWidth; VH = innerHeight; dpr = Math.min(2, devicePixelRatio || 1);
+  mobile = VW < 760;
+  cam = {x: VW/2, y: VH/2};
+  cv.width = Math.round(VW*dpr); cv.height = Math.round(VH*dpr);
+  shc.width = Math.round(VW*dpr); shc.height = Math.round(VH*dpr);
+  const dk = $('#desk');
+  if (!mobile){
+    desk = {w: Math.min(VW - 340, Math.max(760, VW*0.7)), h: VH};
+    NW = 200; NH = 220; BALL_R = 54;
+    bin.r = 140; bin.h = 340; bin.zf = -700;
+    const rimZ = bin.zf + bin.h, k = D/(D - rimZ);
+    const want = {x: desk.w + (VW - desk.w)/2 + 10, y: VH*0.6};
+    bin.x = cam.x + (want.x - cam.x)/k; bin.y = cam.y + (want.y - cam.y)/k;
+  } else {
+    desk = {w: VW, h: Math.round(Math.max(VH*0.7, 592))};
+    NW = Math.min(140, VW*0.36); NH = NW*1.0; BALL_R = 40;
+    bin.r = 96; bin.h = 260; bin.zf = -620;
+    const rimZ = bin.zf + bin.h, k = D/(D - rimZ);
+    const want = {x: VW/2, y: desk.h + (VH - desk.h)*0.5};
+    bin.x = cam.x + (want.x - cam.x)/k; bin.y = cam.y + (want.y - cam.y)/k;
+  }
+  dk.style.width = desk.w + 'px'; dk.style.height = desk.h + 'px';
+  const cup = $('#cup'), pen = $('#pencil'), spr = $('#sprig'), card = $('#card'), hint = $('#hint');
+  if (!mobile){
+    cup.style.display = pen.style.display = spr.style.display = '';
+    cup.style.left = (desk.w - 190) + 'px'; cup.style.top = (desk.h - 230) + 'px';
+    pen.style.left = '40px'; pen.style.top = (desk.h - 120) + 'px'; pen.style.transform = 'rotate(-14deg)';
+    spr.style.left = (desk.w - 200) + 'px'; spr.style.top = '-6px';
+    card.style.left = '44px'; card.style.top = '34px';
+    hint.style.left = '330px'; hint.style.top = (desk.h - 92) + 'px';
+  } else {
+    pen.style.display = spr.style.display = 'none';
+    cup.style.display = '';
+    cup.style.left = (desk.w - 70) + 'px'; cup.style.top = '-40px';
+    card.style.left = '14px'; card.style.top = '14px';
+    hint.style.left = '16px'; hint.style.top = '114px';
+    if (!firstDone) hint.innerHTML = '<i>Hold a note</i> to bin it. <i>Drag a ball out</i> to restore it.'; hint.style.maxWidth = (VW - 32) + 'px'; hint.style.fontSize = '12px';
+  }
+  const t = proj(bin.x, bin.y + bin.r*0.98, bin.zf + bin.h);
+  const tag = $('#tag'); tag.style.left = t[0] + 'px'; tag.style.top = (t[1] + 2) + 'px';
+}
+
+/* ---------------- GL programs ---------------- */
+function sh(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+function prog(vs, fs){ const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; }
+const VS_COMMON = `
+uniform vec2 uCam; uniform float uD; uniform vec2 uHalf;
+vec4 project(vec3 p){ float w = uD - p.z; return vec4((p.x - uCam.x) * uD / uHalf.x, -(p.y - uCam.y) * uD / uHalf.y, (-p.z / 3000.0) * w, w); }`;
+const paperProg = prog(`#version 300 es
+in vec3 aPos; in vec2 aUV; in float aAO;
+${VS_COMMON}
+out vec3 vPos; out vec2 vUV; out float vAO;
+void main(){ gl_Position = project(aPos); vPos = aPos; vUV = aUV; vAO = aAO; }`,
+`#version 300 es
+precision highp float;
+in vec3 vPos; in vec2 vUV; in float vAO;
+uniform sampler2D uTex; uniform vec3 uL; uniform vec3 uBack; uniform vec2 uCam; uniform float uD;
+out vec4 o;
+void main(){
+  vec3 n = normalize(-cross(dFdx(vPos), dFdy(vPos)));
+  float wrap = 0.5 + 0.5 * dot(n, uL);
+  vec3 base = gl_FrontFacing ? texture(uTex, vUV).rgb : uBack;
+  vec3 col = base * (0.40 + 0.68 * wrap) * mix(0.5, 1.0, vAO);
+  vec3 V = normalize(vec3(uCam, uD) - vPos);
+  vec3 H = normalize(uL + V);
+  col += vec3(0.05) * pow(max(dot(n, H), 0.0), 20.0);
+  // faint translucency where paper faces away from the light
+  col += base * 0.06 * max(-dot(n, uL), 0.0);
+  o = vec4(col, 1.0);
+}`);
+const binProg = prog(`#version 300 es
+in vec3 aPos; in vec3 aN; in float aKind;
+${VS_COMMON}
+out vec3 vPos; out vec3 vN; out float vKind;
+void main(){ gl_Position = project(aPos); vPos = aPos; vN = aN; vKind = aKind; }`,
+`#version 300 es
+precision highp float;
+in vec3 vPos; in vec3 vN; in float vKind;
+uniform vec3 uL; uniform vec2 uCam; uniform float uD; uniform float uZF; uniform float uH; uniform vec4 uBalls[8]; uniform int uNB; uniform vec2 uLxy; uniform vec2 uBin; uniform float uBinR;
+out vec4 o;
+float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vn(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.0-2.0*f);
+  return mix(mix(mix(h3(i), h3(i+vec3(1,0,0)), f.x), mix(h3(i+vec3(0,1,0)), h3(i+vec3(1,1,0)), f.x), f.y),
+             mix(mix(h3(i+vec3(0,0,1)), h3(i+vec3(1,0,1)), f.x), mix(h3(i+vec3(0,1,1)), h3(i+vec3(1,1,1)), f.x), f.y), f.z); }
+void main(){
+  vec3 V = normalize(vec3(uCam, uD) - vPos);
+  vec3 n = normalize(vN);
+  bool inside = dot(n, V) < 0.0 && vKind < 0.5;
+  if (inside) n = -n;
+  float wrap = 0.5 + 0.5 * dot(n, uL);
+  vec3 felt = vec3(0.66, 0.65, 0.63);
+  if (vKind > 0.5 && vKind < 1.5) felt = vec3(0.50, 0.49, 0.47);
+  if (vKind > 1.5) felt = vec3(0.74, 0.73, 0.71);
+  float fib = vn(vPos * vec3(0.9, 0.9, 0.12)) * 0.5 + vn(vPos * 0.23) * 0.5;
+  float fine = h3(floor(vPos * 2.3));
+  felt *= 0.84 + 0.14 * fib + 0.09 * fine;
+  // two handle slots cut through the felt near the rim
+  if (vKind < 0.5){
+    float ang = atan(vPos.y - uBin.y, vPos.x - uBin.x);
+    float zr = uZF + uH;
+    float hs = min(abs(ang), 3.14159 - abs(ang));
+    if (vPos.z > zr - 62.0 && vPos.z < zr - 30.0 && hs < 0.2) felt *= 0.18;
+  }
+  float shade = 0.45 + 0.65 * wrap;
+  if (inside) shade *= mix(0.30, 0.92, pow(clamp((vPos.z - uZF) / uH, 0.0, 1.0), 0.8));
+  if (vKind > 1.5) shade = 0.95 + 0.25 * wrap;
+  if (vKind > 0.5 && vKind < 1.5){
+    float s = 1.0;
+    for (int i = 0; i < 8; i++){ if (i >= uNB) break; vec4 b = uBalls[i];
+      vec2 c = b.xy + uLxy * (b.z - uZF) * 0.35; float d = length(vPos.xy - c);
+      s *= 1.0 - 0.55 * exp(-(d*d) / (b.w*b.w*0.9)); }
+    float dc = length(vPos.xy - uBin);
+    shade *= s * 0.62 * mix(1.0, 0.55, smoothstep(uBinR * 0.45, uBinR * 0.94, dc));
+  }
+  o = vec4(felt * shade, 1.0);
+}`);
+function loc(p, names){ const o = {}; names.forEach(n => o[n] = gl.getUniformLocation(p, n)); return o; }
+const PU = loc(paperProg, ['uCam','uD','uHalf','uTex','uL','uBack']);
+const BU = loc(binProg, ['uCam','uD','uHalf','uL','uZF','uH','uBalls','uNB','uLxy','uBin','uBinR']);
+
+/* ---------------- paper mesh topology ---------------- */
+const NX = 14, NY = 15, N = NX*NY;
+const idx = (i, j) => j*NX + i;
+const cons = [];
+for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++){
+  if (i < NX-1) cons.push(idx(i,j), idx(i+1,j));
+  if (j < NY-1) cons.push(idx(i,j), idx(i,j+1));
+  if (i < NX-1 && j < NY-1){ cons.push(idx(i,j), idx(i+1,j+1)); cons.push(idx(i+1,j), idx(i,j+1)); }
+}
+const CA = new Int32Array(cons), CR = new Float32Array(CA.length/2);
+function restLengths(){
+  for (let c = 0; c < CR.length; c++){
+    const a = CA[c*2], b = CA[c*2+1];
+    const ax = (a % NX)/(NX-1)*NW, ay = Math.floor(a/NX)/(NY-1)*NH, bx = (b % NX)/(NX-1)*NW, by = Math.floor(b/NX)/(NY-1)*NH;
+    CR[c] = Math.hypot(bx-ax, by-ay);
+  }
+}
+const tris = [];
+for (let j = 0; j < NY-1; j++) for (let i = 0; i < NX-1; i++){ const a = idx(i,j), b = idx(i+1,j), c = idx(i,j+1), d = idx(i+1,j+1); tris.push(a,b,c, b,d,c); }
+const IDX = new Uint16Array(tris);
+const UV = new Float32Array(N*2); for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++){ UV[idx(i,j)*2] = i/(NX-1); UV[idx(i,j)*2+1] = j/(NY-1); }
+const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, IDX, gl.STATIC_DRAW);
+const uvb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, uvb); gl.bufferData(gl.ARRAY_BUFFER, UV, gl.STATIC_DRAW);
+const A_POS = gl.getAttribLocation(paperProg, 'aPos'), A_UV = gl.getAttribLocation(paperProg, 'aUV'), A_AO = gl.getAttribLocation(paperProg, 'aAO');
+
+/* ---------------- note textures ---------------- */
+function noteTexture(n){
+  const c = document.createElement('canvas'), S = 2, w = Math.round(NW*S), h = Math.round(NH*S);
+  c.width = w; c.height = h; const x = c.getContext('2d');
+  const [r,g,b] = n.col;
+  x.fillStyle = `rgb(${r},${g},${b})`; x.fillRect(0,0,w,h);
+  let sd = n.id*977 + 3; const rr = () => { sd = (sd*16807) % 2147483647; return sd/2147483647; };
+  for (let i = 0; i < 900; i++){ x.fillStyle = `rgba(${rr()<.5?255:120},${rr()<.5?250:110},${rr()<.5?240:95},${0.05 + rr()*0.06})`; x.fillRect(rr()*w, rr()*h, 1 + rr()*2.5*S, 0.6*S); }
+  const pad = 16*S*(mobile ? .8 : 1);
+  x.fillStyle = 'rgba(43,42,39,.55)'; x.font = `600 ${10.5*S*(mobile?.85:1)}px "Familjen Grotesk", sans-serif`;
+  x.textBaseline = 'top';
+  x.fillText(n.tag.toUpperCase().split('').join(String.fromCharCode(8202)), pad, pad);
+  x.fillStyle = 'rgba(43,42,39,.18)'; x.fillRect(pad, pad + 18*S*(mobile?.85:1), w - pad*2, 1*S);
+  const fs = (mobile ? 16.5 : 27) * S;
+  x.font = `${fs}px "Patrick Hand", "Segoe Print", cursive`; x.fillStyle = '#2b2a27';
+  const words = n.text.split(' '), lines = []; let line = '';
+  for (const wd of words){ const t = line ? line + ' ' + wd : wd; if (x.measureText(t).width > w - pad*2 && line){ lines.push(line); line = wd; } else line = t; }
+  if (line) lines.push(line);
+  lines.forEach((ln, i) => { x.save(); x.translate(pad, pad + 30*S*(mobile?.8:1) + i*fs*1.12); x.rotate((rr()-.5)*0.02); x.fillText(ln, 0, 0); x.restore(); });
+  if (!n.tex) n.tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, n.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+/* ---------------- notes ---------------- */
+let order = 0;
+const notes = NOTES.map((d, id) => {
+  const n = Object.assign({id, cx:0, cy:0, th:0, creases:[], dimples:[], state:'flat', t:0, order: order++,
+    P: new Float32Array(N*3), Q: new Float32Array(N*3), T: new Float32Array(N*3), AO: new Float32Array(N).fill(1), local: new Float32Array(N*3),
+    rb: null, binnedAt: 0, simT: 0, dirty: true}, d);
+  n.vao = gl.createVertexArray(); gl.bindVertexArray(n.vao);
+  n.pb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, n.pb); gl.bufferData(gl.ARRAY_BUFFER, n.P.byteLength, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(A_POS); gl.vertexAttribPointer(A_POS, 3, gl.FLOAT, false, 0, 0);
+  n.ab = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, n.ab); gl.bufferData(gl.ARRAY_BUFFER, n.AO.byteLength, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(A_AO); gl.vertexAttribPointer(A_AO, 1, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvb); gl.enableVertexAttribArray(A_UV); gl.vertexAttribPointer(A_UV, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+  gl.bindVertexArray(null);
+  return n;
+});
+function wrinkleZ(n, lx, ly){
+  let z = 0;
+  for (const c of n.creases){ const d = (lx - c.px)*c.nx + (ly - c.py)*c.ny; const f = Math.max(0, 1 - Math.abs(d)/c.w); z += c.a * f * f; }
+  for (const c of n.dimples){ const d2 = (lx - c.px)**2 + (ly - c.py)**2; z += c.a * Math.exp(-d2/(c.s*c.s)); }
+  return z;
+}
+function flatPose(n, out, lift = 0){
+  const c = Math.cos(n.th), s = Math.sin(n.th);
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++){
+    const k = idx(i,j)*3, lx = (i/(NX-1) - .5)*NW, ly = (j/(NY-1) - .5)*NH;
+    const u = lx/(NW/2), v = ly/(NH/2);
+    const curl = 2.2*u*u*v*v + 3.2*Math.pow(Math.max(0, v), 4) + 0.6*Math.pow(Math.abs(u), 3);
+    out[k] = n.cx + c*lx - s*ly; out[k+1] = n.cy + s*lx + c*ly; out[k+2] = 0.6 + n.order*0.05 + curl + wrinkleZ(n, lx, ly) + lift;
+  }
+}
+function addCreases(n, amount){
+  let sd = Date.now() % 100000 + n.id*31; const r = () => { sd = (sd*16807) % 2147483647; return sd/2147483647; };
+  const count = Math.round(3 + amount*4);
+  for (let i = 0; i < count; i++){ const a = r()*Math.PI; n.creases.push({px:(r()-.5)*NW*.8, py:(r()-.5)*NH*.8, nx:Math.cos(a), ny:Math.sin(a), w:6 + r()*14, a:(r()<.5?-1:1)*(0.8 + r()*1.8)*amount}); }
+  for (let i = 0; i < count; i++) n.dimples.push({px:(r()-.5)*NW, py:(r()-.5)*NH, s:8 + r()*16, a:(r()-.3)*2.4*amount});
+  if (n.creases.length > 26) n.creases.splice(0, n.creases.length - 26);
+  if (n.dimples.length > 26) n.dimples.splice(0, n.dimples.length - 26);
+}
+function placeHome(n, i){
+  const sl = slots()[i]; n.cx = sl[0]; n.cy = sl[1]; n.th = sl[2]*Math.PI/180; n.home = {x:n.cx, y:n.cy, th:n.th};
+  flatPose(n, n.P); n.Q.set(n.P); n.dirty = true;
+}
+
+/* ---------------- bin mesh ---------------- */
+const binVao = gl.createVertexArray(); let binCount = 0;
+const binPB = gl.createBuffer();
+function buildBin(){
+  const SEG = 72, v = [], push = (x,y,z,nx,ny,nz,k) => v.push(x,y,z,nx,ny,nz,k);
+  const zf = bin.zf, zr = bin.zf + bin.h, R = bin.r, R2 = bin.r + 7;
+  for (let s = 0; s < SEG; s++){
+    const a0 = s/SEG*Math.PI*2, a1 = (s+1)/SEG*Math.PI*2, c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+    const W = (c, s_, z, rr) => [bin.x + c*rr, bin.y + s_*rr, z];
+    // wall (single sheet, shaded per side)
+    const A = W(c0,s0,zr,R), B = W(c1,s1,zr,R), C = W(c0,s0,zf,R*0.94), Dd = W(c1,s1,zf,R*0.94);
+    [[A,c0,s0],[B,c1,s1],[C,c0,s0],[B,c1,s1],[Dd,c1,s1],[C,c0,s0]].forEach(([p,c,s_]) => push(p[0],p[1],p[2],c,s_,0.06,0));
+    // rim lip
+    const E = W(c0,s0,zr,R2), F = W(c1,s1,zr,R2);
+    [[A],[E],[B],[B],[E],[F]].forEach(([p]) => push(p[0],p[1],p[2]+0.5,0,0,1,2));
+    // bottom
+    const G = W(c0,s0,zf+1,R*0.94), Hh = W(c1,s1,zf+1,R*0.94);
+    [[G],[Hh],[[bin.x,bin.y,zf+1]]].forEach(([p]) => push(p[0],p[1],p[2],0,0,1,1));
+  }
+  const data = new Float32Array(v); binCount = data.length/7;
+  gl.bindVertexArray(binVao); gl.bindBuffer(gl.ARRAY_BUFFER, binPB); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  const ap = gl.getAttribLocation(binProg, 'aPos'), an = gl.getAttribLocation(binProg, 'aN'), ak = gl.getAttribLocation(binProg, 'aKind');
+  gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 3, gl.FLOAT, false, 28, 0);
+  gl.enableVertexAttribArray(an); gl.vertexAttribPointer(an, 3, gl.FLOAT, false, 28, 12);
+  gl.enableVertexAttribArray(ak); gl.vertexAttribPointer(ak, 1, gl.FLOAT, false, 28, 24);
+  gl.bindVertexArray(null);
+}
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false, noiseBuf = null;
+function audio(){
+  if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+  try {
+    ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = 0.18; master.connect(ac.destination);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2-1;
+  } catch (e){ ac = null; }
+}
+function burst(dur, f, q, gain, type = 'bandpass', when = 0){
+  if (!ac || muted) return; const t = ac.currentTime + when;
+  const s = ac.createBufferSource(); s.buffer = noiseBuf; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ac.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl).connect(g).connect(master); s.start(t, Math.random()*0.8, dur + 0.02);
+}
+const crackle = k => { const n = 1 + Math.floor(Math.random()*3*k); for (let i = 0; i < n; i++) burst(0.006 + Math.random()*0.02, 1800 + Math.random()*4500, 1.2, 0.25 + Math.random()*0.5*k, 'bandpass', Math.random()*0.03); };
+const whoosh = () => { if (!ac || muted) return; const t = ac.currentTime; const s = ac.createBufferSource(); s.buffer = noiseBuf; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(1800, t + .25); f.frequency.exponentialRampToValueAtTime(500, t + .55); const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t + .2); g.gain.exponentialRampToValueAtTime(0.0001, t + .6); s.connect(f).connect(g).connect(master); s.start(t, 0, .7); };
+const thud = (k = 1) => { if (!ac || muted) return; burst(0.09, 220, 0.7, 0.55*k, 'lowpass'); const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(60, t + .1); g.gain.setValueAtTime(0.25*k, t); g.gain.exponentialRampToValueAtTime(0.0001, t + .14); o.connect(g).connect(master); o.start(t); o.stop(t + .16); };
+const tock = () => { if (!ac || muted) return; burst(0.04, 900, 3, 0.4); burst(0.012, 3500, 1, 0.3); };
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute paper sounds' : 'Mute paper sounds'); $('#mw').style.opacity = muted ? 0 : 1; });
+
+/* ---------------- simulation ---------------- */
+const G = 2600, HOLD = 0.95;
+const ease = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
+let seed = 12345; const rnd = () => { seed = (seed*16807) % 2147483647; return seed/2147483647; };
+function satisfy(n, iters, stiff = 1){
+  const P = n.P;
+  for (let it = 0; it < iters; it++){
+    for (let c = 0; c < CR.length; c++){
+      const a = CA[c*2]*3, b = CA[c*2+1]*3;
+      const dx = P[b]-P[a], dy = P[b+1]-P[a+1], dz = P[b+2]-P[a+2];
+      const L = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1e-6, f = (L - CR[c]) / L * 0.5 * stiff;
+      P[a] += dx*f; P[a+1] += dy*f; P[a+2] += dz*f; P[b] -= dx*f; P[b+1] -= dy*f; P[b+2] -= dz*f;
+    }
+  }
+}
+function startCrumple(n, px, py, auto){
+  n.state = 'crumple'; n.auto = !!auto; n.t = 0; n.order = order++;
+  n.C = {x:px, y:py, z:2}; n.R0 = Math.hypot(NW, NH)/2 + 8;
+  n.Q.set(n.P); n.lastCrackle = 0;
+  for (let i = 0; i < N; i++) n.Q[i*3+2] -= (rnd() - .5) * 1.6; // a nudge so the sheet buckles out of plane
+  audio(); crackle(.6);
+}
+function stepCrumple(n, dt){
+  n.t = Math.min(1, n.t + dt / (n.auto ? 0.7 : HOLD));
+  const e = ease(n.t), R = n.R0 + (BALL_R - n.R0) * e, C = n.C;
+  C.z = 2 + (BALL_R + 4) * e;
+  const P = n.P, Q = n.Q;
+  for (let i = 0; i < N; i++){
+    const k = i*3;
+    for (let a = 0; a < 3; a++){ const v = (P[k+a] - Q[k+a]) * 0.86; Q[k+a] = P[k+a]; P[k+a] += v; }
+    P[k+2] += (rnd() - .5) * 2.2 * (1 - e) * (n.t < .9 ? 1 : 0);
+    P[k] += (C.x - P[k]) * 0.008 * e; P[k+1] += (C.y - P[k+1]) * 0.008 * e; P[k+2] += (C.z - P[k+2]) * 0.012 * e;
+  }
+  satisfy(n, 5, 0.9);
+  for (let i = 0; i < N; i++){
+    const k = i*3, dx = P[k]-C.x, dy = P[k+1]-C.y, dz = P[k+2]-C.z, d = Math.sqrt(dx*dx+dy*dy+dz*dz);
+    if (d > R){ const f = R/d; P[k] = C.x + dx*f; P[k+1] = C.y + dy*f; P[k+2] = C.z + dz*f; }
+    if (P[k+2] < 0.3) P[k+2] = 0.3;
+    n.AO[i] = Math.min(1, Math.max(0.25, d / R));
+  }
+  if (now - n.lastCrackle > 40 + rnd()*80){ n.lastCrackle = now; crackle(0.3 + e); }
+  if (n.t >= 1) toBall(n);
+}
+function toBall(n){
+  let cx = 0, cy = 0, cz = 0; const P = n.P;
+  for (let i = 0; i < N; i++){ cx += P[i*3]; cy += P[i*3+1]; cz += P[i*3+2]; }
+  cx /= N; cy /= N; cz /= N; let rmax = 0;
+  for (let i = 0; i < N; i++){ const k = i*3; n.local[k] = P[k]-cx; n.local[k+1] = P[k+1]-cy; n.local[k+2] = P[k+2]-cz; rmax = Math.max(rmax, Math.hypot(n.local[k], n.local[k+1], n.local[k+2])); }
+  for (let i = 0; i < N; i++){ const k = i*3; n.AO[i] = Math.max(0.3, Math.min(1, Math.hypot(n.local[k], n.local[k+1], n.local[k+2]) / rmax)); }
+  n.ballR = Math.max(BALL_R*0.75, rmax*0.9);
+  n.rb = {x:cx, y:cy, z:Math.max(cz, n.ballR), vx:0, vy:0, vz:0, m:[1,0,0,0,1,0,0,0,1], wx:0, wy:0, wz:0, sleep:0};
+  addCreases(n, 1);
+  crackle(1.2);
+  if (n.auto || !held || held.n !== n){ toss(n); } else { n.state = 'held'; say('Crumpled. Let go to toss it in the bin.'); }
+}
+function toss(n){
+  const b = n.rb; n.state = 'fly'; n.order = order++;
+  const rimZ = bin.zf + bin.h;
+  const dx = bin.x - b.x, dy = bin.y - b.y, dist = Math.hypot(dx, dy) || 1;
+  const rimShot = rnd() < 0.3;
+  const aim = rimShot ? bin.r - n.ballR*0.35 : rnd()*bin.r*0.45;
+  const ux = dx/dist, uy = dy/dist, side = (rnd() - .5) * 0.6;
+  const T = {x: bin.x + (ux - uy*side)*aim*(rimShot ? 1 : (rnd()-.5)*2), y: bin.y + (uy + ux*side)*aim*(rimShot ? 1 : (rnd()-.5)*2), z: rimZ - 8};
+  const tf = reduce ? 0.35 : 0.7 + Math.min(0.5, dist/2600);
+  b.vx = (T.x - b.x)/tf; b.vy = (T.y - b.y)/tf; b.vz = (T.z - b.z)/tf + 0.5*G*tf;
+  b.wx = (rnd()-.5)*10; b.wy = (rnd()-.5)*10; b.wz = (rnd()-.5)*6; b.sleep = 0;
+  n.binnedAt = performance.now();
+  audio(); whoosh();
+  setTimeout(() => { if (n.state === 'fly' || n.state === 'bin') say(`Binned “${n.text}”. Drag it back out of the bin to restore.`); updateStatus(); }, 400);
+  firstDelete();
+}
+function rotM(m, wx, wy, wz, dt){
+  const ang = Math.hypot(wx, wy, wz) * dt; if (ang < 1e-6) return;
+  const ax = wx*dt/ang, ay = wy*dt/ang, az = wz*dt/ang, c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
+  const R = [t*ax*ax + c, t*ax*ay - s*az, t*ax*az + s*ay, t*ax*ay + s*az, t*ay*ay + c, t*ay*az - s*ax, t*ax*az - s*ay, t*ay*az + s*ax, t*az*az + c];
+  const o = new Array(9);
+  for (let r = 0; r < 3; r++) for (let c2 = 0; c2 < 3; c2++) o[r*3+c2] = R[r*3]*m[c2] + R[r*3+1]*m[3+c2] + R[r*3+2]*m[6+c2];
+  for (let i = 0; i < 9; i++) m[i] = o[i];
+}
+function inBinXY(b, extra = 0){ return Math.hypot(b.x - bin.x, b.y - bin.y) < bin.r + extra; }
+function stepBall(n, dt){
+  const b = n.rb, r = n.ballR, rimZ = bin.zf + bin.h;
+  b.vz -= G*dt; b.x += b.vx*dt; b.y += b.vy*dt; b.z += b.vz*dt;
+  rotM(b.m, b.wx, b.wy, b.wz, dt);
+  // rim (a torus of tube radius ~4)
+  const dxr = b.x - bin.x, dyr = b.y - bin.y, dh = Math.hypot(dxr, dyr) || 1e-6;
+  const qx = bin.x + dxr/dh*(bin.r + 3), qy = bin.y + dyr/dh*(bin.r + 3), qz = rimZ;
+  const ex = b.x - qx, ey = b.y - qy, ez = b.z - qz, ed = Math.hypot(ex, ey, ez);
+  if (ed < r + 3){
+    const nx = ex/ed, ny = ey/ed, nz = ez/ed, push = r + 3 - ed;
+    b.x += nx*push; b.y += ny*push; b.z += nz*push;
+    const vn = b.vx*nx + b.vy*ny + b.vz*nz;
+    if (vn < 0){ b.vx -= 1.45*vn*nx; b.vy -= 1.45*vn*ny; b.vz -= 1.45*vn*nz; if (vn < -150) tock(); b.wx += (rnd()-.5)*8; b.wy += (rnd()-.5)*8; }
+  }
+  const inside = dh < bin.r && b.z < rimZ + r;
+  if (inside){
+    const maxR = bin.r*0.94 - r*0.9 + (b.z - bin.zf)/bin.h * bin.r*0.06;
+    if (dh > maxR && b.z < rimZ){ b.x = bin.x + dxr/dh*maxR; b.y = bin.y + dyr/dh*maxR; const vr = (b.vx*dxr + b.vy*dyr)/dh; if (vr > 0){ b.vx -= 1.4*vr*dxr/dh; b.vy -= 1.4*vr*dyr/dh; } }
+    if (b.z < bin.zf + r*0.85){ b.z = bin.zf + r*0.85; if (b.vz < -260) thud(Math.min(1, -b.vz/1400)); b.vz = -b.vz*0.25; b.vx *= 0.8; b.vy *= 0.8; b.wx *= 0.7; b.wy *= 0.7; b.wz *= 0.7;
+      if (Math.abs(b.vz) < 40) b.vz = 0; }
+    // balls inside rest on each other
+    for (const o of notes){ if (o === n || !o.rb || (o.state !== 'bin' && o.state !== 'fly')) continue; const ob = o.rb;
+      const ddx = b.x - ob.x, ddy = b.y - ob.y, ddz = b.z - ob.z, dd = Math.hypot(ddx, ddy, ddz), min = (r + o.ballR)*0.82;
+      if (dd < min && dd > 1e-3){ const f = (min - dd)/dd; b.x += ddx*f*0.7; b.y += ddy*f*0.7; b.z += ddz*f*0.7; ob.x -= ddx*f*0.3; ob.y -= ddy*f*0.3; ob.z -= ddz*f*0.3; b.vx *= 0.9; b.vy *= 0.9; if (b.vz < 0) b.vz *= 0.5; ob.sleep = 0; }
+    }
+    if (n.state === 'fly' && b.z < rimZ - r) n.state = 'bin';
+  } else if (b.z < bin.zf + r*0.85){ // missed — it rolls on the floor, so pop it back in
+    b.z = bin.zf + r*0.85; toss(n);
+  } else if (onDesk(b.x, b.y, -r*0.4) && b.z < r*0.85 && n.state !== 'drop'){ b.z = r*0.85; b.vz = Math.abs(b.vz)*0.3; b.vx *= 0.7; b.vy *= 0.7; }
+  const sp = Math.hypot(b.vx, b.vy, b.vz);
+  if (n.state === 'bin' && sp < 12){ b.sleep += dt; b.wx *= 0.9; b.wy *= 0.9; b.wz *= 0.9; } else b.sleep = 0;
+}
+function writeRigid(n){
+  const b = n.rb, m = b.m, L = n.local, P = n.P;
+  for (let i = 0; i < N; i++){ const k = i*3, x = L[k], y = L[k+1], z = L[k+2];
+    P[k] = b.x + m[0]*x + m[1]*y + m[2]*z; P[k+1] = b.y + m[3]*x + m[4]*y + m[5]*z; P[k+2] = b.z + m[6]*x + m[7]*y + m[8]*z; }
+}
+function startUnfold(n, x, y){
+  n.state = 'unfold'; n.simT = 0; n.order = order++;
+  writeRigid(n); n.Q.set(n.P);
+  n.cx = Math.max(NW*0.6, Math.min(desk.w - NW*0.6, x)); n.cy = Math.max(NH*0.6, Math.min(desk.h - NH*0.6, y));
+  n.th = (rnd() - .5) * 0.12;
+  flatPose(n, n.T); n.rb = null; audio(); crackle(.8);
+}
+function stepRelax(n, dt, dur){
+  n.simT += dt; const k = Math.min(1, n.simT / dur), P = n.P, Q = n.Q, T = n.T;
+  const spring = 0.03 + 0.35*k*k;
+  for (let i = 0; i < N; i++){ const j = i*3;
+    for (let a = 0; a < 3; a++){ const v = (P[j+a] - Q[j+a]) * 0.8; Q[j+a] = P[j+a]; P[j+a] += v + (T[j+a] - P[j+a]) * spring; }
+    if (P[j+2] < 0.3) P[j+2] = 0.3;
+    n.AO[i] += (1 - n.AO[i]) * 0.08;
+  }
+  satisfy(n, 3, 0.8 * (1 - k));
+  if (rnd() < 0.25*(1 - k)) crackle(0.3*(1-k));
+  if (k >= 1){ n.P.set(T); n.Q.set(T); n.AO.fill(1); n.state = 'flat'; n.dirty = true; return true; }
+  return false;
+}
+
+/* ---------------- input ---------------- */
+let held = null, now = performance.now();
+function firstDelete(){ if (firstDone) return; firstDone = true; const h = $('#hint'); h.style.opacity = 0; setTimeout(() => { h.innerHTML = mobile ? '<i>Drag a paper ball out</i> of the bin to restore it.' : '<i>Pull a paper ball out</i> of the bin and drop it on the desk to restore the note.'; h.style.opacity = 1; }, 700); }
+function pickBall(px, py){
+  let best = null, bd = Infinity;
+  for (const n of notes){ if (n.state !== 'bin' && n.state !== 'fly') continue; const p = proj(n.rb.x, n.rb.y, n.rb.z); const d = Math.hypot(p[0]-px, p[1]-py); if (d < n.ballR*p[2]*1.25 && d < bd){ bd = d; best = n; } }
+  return best;
+}
+function pickNote(px, py){
+  const [wx, wy] = unproj(px, py, 2);
+  const list = notes.filter(n => n.state === 'flat').sort((a, b) => b.order - a.order);
+  for (const n of list){ const c = Math.cos(-n.th), s = Math.sin(-n.th), dx = wx - n.cx, dy = wy - n.cy, lx = c*dx - s*dy, ly = s*dx + c*dy; if (Math.abs(lx) < NW/2 && Math.abs(ly) < NH/2) return n; }
+  return null;
+}
+cv.addEventListener('pointerdown', e => {
+  if (held || e.button > 0) return;
+  audio();
+  const px = e.clientX, py = e.clientY;
+  const ball = pickBall(px, py);
+  if (ball){
+    ball.state = 'lift'; ball.order = order++; held = {n: ball, kind:'ball', x:px, y:py, hist:[]};
+    cv.setPointerCapture(e.pointerId); cv.classList.add('grabbing'); crackle(.4); return;
+  }
+  const n = pickNote(px, py);
+  if (n){
+    const [wx, wy] = unproj(px, py, 2);
+    held = {n, kind:'pending', x:px, y:py, sx:px, sy:py, t0:now, ox: n.cx - wx, oy: n.cy - wy};
+    n.order = order++; n.dirty = true; cv.setPointerCapture(e.pointerId); cv.classList.add('grabbing');
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!held) { const over = pickBall(e.clientX, e.clientY) || pickNote(e.clientX, e.clientY); cv.style.cursor = over ? 'grab' : 'default'; return; }
+  held.x = e.clientX; held.y = e.clientY;
+  held.hist.push && held.hist.push([now, e.clientX, e.clientY]);
+  if (held.kind === 'pending' && Math.hypot(held.x - held.sx, held.y - held.sy) > 9){ held.kind = 'drag'; held.n.state = 'drag'; }
+});
+function release(){
+  if (!held) return; const h = held, n = h.n; held = null; cv.classList.remove('grabbing');
+  if (h.kind === 'pending'){ n.state = 'flat'; n.dirty = true; return; }
+  if (h.kind === 'drag'){
+    const tp = proj(bin.x, bin.y, bin.zf + bin.h);
+    if (Math.hypot(h.x - tp[0], h.y - tp[1]) < bin.r*tp[2]*1.1){ startCrumple(n, n.cx, n.cy, true); return; }
+    n.cx = Math.max(NW*0.5, Math.min(desk.w - NW*0.5, n.cx)); n.cy = Math.max(NH*0.5, Math.min(desk.h - NH*0.5, n.cy));
+    n.state = 'flat'; flatPose(n, n.P); n.dirty = true; thud(.15); return;
+  }
+  if (h.kind === 'crumple'){
+    if (n.state === 'crumple'){ // let go early: it springs back, a little more wrinkled
+      addCreases(n, n.t*0.8); n.state = 'relax'; n.simT = 0; n.Q.set(n.P); flatPose(n, n.T); say('Let go early — the note is still on the desk.'); return; }
+    if (n.state === 'held'){ toss(n); return; }
+  }
+  if (h.kind === 'ball'){
+    const b = n.rb; const [wx, wy] = unproj(h.x, h.y, b.z);
+    if (onDesk(wx, wy, 10)){ n.state = 'drop'; b.vx = b.vy = 0; b.vz = 0; return; }
+    toss(n); say('Back in the bin.');
+  }
+}
+cv.addEventListener('pointerup', release); cv.addEventListener('pointercancel', release);
+
+/* keyboard path */
+const a11y = $('#a11y'); const btns = [];
+notes.forEach(n => {
+  const b = document.createElement('button'); b.type = 'button';
+  b.setAttribute('aria-label', `Note: ${n.text}. Press Delete to crumple it into the bin.`);
+  b.addEventListener('keydown', e => { if ((e.key === 'Delete' || e.key === 'Backspace') && n.state === 'flat'){ e.preventDefault(); audio(); startCrumple(n, n.cx, n.cy, true); } });
+  a11y.appendChild(b); btns.push(b); n.btn = b;
+});
+const binBtn = document.createElement('button'); binBtn.type = 'button'; a11y.appendChild(binBtn);
+binBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); audio(); restoreLatest(); } });
+function restoreLatest(){
+  const inBin = notes.filter(n => n.state === 'bin').sort((a, b) => b.binnedAt - a.binnedAt);
+  if (!inBin.length){ say('The bin is empty.'); return; }
+  const n = inBin[0], b = n.rb, tf = reduce ? 0.3 : 0.9;
+  n.state = 'restore'; n.order = order++;
+  const T = {x: n.home.x, y: n.home.y, z: n.ballR*0.85};
+  b.vx = (T.x - b.x)/tf; b.vy = (T.y - b.y)/tf; b.vz = (T.z - b.z)/tf + 0.5*G*tf; b.wx = (rnd()-.5)*8; b.wy = (rnd()-.5)*8;
+  n.restoreT = tf; whoosh();
+}
+function placeA11y(){
+  notes.forEach(n => {
+    const b = n.btn, show = n.state === 'flat' || n.state === 'relax' || n.state === 'drag';
+    b.style.display = show ? '' : 'none'; b.tabIndex = show ? 0 : -1;
+    b.style.left = (n.cx - NW/2) + 'px'; b.style.top = (n.cy - NH/2) + 'px'; b.style.width = NW + 'px'; b.style.height = NH + 'px';
+    b.style.transform = `rotate(${n.th}rad)`;
+  });
+  const p = proj(bin.x, bin.y, bin.zf + bin.h), r = bin.r*p[2];
+  Object.assign(binBtn.style, {left:(p[0]-r)+'px', top:(p[1]-r)+'px', width:2*r+'px', height:2*r+'px', borderRadius:'50%'});
+}
+
+/* ---------------- status ---------------- */
+const live = $('#live'); let sayT = 0;
+function say(t){ clearTimeout(sayT); sayT = setTimeout(() => live.textContent = t, 50); }
+function updateStatus(){
+  const inBin = notes.filter(n => ['fly','bin','lift','held'].includes(n.state)).length, onD = notes.length - inBin;
+  $('#status').innerHTML = `<b>${onD}</b> on the desk · <b>${inBin}</b> in the bin`;
+  $('#tag').textContent = `Bin · ${inBin}`;
+  const h = $('#hint');
+  if (onD === 0 && !h.dataset.clear){ h.dataset.clear = '1'; h.innerHTML = '<i>A clear desk.</i> Pull a ball out of the bin whenever you need a note back.'; }
+  else if (onD > 0 && h.dataset.clear){ delete h.dataset.clear; h.innerHTML = mobile ? '<i>Drag a paper ball out</i> of the bin to restore it.' : '<i>Pull a paper ball out</i> of the bin and drop it on the desk to restore the note.'; }
+  binBtn.setAttribute('aria-label', inBin ? `Bin with ${inBin} crumpled note${inBin>1?'s':''}. Press Enter to restore the most recent.` : 'Bin, empty.');
+}
+
+/* ---------------- render ---------------- */
+function drawShadows(){
+  sx.setTransform(dpr,0,0,dpr,0,0); sx.clearRect(0, 0, VW, VH);
+  // bin on the floor
+  const fb = proj(bin.x + bin.h*LX*0.5, bin.y + bin.h*LY*0.5, bin.zf);
+  sx.fillStyle = 'rgba(30,24,18,.9)'; sx.beginPath(); sx.ellipse(fb[0], fb[1], bin.r*fb[2]*1.05, bin.r*fb[2]*1.05, 0, 0, Math.PI*2); sx.fill();
+  for (const n of notes){
+    if (n.state === 'bin' || n.state === 'fly' && n.rb && inBinXY(n.rb) && n.rb.z < bin.zf + bin.h) continue;
+    if (n.rb){
+      const b = n.rb; const over = onDesk(b.x, b.y) ? 0 : bin.zf; const hgt = Math.max(0, b.z - over);
+      const p = proj(b.x + hgt*LX, b.y + hgt*LY, over), a = Math.max(0.15, 1 - hgt/900);
+      sx.fillStyle = `rgba(30,24,18,${a})`; sx.beginPath(); sx.ellipse(p[0], p[1], n.ballR*p[2]*(0.9 + hgt/800), n.ballR*p[2]*(0.8 + hgt/800), 0.6, 0, Math.PI*2); sx.fill();
+      continue;
+    }
+    sx.fillStyle = 'rgba(30,24,18,.95)';
+    const P = n.P;
+    sx.beginPath();
+    for (let t = 0; t < IDX.length; t += 6){ // quads, coarse is fine under blur
+      const a = IDX[t]*3, b = IDX[t+1]*3, c = IDX[t+4]*3, d = IDX[t+2]*3;
+      sx.moveTo(P[a] + P[a+2]*LX + 2, P[a+1] + P[a+2]*LY + 3); sx.lineTo(P[b] + P[b+2]*LX + 2, P[b+1] + P[b+2]*LY + 3);
+      sx.lineTo(P[c] + P[c+2]*LX + 2, P[c+1] + P[c+2]*LY + 3); sx.lineTo(P[d] + P[d+2]*LX + 2, P[d+1] + P[d+2]*LY + 3); sx.closePath();
+    }
+    sx.fill();
+  }
+}
+function render(){
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.frontFace(gl.CW); gl.disable(gl.CULL_FACE);
+  // bin
+  gl.useProgram(binProg);
+  gl.uniform2f(BU.uCam, cam.x, cam.y); gl.uniform1f(BU.uD, D); gl.uniform2f(BU.uHalf, VW/2, VH/2);
+  gl.uniform3f(BU.uL, L3[0], L3[1], L3[2]); gl.uniform1f(BU.uZF, bin.zf); gl.uniform1f(BU.uH, bin.h); gl.uniform2f(BU.uLxy, LX, LY); gl.uniform2f(BU.uBin, bin.x, bin.y); gl.uniform1f(BU.uBinR, bin.r);
+  const balls = []; for (const n of notes){ if (n.rb && inBinXY(n.rb) && n.rb.z < bin.zf + bin.h + 60 && balls.length < 32) balls.push(n.rb.x, n.rb.y, n.rb.z, n.ballR); }
+  const arr = new Float32Array(32); arr.set(balls.slice(0, 32)); gl.uniform4fv(BU.uBalls, arr); gl.uniform1i(BU.uNB, balls.length/4);
+  gl.bindVertexArray(binVao); gl.drawArrays(gl.TRIANGLES, 0, binCount);
+  // paper
+  gl.useProgram(paperProg);
+  gl.uniform2f(PU.uCam, cam.x, cam.y); gl.uniform1f(PU.uD, D); gl.uniform2f(PU.uHalf, VW/2, VH/2);
+  gl.uniform3f(PU.uL, L3[0], L3[1], L3[2]); gl.uniform1i(PU.uTex, 0); gl.activeTexture(gl.TEXTURE0);
+  for (const n of notes){
+    gl.uniform3f(PU.uBack, n.col[0]/255*0.97, n.col[1]/255*0.97, n.col[2]/255*0.95);
+    gl.bindVertexArray(n.vao);
+    if (n.dirty || n.state !== 'flat'){
+      gl.bindBuffer(gl.ARRAY_BUFFER, n.pb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, n.P);
+      gl.bindBuffer(gl.ARRAY_BUFFER, n.ab); gl.bufferSubData(gl.ARRAY_BUFFER, 0, n.AO);
+      n.dirty = false;
+    }
+    gl.bindTexture(gl.TEXTURE_2D, n.tex);
+    gl.drawElements(gl.TRIANGLES, IDX.length, gl.UNSIGNED_SHORT, 0);
+  }
+  gl.bindVertexArray(null);
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), raf = 0, statusTick = 0;
+function frame(t){
+  now = t; const dt = Math.min(1/30, (t - last)/1000); last = t;
+  if (held && held.kind === 'pending' && t - held.t0 > 170){
+    held.kind = 'crumple'; const [wx, wy] = unproj(held.x, held.y, 2); startCrumple(held.n, wx, wy, false);
+    if (reduce){ held.n.t = 0.999; }
+  }
+  for (const n of notes){
+    switch (n.state){
+      case 'crumple': {
+        if (held && held.n === n){ const [wx, wy] = unproj(held.x, held.y, n.C.z); n.C.x += (wx - n.C.x)*0.25; n.C.y += (wy - n.C.y)*0.25; }
+        stepCrumple(n, reduce ? 1 : dt); break; }
+      case 'held': {
+        const b = n.rb, [wx, wy] = unproj(held ? held.x : 0, held ? held.y : 0, 90);
+        if (held){ const nx = b.x + (wx - b.x)*0.3, ny = b.y + (wy - b.y)*0.3; b.wx = (ny - b.y)*0.25; b.wy = -(nx - b.x)*0.25; b.x = nx; b.y = ny; b.z += (90 - b.z)*0.2; rotM(b.m, b.wx, b.wy, 0, dt*8); }
+        writeRigid(n); break; }
+      case 'lift': {
+        const b = n.rb, zt = 140, [wx, wy] = unproj(held ? held.x : 0, held ? held.y : 0, b.z);
+        const rimZ = bin.zf + bin.h; b.z += (zt - b.z)*(reduce ? 1 : 0.16);
+        let tx = b.x + (wx - b.x)*0.3, ty = b.y + (wy - b.y)*0.3;
+        if (b.z < rimZ + n.ballR){ const dx = tx - bin.x, dy = ty - bin.y, d = Math.hypot(dx, dy), m = bin.r*0.9 - n.ballR*0.8; if (d > m){ tx = bin.x + dx/d*m; ty = bin.y + dy/d*m; } }
+        b.wx = (ty - b.y)*0.2; b.wy = -(tx - b.x)*0.2; rotM(b.m, b.wx, b.wy, 0, dt*8); b.x = tx; b.y = ty;
+        writeRigid(n); break; }
+      case 'fly': case 'bin': {
+        if (n.state === 'bin' && n.rb.sleep > 0.6) break;
+        stepBall(n, dt); writeRigid(n); break; }
+      case 'drop': {
+        const b = n.rb; b.vz -= G*dt; b.z += b.vz*dt; rotM(b.m, 2, 1, 0, dt);
+        if (b.z <= n.ballR*0.85){ b.z = n.ballR*0.85; thud(.4); startUnfold(n, b.x, b.y); say(`Restored “${n.text}”.`); updateStatus(); }
+        else writeRigid(n); break; }
+      case 'restore': {
+        const b = n.rb; b.vz -= G*dt; b.x += b.vx*dt; b.y += b.vy*dt; b.z += b.vz*dt; rotM(b.m, b.wx, b.wy, 0, dt); n.restoreT -= dt;
+        if (n.restoreT <= 0 || b.z <= n.ballR*0.85){ b.z = n.ballR*0.85; thud(.4); startUnfold(n, b.x, b.y); say(`Restored “${n.text}”.`); updateStatus(); }
+        else writeRigid(n); break; }
+      case 'unfold': stepRelax(n, dt, reduce ? 0.05 : 1.3); break;
+      case 'relax': stepRelax(n, dt, reduce ? 0.05 : 0.7); break;
+      case 'drag': {
+        if (held && held.n === n){ const [wx, wy] = unproj(held.x, held.y, 10); n.cx = wx + held.ox; n.cy = wy + held.oy; }
+        flatPose(n, n.P, 9); n.dirty = true; break; }
+    }
+  }
+  if (t - statusTick > 250){ statusTick = t; updateStatus(); placeA11y(); }
+  drawShadows(); render();
+  raf = requestAnimationFrame(frame);
+}
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else start(); });
+
+function rebuild(){
+  layout(); restLengths(); buildBin();
+  notes.forEach((n, i) => {
+    if (n.state === 'flat' || n.state === 'relax' || n.state === 'drag'){ placeHome(n, i); n.state = 'flat'; }
+    else if (n.state === 'bin' || n.state === 'fly'){ n.rb.x = bin.x + (rnd()-.5)*bin.r*0.6; n.rb.y = bin.y + (rnd()-.5)*bin.r*0.6; n.rb.z = bin.zf + bin.h*0.6; n.rb.sleep = 0; n.home = {x: slots()[i][0], y: slots()[i][1], th: 0}; }
+    noteTexture(n);
+  });
+  placeA11y(); updateStatus();
+}
+let rsT = 0; addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(rebuild, 120); });
+rebuild(); start();
+document.fonts && document.fonts.ready.then(() => notes.forEach(noteTexture));
+window.__paper = {notes, startCrumple, restoreLatest, toss};
+})();
+</script>
+</body>
+</html>

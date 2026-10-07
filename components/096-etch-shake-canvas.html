@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etch Shake Canvas</title>
+<meta name="description" content="A drawing canvas you drive with two knobs and clear by shaking the red plastic frame — the aluminium powder recoats the screen unevenly, just like the toy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Yellowtail&family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Etch Shake Canvas","reimagines":"Drawing canvas + clear","category":"Novel Interactions","description":"Reply with a sketch drawn on a glossy red toy: turn the two knobs (or hold the arrow keys — diagonals included) to scrape lines through aluminium powder, then grab the frame and shake it to clear. Each shake recoats the screen a little more, unevenly, the way the real toy does.","hint":"Turn the knobs to draw; grab the red frame and shake it to clear"}
+</script>
+<style>
+:root{--red:#d3202b;--red-d:#9e1119;--red-l:#ff5a55;--gold:#e8c35a;--powder:#c8c8c3;--line:#54575a;--ink:#2a2420}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Fredoka","Arial Rounded MT Bold",system-ui,sans-serif;color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased;
+  background:linear-gradient(180deg,#bfe3e6 0%,#cbe9ea 58%,#e9d3b0 58.2%,#e2c79f 100%)}
+.room{position:fixed;inset:0;pointer-events:none;
+  background:
+    radial-gradient(60% 40% at 30% 30%, rgba(255,255,255,.55), rgba(255,255,255,0) 70%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0) 0 90px, rgba(255,255,255,.08) 90px 92px),
+    linear-gradient(180deg, rgba(0,0,0,0) 57%, rgba(120,80,40,.0) 58%, rgba(120,80,40,.12) 100%)}
+.stage{position:relative;height:100dvh;display:grid;grid-template-columns:auto 300px;gap:48px;align-items:center;justify-content:center;padding:16px}
+.toyWrap{position:relative;width:var(--tw);height:calc(var(--tw)*0.8)}
+.toy{position:absolute;left:0;top:0;width:700px;height:560px;transform-origin:0 0;transform:scale(var(--ts)) translate(var(--ox,0px),var(--oy,0px)) rotate(var(--rz,0deg));touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.toy.grabbing{cursor:grabbing}
+.shadow{position:absolute;left:4%;right:4%;bottom:-4%;height:12%;border-radius:50%;background:radial-gradient(closest-side, rgba(80,40,20,.35), rgba(80,40,20,0));filter:blur(6px);transform:translate(calc(var(--ox,0px)*.4), 0)}
+.frame{position:absolute;inset:0;border-radius:34px;
+  background:
+    radial-gradient(80% 50% at 50% 0%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%),
+    linear-gradient(180deg,#ef3a3f 0%,#d3202b 40%,#b5141e 100%);
+  box-shadow:
+    inset 0 3px 2px rgba(255,255,255,.55), inset 0 -8px 14px rgba(80,0,10,.45), inset 6px 0 10px rgba(255,120,120,.25), inset -6px 0 12px rgba(90,0,10,.35),
+    0 2px 0 #8e0d15, 0 24px 40px rgba(70,20,10,.35), 0 6px 10px rgba(70,20,10,.25)}
+.frame::after{content:"";position:absolute;left:30px;right:30px;top:8px;height:22px;border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0));pointer-events:none}
+.logo{position:absolute;left:0;right:0;top:10px;text-align:center;font-family:"Yellowtail",cursive;font-size:44px;line-height:1;color:var(--gold);
+  text-shadow:0 1px 0 #fff3b8, 0 -1px 0 #9a6a10, 0 2px 3px rgba(80,0,0,.45);letter-spacing:.01em;pointer-events:none}
+.logo small{font-family:"Fredoka",sans-serif;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#f6d77d;vertical-align:middle;margin-left:10px;text-shadow:0 1px 1px rgba(80,0,0,.5)}
+.bezel{position:absolute;left:62px;top:66px;width:576px;height:396px;border-radius:14px;
+  background:linear-gradient(180deg,#a51520,#c81d28);box-shadow:inset 0 4px 8px rgba(60,0,0,.6), inset 0 -2px 2px rgba(255,140,140,.35), 0 1px 0 rgba(255,255,255,.35)}
+.screen{position:absolute;left:70px;top:74px;width:560px;height:380px;border-radius:8px;overflow:hidden;background:var(--powder);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.45);cursor:default}
+.screen canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.screen::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg, rgba(255,255,255,.0) 30%, rgba(255,255,255,.28) 38%, rgba(255,255,255,0) 46%, rgba(255,255,255,0) 70%, rgba(255,255,255,.12) 76%, rgba(255,255,255,0) 82%),
+  radial-gradient(120% 90% at 50% 40%, rgba(255,255,255,0) 60%, rgba(0,0,0,.12) 100%)}
+.knob{position:absolute;width:104px;height:104px;border-radius:50%;cursor:grab;touch-action:none;outline:none}
+.knob .cap{position:absolute;inset:6px;border-radius:50%;
+  background:
+    radial-gradient(circle at 38% 30%, #ffffff 0 18%, rgba(255,255,255,0) 46%),
+    repeating-conic-gradient(from var(--a,0deg), #f2efe8 0 4deg, #c9c4ba 4deg 8deg);
+  box-shadow: 0 7px 0 #b8b1a5, 0 12px 14px rgba(60,10,10,.45), inset 0 -4px 8px rgba(0,0,0,.18)}
+.knob .cap::after{content:"";position:absolute;inset:16px;border-radius:50%;background:radial-gradient(circle at 40% 35%, #ffffff, #ebe7df 60%, #d8d2c7);box-shadow:inset 0 2px 3px rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.18)}
+.knob:focus-visible .cap{box-shadow:0 7px 0 #b8b1a5, 0 12px 14px rgba(60,10,10,.45), 0 0 0 4px #ffe27a}
+.knob.L{left:10px;top:448px}.knob.R{right:10px;top:448px}
+.arrows{position:absolute;top:466px;font-size:20px;color:#ffd7cf;opacity:.9;letter-spacing:.1em;pointer-events:none;text-shadow:0 -1px 0 rgba(90,0,0,.6)}
+.arrows.L{left:126px}.arrows.R{right:126px}
+.side{display:flex;flex-direction:column;gap:14px;align-self:center}
+#thread{display:flex;flex-direction:column;gap:14px}
+#thread:empty{display:none}
+.bub{position:relative;max-width:280px;padding:12px 16px;border-radius:22px;font-size:17px;line-height:1.3;
+  box-shadow:inset 0 2px 1px rgba(255,255,255,.8), inset 0 -4px 8px rgba(0,0,0,.08), 0 6px 0 rgba(0,0,0,.08), 0 10px 18px rgba(30,60,70,.18)}
+.bub .who{display:block;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:2px}
+.them{background:linear-gradient(180deg,#fffdf6,#f2ece0);align-self:flex-start;border-bottom-left-radius:6px}
+.me{background:linear-gradient(180deg,#ffe57e,#f4c93e);align-self:flex-end;border-bottom-right-radius:6px}
+.me img{display:block;width:220px;height:auto;border-radius:10px;margin-top:4px;box-shadow:0 0 0 6px #d3202b, 0 0 0 7px #8e0d15}
+.bub.pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+.btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.pbtn{font:inherit;font-weight:600;font-size:16px;border:0;cursor:pointer;padding:12px 20px 14px;border-radius:999px;color:#fff;
+  background:radial-gradient(80% 60% at 50% 10%, rgba(255,255,255,.45), rgba(255,255,255,0) 60%), linear-gradient(180deg,#ef3a3f,#c41a25);
+  box-shadow:inset 0 2px 1px rgba(255,255,255,.5), inset 0 -3px 6px rgba(80,0,10,.4), 0 6px 0 #8e0d15, 0 10px 14px rgba(70,20,10,.3);text-shadow:0 1px 1px rgba(80,0,0,.5);transition:transform .08s, box-shadow .08s}
+.pbtn:active{transform:translateY(5px);box-shadow:inset 0 2px 1px rgba(255,255,255,.5), inset 0 -3px 6px rgba(80,0,10,.4), 0 1px 0 #8e0d15, 0 3px 6px rgba(70,20,10,.3)}
+.pbtn.white{color:#5a1015;text-shadow:none;background:radial-gradient(80% 60% at 50% 10%, rgba(255,255,255,.9), rgba(255,255,255,0) 60%), linear-gradient(180deg,#fbf8f2,#e3ddd2);box-shadow:inset 0 2px 1px #fff, inset 0 -3px 6px rgba(0,0,0,.12), 0 6px 0 #b8b1a5, 0 10px 14px rgba(70,20,10,.2)}
+.pbtn:focus-visible{outline:3px solid #2a6f7a;outline-offset:4px}
+.pbtn[disabled]{opacity:.55;cursor:not-allowed}
+.hint{font-size:14px;color:#3b5d63;max-width:290px;line-height:1.4}
+.hint b{font-weight:600}
+.mute{position:absolute;right:14px;top:12px;border:0;background:none;color:#3b5d63;cursor:pointer;padding:4px}
+.mute svg{width:18px;height:18px;display:block}
+.mute:focus-visible{outline:2px solid #2a6f7a}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:900px){
+  body{overflow-y:auto;background:linear-gradient(180deg,#bfe3e6 0%,#cbe9ea 70%,#e9d3b0 70.2%,#e2c79f 100%)}
+  .stage{grid-template-columns:1fr;gap:12px;align-content:start;justify-items:center;padding:12px 14px 20px;height:auto;min-height:100dvh}
+  .side{order:-1;width:100%;max-width:420px;gap:8px}
+  .bub{font-size:15px;padding:9px 13px}
+  #thread{gap:8px}
+  .me img{width:170px}
+  .side .btns,.side .hint{display:none}
+  .mobileBtns{display:flex !important}
+}
+.mobileBtns{display:none;gap:12px;justify-content:center;flex-wrap:wrap;width:100%;max-width:420px}
+.mobileBtns .hint{text-align:center;max-width:none;width:100%}
+@media (prefers-reduced-motion: reduce){ .bub.pop{animation:none} }
+</style>
+</head>
+<body>
+<div class="room"></div>
+<div class="stage">
+  <div class="toyWrap" id="wrap">
+    <div class="shadow" id="shadow"></div>
+    <div class="toy" id="toy" aria-label="Drawing toy. Grab the red frame and shake it to clear the screen.">
+      <div class="frame"></div>
+      <div class="logo">Sketch &amp; Shake<small>Magic screen</small></div>
+      <div class="bezel"></div>
+      <div class="screen" id="screen"><canvas id="powder"></canvas><canvas id="lines" role="img" aria-label="Your sketch"></canvas><canvas id="shimmer"></canvas></div>
+      <div class="arrows L" aria-hidden="true">◂ ▸</div><div class="arrows R" aria-hidden="true">▴ ▾</div>
+      <div class="knob L" id="knobL" tabindex="0" role="slider" aria-label="Left knob — moves the line left and right" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><div class="cap"></div></div>
+      <div class="knob R" id="knobR" tabindex="0" role="slider" aria-label="Right knob — moves the line up and down" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><div class="cap"></div></div>
+    </div>
+  </div>
+  <aside class="side" id="side" aria-label="Conversation with Maya">
+    <div class="bub them"><span class="who">Maya · 15:12</span>Can you draw me the way to the café? Meeting you there at four.</div>
+    <div id="thread"></div>
+    <div class="btns">
+      <button class="pbtn" id="send">Send sketch to Maya</button>
+      <button class="pbtn white" id="shakeBtn">Shake to clear</button>
+    </div>
+    <p class="hint"><b>Turn the knobs</b> to draw — or hold the arrow keys; two at once draws diagonals. <b>Grab the red frame and shake</b> to clear.</p>
+  </aside>
+  <div class="mobileBtns" id="mobileBtns">
+    <button class="pbtn" id="send2">Send to Maya</button>
+    <button class="pbtn white" id="shakeBtn2">Shake to clear</button>
+    <p class="hint"><b>Turn the knobs</b> to draw. <b>Shake the frame</b> to clear.</p>
+  </div>
+  <button class="mute" id="mute" aria-label="Mute toy sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const SW = 560, SH = 380;
+const toy = $('#toy'), wrap = $('#wrap'), shadowEl = $('#shadow');
+const powder = $('#powder'), lines = $('#lines'), shim = $('#shimmer');
+const pc = powder.getContext('2d'), lc = lines.getContext('2d'), sc = shim.getContext('2d');
+let scale = 1, dpr = 1, R = 1;
+
+/* ---------------- layout ---------------- */
+function layout(){
+  const mobile = innerWidth < 900;
+  const availW = mobile ? Math.min(innerWidth - 28, 520) : Math.min(innerWidth - 300 - 48 - 40, 760);
+  const availH = mobile ? innerHeight*0.62 : innerHeight - 60;
+  scale = Math.max(0.3, Math.min(availW/700, availH/560));
+  document.documentElement.style.setProperty('--tw', (700*scale) + 'px');
+  document.documentElement.style.setProperty('--ts', scale);
+  dpr = Math.min(2, devicePixelRatio || 1); R = scale*dpr;
+  const keep = document.createElement('canvas'); keep.width = lines.width; keep.height = lines.height; if (lines.width) keep.getContext('2d').drawImage(lines, 0, 0);
+  [powder, lines, shim].forEach(c => { c.width = Math.round(SW*R); c.height = Math.round(SH*R); });
+  paintPowder();
+  if (keep.width) lc.drawImage(keep, 0, 0, lines.width, lines.height);
+  lc.setTransform(R, 0, 0, R, 0, 0); sc.setTransform(R, 0, 0, R, 0, 0);
+}
+function paintPowder(){
+  const w = powder.width, h = powder.height, id = pc.createImageData(w, h), d = id.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = (y*w + x)*4, n = (Math.random() - .5)*16, g = 206 - y/h*14 + n, sp = Math.random() < .004 ? 30 : 0;
+    d[i] = g + sp; d[i+1] = g + sp; d[i+2] = g - 4 + sp; d[i+3] = 255;
+  }
+  pc.putImageData(id, 0, 0);
+}
+
+/* ---------------- stylus & lines ---------------- */
+let sx = 0, sy = 0, moved = 0;
+function seg(x0, y0, x1, y1){
+  lc.save(); lc.lineCap = 'round'; lc.lineJoin = 'round';
+  lc.strokeStyle = 'rgba(70,72,74,.55)'; lc.lineWidth = 2.6; lc.beginPath(); lc.moveTo(x0, y0); lc.lineTo(x1, y1); lc.stroke();
+  lc.strokeStyle = '#4c4f52'; lc.lineWidth = 1.5; lc.beginPath(); lc.moveTo(x0, y0); lc.lineTo(x1, y1); lc.stroke();
+  lc.restore();
+}
+function moveBy(dx, dy){
+  const nx = Math.max(3, Math.min(SW - 3, sx + dx)), ny = Math.max(3, Math.min(SH - 3, sy + dy));
+  if (nx === sx && ny === sy) return 0;
+  seg(sx, sy, nx, ny); const d = Math.hypot(nx - sx, ny - sy); sx = nx; sy = ny; moved += d; dirtyCount = true; return d;
+}
+// a sketch already on the screen: the street, the café, and a route between them
+function seedSketch(){
+  // home on the left, a tree on the way, the café with its striped awning and steaming cup sign
+  sx = 34; sy = 312;
+  const P = [[34,250],[70,214],[106,250],[106,312],[150,312],[175,296],[205,290],[235,300],[262,312],
+    [292,312],[292,262],[276,258],[268,244],[272,228],[286,218],[302,218],[316,228],[320,244],[312,258],[296,262],[296,312],
+    [356,312],[356,160],[418,160],[418,136],[414,112],[452,112],[448,136],[418,136],[452,136],[458,122],[468,120],[468,130],[452,134],[448,136],[434,136],[434,112],[430,100],[438,90],[432,78],[438,90],[430,100],[434,112],[434,136],[434,160],
+    [520,160],[520,186],[506,198],[492,186],[478,198],[464,186],[450,198],[436,186],[422,198],[408,186],[394,198],[380,186],[366,198],[356,186],[356,312],
+    [432,312],[432,256],[464,256],[464,312],[520,312],[520,186]];
+  for (const [x, y] of P) stepTo(x, y);
+}
+function stepTo(x, y){ const dx = x - sx, dy = y - sy, n = Math.max(1, Math.ceil(Math.hypot(dx, dy)/3)); for (let i = 0; i < n; i++) moveBy(dx/n, dy/n); }
+
+/* ---------------- knobs ---------------- */
+const knobs = {L: {el: $('#knobL'), a: 0, axis: 'x'}, R: {el: $('#knobR'), a: 0, axis: 'y'}};
+const PX_PER_RAD = 30;
+const drags = new Map();
+function spinKnob(k, da){
+  k.a += da; k.el.querySelector('.cap').style.setProperty('--a', (k.a*180/Math.PI) + 'deg');
+}
+Object.values(knobs).forEach(k => {
+  k.el.addEventListener('pointerdown', e => {
+    e.stopPropagation(); audio(); k.el.setPointerCapture(e.pointerId);
+    const r = k.el.getBoundingClientRect(); const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    drags.set(e.pointerId, {k, cx, cy, a: Math.atan2(e.clientY - cy, e.clientX - cx)});
+    k.el.style.cursor = 'grabbing';
+  });
+  k.el.addEventListener('pointermove', e => {
+    const d = drags.get(e.pointerId); if (!d) return;
+    const a = Math.atan2(e.clientY - d.cy, e.clientX - d.cx); let da = a - d.a; if (da > Math.PI) da -= Math.PI*2; if (da < -Math.PI) da += Math.PI*2; d.a = a;
+    if (Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 6) return;
+    spinKnob(d.k, da);
+    // clockwise: left knob moves right, right knob moves up — like the real toy
+    const dist = d.k.axis === 'x' ? moveBy(da*PX_PER_RAD, 0) : moveBy(0, -da*PX_PER_RAD);
+    scrape(dist); hideHint();
+  });
+  const up = e => { drags.delete(e.pointerId); k.el.style.cursor = ''; };
+  k.el.addEventListener('pointerup', up); k.el.addEventListener('pointercancel', up);
+});
+/* keyboard: arrows anywhere (except inside buttons), diagonals with two keys */
+const keys = new Set();
+document.addEventListener('keydown', e => {
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key) && !(e.target.tagName === 'BUTTON')){
+    e.preventDefault(); audio(); keys.add(e.key); hideHint();
+  }
+  if ((e.key === 'Backspace' || e.key === 'Delete') && e.target.tagName !== 'BUTTON'){ e.preventDefault(); autoShake(); }
+});
+document.addEventListener('keyup', e => keys.delete(e.key));
+window.addEventListener('blur', () => keys.clear());
+
+/* ---------------- shaking ---------------- */
+let ox = 0, oy = 0, vx = 0, vy = 0, rz = 0, grab = null, energy = 0, shimmerE = 0, lastDir = 0, lastShakeT = 0, shakes = 0;
+const noiseTex = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
+  for (let i = 0; i < 900; i++){ const r = 4 + Math.random()*22; const g = x.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, 'rgba(0,0,0,.9)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.save(); x.translate(Math.random()*256, Math.random()*256); x.scale(1, .5 + Math.random()); x.fillStyle = g; x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill(); x.restore(); }
+  return c; })();
+function erase(strength){
+  // the powder slides back over the lines — unevenly, in drifts
+  lc.save(); lc.setTransform(1, 0, 0, 1, 0, 0); lc.globalCompositeOperation = 'destination-out';
+  const W = lines.width, H = lines.height;
+  for (let k = 0; k < 3; k++){ lc.globalAlpha = Math.min(1, strength*(.35 + Math.random()*.4)); const s = (.6 + Math.random()*.8)*R*1.4, ox2 = -Math.random()*256*s, oy2 = -Math.random()*256*s;
+    for (let x = ox2; x < W; x += 256*s) for (let y = oy2; y < H; y += 256*s) lc.drawImage(noiseTex, x, y, 256*s, 256*s); }
+  lc.globalAlpha = Math.min(1, strength*.12); lc.fillRect(0, 0, W, H);
+  lc.restore(); lc.setTransform(R, 0, 0, R, 0, 0);
+  shimmerE = Math.min(1.2, shimmerE + strength*1.6);
+  rattle(strength);
+}
+toy.addEventListener('pointerdown', e => {
+  if (e.button > 0) return; audio();
+  toy.setPointerCapture(e.pointerId); toy.classList.add('grabbing');
+  grab = {x: e.clientX, y: e.clientY, ox, oy, lx: e.clientX, lt: e.timeStamp, lvx: 0};
+});
+toy.addEventListener('pointermove', e => {
+  if (!grab) return;
+  const tx = grab.ox + (e.clientX - grab.x)/scale, ty = grab.oy + (e.clientY - grab.y)/scale;
+  const lim = 70; ox = Math.max(-lim, Math.min(lim, tx*0.8)); oy = Math.max(-lim*.6, Math.min(lim*.6, ty*0.6));
+  const dt = Math.max(8, e.timeStamp - grab.lt), v = (e.clientX - grab.lx)/dt*1000; // px/s
+  const dir = Math.sign(v);
+  if (dir && dir !== lastDir && Math.abs(grab.lvx) > 260){ const s = Math.min(1, Math.abs(grab.lvx)/1800); shake(s); }
+  if (Math.abs(v) > 120) lastDir = dir;
+  grab.lvx = v; grab.lx = e.clientX; grab.lt = e.timeStamp;
+  // vertical shakes count too
+  if (grab.ly != null){ const vy2 = (e.clientY - grab.ly)/dt*1000, d2 = Math.sign(vy2); if (d2 && grab.ldy && d2 !== grab.ldy && Math.abs(grab.lvy) > 300) shake(Math.min(1, Math.abs(grab.lvy)/2000)); if (Math.abs(vy2) > 140) grab.ldy = d2; grab.lvy = vy2; }
+  grab.ly = e.clientY;
+});
+const release = () => { if (!grab) return; grab = null; toy.classList.remove('grabbing'); };
+toy.addEventListener('pointerup', release); toy.addEventListener('pointercancel', release);
+function shake(s){
+  const now = performance.now(); if (now - lastShakeT < 60) return; lastShakeT = now; shakes++;
+  erase(s*0.55 + 0.08); hideHint();
+  if (shakes === 1) say('Shaking — keep going to clear the screen.');
+}
+function autoShake(){
+  audio(); let i = 0; const n = reduce ? 1 : 9;
+  const tick = () => { const dir = i % 2 ? 1 : -1; if (!reduce){ vx += dir*900; } shake(reduce ? 2.5 : 0.85); i++; if (i < n) setTimeout(tick, 110); else setTimeout(checkClear, 300); };
+  tick();
+}
+function checkClear(){
+  const d = lc.getImageData(0, 0, lines.width, lines.height).data; let ink = 0; for (let i = 3; i < d.length; i += 64) if (d[i] > 40) ink++;
+  if (ink < 4){ lc.save(); lc.setTransform(1,0,0,1,0,0); lc.clearRect(0, 0, lines.width, lines.height); lc.restore(); say('Screen clear. Turn the knobs to draw.'); return true; }
+  return false;
+}
+/* phones: a real shake clears it too (where motion events are available without a prompt) */
+let lastMotion = 0;
+window.addEventListener('devicemotion', e => { const a = e.acceleration || e.accelerationIncludingGravity; if (!a) return; const m = Math.hypot(a.x || 0, a.y || 0, a.z || 0) - (e.acceleration ? 0 : 9.8); const now = performance.now(); if (m > 14 && now - lastMotion > 120){ lastMotion = now; vx += (Math.random() - .5)*900; shake(Math.min(1, (m - 10)/20)); } });
+['shakeBtn','shakeBtn2'].forEach(id => $('#' + id).addEventListener('click', autoShake));
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false, nb = null, scrG = null, scrF = null;
+function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination);
+    nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1;
+    const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; scrF = ac.createBiquadFilter(); scrF.type = 'bandpass'; scrF.frequency.value = 4200; scrF.Q.value = 3; scrG = ac.createGain(); scrG.gain.value = 0; s.connect(scrF).connect(scrG).connect(master); s.start();
+  } catch(e){ ac = null; } }
+let scrapeLevel = 0;
+function scrape(d){ scrapeLevel = Math.min(1, scrapeLevel + d*0.05); }
+function rattle(s){ if (!ac || muted) return; const t = ac.currentTime;
+  for (let i = 0; i < 6 + s*14; i++){ const st = t + Math.random()*0.09, src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = nb; f.type = 'highpass'; f.frequency.value = 2500 + Math.random()*4000; g.gain.setValueAtTime(.12 + Math.random()*.25*s, st); g.gain.exponentialRampToValueAtTime(.0001, st + .02 + Math.random()*.03); src.connect(f).connect(g).connect(master); src.start(st, Math.random()*.5, .06); }
+  const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); src.buffer = nb; f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = .8; g.gain.setValueAtTime(.25*s, t); g.gain.exponentialRampToValueAtTime(.0001, t + .15); src.connect(f).connect(g).connect(master); src.start(t, 0, .2); }
+function pop(){ if (!ac || muted) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(980, t + .08); g.gain.setValueAtTime(.3, t); g.gain.exponentialRampToValueAtTime(.0001, t + .18); o.connect(g).connect(master); o.start(t); o.stop(t + .2); }
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute toy sounds' : 'Mute toy sounds'); $('#mw').style.opacity = muted ? 0 : 1; if (muted && scrG) scrG.gain.value = 0; });
+
+/* ---------------- sending ---------------- */
+const live = $('#live'); function say(t){ live.textContent = t; }
+let hinted = false; function hideHint(){ if (hinted) return; hinted = true; }
+function send(){
+  audio();
+  const c = document.createElement('canvas'); c.width = lines.width; c.height = lines.height; const x = c.getContext('2d'); x.drawImage(powder, 0, 0); x.drawImage(lines, 0, 0);
+  const d = lc.getImageData(0, 0, lines.width, lines.height).data; let ink = 0; for (let i = 3; i < d.length; i += 64) if (d[i] > 60) ink++;
+  if (ink < 6){ say('The screen is empty — draw something first.'); flashBub('The screen is empty — turn the knobs to draw something first.'); return; }
+  const url = c.toDataURL('image/png');
+  const t = $('#thread'), b = document.createElement('div'); b.className = 'bub me pop'; b.innerHTML = `<span class="who">You · 15:14</span><img alt="Your sketch, sent to Maya">`; b.querySelector('img').src = url; t.appendChild(b);
+  pop(); say('Sketch sent to Maya.');
+  if (t.children.length > 2) t.removeChild(t.firstChild);
+  setTimeout(() => { const r = document.createElement('div'); r.className = 'bub them pop'; r.innerHTML = `<span class="who">Maya · 15:15</span>${t.querySelectorAll('.me').length > 1 ? 'Even better. You’re an artist.' : 'Ha, perfect — past the tree, café with the striped awning. See you at four.'}`; t.appendChild(r); if (t.children.length > 3) t.removeChild(t.firstChild); pop(); }, reduce ? 200 : 1300);
+}
+function flashBub(text){ const t = $('#thread'), b = document.createElement('div'); b.className = 'bub them pop'; b.style.background = 'linear-gradient(180deg,#fff2ef,#f7dcd6)'; b.innerHTML = `<span class="who">Tip</span>${text}`; t.appendChild(b); setTimeout(() => b.remove(), 2600); }
+['send','send2'].forEach(id => $('#' + id).addEventListener('click', send));
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), raf = 0, dirtyCount = false;
+function frame(t){
+  const dt = Math.min(.05, (t - last)/1000); last = t;
+  // keyboard drawing with gentle acceleration
+  if (keys.size){
+    const sp = 90*dt; let dx = 0, dy = 0;
+    if (keys.has('ArrowLeft')) dx -= sp; if (keys.has('ArrowRight')) dx += sp; if (keys.has('ArrowUp')) dy -= sp; if (keys.has('ArrowDown')) dy += sp;
+    const d = moveBy(dx, dy); if (dx) spinKnob(knobs.L, dx/PX_PER_RAD); if (dy) spinKnob(knobs.R, -dy/PX_PER_RAD); scrape(d);
+  }
+  // frame springs back when let go; tilt follows motion
+  if (!grab){ vx += (-ox*180 - vx*14)*dt; vy += (-oy*180 - vy*14)*dt; ox += vx*dt; oy += vy*dt; }
+  const tilt = reduce ? 0 : Math.max(-4, Math.min(4, (grab ? ox*0.05 : ox*0.05)));
+  rz += (tilt - rz)*0.3;
+  toy.style.setProperty('--ox', (reduce ? 0 : ox) + 'px'); toy.style.setProperty('--oy', (reduce ? 0 : oy) + 'px'); toy.style.setProperty('--rz', rz + 'deg');
+  shadowEl.style.setProperty('--ox', ox + 'px');
+  // aluminium powder shimmer while it slides around
+  sc.clearRect(0, 0, SW, SH);
+  if (shimmerE > 0.01){
+    sc.fillStyle = `rgba(230,230,226,${Math.min(.5, shimmerE*.35)})`;
+    for (let i = 0; i < 260*shimmerE; i++){ sc.fillRect(Math.random()*SW, Math.random()*SH, 1 + Math.random()*2.5, .6 + Math.random()); }
+    sc.fillStyle = `rgba(120,120,118,${Math.min(.25, shimmerE*.15)})`;
+    for (let i = 0; i < 120*shimmerE; i++){ sc.fillRect(Math.random()*SW, Math.random()*SH, 1, 1); }
+    shimmerE *= Math.pow(.12, dt);
+    if (shimmerE < .02 && shakes){ if (checkClear()) shakes = 0; }
+  }
+  // stylus tip
+  sc.fillStyle = 'rgba(40,42,44,.75)'; sc.beginPath(); sc.arc(sx, sy, 1.6, 0, 7); sc.fill();
+  // scraping sound
+  if (ac && scrG){ scrG.gain.setTargetAtTime(muted ? 0 : scrapeLevel*.35, ac.currentTime, .03); }
+  scrapeLevel *= Math.pow(.02, dt);
+  if (dirtyCount){ dirtyCount = false; knobs.L.el.setAttribute('aria-valuenow', Math.round(sx/SW*100)); knobs.R.el.setAttribute('aria-valuenow', Math.round(100 - sy/SH*100)); }
+  raf = requestAnimationFrame(frame);
+}
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else start(); });
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+layout(); seedSketch(); start();
+/* knobs with keyboard focus: arrows already draw; Home/End jump the line to an edge */
+[knobs.L, knobs.R].forEach(k => k.el.addEventListener('keydown', e => { if (e.key === 'Home' || e.key === 'End'){ e.preventDefault(); const tgt = e.key === 'Home' ? 3 : (k.axis === 'x' ? SW - 3 : SH - 3); k.axis === 'x' ? stepTo(tgt, sy) : stepTo(sx, tgt); } }));
+})();
+</script>
+</body>
+</html>

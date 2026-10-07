@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radial Flick Menu</title>
+<meta name="description" content="A context menu as a spray-paint stencil marking menu on a legal graffiti wall: hold to see it, or flick blind and your gesture is sprayed onto the wall with drips.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Permanent+Marker&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Radial Flick Menu","reimagines":"Context menu","category":"Navigation & Wayfinding","description":"Press and hold anywhere on the wall and a stencil ring of commands is sprayed under your finger; flick toward one to choose. Once you know the directions, flick without waiting — the menu never appears, and your gesture is left on the wall in dripping spray paint.","hint":"Hold on a piece, then flick toward a command. Flick fast to skip the menu"}
+</script>
+<style>
+  :root{--black:#141414;--white:#f1eee6;--pink:#ff3d7f;--orange:#ff7a1a;--teal:#26cfc6;--yellow:#ffd21f;--wall:#a39f97}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#6f6b65}
+  body{font-family:"Barlow Condensed","Arial Narrow",sans-serif;color:var(--black);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;
+    background:
+      radial-gradient(ellipse 30% 25% at 18% 80%, rgba(60,50,40,.25), transparent 70%),
+      radial-gradient(ellipse 25% 40% at 84% 20%, rgba(255,255,255,.12), transparent 70%),
+      radial-gradient(ellipse 50% 20% at 50% 100%, rgba(30,25,20,.35), transparent 80%),
+      linear-gradient(#aaa69e,#9d9991)}
+  .tex{position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .52 0 0 0 0 .48 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .seams{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg, transparent 0 318px, rgba(40,35,30,.35) 318px 320px, rgba(255,255,255,.18) 320px 321px),
+    linear-gradient(transparent calc(52% - 1px), rgba(40,35,30,.3) calc(52% - 1px) 52%, rgba(255,255,255,.15) 52% calc(52% + 1px), transparent calc(52% + 1px))}
+  .buffpatch{position:absolute;pointer-events:none}
+  .oldtag{position:absolute;font-family:"Permanent Marker",cursive;pointer-events:none;opacity:.16;white-space:nowrap}
+  header{position:absolute;left:28px;top:20px;z-index:6;pointer-events:none}
+  .title{font-family:"Saira Stencil One",Impact,sans-serif;font-size:46px;line-height:.9;margin:0;color:var(--black);text-shadow:0 0 6px rgba(20,20,20,.45), 0 0 18px rgba(20,20,20,.18);letter-spacing:.02em}
+  .title span{color:var(--pink);text-shadow:0 0 6px rgba(255,61,127,.55)}
+  .pasteup{display:inline-block;margin-top:10px;background:#f4f1e8;padding:6px 12px 7px;font-size:17px;font-weight:500;transform:rotate(-1.2deg);
+    box-shadow:0 1px 2px rgba(0,0,0,.25);clip-path:polygon(0 4%,3% 0,40% 3%,70% 0,100% 5%,98% 50%,100% 96%,60% 100%,30% 97%,2% 100%,0 60%)}
+  .pasteup b{font-family:"Permanent Marker",cursive;font-weight:400;color:var(--pink)}
+  .sticker{position:absolute;right:26px;top:22px;z-index:6;background:var(--yellow);color:var(--black);padding:8px 14px 9px;border-radius:6px;transform:rotate(3deg);
+    font-family:"Permanent Marker",cursive;font-size:18px;box-shadow:0 2px 0 rgba(0,0,0,.25), inset 0 0 0 2px rgba(0,0,0,.08);pointer-events:none}
+  .sticker small{display:block;font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+  .sticker svg{position:absolute;left:50%;top:-30px;width:56px;margin-left:-28px;opacity:0;transform:scale(.6);transition:all .5s cubic-bezier(.3,1.6,.5,1)}
+  .sticker.pro svg{opacity:1;transform:none}
+  #wall{position:absolute;inset:0;z-index:2}
+  #wall:focus-visible{outline:3px dashed var(--pink);outline-offset:-10px}
+  .piece{position:absolute;outline:none}
+  .piece svg.art{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .piece .tag{position:absolute;left:50%;top:100%;transform:translateX(-50%) rotate(var(--tr,-1deg));background:#f4f1e8;padding:3px 9px 4px;white-space:nowrap;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    box-shadow:0 1px 2px rgba(0,0,0,.25);clip-path:polygon(0 6%,5% 0,50% 4%,96% 0,100% 8%,99% 90%,100% 100%,50% 96%,3% 100%,0 92%)}
+  .piece .tag i{font-style:normal;font-family:"Permanent Marker",cursive;font-weight:400;color:var(--pink);margin-left:6px;letter-spacing:0}
+  .piece:focus-visible .tag{outline:3px solid var(--pink);outline-offset:3px}
+  .piece.buffed svg.art,.piece.buffed .deco{opacity:0;transition:opacity .2s .6s}
+  .piece .deco{position:absolute;inset:0;pointer-events:none}
+  .roller{position:absolute;inset:-10% -8%;pointer-events:none;background:#9d998f;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.03 .4' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .6 0 0 0 0 .59 0 0 0 0 .56 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    clip-path:inset(0 100% 0 0);transition:clip-path .9s cubic-bezier(.5,0,.4,1)}
+  .piece.buffed .roller{clip-path:inset(0 0 0 0)}
+  #paint{position:absolute;inset:0;z-index:3;pointer-events:none}
+  #menu{position:absolute;z-index:8;pointer-events:none;left:0;top:0;overflow:visible}
+  #menu text{font-family:"Saira Stencil One",Impact,sans-serif}
+  .toast{position:absolute;left:50%;bottom:24px;z-index:9;transform:translate(-50%,220%) rotate(-1deg);opacity:0;background:#f4f1e8;padding:10px 16px 11px;font-size:19px;font-weight:500;display:flex;gap:14px;align-items:center;
+    box-shadow:0 2px 3px rgba(0,0,0,.3);clip-path:polygon(0 5%,4% 0,50% 3%,97% 0,100% 6%,99% 92%,100% 100%,50% 97%,2% 100%,0 94%);transition:transform .4s cubic-bezier(.3,1.4,.5,1),opacity .2s;max-width:calc(100% - 32px)}
+  .toast.on{transform:translate(-50%,0) rotate(-1deg);opacity:1}
+  .toast b{font-family:"Permanent Marker",cursive;font-weight:400}
+  .toast button{font:inherit;font-weight:700;font-size:16px;letter-spacing:.08em;text-transform:uppercase;background:var(--black);color:var(--yellow);border:0;padding:4px 10px;cursor:pointer}
+  .toast button:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+  .info{position:absolute;z-index:7;width:230px;background:#f4f1e8;padding:14px 16px 16px;transform:rotate(1.5deg) scale(.6);opacity:0;transition:all .35s cubic-bezier(.3,1.5,.5,1);pointer-events:none;
+    box-shadow:0 3px 6px rgba(0,0,0,.3);clip-path:polygon(0 2%,6% 0,50% 2%,95% 0,100% 3%,99% 97%,100% 100%,40% 98%,3% 100%,0 96%)}
+  .info.on{opacity:1;transform:rotate(1.5deg)}
+  .info h3{margin:0;font-family:"Saira Stencil One",sans-serif;font-weight:400;font-size:24px;line-height:1}
+  .info p{margin:6px 0 0;font-size:16px;line-height:1.2}
+  .info .by{font-family:"Permanent Marker",cursive;color:var(--pink);font-size:18px}
+  .hint{position:absolute;left:28px;bottom:14px;z-index:6;font-family:"Permanent Marker",cursive;font-size:18px;color:var(--white);text-shadow:0 0 4px rgba(0,0,0,.55);transform:rotate(-1.5deg);transition:opacity 1s;pointer-events:none;max-width:60%}
+  .hint.hide{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:760px){
+    header{left:14px;top:12px}
+    .title{font-size:25px}
+    .piece .tag .ar{display:none}
+    .pasteup{font-size:13.5px;max-width:250px}
+    .sticker{right:10px;top:46px;font-size:14px;padding:5px 9px}
+    .sticker small{font-size:10px}
+    .piece .tag{font-size:12px}
+    .hint{left:14px;right:14px;max-width:none;font-size:15px;bottom:14px}
+    .toast{font-size:15px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
+    <filter id="mist" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/><feTurbulence type="fractalNoise" baseFrequency="1.3" numOctaves="1" seed="8" result="n"/><feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 4 -1.6" result="m"/><feComposite in="b" in2="m" operator="in"/></filter>
+  </defs>
+</svg>
+<div id="stage">
+  <div class="tex" aria-hidden="true"></div>
+  <div class="seams" aria-hidden="true"></div>
+  <div id="decor" aria-hidden="true"></div>
+  <header>
+    <h1 class="title">BAY 7 <span>·</span> LEGAL WALL</h1>
+    <div class="pasteup">Canal Arches Collective · <b>hold</b> anything for options</div>
+  </header>
+  <div class="sticker" aria-live="polite"><svg viewBox="0 0 200 180" aria-hidden="true"><path d="M25 150L35 70 70 110 100 50 130 110 165 70 175 150Z M25 155h150v16H25z" fill="#141414"/><circle cx="35" cy="62" r="9" fill="#141414"/><circle cx="100" cy="42" r="9" fill="#141414"/><circle cx="165" cy="62" r="9" fill="#141414"/></svg><small>Blind flicks</small><span id="flicks">0</span></div>
+  <div id="wall" tabindex="0" role="application" aria-label="Graffiti wall. Each piece has a context menu: focus a piece and press Enter. Press Enter on the empty wall to spray a new stencil."></div>
+  <canvas id="paint" aria-hidden="true"></canvas>
+  <svg id="menu" aria-hidden="true"></svg>
+  <div class="info" id="info" role="dialog" aria-live="polite"></div>
+  <div class="toast" id="toast" role="status"><span id="toastTxt"></span><button type="button" id="undo" hidden>Undo</button></div>
+  <p class="hint" id="hint">Hold on a piece, then flick toward a command. Flick fast and the menu never needs to appear.</p>
+  <p class="sr" id="live" aria-live="assertive"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const stage = $('#stage'), wall = $('#wall'), cv = $('#paint'), cx = cv.getContext('2d'), menuEl = $('#menu');
+
+/* ---------------- stencil motifs (white = paint, black = cut) ---------------- */
+const MOTIF = {
+  crow:`<path d="M8 152H192" stroke="#fff" stroke-width="5"/><ellipse cx="95" cy="105" rx="46" ry="29" fill="#fff" transform="rotate(-14 95 105)"/><circle cx="136" cy="72" r="21" fill="#fff"/><path d="M150 64L186 74 150 82Z" fill="#fff"/><path d="M56 116L10 142 20 120 50 104Z" fill="#fff"/><path d="M95 128l-3 24M109 126l2 26" stroke="#fff" stroke-width="5"/><circle cx="141" cy="67" r="4.5" fill="#000"/><path d="M70 96Q100 80 126 100M62 110Q96 96 122 113" stroke="#000" stroke-width="3.5" fill="none"/>`,
+  cassette:`<rect x="18" y="48" width="164" height="104" rx="10" fill="#fff"/><rect x="44" y="70" width="112" height="46" rx="6" fill="#000"/><circle cx="72" cy="93" r="16" fill="#fff"/><circle cx="128" cy="93" r="16" fill="#fff"/><rect x="40" y="90" width="20" height="6" fill="#fff"/><rect x="140" y="90" width="20" height="6" fill="#fff"/><circle cx="72" cy="93" r="6" fill="#000"/><circle cx="128" cy="93" r="6" fill="#000"/><path d="M60 152L70 130H130L140 152Z" fill="#000"/><rect x="30" y="55" width="140" height="6" fill="#000"/><circle cx="28" cy="140" r="4" fill="#000"/><circle cx="172" cy="140" r="4" fill="#000"/>`,
+  rose:`<path d="M100 122C58 122 50 80 70 58C82 44 118 44 130 58C150 80 142 122 100 122Z" fill="#fff"/><path d="M100 86C90 86 88 75 98 72C113 70 116 89 102 96C82 103 75 78 88 64" stroke="#000" stroke-width="4" fill="none"/><path d="M72 72Q86 100 100 120M128 72Q114 100 100 120" stroke="#000" stroke-width="3" fill="none"/><path d="M100 120Q95 152 104 192" stroke="#fff" stroke-width="7" fill="none"/><path d="M102 150Q126 134 142 145Q122 162 102 150Z" fill="#fff"/><path d="M100 170Q74 156 60 166Q80 180 100 170Z" fill="#fff"/>`,
+  boombox:`<rect x="14" y="62" width="172" height="100" rx="8" fill="#fff"/><path d="M60 62V40H140V62" stroke="#fff" stroke-width="9" fill="none"/><circle cx="55" cy="118" r="30" fill="#000"/><circle cx="55" cy="118" r="19" fill="#fff"/><circle cx="55" cy="118" r="7" fill="#000"/><circle cx="145" cy="118" r="30" fill="#000"/><circle cx="145" cy="118" r="19" fill="#fff"/><circle cx="145" cy="118" r="7" fill="#000"/><rect x="52" y="86" width="6" height="14" fill="#fff"/><rect x="142" y="86" width="6" height="14" fill="#fff"/><rect x="88" y="98" width="24" height="32" rx="2" fill="#000"/><rect x="24" y="70" width="152" height="9" fill="#000"/>`,
+  cat:`<path d="M40 72L50 24 80 56Q100 48 120 56L150 24 160 72Q176 112 150 142Q100 176 50 142Q24 112 40 72Z" fill="#fff"/><ellipse cx="78" cy="96" rx="13" ry="9.5" fill="#000"/><ellipse cx="122" cy="96" rx="13" ry="9.5" fill="#000"/><ellipse cx="78" cy="96" rx="3" ry="8" fill="#fff"/><ellipse cx="122" cy="96" rx="3" ry="8" fill="#fff"/><path d="M91 116H109L100 125Z" fill="#000"/><path d="M100 125Q92 136 83 129M100 125Q108 136 117 129" stroke="#000" stroke-width="3" fill="none"/><path d="M38 118L72 121M40 131L72 127M162 118L128 121M160 131L128 127" stroke="#000" stroke-width="2.6"/><path d="M54 40L58 62 72 57Z M146 40L142 62 128 57Z" fill="#000"/>`,
+  bulb:`<circle cx="100" cy="86" r="46" fill="#fff"/><rect x="80" y="122" width="40" height="34" rx="4" fill="#fff"/><path d="M80 133H120M80 144H120" stroke="#000" stroke-width="4"/><path d="M92 160H108L104 171H96Z" fill="#fff"/><path d="M86 122L91 86 96 102 100 80 104 102 109 86 114 122" stroke="#000" stroke-width="4" fill="none"/><path d="M70 70Q78 52 96 48" stroke="#000" stroke-width="5" fill="none"/><path d="M100 22V6M50 42L38 30M150 42L162 30M36 86H18M164 86H182" stroke="#fff" stroke-width="7" stroke-linecap="round"/>`,
+  crown:`<path d="M25 150L35 70 70 110 100 50 130 110 165 70 175 150Z" fill="#fff"/><rect x="25" y="156" width="150" height="16" fill="#fff"/><circle cx="35" cy="62" r="9" fill="#fff"/><circle cx="100" cy="42" r="9" fill="#fff"/><circle cx="165" cy="62" r="9" fill="#fff"/><circle cx="70" cy="135" r="7" fill="#000"/><circle cx="100" cy="128" r="9" fill="#000"/><circle cx="130" cy="135" r="7" fill="#000"/>`,
+  bike:`<circle cx="52" cy="130" r="36" fill="none" stroke="#fff" stroke-width="9"/><circle cx="150" cy="130" r="36" fill="none" stroke="#fff" stroke-width="9"/><path d="M52 130L84 80H140L150 130M84 80L104 130 140 80M104 130H52" stroke="#fff" stroke-width="8" fill="none" stroke-linejoin="round"/><path d="M76 70H98M140 80L135 60H156" stroke="#fff" stroke-width="8" stroke-linecap="round"/><circle cx="104" cy="130" r="10" fill="#fff"/>`
+};
+const ICON = {
+  heart:'<path d="M0 7C-9-2-16 4-12 10L0 20 12 10C16 4 9-2 0 7Z"/>',
+  share:'<path d="M-12 12V2Q-12-6-2-6H6V-13L16-2 6 9V2H0Q-6 2-6 8V12Z"/>',
+  star:'<path d="M0-14L4-4 15-4 6 3 9 14 0 7-9 14-6 3-15-4-4-4Z"/>',
+  flip:'<path d="M-2-14V14H-14ZM2-14V14H14Z" /><path d="M-1-14v28" stroke="#000" stroke-width="2"/>',
+  roller:'<rect x="-14" y="-14" width="24" height="10" rx="2"/><path d="M10-9h4v10H2v13" fill="none" stroke="currentColor" stroke-width="3"/><rect x="-1" y="12" width="6" height="6"/>',
+  flag:'<path d="M-10-14V16" stroke="currentColor" stroke-width="3"/><path d="M-8-13H12L6-6 12 1H-8Z"/>',
+  drops:'<path d="M-6-12Q-14 0-6 4Q2 0-6-12ZM6-4Q-2 8 6 12Q14 8 6-4Z"/>',
+  info:'<circle cx="0" cy="-10" r="3.2"/><rect x="-3" y="-4" width="6" height="18"/>',
+  plus:'<path d="M-3-14h6v11h11v6H3v11h-6V3h-11v-6h11Z"/>'
+};
+const COLORS = { Pink:'#ff3d7f', Orange:'#ff7a1a', Teal:'#26cfc6', White:'#f1eee6', Black:'#141414' };
+
+/* ---------------- wall content ---------------- */
+const PIECES = [
+  { motif:'crow', title:'Night crow', artist:'NOIR', color:'#141414', likes:41, date:'12 Sep 2026', layers:2 },
+  { motif:'cassette', title:'Side B', artist:'TAPEWORM', color:'#f1eee6', likes:27, date:'3 Aug 2026', layers:3 },
+  { motif:'rose', title:'Concrete rose', artist:'MADDY K', color:'#ff3d7f', likes:63, date:'21 Sep 2026', layers:2 },
+  { motif:'boombox', title:'Block party', artist:'DJ RUST', color:'#141414', likes:18, date:'30 Jul 2026', layers:3 },
+  { motif:'cat', title:'Arch cat', artist:'MIAU', color:'#ff7a1a', likes:52, date:'2 Oct 2026', layers:2 },
+  { motif:'bulb', title:'Bright idea', artist:'WATTS', color:'#f1eee6', likes:9, date:'18 Sep 2026', layers:1 },
+  { motif:'crown', title:'Wall king', artist:'REIGN', color:'#ffd21f', likes:33, date:'27 Aug 2026', layers:1 },
+  { motif:'bike', title:'Canal commute', artist:'SPOKE', color:'#26cfc6', likes:21, date:'5 Oct 2026', layers:2 }
+];
+let uid = 0;
+function pieceSVG(p){
+  const id = 'm' + (++uid);
+  const drips = [...Array(3)].map(() => { const x = 50 + Math.random() * 100, y = 120 + Math.random() * 40, l = 10 + Math.random() * 28; return `<path d="M${x} ${y}v${l}" stroke="${p.color}" stroke-width="${2 + Math.random() * 2}" stroke-linecap="round"/><circle cx="${x}" cy="${y + l}" r="${2.2 + Math.random()}" fill="${p.color}"/>`; }).join('');
+  return `<svg class="art" viewBox="0 0 200 200" aria-hidden="true"><defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-20" y="-20" width="240" height="240"><rect x="-20" y="-20" width="240" height="240" fill="#000"/>${MOTIF[p.motif]}</mask></defs>
+    <g style="transform-origin:100px 100px;transform:scaleX(${p.flip ? -1 : 1});transition:transform .5s cubic-bezier(.3,1.4,.5,1)" class="flipper">
+    <rect class="paintfill" x="-20" y="-20" width="240" height="240" fill="${p.color}" mask="url(#${id})" filter="url(#mist)" opacity=".55"/>
+    <rect class="paintfill" x="-20" y="-20" width="240" height="240" fill="${p.color}" mask="url(#${id})" filter="url(#rough)"/>
+    <g class="drips">${drips}</g></g></svg>`;
+}
+const pieces = [];
+let W = 0, H = 0, DPR = 1, mobile = false;
+function layoutPieces(){
+  W = stage.clientWidth; H = stage.clientHeight; mobile = W < 760;
+  const cols = mobile ? 2 : 4, rows = mobile ? 3 : 2, n = cols * rows;
+  const top = mobile ? 128 : 140, bottom = mobile ? 70 : 92;
+  const cw = W / cols, ch = (H - top - bottom) / rows, size = Math.min(cw, ch) * (mobile ? 0.66 : 0.68);
+  pieces.forEach((p, i) => {
+    if (p.user) return;
+    p.el.style.display = i < n ? '' : 'none';
+    const c = i % cols, r = Math.floor(i / cols);
+    const jx = ((i * 37) % 11 - 5) * (mobile ? 1.5 : 4), jy = ((i * 53) % 13 - 6) * 3;
+    p.x = c * cw + (cw - size) / 2 + jx; p.y = top + r * ch + (ch - size) / 2 + jy - 10; p.size = size;
+    Object.assign(p.el.style, { left: p.x + 'px', top: p.y + 'px', width: size + 'px', height: size + 'px', transform: `rotate(${((i * 29) % 9 - 4) * 0.8}deg)` });
+  });
+}
+function addPiece(def, user){
+  const p = Object.assign({ flip: false, buffed: false, saved: false, reported: false }, def, { user: !!user });
+  const el = document.createElement('div'); el.className = 'piece'; el.tabIndex = 0; el.setAttribute('role', 'button');
+  el.innerHTML = pieceSVG(p) + `<div class="deco"></div><div class="roller"></div><div class="tag" style="--tr:${(Math.random() * 3 - 1.5).toFixed(1)}deg"></div>`;
+  el._p = p; p.el = el; wall.appendChild(el); pieces.push(p); refreshTag(p);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { e.preventDefault(); e.stopPropagation(); const r = el.getBoundingClientRect(); openMenu(r.left + r.width / 2, r.top + r.height / 2, p, 'sticky'); } });
+  return p;
+}
+function refreshTag(p){
+  p.el.querySelector('.tag').innerHTML = `${p.title}<span class="ar"> — ${p.artist}</span><i>♥ ${p.likes}</i>${p.saved ? '<i>★</i>' : ''}${p.reported ? '<i>⚑</i>' : ''}`;
+  p.el.setAttribute('aria-label', `${p.title} by ${p.artist}, ${p.likes} likes${p.buffed ? ', buffed' : ''}. Press Enter for options.`);
+}
+
+/* old tags and buff patches for texture */
+function decor(){
+  const d = $('#decor'); d.innerHTML = '';
+  const tags = ['ZEPH', 'KR8', 'ODIN', 'mo&ra', 'TUNA', 'BLK', 'SKEW', 'LUX 99'];
+  for (let i = 0; i < 9; i++) { const s = document.createElement('div'); s.className = 'oldtag'; s.textContent = tags[i % tags.length];
+    Object.assign(s.style, { left: (i * 137 % 100) + '%', top: (10 + (i * 61) % 80) + '%', fontSize: (30 + (i * 17) % 50) + 'px', transform: `rotate(${(i * 23) % 30 - 15}deg)`, color: i % 3 ? '#141414' : '#7a2a40' }); d.appendChild(s); }
+  for (let i = 0; i < 4; i++) { const b = document.createElement('div'); b.className = 'buffpatch';
+    Object.assign(b.style, { left: (i * 29 + 6) % 90 + '%', top: (i * 41 + 18) % 80 + '%', width: (120 + i * 40) + 'px', height: (60 + i * 25) + 'px', background: i % 2 ? '#a9a59c' : '#97938b', opacity: .55,
+      clipPath: 'polygon(0 6%,8% 0,30% 4%,62% 1%,100% 0,97% 40%,100% 92%,70% 100%,35% 96%,4% 100%,0 70%)' }); d.appendChild(b); }
+}
+
+/* ---------------- menus ---------------- */
+const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const pieceMenu = p => [
+  { d:'N', label:'Like', icon:'heart', act:() => like(p) },
+  { d:'NE', label:'Share', icon:'share', act:() => share(p) },
+  { d:'E', label:p.saved ? 'Unsave' : 'Save', icon:'star', act:() => save(p) },
+  { d:'SE', label:'Flip', icon:'flip', act:() => flip(p) },
+  { d:'S', label:'Buff', icon:'roller', act:() => buff(p), danger:true },
+  { d:'SW', label:'Report', icon:'flag', act:() => report(p) },
+  { d:'W', label:'Colour', icon:'drops', sub: Object.keys(COLORS).slice(0, 4).map((c, i) => ({ d: ['N', 'E', 'S', 'W'][i], label: c, swatch: COLORS[c], act: () => recolour(p, c) })) },
+  { d:'NW', label:'Info', icon:'info', act:() => info(p) }
+];
+const buffedMenu = p => [{ d:'N', label:'Restore', icon:'plus', act:() => unbuff(p) }, { d:'S', label:'Info', icon:'info', act:() => info(p) }];
+const wallMenu = (x, y) => ['crow', 'rose', 'boombox', 'cat'].map((m, i) => ({ d: ['N', 'E', 'S', 'W'][i], label: m === 'boombox' ? 'Boom' : m[0].toUpperCase() + m.slice(1), motif: m, act: () => sprayNew(m, x, y) }));
+const R = () => mobile ? 96 : 116, R0 = () => mobile ? 30 : 36;
+let M = null; // open menu state
+function angOf(d){ return DIRS.indexOf(d) * Math.PI / 4; } // 0 = north, clockwise
+function wedgePath(a, span, r0, r1){
+  const p = (ang, r) => [Math.sin(ang) * r, -Math.cos(ang) * r];
+  const g = 0.035, a0 = a - span / 2 + g, a1 = a + span / 2 - g;
+  const [x0, y0] = p(a0, r1), [x1, y1] = p(a1, r1), [x2, y2] = p(a1, r0), [x3, y3] = p(a0, r0);
+  return `M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`;
+}
+function renderMenu(){
+  if (!M) { menuEl.innerHTML = ''; return; }
+  const r1 = R(), r0 = R0(), span = M.items.length > 4 ? Math.PI / 4 : Math.PI / 2;
+  const size = (r1 + 60) * 2;
+  menuEl.setAttribute('width', size); menuEl.setAttribute('height', size);
+  menuEl.style.transform = `translate(${M.x - size / 2}px,${M.y - size / 2}px)`;
+  let s = `<g transform="translate(${size / 2} ${size / 2})">`;
+  s += `<circle r="${r1 + 10}" fill="#141414" opacity=".35" filter="url(#mist)"/>`;
+  M.items.forEach((it, i) => {
+    const a = angOf(it.d), hot = i === M.hi, dis = !it.act && !it.sub;
+    const fill = hot ? (it.danger ? '#ff3d7f' : '#ff7a1a') : '#141414';
+    s += `<path d="${wedgePath(a, span, r0, r1)}" fill="${fill}" filter="url(#rough)" opacity="${dis ? .4 : .96}"/>`;
+    const mr = (r0 + r1) / 2 + 2, ix = Math.sin(a) * mr, iy = -Math.cos(a) * mr;
+    const col = hot ? '#141414' : '#f1eee6';
+    if (it.swatch) s += `<circle cx="${ix}" cy="${iy - 7}" r="11" fill="${it.swatch}" stroke="#f1eee6" stroke-width="2" filter="url(#rough)"/>`;
+    else if (it.motif) s += `<g transform="translate(${ix - 14} ${iy - 22}) scale(.14)"><mask id="mm${i}"><rect width="200" height="200" fill="#000"/>${MOTIF[it.motif]}</mask><rect width="200" height="200" fill="${col}" mask="url(#mm${i})"/></g>`;
+    else s += `<g transform="translate(${ix} ${iy - 8}) scale(.82)" fill="${col}" color="${col}">${ICON[it.icon] || ''}</g>`;
+    s += `<text x="${ix}" y="${iy + 17}" text-anchor="middle" font-size="${mobile ? 12 : 13.5}" fill="${col}">${it.label.toUpperCase()}${it.sub ? ' ▸' : ''}</text>`;
+  });
+  s += `<circle r="${r0 - 4}" fill="#f1eee6" filter="url(#rough)"/><circle r="${r0 - 10}" fill="none" stroke="#141414" stroke-width="2.5" stroke-dasharray="4 5" opacity=".8"/>`;
+  s += `<circle r="5" fill="${M.level ? '#ff7a1a' : '#141414'}"/>`;
+  if (M.title) s += `<text y="${-r1 - 16}" text-anchor="middle" font-size="15" fill="#141414" style="paint-order:stroke" stroke="#f1eee6" stroke-width="4">${M.title}</text>`;
+  s += '</g>';
+  menuEl.innerHTML = s;
+}
+function openMenu(x, y, target, mode, items, level, title){
+  const pad = R() + 40; x = Math.max(pad, Math.min(W - pad, x)); y = Math.max(pad, Math.min(H - pad, y));
+  M = { x, y, target, mode, items: items || (target ? (target.buffed ? buffedMenu(target) : pieceMenu(target)) : wallMenu(x, y)), hi: -1, level: level || 0, t0: performance.now(), dwell: 0,
+        title: title || (target ? target.title : 'Spray a stencil') };
+  renderMenu(); rattle();
+  if (!RM) menuEl.animate([{ opacity: 0, transform: menuEl.style.transform + ' scale(.85)' }, { opacity: 1, transform: menuEl.style.transform }], { duration: 160, easing: 'ease-out' });
+  $('#live').textContent = `${M.title} menu: ${M.items.map(i => i.label).join(', ')}. Use arrow keys and Enter.`;
+}
+function closeMenu(){ M = null; renderMenu(); }
+function pick(dx, dy, items){
+  const d = Math.hypot(dx, dy); if (d < R0() - 6) return -1;
+  let a = Math.atan2(dx, -dy); if (a < 0) a += TAU;
+  let best = -1, bd = 9;
+  items.forEach((it, i) => { let diff = Math.abs(a - angOf(it.d)); diff = Math.min(diff, TAU - diff); if (diff < bd) { bd = diff; best = i; } });
+  return bd <= (items.length > 4 ? Math.PI / 8 + 0.05 : Math.PI / 4 + 0.05) ? best : -1;
+}
+function choose(it, viaFlick){
+  if (!it) return;
+  if (it.sub) { const a = angOf(it.d), r = R() * 0.95; openMenu(M.x + Math.sin(a) * r, M.y - Math.cos(a) * r, M.target, 'sticky', it.sub, 1, it.label); return; }
+  const t = M ? M.target : null; closeMenu(); it.act(); psst(0.5);
+}
+
+/* ---------------- spray canvas ---------------- */
+let drips = [], lastPaint = 0;
+function sizeCanvas(){ DPR = Math.min(2, devicePixelRatio || 1); cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px'; cx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+function spray(x0, y0, x1, y1, col, w){
+  const dist = Math.hypot(x1 - x0, y1 - y0), steps = Math.max(1, Math.ceil(dist / 2));
+  cx.fillStyle = col;
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+    cx.globalAlpha = 0.9; cx.beginPath(); cx.arc(x, y, w * 0.42, 0, TAU); cx.fill();
+    for (let k = 0; k < 7; k++) { const r = w * (0.5 + Math.random() * 1.6) * Math.sqrt(Math.random()), a = Math.random() * TAU; cx.globalAlpha = 0.22 + Math.random() * 0.3; cx.fillRect(x + Math.cos(a) * r, y + Math.sin(a) * r, 1.3, 1.3); }
+    if (Math.random() < 0.03 * (w / 6) && drips.length < 60) drips.push({ x: x + (Math.random() - 0.5) * w * 0.4, y, len: 0, max: 14 + Math.random() * 46, sp: 14 + Math.random() * 26, w: 1.6 + Math.random() * 1.8, col });
+  }
+  cx.globalAlpha = 1; lastPaint = performance.now();
+}
+let fadeAcc = 0;
+function tick(dt){
+  if (drips.length) {
+    for (let i = drips.length - 1; i >= 0; i--) { const d = drips[i], step = Math.min(d.max - d.len, d.sp * dt * (1 - d.len / d.max * 0.7));
+      cx.strokeStyle = d.col; cx.lineWidth = d.w; cx.lineCap = 'round'; cx.globalAlpha = 0.95; cx.beginPath(); cx.moveTo(d.x, d.y + d.len); d.len += step; cx.lineTo(d.x, d.y + d.len); cx.stroke();
+      if (d.len >= d.max - 0.3) { cx.fillStyle = d.col; cx.beginPath(); cx.arc(d.x, d.y + d.len, d.w * 0.9, 0, TAU); cx.fill(); drips.splice(i, 1); } }
+    cx.globalAlpha = 1;
+  }
+  if (performance.now() - lastPaint > 4500) { fadeAcc += dt; if (fadeAcc > 0.08) { fadeAcc = 0; cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalCompositeOperation = 'destination-out'; cx.fillStyle = 'rgba(0,0,0,.05)'; cx.fillRect(0, 0, cv.width, cv.height); cx.restore(); } }
+}
+
+/* ---------------- gestures ---------------- */
+let G = null, flicks = 0;
+const HOLD = 280;
+function pieceAt(x, y){ const el = document.elementFromPoint(x, y); const p = el && el.closest ? el.closest('.piece') : null; return p ? p._p : null; }
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target.closest('.toast,button')) return;
+  audio(); hideHint(); hideInfo();
+  const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (M && M.mode === 'sticky') { // clicking while a sticky menu is open
+    const i = pick(x - M.x, y - M.y, M.items); if (i >= 0) choose(M.items[i]); else closeMenu(); return;
+  }
+  stage.setPointerCapture(e.pointerId);
+  G = { id: e.pointerId, x0: x, y0: y, pts: [[x, y]], t0: performance.now(), target: pieceAt(e.clientX, e.clientY), mode: 'pending', col: '#ff3d7f' };
+  G.timer = setTimeout(() => { if (G && G.mode === 'pending') { G.mode = 'menu'; openMenu(G.x0, G.y0, G.target, 'hold'); } }, HOLD);
+});
+stage.addEventListener('pointermove', e => {
+  const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (M && M.mode === 'sticky' && !G) { const i = pick(x - M.x, y - M.y, M.items); if (i !== M.hi) { M.hi = i; renderMenu(); if (i >= 0) tickSnd(); } return; }
+  if (!G || e.pointerId !== G.id) return;
+  const last = G.pts[G.pts.length - 1]; G.pts.push([x, y]);
+  if (G.mode === 'pending' && Math.hypot(x - G.x0, y - G.y0) > 22) { G.mode = 'expert'; clearTimeout(G.timer); hissOn(); }
+  if (G.mode === 'expert') { spray(last[0], last[1], x, y, G.col, mobile ? 7 : 9); hissSet(Math.hypot(x - last[0], y - last[1])); }
+  else if (G.mode === 'menu' && M) {
+    spray(last[0], last[1], x, y, 'rgba(20,20,20,.9)', 3);
+    const i = pick(x - M.x, y - M.y, M.items);
+    if (i !== M.hi) { M.hi = i; M.dwell = performance.now(); renderMenu(); if (i >= 0) tickSnd(); }
+    const it = M.items[M.hi];
+    if (it && it.sub && (Math.hypot(x - M.x, y - M.y) > R() + 12 || performance.now() - M.dwell > 420)) {
+      const a = angOf(it.d), rr = R() * 0.95; openMenu(M.x + Math.sin(a) * rr, M.y - Math.cos(a) * rr, M.target, 'hold', it.sub, 1, it.label);
+    }
+  }
+});
+function endGesture(e){
+  if (!G || e.pointerId !== G.id) return;
+  clearTimeout(G.timer); hissOff();
+  const g = G; G = null;
+  if (g.mode === 'pending') { // a tap: on a piece, open the menu in click mode; on the wall do nothing
+    if (g.target) openMenu(g.x0, g.y0, g.target, 'sticky');
+    return;
+  }
+  if (g.mode === 'menu') { if (M && M.hi >= 0) choose(M.items[M.hi]); else if (M && M.items[0] && M.level === 0) closeMenu(); else if (M && M.level > 0 && M.hi < 0) { M.mode = 'sticky'; } return; }
+  // expert flick: classify the stroke, allowing a compound mark for submenus
+  const items = g.target ? (g.target.buffed ? buffedMenu(g.target) : pieceMenu(g.target)) : wallMenu(g.x0, g.y0);
+  const res = classify(g.pts, items);
+  if (!res) { toast('Flick was too short — hold for the menu'); return; }
+  if (res.item.sub && !res.sub) { M = { x: g.x0, y: g.y0, target: g.target, items, hi: -1, level: 0 }; choose(res.item); flickCount(); return; }
+  M = null;
+  const it = res.sub || res.item; it.act(); psst(0.7); flickCount();
+  $('#live').textContent = `Flicked ${res.item.label}${res.sub ? ' then ' + res.sub.label : ''}.`;
+}
+stage.addEventListener('pointerup', endGesture); stage.addEventListener('pointercancel', endGesture);
+stage.addEventListener('contextmenu', e => { e.preventDefault(); const r = stage.getBoundingClientRect(); if (G) { clearTimeout(G.timer); G = null; } openMenu(e.clientX - r.left, e.clientY - r.top, pieceAt(e.clientX, e.clientY), 'sticky'); });
+function classify(pts, items){
+  const s = pts[0], e = pts[pts.length - 1]; if (Math.hypot(e[0] - s[0], e[1] - s[1]) < 34) return null;
+  let ci = -1, cd = 0; const L = Math.hypot(e[0] - s[0], e[1] - s[1]);
+  pts.forEach((p, i) => { const d = Math.abs((e[0] - s[0]) * (s[1] - p[1]) - (s[0] - p[0]) * (e[1] - s[1])) / L; if (d > cd) { cd = d; ci = i; } });
+  let first = e, second = null;
+  if (cd > 26 && ci > 0) { const c = pts[ci]; const a1 = Math.atan2(c[0] - s[0], -(c[1] - s[1])), a2 = Math.atan2(e[0] - c[0], -(e[1] - c[1])); let df = Math.abs(a1 - a2); df = Math.min(df, TAU - df);
+    if (df > 0.6 && Math.hypot(c[0] - s[0], c[1] - s[1]) > 30 && Math.hypot(e[0] - c[0], e[1] - c[1]) > 26) { first = c; second = e; } }
+  const i1 = pickRaw(first[0] - s[0], first[1] - s[1], items); if (i1 < 0) return null;
+  const item = items[i1];
+  if (item.sub && second) { const i2 = pickRaw(second[0] - first[0], second[1] - first[1], item.sub); return { item, sub: i2 >= 0 ? item.sub[i2] : null }; }
+  return { item };
+}
+function pickRaw(dx, dy, items){ let a = Math.atan2(dx, -dy); if (a < 0) a += TAU; let best = -1, bd = 9; items.forEach((it, i) => { let df = Math.abs(a - angOf(it.d)); df = Math.min(df, TAU - df); if (df < bd) { bd = df; best = i; } }); return best; }
+function flickCount(){ flicks++; $('#flicks').textContent = flicks; if (flicks === 5) { document.querySelector('.sticker').classList.add('pro'); setTimeout(() => toast('Five blind flicks. You don’t need the menu any more.'), 900); } }
+
+/* keyboard */
+wall.addEventListener('keydown', e => {
+  if (M) return;
+  if ((e.key === 'Enter' || e.key === ' ' || e.key === 'ContextMenu') && e.target === wall) { e.preventDefault(); openMenu(W / 2, H / 2, null, 'sticky'); }
+});
+document.addEventListener('keydown', e => {
+  if (!M) return;
+  const n = M.items.length;
+  if (e.key === 'Escape') { e.preventDefault(); closeMenu(); return; }
+  if (['ArrowRight', 'ArrowDown'].includes(e.key)) { e.preventDefault(); M.hi = (M.hi + 1 + n) % n; renderMenu(); tickSnd(); $('#live').textContent = M.items[M.hi].label; }
+  else if (['ArrowLeft', 'ArrowUp'].includes(e.key)) { e.preventDefault(); M.hi = (M.hi - 1 + n) % n; renderMenu(); tickSnd(); $('#live').textContent = M.items[M.hi].label; }
+  else if ((e.key === 'Enter' || e.key === ' ') && M.hi >= 0) { e.preventDefault(); e.stopPropagation(); const tgt = M.target; choose(M.items[M.hi]); if (!M && tgt && tgt.el) tgt.el.focus(); }
+}, true);
+
+/* ---------------- actions ---------------- */
+function stencilAt(p, motif, col, x, y, s, rot){
+  const d = p.el.querySelector('.deco'), id = 'dm' + (++uid);
+  d.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 200 200" style="position:absolute;left:${x}%;top:${y}%;width:${s}%;height:${s}%;transform:rotate(${rot}deg);overflow:visible"><defs><mask id="${id}"><rect width="200" height="200" fill="#000"/>${motif}</mask></defs><rect width="200" height="200" fill="${col}" mask="url(#${id})" filter="url(#mist)" opacity=".5"/><rect width="200" height="200" fill="${col}" mask="url(#${id})" filter="url(#rough)"/></svg>`);
+  const el = d.lastElementChild; if (!RM) el.animate([{ opacity: 0, transform: `rotate(${rot}deg) scale(1.25)` }, { opacity: 1, transform: `rotate(${rot}deg)` }], { duration: 260, easing: 'ease-out' });
+  return el;
+}
+const HEART = '<path d="M100 60C70 20 10 40 30 95L100 165 170 95C190 40 130 20 100 60Z" fill="#fff"/>';
+const STAR = '<path d="M100 20L122 78 184 80 135 118 152 178 100 142 48 178 65 118 16 80 78 78Z" fill="#fff"/>';
+function like(p){ p.likes++; refreshTag(p); stencilAt(p, HEART, '#ff3d7f', 64 + Math.random() * 12, -8 + Math.random() * 10, 30, Math.random() * 30 - 15); toast(`Liked <b>${p.title}</b> by ${p.artist}`); }
+function share(p){ const s = stencilAt(p, '<rect x="10" y="70" width="180" height="60" fill="#fff"/><text x="100" y="116" text-anchor="middle" font-family="Saira Stencil One" font-size="44" fill="#000">SHARED</text>', '#ffd21f', -6, 2, 56, -12);
+  try { navigator.clipboard && navigator.clipboard.writeText(`https://bay7.wall/${p.artist.toLowerCase().replace(/\s/g, '-')}`).catch(() => {}); } catch (e) {}
+  toast(`Link to <b>${p.title}</b> copied`); }
+function save(p){ p.saved = !p.saved; refreshTag(p); if (p.saved) stencilAt(p, STAR, '#ffd21f', -10 + Math.random() * 8, 60, 28, Math.random() * 30); toast(p.saved ? `Saved <b>${p.title}</b> to your walk` : `Removed <b>${p.title}</b> from your walk`); }
+function flip(p){ p.flip = !p.flip; const f = p.el.querySelector('.flipper'); f.style.transform = `scaleX(${p.flip ? -1 : 1})`; toast(`Flipped <b>${p.title}</b>`); }
+let undoFn = null;
+function buff(p){ p.buffed = true; p.el.classList.add('buffed'); refreshTag(p); roll(); toast(`Buffed <b>${p.title}</b>`, () => unbuff(p)); }
+function unbuff(p){ p.buffed = false; p.el.classList.remove('buffed'); refreshTag(p); psst(0.6); toast(`Restored <b>${p.title}</b>`); }
+function report(p){ p.reported = true; refreshTag(p); stencilAt(p, '<rect x="0" y="80" width="200" height="40" fill="#fff"/><text x="100" y="110" text-anchor="middle" font-family="Saira Stencil One" font-size="30" fill="#000">UNDER REVIEW</text>', '#ffd21f', -10, 30, 120, 8); toast(`Reported <b>${p.title}</b> to the collective`); }
+function recolour(p, name){ const col = COLORS[name]; p.color = col; p.el.querySelectorAll('.paintfill').forEach(r => r.setAttribute('fill', col)); p.el.querySelectorAll('.drips path').forEach(r => r.setAttribute('stroke', col)); p.el.querySelectorAll('.drips circle').forEach(r => r.setAttribute('fill', col));
+  if (!RM) p.el.querySelector('svg.art').animate([{ filter: 'blur(4px)', opacity: .4 }, { filter: 'blur(0)', opacity: 1 }], { duration: 400 });
+  toast(`Resprayed <b>${p.title}</b> in ${name.toLowerCase()}`); }
+function info(p){
+  const el = $('#info'), r = p.el.getBoundingClientRect();
+  el.innerHTML = `<h3>${p.title}</h3><p class="by">${p.artist}</p><p>Sprayed ${p.date} · ${p.layers} layer${p.layers > 1 ? 's' : ''}</p><p>♥ ${p.likes} likes${p.saved ? ' · saved' : ''}${p.reported ? ' · under review' : ''}</p><p style="opacity:.7">Tap anywhere to close</p>`;
+  const x = Math.min(W - 246, r.right + 8 > W - 240 ? r.left - 238 : r.right + 8), y = Math.max(10, Math.min(H - 190, r.top));
+  el.style.left = Math.max(8, x) + 'px'; el.style.top = y + 'px'; el.classList.add('on');
+  $('#live').textContent = `${p.title} by ${p.artist}, sprayed ${p.date}, ${p.likes} likes.`;
+}
+function hideInfo(){ $('#info').classList.remove('on'); }
+function sprayNew(motif, x, y){
+  const s = mobile ? 110 : 150, cols = ['#ff3d7f', '#26cfc6', '#ff7a1a', '#141414'];
+  const titles = { crow:'Fresh crow', rose:'Fresh rose', boombox:'Fresh boom', cat:'Fresh cat' };
+  const p = addPiece({ motif, title: titles[motif], artist: 'YOU', color: cols[(uid) % cols.length], likes: 0, date: '7 Oct 2026', layers: 1 }, true);
+  Object.assign(p.el.style, { left: (x - s / 2) + 'px', top: (y - s / 2) + 'px', width: s + 'px', height: s + 'px', transform: `rotate(${Math.random() * 8 - 4}deg)` });
+  if (!RM) p.el.querySelector('svg.art').animate([{ opacity: 0, filter: 'blur(10px)' }, { opacity: .6, filter: 'blur(3px)', offset: .5 }, { opacity: 1, filter: 'blur(0)' }], { duration: 700, easing: 'ease-out' });
+  psst(1); toast(`Sprayed a <b>${motif === 'boombox' ? 'boombox' : motif}</b> stencil`, () => { p.el.remove(); pieces.splice(pieces.indexOf(p), 1); });
+}
+let tt;
+function toast(html, undo){
+  $('#toastTxt').innerHTML = html; const b = $('#undo'); undoFn = undo || null; b.hidden = !undo;
+  $('#toast').classList.add('on'); clearTimeout(tt); tt = setTimeout(() => $('#toast').classList.remove('on'), undo ? 5000 : 2600);
+  $('#live').textContent = $('#toastTxt').textContent;
+}
+$('#undo').addEventListener('click', () => { if (undoFn) { undoFn(); undoFn = null; $('#undo').hidden = true; } });
+
+/* ---------------- audio ---------------- */
+let AC = null, master = null, nb = null, hiss = null;
+function audio(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.17; master.connect(AC.destination);
+  nb = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume(); }
+function psst(v){ if (!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nb; f.type = 'highpass'; f.frequency.value = 3500; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * v, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35 * v + 0.1); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.5); }
+function rattle(){ if (!AC) return; for (let k = 0; k < 3; k++) { const t = AC.currentTime + k * 0.07, o = AC.createOscillator(), g = AC.createGain(); o.type = 'square'; o.frequency.setValueAtTime(2400 + k * 200, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.02); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04); o.connect(g).connect(master); o.start(t); o.stop(t + 0.05); } }
+function tickSnd(){ if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = 1500; g.gain.setValueAtTime(0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); o.connect(g).connect(master); o.start(t); o.stop(t + 0.04); }
+function hissOn(){ if (!AC || hiss) return; const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nb; s.loop = true; f.type = 'bandpass'; f.frequency.value = 5200; f.Q.value = 0.6; g.gain.value = 0; s.connect(f).connect(g).connect(master); s.start(); hiss = { s, g }; }
+function hissSet(v){ if (hiss) hiss.g.gain.setTargetAtTime(Math.min(0.5, 0.15 + v * 0.02), AC.currentTime, 0.02); }
+function hissOff(){ if (!hiss) return; const h = hiss; hiss = null; h.g.gain.setTargetAtTime(0, AC.currentTime, 0.04); setTimeout(() => { try { h.s.stop(); } catch (e) {} }, 300); }
+function roll(){ if (!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nb; f.type = 'lowpass'; f.frequency.value = 500; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6, t + 0.1); g.gain.setTargetAtTime(0.0001, t + 0.8, 0.1); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 1.2); }
+
+/* ---------------- loop & boot ---------------- */
+let hinted = true; function hideHint(){ if (hinted) { hinted = false; $('#hint').classList.add('hide'); } }
+let last = 0, running = true;
+function frame(ts){ if (!running) return; const dt = Math.min(0.05, (ts - (last || ts)) / 1000); last = ts; tick(dt); requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { last = 0; requestAnimationFrame(frame); } });
+function full(){ layoutPieces(); sizeCanvas(); decor(); if (M) closeMenu(); }
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(full, 80); });
+PIECES.forEach(p => addPiece(p));
+full(); requestAnimationFrame(frame);
+window.__rf = { openMenu: (i) => { const p = pieces[i], r = p.el.getBoundingClientRect(); openMenu(r.left + r.width / 2, r.top + r.height / 2, p, 'sticky'); M.hi = 0; renderMenu(); },
+  flick: (i, pts) => { const p = pieces[i], r = p.el.getBoundingClientRect(), ox = r.left + r.width / 2, oy = r.top + r.height / 2; const P = pts.map(([dx, dy]) => [ox + dx, oy + dy]); for (let k = 1; k < P.length; k++) spray(P[k - 1][0], P[k - 1][1], P[k][0], P[k][1], '#ff3d7f', 9); const res = classify(P, pieceMenu(p)); if (res) { (res.sub || res.item).act && (res.sub || res.item).act(); flickCount(); } } };
+})();
+</script>
+</body>
+</html>

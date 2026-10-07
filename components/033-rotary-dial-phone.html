@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rotary Dial Phone</title>
+<meta name="description" content="A phone number input as a 1970s supergraphic rotary telephone: put a finger in a hole, swing it to the stop and let go; the dial returns at governor speed, pulsing the digit into the field.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,500..900,100,0..1&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Rotary Dial Phone","reimagines":"Phone number input","category":"Text & Data Entry","description":"A checkout phone field dialled on a 1970s supergraphic telephone. Drag a hole round to the finger stop and release: the wheel returns at governor speed and each pulse counts the digit up in the field. Typing on the keyboard spins the dial too, and the hook switch hangs up to clear.","hint":"Put a finger in a hole, swing it to the stop, let go"}
+</script>
+<style>
+  :root{
+    --cream:#f5e6c6;
+    --cream2:#fbf1da;
+    --mustard:#e3a92b;
+    --orange:#e3661d;
+    --burnt:#c2440f;
+    --brown:#6e3a1d;
+    --dark:#3c2214;
+    --avocado:#8d8a35;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--cream);color:var(--dark);font-family:"Jost","Futura","Century Gothic",sans-serif}
+  .stage{position:fixed;inset:0;overflow:hidden}
+  svg.super{position:absolute;inset:0;width:100%;height:100%}
+  .copy{position:absolute;left:clamp(20px,5vw,72px);top:clamp(22px,13vh,110px);width:min(420px,calc(100% - 40px));z-index:3}
+  .eyebrow{font-weight:600;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--burnt)}
+  h1{font-family:"Fraunces",Georgia,serif;font-variation-settings:"SOFT" 100,"WONK" 1;font-weight:900;font-size:clamp(36px,4.4vw,56px);line-height:.94;margin:12px 0 14px;color:var(--dark);letter-spacing:-.01em}
+  .sub{font-size:17px;line-height:1.45;margin:0 0 26px;color:var(--brown);max-width:380px}
+  .field{position:relative}
+  .field label{display:block;font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--brown);margin-bottom:6px}
+  .readout{position:relative;height:84px;display:flex;align-items:center}
+  .cc{font-family:"Fraunces",Georgia,serif;font-variation-settings:"SOFT" 100;font-weight:700;font-size:clamp(28px,3.2vw,40px);color:var(--burnt);margin-right:12px;flex:none}
+  .slot{position:relative;flex:1;height:100%}
+  .mirror,#num{position:absolute;left:0;top:0;height:100%;width:100%;font-family:"Fraunces",Georgia,serif;font-variation-settings:"SOFT" 100;font-weight:800;font-size:clamp(34px,4.3vw,54px);letter-spacing:.01em;font-variant-numeric:tabular-nums lining-nums;white-space:pre;display:flex;align-items:center;padding:0;margin:0;border:0;line-height:1}
+  .mirror{color:var(--dark);pointer-events:none}
+  .mirror .rest{color:rgba(110,58,29,.28)}
+  .mirror .inc{color:var(--orange)}
+  #num{background:transparent;color:transparent;caret-color:var(--burnt);outline:none}
+  #num::selection{background:rgba(227,169,43,.4);color:transparent}
+  .bands{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+  .bands i{display:block;height:6px;border-radius:3px}
+  .bands i:nth-child(1){background:var(--mustard)}
+  .bands i:nth-child(2){background:var(--orange)}
+  .bands i:nth-child(3){background:var(--brown)}
+  .field:focus-within .bands i{height:8px}
+  .field.shake{animation:shake .4s}
+  @keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+  .status{min-height:22px;margin-top:12px;font-size:15px;color:var(--brown)}
+  .status b{color:var(--burnt)}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+  .btn{font:inherit;font-weight:600;font-size:16px;letter-spacing:.02em;border:0;cursor:pointer;color:var(--cream2);padding:14px 26px 14px 22px;border-radius:999px;position:relative;
+    background:var(--burnt);box-shadow:inset 0 0 0 4px var(--burnt),inset 0 0 0 7px var(--mustard),inset 0 0 0 10px var(--burnt);transition:transform .12s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(1px)}
+  .btn[disabled]{background:#d9c6a0;color:#9a7f5d;box-shadow:inset 0 0 0 4px #d9c6a0,inset 0 0 0 7px #e8d8b6,inset 0 0 0 10px #d9c6a0;cursor:not-allowed;transform:none}
+  .btn.alt{background:transparent;color:var(--brown);box-shadow:inset 0 0 0 3px var(--brown)}
+  .btn.alt[disabled]{background:transparent;opacity:.4;box-shadow:inset 0 0 0 3px var(--brown);color:var(--brown)}
+  .btn:focus-visible{outline:4px solid var(--avocado);outline-offset:3px}
+  .phone{position:absolute;z-index:2;touch-action:none;user-select:none;-webkit-user-select:none}
+  .phone svg{width:100%;height:100%;display:block;overflow:visible}
+  .hole{cursor:grab}
+  .phone.dragging .hole{cursor:grabbing}
+  .hook{cursor:pointer}
+  .hint{position:relative;margin-top:26px;pointer-events:none;font-size:14px;line-height:1.4;color:var(--brown);max-width:300px;transition:opacity .6s;padding-left:16px;border-left:6px solid var(--mustard)}
+  .hint b{font-family:"Fraunces",serif;font-weight:800;color:var(--burnt);font-size:17px;display:block}
+  .hint.gone{opacity:0}
+  .mute{position:absolute;right:18px;top:18px;z-index:5;width:44px;height:44px;border-radius:50%;border:0;cursor:pointer;background:var(--brown);box-shadow:inset 0 0 0 3px var(--brown),inset 0 0 0 6px var(--mustard),inset 0 0 0 9px var(--brown);display:grid;place-items:center;padding:0}
+  .mute:focus-visible{outline:4px solid var(--avocado);outline-offset:3px}
+  .order{position:absolute;z-index:3;font-size:14px;color:var(--brown);letter-spacing:.02em}
+  .order b{font-family:"Fraunces",serif;font-weight:800;color:var(--dark)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (max-width:760px){
+    .hide-m{display:none}
+    .eyebrow{padding-right:46px}
+    .copy{top:16px;left:18px;width:calc(100% - 36px)}
+    h1{font-size:34px;margin:6px 0 6px}
+    .sub{font-size:14px;margin-bottom:10px;max-width:290px}
+    .readout{height:58px}
+    .mirror,#num{font-size:33px}
+    .cc{font-size:24px;margin-right:8px}
+    .actions{position:fixed;left:18px;right:18px;bottom:16px;margin:0;z-index:4}
+    .actions .btn{flex:1;padding:13px 16px;font-size:15px}
+    .status{font-size:13px;margin-top:6px;min-height:18px}
+    .eyebrow{font-size:11px}
+    .mute{top:12px;right:12px;width:38px;height:38px}
+  }
+  @media (prefers-reduced-motion: reduce){ .field.shake{animation:none} .btn{transition:none} }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <svg class="super" id="super" aria-hidden="true"></svg>
+  <div class="copy">
+    <div class="eyebrow">Groove Street Records · step 2 of 3</div>
+    <h1>Where should we text you?</h1>
+    <p class="sub">One message when your records ship. No calls, no mailing list.</p>
+    <div class="field" id="field">
+      <label for="num">Mobile number (US)</label>
+      <div class="readout">
+        <span class="cc" aria-hidden="true">+1</span>
+        <div class="slot">
+          <div class="mirror" id="mirror" aria-hidden="true"></div>
+          <input id="num" type="tel" inputmode="tel" autocomplete="tel-national" spellcheck="false" aria-describedby="status">
+        </div>
+      </div>
+      <div class="bands" aria-hidden="true"><i></i><i></i><i></i></div>
+    </div>
+    <div class="status" id="status" aria-live="polite">10 digits. Dial them or type them.</div>
+    <div class="actions">
+      <button class="btn" id="save" type="button" disabled>Text me shipping updates</button>
+      <button class="btn alt" id="del" type="button">Delete last digit</button>
+    </div>
+    <div class="hint" id="hint"><b>Dial it like it’s 1974</b>Put a finger in a hole, swing it round to the metal stop, let go. Or just type. Tap the hook to hang up and start over.</div>
+  </div>
+  <div class="order" id="order">Your order: <b>2 LPs</b> · Alice Coltrane, <i>Journey in Satchidananda</i> + 1 more · <b>$41.98</b></div>
+  <div class="phone" id="phone">
+    <svg id="phoneSvg" viewBox="-300 -330 600 640" aria-hidden="true">
+      <defs>
+        <clipPath id="bodyClip"><path id="bodyPathC"/></clipPath>
+      </defs>
+      <!-- cord -->
+      <path d="M 250 150 C 330 160 300 260 360 280" fill="none" stroke="#6e3a1d" stroke-width="10" stroke-linecap="round"/>
+      <!-- body -->
+      <g id="bodyG">
+        <path id="body" d="M -230 -150 Q -230 -190 -190 -190 H 190 Q 230 -190 230 -150 L 275 250 Q 280 292 238 292 H -238 Q -280 292 -275 250 Z" fill="#e3661d"/>
+        <path d="M -206 -164 H 206 M -214 -146 H 214 M -222 -128 H 222" stroke="#f08a45" stroke-width="7" stroke-linecap="round" fill="none"/>
+        <path d="M -262 266 H 262" stroke="#c2440f" stroke-width="10" stroke-linecap="round"/>
+        <path d="M -258 240 H 258" stroke="#c2440f" stroke-width="6" stroke-linecap="round"/>
+      </g>
+      <!-- cradle horns and hook switch -->
+      <g id="cradle">
+        <path d="M -230 -190 Q -240 -250 -196 -258 L -130 -258 Q -110 -258 -112 -236 L -116 -190 Z" fill="#c2440f"/>
+        <path d="M 230 -190 Q 240 -250 196 -258 L 130 -258 Q 110 -258 112 -236 L 116 -190 Z" fill="#c2440f"/>
+        <rect class="hook" id="hookL" x="-182" y="-226" width="30" height="34" rx="8" fill="#fbf1da"/>
+        <rect class="hook" id="hookR" x="152" y="-226" width="30" height="34" rx="8" fill="#fbf1da"/>
+      </g>
+      <!-- handset -->
+      <g id="handset">
+        <path d="M -250 -232 Q -262 -300 -196 -306 L 196 -306 Q 262 -300 250 -232 Q 244 -208 206 -214 L 160 -238 Q 120 -258 80 -258 H -80 Q -120 -258 -160 -238 L -206 -214 Q -244 -208 -250 -232 Z" fill="#e3661d"/>
+        <path d="M -196 -290 H 196" stroke="#f08a45" stroke-width="7" stroke-linecap="round"/>
+        <path d="M -180 -276 H 180" stroke="#f08a45" stroke-width="5" stroke-linecap="round"/>
+        <path d="M -230 -236 Q -236 -212 -208 -222 M 230 -236 Q 236 -212 208 -222" stroke="#c2440f" stroke-width="6" fill="none" stroke-linecap="round"/>
+      </g>
+      <g id="ringLines" opacity="0"></g>
+      <!-- dial -->
+      <g id="dial" transform="translate(0 64)">
+        <circle r="214" fill="#c2440f"/>
+        <circle r="204" fill="#6e3a1d"/>
+        <circle r="198" fill="#e3a92b"/>
+        <g id="plate"></g>
+        <circle r="96" fill="#e3a92b"/>
+        <g id="wheel">
+          <path id="wheelPath" fill="#fbf1da" fill-rule="evenodd"/>
+          <g id="wheelRings"></g>
+          <circle id="ghost" r="22" fill="#f5e6c6" stroke="#6e3a1d" stroke-width="5" opacity="0"/>
+        </g>
+        <!-- centre card (does not rotate) -->
+        <circle r="80" fill="#6e3a1d"/>
+        <circle r="74" fill="#fbf1da"/>
+        <path d="M -60 -18 H 60 M -60 26 H 60" stroke="#e3661d" stroke-width="4"/>
+        <text y="-28" text-anchor="middle" font-family="Jost, sans-serif" font-size="13" font-weight="600" letter-spacing="2.5" fill="#c2440f">YOUR NUMBER</text>
+        <text id="cardNum" y="10" text-anchor="middle" font-family="Fraunces, serif" font-weight="800" font-size="22" fill="#3c2214">— — —</text>
+        <text y="48" text-anchor="middle" font-family="Jost, sans-serif" font-size="12" font-weight="500" fill="#6e3a1d" letter-spacing="1">GROOVE STREET</text>
+        <!-- finger stop -->
+        <g id="stop"><path d="M 0 -10 L 52 -6 Q 64 0 52 6 L 0 10 Z" fill="#3c2214"/><path d="M 40 -4 L 60 0 L 40 4" fill="#f5e6c6"/></g>
+      </g>
+    </svg>
+  </div>
+  <button class="mute" id="mute" type="button" aria-pressed="false" aria-label="Mute telephone sounds"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 8 H7 L12 3 V19 L7 14 H3 Z" fill="#f5e6c6"/><g id="mw" stroke="#f5e6c6" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M15 8 Q17 11 15 14"/><path d="M17.5 5.5 Q21 11 17.5 16.5"/></g><path id="mx" d="M15 8 L20 14 M20 8 L15 14" stroke="#e3a92b" stroke-width="2.4" stroke-linecap="round" style="display:none"/></svg></button>
+  <div class="sr" id="live" aria-live="polite"></div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const NS = 'http://www.w3.org/2000/svg';
+  const input = $('num'), mirror = $('mirror');
+  const MAX = 10;
+  const TEMPLATE = '(___) ___-____';
+  let digits = '';
+  let incoming = null; // digit currently pulsing in
+
+  /* ---------- dial geometry ---------- */
+  const S = 32;                 // finger stop angle (deg, clockwise from 3 o'clock)
+  const HR = 150, HOLE = 31;    // hole ring radius, hole radius
+  const holeAngle = n => S - 52 - (n - 1) * 30;          // n = 1..10 (10 = "0")
+  const reach = n => (S - 8) - holeAngle(n);              // rotation needed to hit the stop
+  const label = n => n === 10 ? '0' : String(n);
+  const rad = d => d * Math.PI / 180;
+  const plate = $('plate');
+  for (let n = 1; n <= 10; n++) {
+    const a = rad(holeAngle(n));
+    const x = Math.cos(a) * HR, y = Math.sin(a) * HR;
+        const t = document.createElementNS(NS, 'text'); t.setAttribute('x', x); t.setAttribute('y', y + 12); t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-family', 'Fraunces, serif'); t.setAttribute('font-weight', '900'); t.setAttribute('font-size', '31'); t.setAttribute('fill', '#3c2214');
+    t.setAttribute('style', 'font-variation-settings:"SOFT" 100'); t.textContent = label(n); plate.appendChild(t);
+    // tiny letters like the old exchanges
+    const letters = ['', 'ABC', 'DEF', 'GHI', 'JKL', 'MNO', 'PRS', 'TUV', 'WXY', 'OPER'][n === 10 ? 9 : n - 1];
+    if (letters) { const l = document.createElementNS(NS, 'text'); l.setAttribute('x', x); l.setAttribute('y', y - 14); l.setAttribute('text-anchor', 'middle'); l.setAttribute('font-family', 'Jost, sans-serif'); l.setAttribute('font-weight', '600'); l.setAttribute('font-size', '9'); l.setAttribute('letter-spacing', '1'); l.setAttribute('fill', '#6e3a1d'); l.textContent = letters; plate.appendChild(l); }
+  }
+  // finger wheel with holes (evenodd)
+  let d = `M 196 0 A 196 196 0 1 1 -196 0 A 196 196 0 1 1 196 0 Z `;
+  d += `M 92 0 A 92 92 0 1 0 -92 0 A 92 92 0 1 0 92 0 Z `;
+  const rings = $('wheelRings');
+  for (let n = 1; n <= 10; n++) {
+    const a = rad(holeAngle(n)), x = Math.cos(a) * HR, y = Math.sin(a) * HR;
+    d += `M ${x + HOLE} ${y} A ${HOLE} ${HOLE} 0 1 0 ${x - HOLE} ${y} A ${HOLE} ${HOLE} 0 1 0 ${x + HOLE} ${y} Z `;
+    const r = document.createElementNS(NS, 'circle'); r.setAttribute('cx', x); r.setAttribute('cy', y); r.setAttribute('r', HOLE + 4); r.setAttribute('fill', 'none'); r.setAttribute('stroke', '#e3661d'); r.setAttribute('stroke-width', '3');
+    rings.appendChild(r);
+    const hit = document.createElementNS(NS, 'circle'); hit.setAttribute('cx', x); hit.setAttribute('cy', y); hit.setAttribute('r', HOLE + 6); hit.setAttribute('fill', 'transparent'); hit.setAttribute('class', 'hole'); hit.dataset.n = n;
+    rings.appendChild(hit);
+  }
+  $('wheelPath').setAttribute('d', d);
+  // stripes on the wheel (concentric supergraphic)
+  [188, 192].forEach((r, i) => { const c = document.createElementNS(NS, 'circle'); c.setAttribute('r', r); c.setAttribute('fill', 'none'); c.setAttribute('stroke', i ? '#e3a92b' : '#e3661d'); c.setAttribute('stroke-width', '3'); c.setAttribute('stroke-dasharray', '1 0'); rings.insertBefore(c, rings.firstChild); });
+  $('stop').setAttribute('transform', `rotate(${S}) translate(170 0)`);
+
+  /* ---------- audio ---------- */
+  let ac = null, master = null, nb = null, muted = false;
+  function A() {
+    if (muted) return null;
+    try {
+      if (!ac) { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .17; master.connect(ac.destination); nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const x = nb.getChannelData(0); for (let i = 0; i < x.length; i++) x[i] = Math.random() * 2 - 1; }
+      if (ac.state === 'suspended') ac.resume(); return ac;
+    } catch (e) { return null; }
+  }
+  function nz(t, dur, type, f, q, g) { const s = ac.createBufferSource(); s.buffer = nb; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const gg = ac.createGain(); gg.gain.setValueAtTime(g, t); gg.gain.exponentialRampToValueAtTime(.0008, t + dur); s.connect(fl).connect(gg).connect(master); s.start(t, Math.random() * .5, dur + .02); }
+  function os(t, f, dur, g, type) { const o = ac.createOscillator(); o.type = type || 'sine'; o.frequency.value = f; const gg = ac.createGain(); gg.gain.setValueAtTime(.0001, t); gg.gain.linearRampToValueAtTime(g, t + .004); gg.gain.exponentialRampToValueAtTime(.0008, t + dur); o.connect(gg).connect(master); o.start(t); o.stop(t + dur + .02); }
+  let whirr = null;
+  const snd = {
+    ratchet() { if (!A()) return; const t = ac.currentTime; nz(t, .012, 'highpass', 4500, .7, .12); },
+    stop() { if (!A()) return; const t = ac.currentTime; nz(t, .05, 'bandpass', 1500, 3, .6); os(t, 300, .06, .25, 'triangle'); },
+    pulse() { if (!A()) return; const t = ac.currentTime; nz(t, .025, 'bandpass', 1100, 4, .55); os(t, 160, .04, .3, 'square'); },
+    whirrOn() { if (!A() || whirr) return; const s = ac.createBufferSource(); s.buffer = nb; s.loop = true; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 2; const g = ac.createGain(); g.gain.value = .0001; g.gain.linearRampToValueAtTime(.12, ac.currentTime + .05); s.connect(f).connect(g).connect(master); s.start(); whirr = { s, g }; },
+    whirrOff() { if (!whirr || !ac) return; const w = whirr; whirr = null; w.g.gain.linearRampToValueAtTime(.0001, ac.currentTime + .06); w.s.stop(ac.currentTime + .08); },
+    hang() { if (!A()) return; const t = ac.currentTime; os(t, 90, .2, .5, 'triangle'); nz(t, .1, 'lowpass', 500, 1, .5); },
+    ring() { if (!A()) return; const t = ac.currentTime; for (let b = 0; b < 2; b++) { const t0 = t + b * .55; for (let k = 0; k < 18; k++) { os(t0 + k * .025, k % 2 ? 1050 : 880, .05, .12); } } },
+    busy() { if (!A()) return; const t = ac.currentTime; for (let k = 0; k < 3; k++) { os(t + k * .3, 480, .16, .1); os(t + k * .3, 620, .16, .1); } }
+  };
+
+  /* ---------- formatting ---------- */
+  function formatted(ds) { // template filled up to last digit
+    let out = '', k = 0;
+    for (const ch of TEMPLATE) { if (k >= ds.length) break; if (ch === '_') out += ds[k++]; else out += ch; }
+    return out;
+  }
+  function render() {
+    const f = formatted(digits);
+    if (input.value !== f) input.value = f;
+    const rest = TEMPLATE.slice(f.length);
+    let inc = '';
+    let restShown = rest;
+    if (incoming !== null && digits.length < MAX) {
+      // show the pulsing digit in the next slot
+      const idx = rest.indexOf('_');
+      inc = rest.slice(0, idx) ; restShown = rest.slice(idx + 1);
+      mirror.innerHTML = `<span>${esc(f)}</span><span class="rest">${esc(inc)}</span><span class="inc">${incoming}</span><span class="rest">${esc(restShown)}</span>`;
+    } else mirror.innerHTML = `<span>${esc(f)}</span><span class="rest">${esc(rest)}</span>`;
+    $('cardNum').textContent = digits.length ? (digits.length > 6 ? digits.slice(-4).padStart(4, '·') : digits.slice(0, 3) + (digits.length > 3 ? '·' + digits.slice(3) : '')) : '— — —';
+    const full = digits.length === MAX;
+    $('save').disabled = !full;
+    $('del').disabled = !digits.length;
+  }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function setStatus(html) { $('status').innerHTML = html; }
+  function say(t) { const l = $('live'); l.textContent = ''; setTimeout(() => l.textContent = t, 20); }
+  function pretty(ds) { return `(${ds.slice(0, 3)}) ${ds.slice(3, 6)}-${ds.slice(6)}`; }
+  function afterDigit() {
+    if (digits.length === MAX) {
+      setStatus(`Ready: <b>+1 ${pretty(digits)}</b>`); say(`Number complete: ${digits.split('').join(' ')}`);
+    } else setStatus(`${MAX - digits.length} more digit${MAX - digits.length === 1 ? '' : 's'} to go.`);
+  }
+
+  /* ---------- wheel state & animation ---------- */
+  const wheel = $('wheel'), ghost = $('ghost');
+  let rot = 0;                // current rotation (deg)
+  let mode = 'idle';          // idle | drag | return | auto
+  let active = 0;             // hole being dialled
+  let reached = false;
+  let pulsesLeft = 0, pulseMarks = [];
+  const queue = [];
+  function setRot(r) { rot = r; wheel.setAttribute('transform', `rotate(${r.toFixed(2)})`); }
+  let raf = 0, last = 0, autoT = 0;
+  function loop(now) {
+    const dt = Math.min(.04, (now - last) / 1000); last = now;
+    if (mode === 'return') {
+      const speed = queue.length ? 780 : 420; // governor: ~14 pulses/s, faster if digits are queued from typing
+      const before = rot;
+      setRot(Math.max(0, rot - speed * dt * (reduce ? 4 : 1)));
+      // pulses fire at evenly spaced points on the way back
+      while (pulseMarks.length && rot <= pulseMarks[0]) {
+        pulseMarks.shift(); pulsesLeft--; snd.pulse();
+        if (reached) { const count = active - pulsesLeft; incoming = count === 10 ? 0 : count; render(); }
+      }
+      if (rot <= 0) {
+        setRot(0); snd.whirrOff(); ghost.setAttribute('opacity', 0);
+        if (reached) commit(active);
+        mode = 'idle'; incoming = null; render();
+        nextQueued();
+      }
+    } else if (mode === 'auto') {
+      autoT += dt / (reduce ? .05 : (.16 + reach(active) / 1400));
+      const e = autoT >= 1 ? 1 : (1 - Math.cos(Math.PI * autoT)) / 2;
+      setRot(reach(active) * e);
+      if (autoT >= 1) { snd.stop(); reached = true; startReturn(); }
+    }
+    if (ringing > 0) { ringing -= dt; animateRing(now); }
+    if (mode === 'return' || mode === 'auto' || ringing > 0) raf = requestAnimationFrame(loop); else { raf = 0; if (ringing <= 0) resetRing(); }
+  }
+  function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  function startReturn() {
+    mode = 'return';
+    pulsesLeft = reached ? active : 0;
+    pulseMarks = [];
+    if (reached) { const span = rot - 6; for (let k = 0; k < active; k++) pulseMarks.push(rot - 10 - k * (span / active)); }
+    snd.whirrOn(); kick();
+  }
+  function commit(n) {
+    const dg = n === 10 ? '0' : String(n);
+    if (digits.length >= MAX) { full(); return; }
+    digits += dg; render(); afterDigit(); hideHint();
+  }
+  function full() { snd.busy(); const f = $('field'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); setStatus('That’s all ten digits. Hang up (tap the hook) or delete one to change it.'); }
+  function nextQueued() {
+    if (mode !== 'idle' || !queue.length) return;
+    const n = queue.shift();
+    active = n; reached = false; autoT = 0; mode = 'auto';
+    showGhost(n); kick();
+  }
+  function showGhost(n) { const a = rad(holeAngle(n)); ghost.setAttribute('cx', Math.cos(a) * HR); ghost.setAttribute('cy', Math.sin(a) * HR); ghost.setAttribute('opacity', 1); }
+
+  /* ---------- pointer dialling ---------- */
+  const svg = $('phoneSvg');
+  function toDial(e) {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: p.x, y: p.y - 64 };
+  }
+  let drag = null;
+  svg.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.hole');
+    if (e.target.closest('.hook')) { hangUp(); return; }
+    if (!h || mode !== 'idle') { if (!h) input.focus({ preventScroll: true }); return; }
+    e.preventDefault(); A();
+    const p = toDial(e);
+    active = +h.dataset.n; reached = false; mode = 'drag';
+    drag = { ang: Math.atan2(p.y, p.x) * 180 / Math.PI, id: e.pointerId, lastNotch: 0 };
+    $('phone').classList.add('dragging');
+    svg.setPointerCapture(e.pointerId);
+    showGhost(active);
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const p = toDial(e);
+    const ang = Math.atan2(p.y, p.x) * 180 / Math.PI;
+    let delta = ang - drag.ang; if (delta > 180) delta -= 360; if (delta < -180) delta += 360;
+    drag.ang = ang;
+    const max = reach(active);
+    let r = Math.max(0, Math.min(max, rot + delta));
+    setRot(r);
+    const notch = Math.floor(r / 15); if (notch !== drag.lastNotch) { drag.lastNotch = notch; snd.ratchet(); }
+    if (r >= max - .5 && !reached) { reached = true; snd.stop(); bump(); }
+    else if (r < max - 10) reached = false;
+  });
+  function endDrag(e) {
+    if (!drag) return;
+    drag = null; $('phone').classList.remove('dragging');
+    if (!reached) { if (rot > 8) setStatus('Swing it all the way round to the metal stop.'); }
+    else if (digits.length >= MAX) { reached = false; full(); }
+    startReturn();
+  }
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+  function bump() {
+    if (reduce) return;
+    $('dial').animate([{ transform: 'translate(0px,64px)' }, { transform: 'translate(2px,66px)' }, { transform: 'translate(0px,64px)' }], { duration: 120 });
+  }
+
+  /* ---------- keyboard / typing ---------- */
+  input.addEventListener('input', () => {
+    const raw = input.value.replace(/\D/g, '');
+    let ds = raw; if (ds.length > MAX && ds[0] === '1') ds = ds.slice(1); // strip a pasted country code
+    ds = ds.slice(0, MAX);
+    const prev = digits;
+    digits = ds; render();
+    // echo newly added digits on the dial
+    if (ds.length > prev.length && ds.startsWith(prev)) {
+      // typed digits are already in the field, so the dial's pulses must not add them twice
+      for (const ch of ds.slice(prev.length)) { if (queue.length < 3) { queue.push(ch === '0' ? 10 : +ch); typedEcho++; } }
+      nextQueued(); hideHint();
+    }
+    afterDigit();
+    const len = input.value.length; try { input.setSelectionRange(len, len); } catch (e) {}
+  });
+  let typedEcho = 0;
+  const _commit = commit;
+  commit = function (n) { if (typedEcho > 0) { typedEcho--; return; } _commit(n); };
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); if (digits.length === MAX) save(); else full(); }
+    if (e.key.length === 1 && /\d/.test(e.key) && digits.length >= MAX && input.selectionStart === input.selectionEnd) { e.preventDefault(); full(); }
+  });
+  // keep caret at the end (phone fields reformat as you go)
+  ['focus', 'click'].forEach(ev => input.addEventListener(ev, () => { setTimeout(() => { const len = input.value.length; try { input.setSelectionRange(len, len); } catch (e) {} }, 0); }));
+
+  /* ---------- hang up, delete, save ---------- */
+  function hangUp() {
+    A(); snd.hang();
+    const hs = $('handset');
+    if (!reduce) hs.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-26px)' }, { transform: 'translateY(4px)' }, { transform: 'translateY(0)' }], { duration: 420, easing: 'ease-out' });
+    ['hookL', 'hookR'].forEach(id => { const h = $(id); if (!reduce) h.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(12px)' }, { transform: 'translateY(0)' }], { duration: 260 }); });
+    queue.length = 0; typedEcho = 0;
+    if (digits.length) { digits = ''; render(); setStatus('Hung up. Start again whenever you like.'); say('Number cleared'); }
+  }
+  $('del').addEventListener('click', () => { if (!digits.length) return; digits = digits.slice(0, -1); render(); afterDigit(); say('Deleted last digit'); });
+  function save() {
+    if (digits.length !== MAX) { full(); return; }
+    A(); snd.ring(); ringing = 1.2; kick();
+    setStatus(`Saved. We’ll text <b>+1 ${pretty(digits)}</b> when your records ship.`);
+    say(`Saved. We will text plus 1 ${pretty(digits)}`);
+    $('save').textContent = 'Saved · ring ring';
+    setTimeout(() => { $('save').textContent = 'Text me shipping updates'; }, 2600);
+  }
+  $('save').addEventListener('click', save);
+  let ringing = 0;
+  const ringG = $('ringLines');
+  ringG.innerHTML = [0, 1, 2].map(k => `<path d="M ${-150 - k * 26} ${-330 - k * 20} q -20 30 -6 64" stroke="${['#e3a92b', '#e3661d', '#6e3a1d'][k]}" stroke-width="9" fill="none" stroke-linecap="round"/><path d="M ${150 + k * 26} ${-330 - k * 20} q 20 30 6 64" stroke="${['#e3a92b', '#e3661d', '#6e3a1d'][k]}" stroke-width="9" fill="none" stroke-linecap="round"/>`).join('');
+  function animateRing(now) {
+    const hs = $('handset');
+    const j = reduce ? 0 : Math.sin(now * .09) * 7 * Math.min(1, ringing * 2);
+    hs.setAttribute('transform', `translate(0 ${-Math.abs(j)}) rotate(${j * .3})`);
+    ringG.setAttribute('opacity', Math.min(1, ringing * 2) * (0.6 + 0.4 * Math.sin(now * .03)));
+  }
+  function resetRing() { $('handset').removeAttribute('transform'); ringG.setAttribute('opacity', 0); }
+  $('mute').addEventListener('click', () => { muted = !muted; if (muted) snd.whirrOff(); $('mute').setAttribute('aria-pressed', String(muted)); $('mute').setAttribute('aria-label', muted ? 'Unmute telephone sounds' : 'Mute telephone sounds'); $('mw').style.display = muted ? 'none' : ''; $('mx').style.display = muted ? '' : 'none'; });
+  let hintGone = false;
+  function hideHint() { if (!hintGone) { hintGone = true; $('hint').classList.add('gone'); } }
+
+  /* ---------- supergraphics + layout ---------- */
+  const phone = $('phone');
+  function layout() {
+    const W = innerWidth, H = innerHeight, mobile = W < 760;
+    let size, px, py;
+    if (mobile) {
+      size = Math.min(W * 1.02, H * .52); px = W / 2 - size / 2; py = H - size * 1.07 - 74;
+      py = Math.max(py, 250);
+    } else {
+      size = Math.min(H * .84, W * .48); px = Math.min(W - size - 40, W * .5 + 40); py = H - size * 1.03 - 4;
+    }
+    phone.style.width = size + 'px'; phone.style.height = size * 640 / 600 + 'px';
+    phone.style.left = px + 'px'; phone.style.top = py + 'px';
+    // dial centre in page px
+    const k = size / 600;
+    const dcx = px + 300 * k, dcy = py + (330 + 64) * k, dr = 214 * k;
+    // big stripe bands concentric with the dial
+    const cols = ['#e3a92b', '#e3661d', '#c2440f', '#6e3a1d'];
+    const bw = 30 * k, gap = 8 * k;
+    let s = '';
+    // 70s rainbow arch, concentric with the dial
+    for (let i = 3; i >= 0; i--) {
+      const r = dr + 30 * k + i * (bw + gap) + bw / 2;
+      s += `<path d="M ${dcx - r} ${H + 40} V ${dcy} A ${r} ${r} 0 0 1 ${dcx + r} ${dcy} V ${H + 40}" fill="none" stroke="${cols[i]}" stroke-width="${bw}" />`;
+    }
+    // top-left corner rainbow
+    if (!mobile) for (let i = 0; i < 4; i++) { const r = 34 + i * 26; s += `<path d="M -40 ${r} H 0 A ${r} ${r} 0 0 0 ${r} 0 V -40" fill="none" stroke="${cols[3 - i]}" stroke-width="18"/>`; }
+    // floor band
+    s += `<rect x="-10" y="${H - (mobile ? 12 : 22)}" width="${W + 20}" height="40" fill="#6e3a1d"/>`;
+    $('super').setAttribute('viewBox', `0 0 ${W} ${H}`);
+    $('super').innerHTML = s;
+    // hint + order positions
+    const hint = $('hint'), order = $('order');
+    if (mobile) {
+      hint.style.display = 'none'; order.style.display = 'none';
+      if (!digits.length && !hintGone) setStatus('Swing a hole round to the stop and let go, or type.');
+    } else {
+      hint.style.display = '';
+      order.style.left = 'clamp(20px,5vw,72px)'; order.style.bottom = '40px'; order.style.maxWidth = Math.min(440, px - 80) + 'px';
+      order.style.display = H < 760 ? 'none' : '';
+    }
+  }
+  addEventListener('resize', layout);
+  layout(); render();
+  window.__dial = { queueDigit: n => { queue.push(n); nextQueued(); }, digits: () => digits, save, hangUp };
+})();
+</script>
+</body>
+</html>

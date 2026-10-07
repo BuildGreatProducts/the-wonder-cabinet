@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rubber Stamp Approve</title>
+<meta name="description" content="An expense-approval queue printed as a two-colour risograph: ink a rubber stamp on the pad, then thump it onto the report to approve or return it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Rubber Stamp Approve","reimagines":"Approve / reject buttons","category":"Buttons & Actions","description":"Approve and return are two rubber stamps on a risograph-printed desk. Ink them on a two-colour pad (hold longer for richer ink) and thump them onto each expense report; a faint impression asks you to re-ink, a good one files the report and brings the next.","hint":"Pick up a stamp, press it on the ink pad, then press it on the report"}
+</script>
+<style>
+:root{
+  --paper:#f2ecdf; --paper-hi:#f7f2e8;
+  --pink:#ff48b0; --teal:#00838a; --navy:#0b2a5c;
+  --mx:2px; --my:1.5px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:"DM Mono",ui-monospace,Menlo,monospace;color:var(--teal);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+.stage{position:relative;width:100vw;height:100dvh;overflow:hidden;
+  display:grid;grid-template-columns:minmax(250px,1fr) minmax(360px,440px) minmax(330px,1fr);
+  grid-template-areas:"side report tools";gap:28px;padding:34px 44px 30px;}
+/* paper fibre */
+.stage::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .5 0 0 0 0 .42 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23f)'/%3E%3C/svg%3E");}
+#bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:multiply}
+.inky{filter:url(#grain)}
+.mul{mix-blend-mode:multiply}
+/* overprinted display type: teal key + pink plate knocked off-register */
+.op{position:relative;display:inline-block;color:var(--teal);mix-blend-mode:multiply}
+.op::before{content:attr(data-t);position:absolute;left:var(--mx);top:var(--my);color:var(--pink);mix-blend-mode:multiply;z-index:-1;white-space:inherit}
+
+.side{grid-area:side;position:relative;display:flex;flex-direction:column;justify-content:space-between;min-width:0;z-index:2}
+.title{font-family:"Archivo Black",Impact,sans-serif;font-size:clamp(34px,4.1vw,58px);line-height:.88;letter-spacing:-.01em;margin:0;text-transform:uppercase}
+.title .op{display:block}
+.kicker{margin:14px 0 0;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;line-height:1.55}
+.kicker b{color:var(--pink);font-weight:500}
+.tally{display:flex;gap:18px;margin-top:20px}
+.tally div{font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.tally strong{display:block;font-family:"Archivo Black",sans-serif;font-size:34px;letter-spacing:-.02em;line-height:1;font-weight:400}
+.trays{display:flex;gap:18px;align-items:flex-end}
+.tray{position:relative;width:150px;height:126px}
+.tray canvas{position:absolute;left:0;bottom:22px;width:150px;height:92px;mix-blend-mode:multiply}
+.tray .sheets{position:absolute;left:20px;right:20px;bottom:76px;height:60px}
+.tray .sheets i{position:absolute;left:0;right:0;height:9px;border:1.5px solid currentColor;border-bottom:0;background:var(--paper-hi)}
+.tray.ok{color:var(--teal)} .tray.no{color:var(--pink)}
+.tray label{position:absolute;left:0;right:0;bottom:0;text-align:center;font-family:"Archivo Black",sans-serif;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.upnext{list-style:none;margin:0;padding:0;font-size:12px;line-height:1;max-width:300px}
+.upnext li{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1.5px dotted var(--teal);transition:opacity .4s}
+.upnext li span:first-child{font-size:10px;opacity:.75}
+.upnext li.cur{color:var(--pink)}
+.upnext li.cur span:first-child::before{content:"";display:inline-block;border:5px solid transparent;border-left:7px solid var(--pink);margin-right:2px;vertical-align:-1px}
+.upnext li.cur span:first-child{font-size:0}
+.upnext li.filed{opacity:.55}
+.upnext li.filed b{font-family:"Archivo Black",sans-serif;font-weight:400;font-size:9.5px;letter-spacing:.06em;border:1.5px solid currentColor;padding:2px 4px;transform:rotate(-4deg);display:inline-block}
+.upnext li.filed.ok b{color:var(--teal)} .upnext li.filed.no b{color:var(--pink)}
+.upwrap h3{margin:0 0 6px;font-size:10.5px;letter-spacing:.14em;font-weight:500;text-transform:uppercase}
+.gauge{position:absolute;right:-2px;top:47%;display:flex;flex-direction:column-reverse;gap:3px;mix-blend-mode:multiply}
+.gauge i{width:8px;height:6px;border:1.5px solid var(--teal)}
+.gauge i.on{background:currentColor}
+
+.reportArea{grid-area:report;position:relative;display:grid;place-items:center;min-height:0;z-index:3}
+.stack{position:relative;width:100%;max-width:420px;aspect-ratio:420/548}
+.stack .under{position:absolute;inset:0;border:2px solid var(--teal);background:var(--paper-hi);mix-blend-mode:multiply}
+.report{position:absolute;inset:0;container-type:inline-size;transform-origin:50% 60%;isolation:isolate}
+.report .shade{/* pink offset block shadow, printed as halftone */position:absolute;left:12px;top:12px;right:-14px;bottom:-14px;
+  background:radial-gradient(circle,var(--pink) 0 1.35px,transparent 1.75px) 0 0/5px 5px}
+.report .paperbg{position:absolute;inset:0;background:var(--paper-hi);border:2px solid var(--teal)}
+.report .body{position:absolute;inset:0;padding:6.5cqw 7cqw 0;font-size:3.3cqw;line-height:1.5}
+.rhead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--teal);padding-bottom:2.4cqw;font-size:2.7cqw;letter-spacing:.06em;text-transform:uppercase}
+.rhead .pk{color:var(--pink);position:relative;left:var(--mx);top:var(--my)}
+.report h2{font-family:"Archivo Black",sans-serif;font-weight:400;font-size:6.6cqw;line-height:1;margin:4.4cqw 0 2.6cqw;letter-spacing:-.01em;text-transform:uppercase}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:.4cqw 3cqw;margin:0 0 3.6cqw;font-size:3cqw}
+.meta dt{opacity:.8;text-transform:uppercase;letter-spacing:.06em;font-size:2.6cqw;padding-top:.3cqw}
+.meta dd{margin:0}
+.lines{width:100%;border-collapse:collapse;font-size:3.1cqw}
+.lines td{padding:1.1cqw 0;border-bottom:1.5px dotted var(--teal)}
+.lines td:last-child{text-align:right;white-space:nowrap}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:2.8cqw;font-family:"Archivo Black",sans-serif;font-size:5.2cqw;color:var(--pink);position:relative;left:var(--mx);top:var(--my)}
+.total small{font-family:"DM Mono",monospace;font-size:2.6cqw;letter-spacing:.08em;color:var(--teal);position:relative;left:calc(-1*var(--mx));top:calc(-1*var(--my))}
+.flag{display:flex;gap:2cqw;align-items:flex-start;margin-top:3cqw;font-size:2.9cqw;line-height:1.35;color:var(--pink);position:relative;left:var(--mx)}
+.flag svg{flex:none;width:3.6cqw;height:3.6cqw;margin-top:.2cqw}
+.stampbox{position:absolute;left:7cqw;right:7cqw;bottom:6cqw;height:25cqw;border:1.5px dashed var(--teal);display:flex;align-items:flex-end;justify-content:space-between;padding:1.6cqw 2cqw;font-size:2.4cqw;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
+.report canvas.ink{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply;pointer-events:none}
+.note{position:absolute;right:5cqw;top:30cqw;width:42cqw;font-family:Caveat,cursive;font-size:6cqw;line-height:.95;color:var(--pink);transform:rotate(-4deg);opacity:0;transition:opacity .25s;pointer-events:none;mix-blend-mode:multiply}
+.note.on{opacity:1}
+.note svg{display:block;width:16cqw;height:10cqw;margin:1cqw 0 0 12cqw}
+.done{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3cqw;padding:8cqw;container-type:inline-size}
+.done.on{display:flex}
+.done h2{font-family:"Archivo Black",sans-serif;font-weight:400;font-size:10cqw;line-height:.9;margin:0;text-transform:uppercase}
+.done p{margin:0;font-size:3.4cqw;line-height:1.5}
+.btn{font:inherit;font-family:"Archivo Black",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:3.6cqw;color:var(--teal);background:transparent;border:2px solid var(--teal);padding:2.4cqw 4cqw;cursor:pointer;box-shadow:5px 5px 0 var(--pink);mix-blend-mode:multiply}
+.btn:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--pink)}
+.btn:focus-visible,.stamp:focus-visible .face{outline:3px dashed var(--pink);outline-offset:4px}
+
+.tools{grid-area:tools;position:relative;min-width:0;z-index:4}
+.pad{position:absolute;left:50%;top:6%;width:300px;height:176px;margin-left:-150px}
+.pad canvas{width:100%;height:100%;display:block;mix-blend-mode:multiply}
+.dent{position:absolute;width:10px;height:10px;opacity:0;mix-blend-mode:multiply;pointer-events:none;border-radius:3px}
+.rests{position:absolute;left:0;right:0;top:calc(6% + 200px);display:flex;justify-content:center;gap:14px}
+.rest{width:165px;height:205px;position:relative}
+.rest::after{content:attr(data-l);position:absolute;left:0;right:0;bottom:-6px;text-align:center;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase}
+.rest .spot{position:absolute;left:12px;right:12px;bottom:16px;height:20px;border:1.5px dashed currentColor;border-radius:50%}
+.hint{position:absolute;left:0;right:0;bottom:2%;font-size:12px;line-height:1.55;text-align:center;letter-spacing:.04em;transition:opacity .6s}
+.hint b{color:var(--pink);font-weight:500}
+.hint.fade{opacity:.35}
+
+/* stamps live in a fixed layer so they can travel anywhere on the desk */
+.stamp{position:fixed;left:0;top:0;width:165px;height:205px;padding:0;border:0;background:none;cursor:grab;z-index:10;touch-action:none;-webkit-tap-highlight-color:transparent}
+.stamp.held{cursor:none;pointer-events:none;z-index:20}
+.stamp .face{position:absolute;inset:0;will-change:transform}
+.stamp canvas.sprite{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply}
+.stamp .rubber{position:absolute;left:5%;right:5%;top:84.5%;height:6.5%;border:2px solid var(--teal);mix-blend-mode:multiply;background:transparent}
+.stamp .rubber i{position:absolute;inset:0;opacity:0}
+.stamp .drip{position:absolute;top:100%;width:5px;height:9px;border-radius:0 0 3px 3px;opacity:0;transform-origin:top}
+.shadow{position:fixed;left:0;top:0;width:140px;height:44px;margin:-22px 0 0 -70px;pointer-events:none;z-index:9;mix-blend-mode:multiply;
+  background:radial-gradient(circle,var(--teal) 0 1.3px,transparent 1.7px) 0 0/5px 5px;
+  -webkit-mask:radial-gradient(closest-side,#000 35%,transparent 100%);mask:radial-gradient(closest-side,#000 35%,transparent 100%)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (max-width:760px){
+  .stage{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) 210px;grid-template-areas:"side" "report" "tools";gap:12px;padding:16px 16px 10px}
+  .title{font-size:27px;display:flex;gap:8px}
+  .title .op{display:inline-block}
+  .kicker{margin-top:5px;font-size:10px;line-height:1.4}
+  .side{display:block}
+  .tally{position:absolute;right:0;top:34px;margin:0;gap:12px}
+  .tally div{font-size:8.5px}
+  .tally strong{font-size:20px}
+  .trays,.upwrap{display:none}
+  .reportArea{container-type:size}
+  .stack{max-width:none;width:min(100cqw, 100cqh*420/548);height:auto}
+  .pad{top:4px;width:178px;height:104px;margin-left:-89px}
+  .rests{position:absolute;top:0;left:0;right:0;justify-content:space-between;gap:0;padding:0 2px}
+  .rest{width:96px;height:120px}
+  .rest::after{font-size:8.5px;bottom:-16px}
+  .hm{display:none}
+  .rest .spot{bottom:8px;height:14px}
+  .stamp{width:96px;height:120px}
+  .gauge{gap:2px} .gauge i{width:6px;height:4px;border-width:1px}
+  .hint{font-size:10.5px;bottom:4px;padding:0 6px}
+  .shadow{width:90px;height:30px;margin:-15px 0 0 -45px}
+}
+@media (prefers-reduced-motion:reduce){.note,.hint{transition:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="grain" x="-2%" y="-2%" width="104%" height="104%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="1" seed="4" result="n1"/>
+    <feDisplacementMap in="SourceGraphic" in2="n1" scale="1.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="11" result="n2"/>
+    <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -2.6 0 0 0 2.25" result="m"/>
+    <feComposite in="d" in2="m" operator="in"/>
+  </filter>
+</svg>
+
+<main class="stage" id="stage">
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <section class="side">
+    <div>
+      <h1 class="title inky"><span class="op" data-t="Expense">Expense</span> <span class="op" data-t="approvals">approvals</span></h1>
+      <p class="kicker inky mul">Northwind Studio · finance<br><b>Week 41</b><span class="hm"> · reviewer R. Lindqvist</span></p>
+      <div class="tally inky mul" aria-hidden="true">
+        <div><strong id="tQueue">06</strong>in queue</div>
+        <div><strong id="tOk" style="color:var(--teal)">00</strong>approved</div>
+        <div><strong id="tNo" style="color:var(--pink)">00</strong>returned</div>
+      </div>
+    </div>
+    <div class="upwrap inky mul" aria-hidden="true"><h3>Up next</h3><ol class="upnext" id="upnext"></ol></div>
+    <div class="trays" aria-hidden="true">
+      <div class="tray ok" id="trayOk"><div class="sheets"></div><canvas></canvas><label class="inky">Approved</label></div>
+      <div class="tray no" id="trayNo"><div class="sheets"></div><canvas></canvas><label class="inky">Returned</label></div>
+    </div>
+  </section>
+
+  <section class="reportArea" aria-label="Current expense report">
+    <div class="stack" id="stack">
+      <div class="under" style="transform:translate(9px,7px) rotate(1.4deg)"></div>
+      <div class="under" style="transform:translate(4px,3px) rotate(-.8deg)"></div>
+      <article class="report" id="report">
+        <div class="shade"></div><div class="paperbg"></div>
+        <div class="body inky mul" id="rbody"></div>
+        <canvas class="ink" id="inkCanvas"></canvas>
+        <div class="note" id="note">too faint to file —<br>ink up &amp; stamp again
+          <svg viewBox="0 0 64 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4 6c14 2 30 10 40 26M44 32l-12-2M44 32l2-12"/></svg>
+        </div>
+        <div class="done inky mul" id="done">
+          <h2><span class="op" data-t="Desk">Desk</span><br><span class="op" data-t="clear">clear</span></h2>
+          <p id="doneText"></p>
+          <button class="btn" id="reload" type="button">Load next week's queue</button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="tools" aria-label="Stamps and ink pad">
+    <div class="pad" id="pad"><canvas id="padCanvas"></canvas><div class="dent" id="dent"></div></div>
+    <div class="rests">
+      <div class="rest inky mul" id="restOk" data-l="Approve · A" style="color:var(--teal)"><div class="spot"></div></div>
+      <div class="rest inky mul" id="restNo" data-l="Return · R" style="color:var(--pink)"><div class="spot"></div></div>
+    </div>
+    <p class="hint inky mul" id="hint"><b>1</b> pick up a stamp &nbsp;<b>2</b> hold it on its ink pad<br><b>3</b> press it onto the report</p>
+  </section>
+</main>
+
+<div class="shadow" id="shOk"></div><div class="shadow" id="shNo"></div>
+<button class="stamp" id="stOk" type="button" aria-label="Approved stamp. Press Enter to ink it and approve this report"><div class="face"><canvas class="sprite"></canvas><div class="rubber"><i></i></div><div class="gauge" style="color:var(--teal)"><i></i><i></i><i></i><i></i><i></i></div></div></button>
+<button class="stamp" id="stNo" type="button" aria-label="Returned stamp. Press Enter to ink it and return this report"><div class="face"><canvas class="sprite"></canvas><div class="rubber"><i></i></div><div class="gauge" style="color:var(--pink)"><i></i><i></i><i></i><i></i><i></i></div></div></button>
+<div class="sr" role="status" aria-live="polite" id="live"></div>
+
+<script>
+(() => {
+'use strict';
+const INK = { pink:[255,72,176], teal:[0,131,138] };
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const DPR = () => Math.min(2, window.devicePixelRatio || 1);
+
+/* ---------- value noise for grain ---------- */
+const hash = (x, y) => { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+function vnoise(x, y){ const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=hash(xi,yi), b=hash(xi+1,yi), c=hash(xi,yi+1), d=hash(xi+1,yi+1);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }
+
+/* ---------- tiny risograph renderer ----------
+   draw[ink](ctx) paints a plate in black; alpha = ink density.
+   Plates are screened (15° / 75°), grained, coloured and overprinted off-register. */
+function riso(w, h, draw, opt = {}) {
+  const dpr = opt.dpr || DPR(), W = Math.max(1, Math.round(w*dpr)), H = Math.max(1, Math.round(h*dpr));
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const o = out.getContext('2d');
+  const cell = (opt.cell || 4.6) * dpr;
+  const off = opt.off || [2, 1.5];
+  for (const ink of ['pink','teal']) {
+    if (!draw[ink]) continue;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d'); x.scale(dpr, dpr); draw[ink](x);
+    const img = x.getImageData(0,0,W,H), d = img.data, col = INK[ink];
+    const ang = ink === 'pink' ? 0.2618 : 1.309, cs = Math.cos(ang), sn = Math.sin(ang), TAU = Math.PI*2;
+    const seed = ink === 'pink' ? 71 : 13;
+    for (let y=0; y<H; y++) for (let x2=0; x2<W; x2++) {
+      const i = (y*W + x2)*4, a = d[i+3]/255;
+      if (a < 0.01) { d[i+3] = 0; continue; }
+      let cov;
+      if (a > 0.96) cov = 1;
+      else {
+        const u = (x2*cs - y*sn)/cell, v = (x2*sn + y*cs)/cell;
+        const fu = u - Math.floor(u) - .5, fv = v - Math.floor(v) - .5;
+        const thr = .5 - (Math.cos(TAU*fu) + Math.cos(TAU*fv))/4;
+        cov = clamp((a - thr)*5 + .5, 0, 1);
+      }
+      if (cov <= 0) { d[i+3] = 0; continue; }
+      const mot = .8 + .2*vnoise(x2/(26*dpr)+seed, y/(26*dpr));
+      const sp = hash(x2+seed, y*3+seed);
+      cov *= mot * (sp < .07 ? .25 : 1);
+      d[i] = col[0]; d[i+1] = col[1]; d[i+2] = col[2]; d[i+3] = cov*255;
+    }
+    x.setTransform(1,0,0,1,0,0); x.putImageData(img, 0, 0);
+    o.globalCompositeOperation = 'multiply';
+    if (ink === 'pink') o.drawImage(c, off[0]*dpr, off[1]*dpr); else o.drawImage(c, 0, 0);
+  }
+  return out;
+}
+function paint(canvas, w, h, draw, opt) {
+  const r = riso(w, h, draw, opt);
+  canvas.width = r.width; canvas.height = r.height;
+  canvas.getContext('2d').drawImage(r, 0, 0);
+}
+const A = a => `rgba(0,0,0,${a})`;
+function rrect(x, X, Y, W, H, R){ x.beginPath(); x.roundRect(X, Y, W, H, R); }
+
+/* ---------- audio ---------- */
+let ac = null, master = null, squish = null;
+function audio(){ if (ac) return ac; try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch(e){ ac = null; } return ac; }
+function noiseBuf(){ const b = ac.createBuffer(1, ac.sampleRate*.6, ac.sampleRate), d = b.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; return b; }
+let NB = null;
+function thump(strength=1){
+  if (!audio()) return; if (ac.state === 'suspended') ac.resume();
+  NB = NB || noiseBuf(); const t = ac.currentTime;
+  const o = ac.createOscillator(), g = ac.createGain(); o.type='sine'; o.frequency.setValueAtTime(130,t); o.frequency.exponentialRampToValueAtTime(48,t+.12);
+  g.gain.setValueAtTime(.9*strength,t); g.gain.exponentialRampToValueAtTime(.001,t+.18); o.connect(g).connect(master); o.start(t); o.stop(t+.2);
+  const n = ac.createBufferSource(), f = ac.createBiquadFilter(), ng = ac.createGain(); n.buffer = NB; f.type='lowpass'; f.frequency.value = 900;
+  ng.gain.setValueAtTime(.5*strength,t); ng.gain.exponentialRampToValueAtTime(.001,t+.08); n.connect(f).connect(ng).connect(master); n.start(t); n.stop(t+.1);
+}
+function squishOn(on){
+  if (!audio()) return; if (ac.state === 'suspended') ac.resume();
+  if (on && !squish){ NB = NB || noiseBuf(); const n = ac.createBufferSource(); n.buffer = NB; n.loop = true;
+    const f = ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value = 520; f.Q.value = 1.4;
+    const g = ac.createGain(); g.gain.setValueAtTime(0, ac.currentTime); g.gain.linearRampToValueAtTime(.16, ac.currentTime+.08);
+    n.connect(f).connect(g).connect(master); n.start(); squish = {n, g, f}; }
+  else if (!on && squish){ const s = squish; squish = null; s.g.gain.setTargetAtTime(0, ac.currentTime, .03); s.n.stop(ac.currentTime+.2); }
+}
+function swish(){
+  if (!audio()) return; NB = NB || noiseBuf(); const t = ac.currentTime;
+  const n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); n.buffer = NB; f.type='highpass';
+  f.frequency.setValueAtTime(1200,t); f.frequency.linearRampToValueAtTime(3800,t+.3);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.12,t+.06); g.gain.exponentialRampToValueAtTime(.001,t+.38);
+  n.connect(f).connect(g).connect(master); n.start(t); n.stop(t+.4);
+}
+
+/* ---------- data ---------- */
+const QUEUE = [
+  {ref:'EXP-2026-0412', title:'Client workshop, Lisbon', who:'Priya Raman', team:'Design', date:'14 Sep 2026',
+   lines:[['Return flight LHR–LIS','€412.80'],['Hotel Baixa, 2 nights','€356.00'],['Workshop lunch, 5 people','€96.40'],['Taxi to client office','€38.20']], total:'€903.40', flag:null},
+  {ref:'EXP-2026-0419', title:'Trade show, Berlin', who:'Tomás Herrera', team:'Sales', date:'22 Sep 2026',
+   lines:[['Booth print & banners','€640.00'],['Hotel Mitte, 3 nights','€489.00'],['Client meals','€141.75']], total:'€1,270.75', flag:'Hotel exceeds the €150 nightly cap by €13.00'},
+  {ref:'EXP-2026-0423', title:'Team offsite supplies', who:'Aiko Tanaka', team:'Engineering', date:'25 Sep 2026',
+   lines:[['Venue deposit, Hackney','€300.00'],['Snacks & drinks','€84.30'],['Whiteboard markers','€22.90']], total:'€407.20', flag:null},
+  {ref:'EXP-2026-0431', title:'Podcast sponsorship trial', who:'Daniel Okafor', team:'Marketing', date:'29 Sep 2026',
+   lines:[['“Small Studio” ep. 88 read','€1,200.00']], total:'€1,200.00', flag:'No receipt attached — invoice pending'},
+  {ref:'EXP-2026-0436', title:'Home office chair', who:'Lena Vogt', team:'Support', date:'01 Oct 2026',
+   lines:[['Task chair, refurbished','€289.00'],['Delivery','€40.00']], total:'€329.00', flag:null},
+  {ref:'EXP-2026-0440', title:'Client dinner, six guests', who:'Marcus Bell', team:'Finance', date:'03 Oct 2026',
+   lines:[['Dinner at Brat, Shoreditch','€486.10'],['Wine','€232.50']], total:'€718.60', flag:'Alcohol is 32% of the bill (policy: 25%)'},
+];
+let idx = 0, nOk = 0, nNo = 0;
+const today = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+const flagSvg = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 15V1.5M3 2h9l-2 3.2L12 8.5H3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+
+const report = $('#report'), rbody = $('#rbody'), inkC = $('#inkCanvas'), note = $('#note'), done = $('#done');
+const live = $('#live'), hint = $('#hint');
+let filing = false, decided = null, faint = false;
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function renderReport(){
+  const r = QUEUE[idx];
+  if (!r){ rbody.innerHTML=''; done.classList.add('on'); document.querySelectorAll('.stack .under').forEach(u => u.style.visibility = 'hidden');
+    $('#doneText').textContent = `${QUEUE.length} reports reviewed — ${nOk} approved, ${nNo} returned. Nothing waiting on you.`; return; }
+  done.classList.remove('on');
+  document.querySelectorAll('.stack .under').forEach((u,k) => u.style.visibility = (QUEUE.length - idx - 1) > k ? 'visible' : 'hidden');
+  rbody.innerHTML = `
+    <div class="rhead"><span>Expense report<br>${r.ref}</span><span class="pk" style="text-align:right">${String(idx+1).padStart(2,'0')} / ${pad2(QUEUE.length)}<br>${r.date}</span></div>
+    <h2>${r.title}</h2>
+    <dl class="meta"><dt>Claimant</dt><dd>${r.who} · ${r.team}</dd><dt>Receipts</dt><dd>${r.flag && r.flag.startsWith('No receipt') ? '0 of 1 attached' : r.lines.length + ' of ' + r.lines.length + ' attached'}</dd></dl>
+    <table class="lines">${r.lines.map(l=>`<tr><td>${l[0]}</td><td>${l[1]}</td></tr>`).join('')}</table>
+    <div class="total"><small>Total claimed</small>${r.total}</div>
+    ${r.flag ? `<div class="flag">${flagSvg}<span>${r.flag}</span></div>` : ''}
+    <div class="stampbox"><span>Reviewer stamp</span><span>${r.ref.slice(-4)}</span></div>`;
+  sizeInk(); decided = null; faint = false; note.classList.remove('on');
+}
+function sizeInk(){ const d = DPR(); inkC.width = report.offsetWidth*d; inkC.height = report.offsetHeight*d; }
+function renderUpNext(){
+  $('#upnext').innerHTML = QUEUE.map((r,i) => `<li class="${i<idx ? 'filed '+(r.outcome||'') : i===idx ? 'cur' : ''}"><span>${pad2(i+1)}</span><span>${r.who}</span>${i<idx ? `<b>${r.outcome==='ok'?'OK':'RTN'}</b>` : `<span>${r.total}</span>`}</li>`).join('');
+}
+function updateTally(){
+  renderUpNext();
+  $('#tQueue').textContent = pad2(QUEUE.length - idx); $('#tOk').textContent = pad2(nOk); $('#tNo').textContent = pad2(nNo);
+}
+
+/* ---------- impression ---------- */
+function impression(kind, cx, cy, ink){
+  const rr0 = report.getBoundingClientRect(), rub = ST[kind].el.querySelector('.rubber').getBoundingClientRect();
+  const sw = rub.width * report.offsetWidth / rr0.width, sh = sw*.42, d = DPR();
+  const c = document.createElement('canvas'); c.width = Math.round(sw*d); c.height = Math.round(sh*d);
+  const x = c.getContext('2d'); x.scale(d,d);
+  const word = kind === 'ok' ? 'APPROVED' : 'RETURNED';
+  x.fillStyle = x.strokeStyle = '#000';
+  x.lineWidth = Math.max(2, sw*.03); rrect(x, x.lineWidth/2+1, x.lineWidth/2+1, sw-x.lineWidth-2, sh-x.lineWidth-2, sh*.12); x.stroke();
+  x.lineWidth = sw*.008; rrect(x, sw*.05, sw*.05, sw-sw*.1, sh-sw*.1, sh*.07); x.stroke();
+  let fs = sh*.42; x.font = `${fs}px "Archivo Black", Impact, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  if ('letterSpacing' in x) x.letterSpacing = `${sh*.02}px`;
+  const tw = x.measureText(word).width; if (tw > sw*.8){ fs *= sw*.8/tw; x.font = `${fs}px "Archivo Black", Impact, sans-serif`; }
+  x.fillText(word, sw/2, sh*.5 + fs*.36);
+  if ('letterSpacing' in x) x.letterSpacing = `${sh*.02}px`;
+  let fs2 = sh*.12; x.font = `500 ${fs2}px "DM Mono", monospace`;
+  const sub = kind === 'ok' ? `NORTHWIND FINANCE · ${today}` : `SEE NOTES · ${today}`;
+  const tw2 = x.measureText(sub).width; if (tw2 > sw*.78){ fs2 *= sw*.78/tw2; x.font = `500 ${fs2}px "DM Mono", monospace`; }
+  x.fillText(sub, sw/2, sh*.81);
+  // ink texture: pressure tilt + fibre noise + grain
+  const img = x.getImageData(0,0,c.width,c.height), p = img.data, col = INK[kind==='ok'?'teal':'pink'];
+  const tilt = Math.random()*Math.PI*2, tx = Math.cos(tilt), ty = Math.sin(tilt), seed = (Math.random()*999)|0;
+  const level = Math.min(ink, 1.5);
+  for (let y=0;y<c.height;y++) for (let x2=0;x2<c.width;x2++){
+    const i=(y*c.width+x2)*4, a=p[i+3]/255; if (!a) continue;
+    const u=x2/c.width-.5, v=y/c.height-.5;
+    const press = 1 + .55*(u*tx + v*ty*1.6);
+    const n = vnoise(x2/(5*d)+seed, y/(5*d))*.65 + vnoise(x2/(1.6*d), y/(1.6*d)+seed)*.35;
+    const L = level*press*1.05;
+    let cov = clamp((L - n)*3.2 + .25, 0, 1);
+    if (level > 1.1) cov = Math.min(1, cov + (level-1.1)*1.6);
+    if (hash(x2+seed,y) < .05) cov *= .3;
+    p[i]=col[0]; p[i+1]=col[1]; p[i+2]=col[2]; p[i+3]=a*cov*235;
+  }
+  x.setTransform(1,0,0,1,0,0); x.putImageData(img,0,0);
+  const g = inkC.getContext('2d'); g.setTransform(d,0,0,d,0,0);
+  const rot = (Math.random()*2-1)*.12;
+  g.save(); g.translate(cx, cy); g.rotate(rot); g.globalCompositeOperation='multiply';
+  if (level > 1.1){ // over-inked: bleed halo + blobs + a doubled kiss
+    g.filter = 'blur(1px)'; g.globalAlpha = .3; g.drawImage(c, -sw/2, -sh/2, sw, sh); g.filter='none';
+    g.globalAlpha = .25; g.drawImage(c, -sw/2+2.2, -sh/2+1.4, sw, sh);
+    g.globalAlpha = .8; g.fillStyle = `rgb(${col})`;
+    for (let k=0;k<5;k++){ const bx=(Math.random()-.5)*sw*.95, by=(Math.random()>.5?1:-1)*sh*(.42+Math.random()*.12);
+      g.beginPath(); g.ellipse(bx,by,2+Math.random()*5,1.5+Math.random()*3,Math.random()*3,0,7); g.fill(); }
+  }
+  g.globalAlpha = .95; g.drawImage(c, -sw/2, -sh/2, sw, sh); g.restore();
+  return level >= .42 ? (level > 1.1 ? 'heavy' : 'good') : 'faint';
+}
+
+/* ---------- illustrations ---------- */
+const stOk = $('#stOk'), stNo = $('#stNo'), pad = $('#pad');
+function drawStamp(kind, w, h){
+  const s = w/150; // design units 150 x 186
+  return {
+    pink: x => { x.scale(s, s);
+      // wood
+      x.fillStyle = A(.34); x.beginPath(); x.moveTo(16,104); x.lineTo(134,104); x.lineTo(146,122); x.lineTo(4,122); x.closePath(); x.fill();
+      x.fillStyle = A(.5); x.fillRect(4,122,142,32);
+      x.fillStyle = A(.32); x.fillRect(63,58,24,50);
+      // knob
+      x.fillStyle = kind==='ok' ? A(.18) : A(.92); x.beginPath(); x.ellipse(75,40,33,29,0,0,7); x.fill();
+      if (kind==='ok'){ x.fillStyle = A(.25); x.beginPath(); x.ellipse(75,40,33,29,0,.2,2.6); x.fill(); }
+    },
+    teal: x => { x.scale(s, s); x.lineJoin='round'; x.lineCap='round';
+      // shading
+      let g = x.createRadialGradient(62,28,4,75,40,38); g.addColorStop(0,A(0)); g.addColorStop(.55,A(kind==='ok'?.55:.12)); g.addColorStop(1,A(kind==='ok'?.95:.6));
+      x.fillStyle = g; x.beginPath(); x.ellipse(75,40,33,29,0,0,7); x.fill();
+      g = x.createLinearGradient(63,0,87,0); g.addColorStop(0,A(.05)); g.addColorStop(1,A(.6)); x.fillStyle = g; x.fillRect(63,58,24,50);
+      g = x.createLinearGradient(0,122,0,154); g.addColorStop(0,A(.18)); g.addColorStop(1,A(.55)); x.fillStyle = g; x.fillRect(4,122,142,32);
+      x.fillStyle = A(.6); x.beginPath(); x.ellipse(75,108,21,6,0,0,7); x.fill();
+      // linework
+      x.strokeStyle = A(1); x.lineWidth = 2.2;
+      x.beginPath(); x.ellipse(75,40,33,29,0,0,7); x.stroke();
+      x.beginPath(); x.moveTo(63,66); x.lineTo(63,106); x.moveTo(87,66); x.lineTo(87,106); x.stroke();
+      x.beginPath(); x.moveTo(16,104); x.lineTo(134,104); x.lineTo(146,122); x.lineTo(4,122); x.closePath(); x.stroke();
+      x.strokeRect(4,122,142,32);
+      // label knock-out with the word
+      x.globalCompositeOperation = 'destination-out'; x.fillStyle = '#000'; x.fillRect(42,108,66,11);
+      x.globalCompositeOperation = 'source-over';
+      if (kind==='ok'){ x.fillStyle = A(1); x.font = '9px "Archivo Black", sans-serif'; x.textAlign='center'; x.fillText('APPROVED',75,117.5); }
+      x.lineWidth = 1.2; x.strokeRect(42,108,66,11);
+      // grain lines on the block front
+      x.lineWidth = 1; x.strokeStyle = A(.5);
+      for (let i=0;i<5;i++){ x.beginPath(); x.moveTo(10, 128+i*5.5); x.bezierCurveTo(55,126+i*5.5+(i%2?3:-2),100,131+i*5.5,140,127+i*5.5); x.stroke(); }
+    },
+    ...(kind==='no' ? { pinkLabel: true } : {})
+  };
+}
+function stampSprite(el, kind){
+  const w = el.offsetWidth, h = el.offsetHeight, cv = el.querySelector('canvas.sprite');
+  const plates = drawStamp(kind, w, h);
+  const basePink = plates.pink;
+  if (kind === 'no') plates.pink = x => { basePink(x); x.globalCompositeOperation='destination-out'; x.fillRect(42,108,66,11); x.globalCompositeOperation='source-over'; x.fillStyle = A(1); x.font = '9px "Archivo Black", sans-serif'; x.textAlign='center'; x.fillText('RETURNED',75,117.5); };
+  paint(cv, w, h, plates, {cell: 3.6, off:[1.6,1.2]});
+}
+function drawPad(){
+  const w = pad.offsetWidth, h = pad.offsetHeight, s = w/300;
+  paint($('#padCanvas'), w, h, {
+    pink: x => { x.scale(s,s);
+      x.fillStyle = A(.28); x.beginPath(); x.moveTo(34,8); x.lineTo(266,8); x.lineTo(258,56); x.lineTo(42,56); x.closePath(); x.fill();
+      x.fillStyle = A(.95); rrect(x,158,74,108,62,6); x.fill();
+      x.fillStyle = A(.22); rrect(x,12,58,276,108,16); x.fill();
+    },
+    teal: x => { x.scale(s,s); x.lineJoin='round';
+      x.fillStyle = A(.95); rrect(x,34,74,108,62,6); x.fill();
+      x.fillStyle = A(.45); rrect(x,12,146,276,20,{lower:[16,16]}); x.fill();
+      x.strokeStyle = A(1); x.lineWidth = 2.2;
+      x.beginPath(); x.moveTo(34,8); x.lineTo(266,8); x.lineTo(258,56); x.lineTo(42,56); x.closePath(); x.stroke();
+      rrect(x,12,58,276,108,16); x.stroke(); rrect(x,24,68,252,74,9); x.stroke();
+      x.fillStyle = A(1); x.font = '13px "Archivo Black", sans-serif'; x.textAlign='center'; x.fillText('FERRO  No.2', 150, 30);
+      x.font = '500 8.5px "DM Mono", monospace'; x.fillText('TWO-COLOUR STAMP PAD · RE-INK WEEKLY', 150, 45);
+      // felt texture specks
+      x.globalCompositeOperation='destination-out';
+      for (let i=0;i<70;i++){ x.fillStyle=A(.5); x.fillRect(36+Math.random()*104, 76+Math.random()*58, 1.2, 1.2); }
+      x.globalCompositeOperation='source-over';
+    }
+  }, {dpr: Math.min(2, DPR()), cell: 4});
+}
+function drawTrays(){
+  for (const t of ['#trayOk','#trayNo']){
+    const el = $(t), cv = el.querySelector('canvas'), w = cv.offsetWidth, h = cv.offsetHeight, s = w/132, hs = h/84;
+    paint(cv, w, h, {
+      pink: x => { x.scale(s,hs); x.fillStyle = A(t==='#trayNo'?.55:.2); x.beginPath(); x.moveTo(4,30); x.lineTo(128,30); x.lineTo(118,80); x.lineTo(14,80); x.closePath(); x.fill(); },
+      teal: x => { x.scale(s,hs); x.strokeStyle = A(1); x.lineWidth = 2;
+        x.beginPath(); x.moveTo(4,30); x.lineTo(128,30); x.lineTo(118,80); x.lineTo(14,80); x.closePath(); x.stroke();
+        x.lineWidth = 1.2; for (let i=1;i<9;i++){ const px = 4+i*124/9; x.beginPath(); x.moveTo(px,30); x.lineTo(14+i*104/9,80); x.stroke(); }
+        x.beginPath(); x.moveTo(9,55); x.lineTo(123,55); x.stroke();
+        if (t==='#trayOk'){ x.fillStyle=A(.22); x.beginPath(); x.moveTo(4,30); x.lineTo(128,30); x.lineTo(118,80); x.lineTo(14,80); x.closePath(); x.fill(); }
+      }
+    }, {cell: 3.6});
+  }
+}
+function drawBg(){
+  const bg = $('#bg'), W = innerWidth, H = innerHeight, rr = $('#stack').getBoundingClientRect();
+  const mobile = W < 760;
+  paint(bg, W, H, {
+    pink: x => {
+      x.fillStyle = A(.3); x.beginPath(); x.arc(W*(mobile?.92:.84), H*(mobile?.8:.1), Math.min(W,H)*(mobile?.34:.42), 0, 7); x.fill();
+      x.fillStyle = A(.95); for (let i=0;i<3;i++){ x.fillRect(W-38-i*20, H-22, 14, 10); }
+      x.globalAlpha = .5; x.fillRect(W-38-3*20, H-22, 14, 10); x.globalAlpha = 1;
+      reg(x, 22, 22); reg(x, W-22, 22); reg(x, 22, H-22);
+    },
+    teal: x => {
+      x.save(); x.translate(rr.left+rr.width/2, rr.top+rr.height/2); x.rotate(-.035);
+      const mx = mobile ? 14 : 38, my = mobile ? 10 : 30;
+      x.fillStyle = A(.2); x.fillRect(-rr.width/2-mx, -rr.height/2-my, rr.width+mx*2, rr.height+my*2);
+      x.strokeStyle = A(.7); x.lineWidth = 1; x.setLineDash([2,5]);
+      x.strokeRect(-rr.width/2-mx, -rr.height/2-my, rr.width+mx*2, rr.height+my*2); x.restore();
+      x.fillStyle = A(.95); for (let i=0;i<3;i++){ x.fillRect(W-38-i*20-80, H-22, 14, 10); }
+      reg(x, 22, 22); reg(x, W-22, 22); reg(x, 22, H-22);
+    }
+  }, {dpr:1, cell: 6, off:[3,2]});
+  function reg(x, cx, cy){ x.strokeStyle = A(1); x.lineWidth = 1; x.beginPath(); x.arc(cx,cy,6,0,7); x.moveTo(cx-11,cy); x.lineTo(cx+11,cy); x.moveTo(cx,cy-11); x.lineTo(cx,cy+11); x.stroke(); }
+}
+
+/* ---------- stamp physics ---------- */
+const ST = {
+  ok: { el: stOk, sh: $('#shOk'), rest: $('#restOk'), ink: 0, x:0,y:0,vx:0,vy:0, lift:0, lv:0, rot:0, felt:[34,74,108,62] },
+  no: { el: stNo, sh: $('#shNo'), rest: $('#restNo'), ink: 0, x:0,y:0,vx:0,vy:0, lift:0, lv:0, rot:0, felt:[158,74,108,62] },
+};
+let held = null, pressing = false, zone = null, ptr = {x:0,y:0}, pickupId = null, auto = null, pressT = 0;
+function restPos(s){ const r = s.rest.getBoundingClientRect(), fs = s.el.offsetHeight; return { x: r.left + r.width/2, y: r.top + r.height - (innerWidth<760?10:20) }; }
+function feltRect(s){ const r = pad.getBoundingClientRect(), k = r.width/300; const [fx,fy,fw,fh] = s.felt; return {left:r.left+fx*k, top:r.top+fy*k*(r.height/r.width*300/176), w:fw*k, h:fh*k*(r.height/r.width*300/176)}; }
+function inRect(p, r, m=0){ return p.x>=r.left-m && p.x<=r.right+m && p.y>=r.top-m && p.y<=r.bottom+m; }
+function target(s, key){
+  if (auto && auto.kind === key) return auto.pos;
+  if (held === key) return ptr;
+  return restPos(s);
+}
+function setRubber(s, key){
+  const i = s.el.querySelector('.rubber i'), lvl = clamp(s.ink, 0, 1.5);
+  i.style.background = `var(--${key==='ok'?'teal':'pink'})`;
+  i.style.opacity = clamp(lvl/1.0, 0, 1) * .95;
+  let drips = s.el.querySelectorAll('.drip');
+  if (!drips.length){ const rb = s.el.querySelector('.rubber'); for (let k=0;k<3;k++){ const dp = document.createElement('i'); dp.className='drip'; dp.style.left=(18+k*30)+'%'; dp.style.background=`var(--${key==='ok'?'teal':'pink'})`; rb.appendChild(dp);} drips = s.el.querySelectorAll('.drip'); }
+  drips.forEach((dp,k) => { const o = clamp((lvl-1.05-k*.12)*5,0,1); dp.style.opacity = o; dp.style.transform = `scaleY(${.4+o*.8})`; });
+  s.el.querySelectorAll('.gauge i').forEach((g,k) => g.classList.toggle('on', lvl > k*.25 + .05));
+}
+
+let last = performance.now(), running = true;
+function frame(now){
+  const dt = Math.min(.033, (now-last)/1000); last = now;
+  if (!document.hidden){
+    for (const key of ['ok','no']){
+      const s = ST[key], t = target(s, key);
+      const isHeld = held === key || (auto && auto.kind === key);
+      if (reduce){ s.x = t.x; s.y = t.y; s.vx = s.vy = 0; }
+      else {
+        const k = 520, c = 2*Math.sqrt(k)*.78;
+        s.vx += (k*(t.x - s.x) - c*s.vx)*dt; s.vy += (k*(t.y - s.y) - c*s.vy)*dt;
+        s.x += s.vx*dt; s.y += s.vy*dt;
+      }
+      const liftT = isHeld ? ((pressing && held===key) || (auto && auto.kind===key && auto.down) ? 0 : 1) : 0;
+      const kl = 2200, cl = 2*Math.sqrt(kl)*.55;
+      s.lv += (kl*(liftT - s.lift) - cl*s.lv)*dt; s.lift += s.lv*dt;
+      if (reduce) s.lift = liftT;
+      s.rot += ((clamp(s.vx*.012, -9, 9)) - s.rot)*Math.min(1, dt*12);
+      const w = s.el.offsetWidth, h = s.el.offsetHeight, faceY = h*.875;
+      const L = Math.max(0, s.lift)*(w*.16);
+      s.el.style.transform = `translate(${s.x - w/2}px, ${s.y - faceY - L}px) rotate(${s.rot}deg)`;
+      s.el.style.transformOrigin = `50% ${faceY}px`;
+      const sc = 1 + Math.max(0,s.lift)*.35;
+      s.sh.style.transform = `translate(${s.x + L*.35}px, ${s.y + 4}px) scale(${sc})`;
+      s.sh.style.opacity = .35 + (1-Math.min(1,s.lift))*.45 - Math.max(0,s.lift)*.12;
+    }
+    if (pressing && zone === 'pad' && held){
+      const s = ST[held]; s.ink = Math.min(1.5, s.ink + dt*.9); setRubber(s, held);
+      pressT += dt; const dent = $('#dent'); dent.style.opacity = clamp(pressT*2,0,.55);
+    }
+    if (auto && auto.tick) auto.tick(dt);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- interactions ---------- */
+function pickUp(key){
+  audio();
+  if (held && held !== key) held = null;
+  held = key; document.body.style.cursor = 'none';
+  ST.ok.el.classList.toggle('held', held==='ok'); ST.no.el.classList.toggle('held', held==='no');
+}
+function putDown(){ held = null; pressing = false; document.body.style.cursor = ''; stOk.classList.remove('held'); stNo.classList.remove('held'); squishOn(false); }
+
+function zoneAt(p){
+  if (inRect(p, pad.getBoundingClientRect(), 6)) return 'pad';
+  if (!filing && QUEUE[idx] && inRect(p, report.getBoundingClientRect())) return 'report';
+  if (held && inRect(p, ST[held].rest.getBoundingClientRect())) return 'rest';
+  return 'desk';
+}
+function inkUp(key, p){
+  const s = ST[key], f = feltRect(s), sw = s.el.offsetWidth*.62;
+  const cx = clamp(p.x, f.left + sw/2*.6, f.left + f.w - sw/2*.6), cy = clamp(p.y, f.top + 10, f.top + f.h - 6);
+  const dent = $('#dent'), pr = pad.getBoundingClientRect();
+  dent.style.width = sw*.95+'px'; dent.style.height = (s.el.offsetWidth*.08)+'px';
+  dent.style.left = (cx - pr.left - sw*.475)+'px'; dent.style.top = (cy - pr.top - s.el.offsetWidth*.04)+'px';
+  dent.style.background = 'var(--navy)'; pressT = 0;
+  return {x: cx, y: cy};
+}
+function stampReport(key, p){
+  const s = ST[key], rr = report.getBoundingClientRect();
+  const k = report.offsetWidth / rr.width;
+  const lx = (p.x - rr.left)*k, ly = (p.y - rr.top)*k;
+  const before = s.ink;
+  setTimeout(() => {
+    const q = impression(key, lx, ly, before);
+    thump(clamp(before, .35, 1));
+    if (!reduce) report.animate([{transform:'translateY(0) scale(1)'},{transform:'translateY(2px) scale(.996)'},{transform:'translateY(0) scale(1)'}],{duration:160,easing:'ease-out'});
+    if (q === 'faint'){ faint = true; note.classList.add('on'); say(`Too faint to file. Ink the ${key==='ok'?'approved':'returned'} stamp and stamp again.`); }
+    else { decided = key; faint = false; note.classList.remove('on'); }
+  }, reduce ? 0 : 55);
+  s.ink = Math.max(0, s.ink - .5); setRubber(s, key);
+}
+function fileReport(){
+  if (!decided || filing) return;
+  filing = true; const key = decided, r = QUEUE[idx];
+  if (key === 'ok') nOk++; else nNo++; r.outcome = key;
+  say(`${key==='ok'?'Approved':'Returned'} ${r.ref}, ${r.who}, ${r.total}. ${QUEUE.length-idx-1} left in the queue.`);
+  hint.classList.add('fade');
+  const tray = innerWidth < 760 ? (key === 'ok' ? $('#tOk') : $('#tNo')) : (key === 'ok' ? $('#trayOk') : $('#trayNo'));
+  const tr = tray.getBoundingClientRect(), rr = report.getBoundingClientRect();
+  const mobile = innerWidth < 760;
+  const dx = tr.left + tr.width/2 - (rr.left + rr.width/2), dy = tr.top + tr.height*.4 - (rr.top + rr.height/2);
+  const sc = mobile ? .12 : .26;
+  swish();
+  const anim = report.animate([
+    {transform:'translate(0,0) rotate(0) scale(1)', opacity:1},
+    {transform:`translate(${dx*.25}px,${dy*.1 - 30}px) rotate(${key==='ok'?-6:6}deg) scale(.82)`, opacity:1, offset:.35},
+    {transform:`translate(${dx}px,${dy}px) rotate(${key==='ok'?-14:12}deg) scale(${sc})`, opacity:.0}
+  ], {duration: reduce ? 1 : 620, easing:'cubic-bezier(.5,0,.4,1)', fill:'forwards'});
+  anim.onfinish = () => {
+    const sheets = (key === 'ok' ? $('#trayOk') : $('#trayNo')).querySelector('.sheets'), n = sheets.children.length, i = document.createElement('i');
+    i.style.bottom = (n*5)+'px'; i.style.transform = `rotate(${(Math.random()-.5)*4}deg)`; sheets.appendChild(i);
+    idx++; updateTally();
+    const g = inkC.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,inkC.width,inkC.height);
+    renderReport();
+    anim.cancel();
+    report.animate([{transform:'translate(6px,8px) rotate(1deg)', opacity:.0},{transform:'translate(0,0) rotate(0)', opacity:1}], {duration: reduce?1:360, easing:'cubic-bezier(.2,.8,.3,1)'});
+    filing = false;
+  };
+}
+
+addEventListener('pointerdown', e => {
+  ptr = {x:e.clientX, y:e.clientY};
+  if (auto) return;
+  const hitStamp = e.target.closest && e.target.closest('.stamp');
+  if (hitStamp && !held){ pickUp(hitStamp === stOk ? 'ok' : 'no'); pickupId = e.pointerId; e.preventDefault(); return; }
+  if (!held) return;
+  if (hitStamp && hitStamp !== ST[held].el){ pickUp(hitStamp === stOk ? 'ok' : 'no'); pickupId = e.pointerId; return; }
+  e.preventDefault();
+  zone = zoneAt(ptr);
+  if (zone === 'rest'){ putDown(); return; }
+  pressing = true; audio();
+  if (zone === 'pad'){ const p = inkUp(held, ptr); ptr = p; squishOn(true); }
+  else if (zone === 'report') stampReport(held, ptr);
+  else thump(.25);
+}, {passive:false});
+addEventListener('pointermove', e => {
+  if (pressing && zone === 'pad') return; // stamp stays planted on the felt while inking
+  ptr = {x:e.clientX, y:e.clientY};
+});
+function release(e){
+  if (pickupId === e.pointerId){ pickupId = null; return; }
+  if (!pressing) return;
+  pressing = false; squishOn(false);
+  const dent = $('#dent'); dent.animate([{opacity: getComputedStyle(dent).opacity},{opacity:0}],{duration:900,fill:'forwards'}).onfinish=()=>dent.style.opacity=0;
+  if (zone === 'pad' && held) say(`${held==='ok'?'Approved':'Returned'} stamp inked ${Math.round(Math.min(ST[held].ink,1.5)*100)}%.`);
+  if (zone === 'report' && decided) setTimeout(fileReport, reduce ? 50 : 420);
+  zone = null;
+  ptr = {x:e.clientX, y:e.clientY};
+}
+addEventListener('pointerup', release);
+addEventListener('pointercancel', release);
+
+/* keyboard: a full ink-and-stamp sequence, choreographed */
+function wait(ms){ return new Promise(r => setTimeout(r, reduce ? Math.min(ms, 60) : ms)); }
+let pendingKey = null;
+async function autoStamp(key){
+  if (!QUEUE[idx]) return;
+  if (auto || filing){ pendingKey = key; return; }
+  putDown(); audio();
+  const s = ST[key];
+  auto = {kind:key, pos: restPos(s), down:false};
+  const f = feltRect(s);
+  auto.pos = {x: f.left + f.w/2, y: f.top + f.h/2}; await wait(340);
+  auto.down = true; zone = 'pad'; inkUp(key, auto.pos); squishOn(true);
+  const need = Math.max(0, 1.0 - s.ink);
+  auto.tick = dt => { s.ink = Math.min(1.5, s.ink + dt*1.5); setRubber(s,key); pressT += dt; $('#dent').style.opacity = clamp(pressT*2,0,.55); };
+  await wait(need/1.5*1000 + 60); auto.tick = null; squishOn(false); auto.down = false; zone = null; $('#dent').style.opacity = 0;
+  await wait(160);
+  const rr = report.getBoundingClientRect(), sb = report.querySelector('.stampbox').getBoundingClientRect();
+  auto.pos = {x: sb.left + sb.width/2 + (Math.random()-.5)*20, y: sb.top + sb.height/2 + (Math.random()-.5)*8}; await wait(430);
+  auto.down = true; stampReport(key, auto.pos); await wait(260); auto.down = false;
+  await wait(160); auto = null; fileReport();
+}
+function flushPending(){ if (pendingKey && !auto && !filing){ const k = pendingKey; pendingKey = null; autoStamp(k); } }
+setInterval(flushPending, 150);
+[[stOk,'ok'],[stNo,'no']].forEach(([el,key]) => el.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); autoStamp(key); }
+}));
+addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('button') && e.target.classList.contains('btn')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'a') autoStamp('ok'); else if (k === 'r') autoStamp('no'); else if (k === 'escape') putDown();
+});
+$('#reload').addEventListener('click', () => {
+  idx = 0; nOk = 0; nNo = 0; QUEUE.forEach(r => delete r.outcome); document.querySelectorAll('.sheets').forEach(s => s.innerHTML = '');
+  updateTally(); renderReport(); hint.classList.remove('fade'); say('New queue loaded: six reports.');
+});
+function say(t){ live.textContent = ''; setTimeout(() => live.textContent = t, 30); }
+
+/* ---------- layout ---------- */
+let rt = 0;
+function layout(){
+  sizeInk(); drawPad(); drawTrays(); drawBg();
+  stampSprite(stOk,'ok'); stampSprite(stNo,'no'); setRubber(ST.ok,'ok'); setRubber(ST.no,'no');
+  for (const k of ['ok','no']){ const p = restPos(ST[k]); if (!ST[k].x || reduce){ ST[k].x = p.x; ST[k].y = p.y; } }
+}
+addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 120); });
+renderReport(); updateTally(); layout();
+for (const k of ['ok','no']){ const p = restPos(ST[k]); ST[k].x = p.x; ST[k].y = p.y; }
+requestAnimationFrame(t => { last = t; frame(t); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+})();
+</script>
+</body>
+</html>

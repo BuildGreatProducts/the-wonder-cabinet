@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knock Rhythm Unlock</title>
+<meta name="description" content="Sign in by knocking a secret rhythm on an engraved door. Your knocks are written onto the staff as you play, matched regardless of tempo, and on success the rhythm turns into a melody.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..800;1,6..96,400..700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Noto+Music&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Knock Rhythm Unlock","reimagines":"Unlock / authentication","category":"Novel Interactions","description":"Sign in by knocking a secret rhythm on an engraved door. Each knock is engraved onto the staff as you play, the phrase is matched at any tempo, and a correct knock turns into a little melody as the bolt slides back.","hint":"Knock the secret rhythm on the door (or press Space)"}
+</script>
+<style>
+:root{--paper:#f3ecdc;--paper-d:#e6dcc6;--ink:#1d1a16;--ink-soft:#5a5248;--red:#a3231b}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:#2b2620;font-family:"EB Garamond",Garamond,Georgia,serif;color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased}
+.stage{height:100dvh;display:grid;place-items:center;padding:16px}
+.sheet{position:relative;width:min(1180px,100%);height:min(764px,100%);background:var(--paper);padding:30px 44px 26px;
+  box-shadow:0 30px 60px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}
+.sheet::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .28 0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"),
+  radial-gradient(120% 90% at 50% 40%, rgba(255,255,255,0) 60%, rgba(120,90,50,.18) 100%)}
+.sheet::after{ /* the plate mark pressed into the paper */
+  content:"";position:absolute;inset:14px;pointer-events:none;border:1px solid rgba(90,70,40,.22);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,.7), 1px 1px 0 rgba(255,255,255,.6), inset -1px -1px 0 rgba(90,70,40,.12)}
+header{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:10px}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-4px;border-bottom:.6px solid var(--ink)}
+.house{font-size:13px;letter-spacing:.22em;text-transform:uppercase}
+.house small{display:block;font-size:12px;letter-spacing:.06em;text-transform:none;font-style:italic;color:var(--ink-soft)}
+h1{margin:0;text-align:center;font-family:"Bodoni Moda",Didot,serif;font-weight:500;font-style:italic;font-size:40px;line-height:1;letter-spacing:-.01em}
+h1 span{display:block;font-style:normal;font-size:12px;letter-spacing:.32em;text-transform:uppercase;font-weight:400;margin-bottom:6px}
+.dedic{text-align:right;font-size:14px;font-style:italic}
+.dedic b{display:block;font-style:normal;font-weight:500;font-size:13px;letter-spacing:.18em;text-transform:uppercase}
+.dedic button{font:inherit;font-size:12.5px;border:0;background:none;padding:0;color:var(--ink-soft);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+main{display:grid;grid-template-columns:330px 1fr;gap:48px;align-items:center;min-height:0;padding:12px 0}
+.doorway{position:relative;width:330px;height:484px;margin:0 auto;perspective:1100px;border:0;padding:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.doorway:focus-visible{outline:2px dashed var(--ink);outline-offset:8px}
+.doorway svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.leaf{position:absolute;left:11.333%;top:7.727%;width:77.333%;height:92.273%;transform-origin:0 50%;transition:transform 1.6s cubic-bezier(.5,0,.2,1);transform-style:preserve-3d}
+.leaf svg{width:100%;height:100%}
+.open .leaf{transform:rotateY(-78deg)}
+.leaf.rattle{animation:rattle .32s}
+@keyframes rattle{20%{transform:translateX(-2px)}40%{transform:translateX(2px)}60%{transform:translateX(-1.5px)}80%{transform:translateX(1px)}}
+.leaf.thump{animation:thump .14s}
+@keyframes thump{50%{transform:translateZ(-6px) scale(.995)}}
+#bolt{transition:transform .5s cubic-bezier(.6,-0.4,.4,1.4)}
+.unbolted #bolt{transform:translateX(-22px)}
+.ripples{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.score{min-width:0;display:flex;flex-direction:column;gap:6px}
+.marking{display:flex;align-items:baseline;gap:14px;min-height:30px}
+.tempo{font-family:"Bodoni Moda",serif;font-weight:700;font-size:17px;white-space:nowrap}
+.tempo .q{font-family:"Noto Music",serif;font-weight:400;font-size:22px;vertical-align:-2px}
+.expr{font-style:italic;font-size:21px;color:var(--ink);transition:color .3s}
+.expr.err{color:var(--red)}
+.expr .dyn{font-family:"Bodoni Moda",serif;font-weight:700;font-style:italic;margin-right:6px}
+#staff{width:100%;height:auto;display:block;overflow:visible}
+.actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.cart{font:inherit;font-size:15px;color:var(--ink);background:none;cursor:pointer;padding:7px 16px 8px;border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:3px;letter-spacing:.02em;margin:4px}
+.cart:hover{background:rgba(29,26,22,.06)}
+.cart:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+.cart[hidden]{display:none}
+.status{font-size:14px;color:var(--ink-soft);font-style:italic}
+footer{border-top:.6px solid var(--ink);padding-top:8px;display:flex;justify-content:space-between;gap:20px;font-size:13px;color:var(--ink-soft)}
+footer .fn{max-width:760px}
+footer .fn i{color:var(--ink)}
+.plate{white-space:nowrap;letter-spacing:.08em;font-size:11px;text-transform:uppercase}
+.mute{border:0;background:none;color:var(--ink-soft);cursor:pointer;padding:0 0 0 8px;vertical-align:middle}
+.mute svg{width:15px;height:15px;display:inline-block;vertical-align:-2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:900px){
+  body{overflow:auto}
+  .stage{padding:0;height:auto;min-height:100dvh;place-items:stretch}
+  .sheet{height:auto;min-height:100dvh;padding:22px 18px 18px;width:100%}
+  .sheet::after{inset:8px}
+  header{grid-template-columns:1fr;text-align:center;gap:6px}
+  .dedic{text-align:center}
+  .house{display:none}
+  h1{font-size:30px}
+  main{grid-template-columns:1fr;gap:6px;padding:8px 0}
+  .doorway{width:210px;height:308px}
+  .expr{font-size:16px}
+  footer{flex-direction:column;gap:4px;font-size:12px}
+}
+@media (prefers-reduced-motion: reduce){ .leaf,#bolt{transition:none} .leaf.rattle,.leaf.thump{animation:none} }
+</style>
+</head>
+<body>
+<div class="stage">
+<article class="sheet">
+  <header>
+    <div class="house">Fermata<small>Members' listening room</small></div>
+    <h1><span>Sign-in étude</span>For the Front Door</h1>
+    <div class="dedic"><b>Ines Laurent</b>Op. 26 · <button type="button" id="notyou">Not you?</button></div>
+  </header>
+  <main>
+    <button class="doorway" id="door" aria-label="The door. Press to knock — tap the secret rhythm, or use the Space bar.">
+      <svg viewBox="0 0 300 440" aria-hidden="true" id="inside">
+        <defs>
+          <pattern id="h45" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="#1d1a16" stroke-width=".7"/></pattern>
+          <pattern id="h135" width="3.2" height="3.2" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="3.2" stroke="#1d1a16" stroke-width=".8"/></pattern>
+          <pattern id="hv" width="3" height="10" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="10" stroke="#1d1a16" stroke-width=".55"/></pattern>
+          <pattern id="hh" width="10" height="2.6" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="10" y2="0" stroke="#1d1a16" stroke-width=".6"/></pattern>
+        </defs>
+        <!-- frame & mouldings -->
+        <rect x="6" y="6" width="288" height="434" fill="url(#hv)" opacity=".55"/>
+        <rect x="6" y="6" width="288" height="434" fill="none" stroke="#1d1a16" stroke-width="1.6"/>
+        <rect x="14" y="14" width="272" height="426" fill="none" stroke="#1d1a16" stroke-width=".8"/>
+        <rect x="22" y="22" width="256" height="418" fill="#f3ecdc" stroke="#1d1a16" stroke-width=".8"/>
+        <rect x="30" y="30" width="240" height="410" fill="none" stroke="#1d1a16" stroke-width="1.2"/>
+        <!-- the room beyond: light pouring out, a gramophone -->
+        <g id="room">
+          <rect x="34" y="34" width="232" height="406" fill="url(#h45)" opacity=".35"/>
+          <clipPath id="opening"><rect x="34" y="34" width="232" height="406"/></clipPath><g stroke="#1d1a16" stroke-width=".5" opacity=".7" id="rays" clip-path="url(#opening)"></g>
+          <g transform="translate(140 300)" fill="none" stroke="#1d1a16" stroke-width="1">
+            <path d="M-46 74 h92 v26 h-92z" fill="url(#hh)"/><path d="M-46 74 h92 v26 h-92z"/>
+            <ellipse cx="0" cy="74" rx="34" ry="6" fill="#f3ecdc"/>
+            <path d="M14 70 v-34" stroke-width="2.2"/>
+            <path d="M14 36 C 16 20, 26 4, 44 -14 L 58 2 C 40 12, 24 24, 18 38z" fill="url(#h135)"/>
+            <path d="M14 36 C 16 20, 26 4, 44 -14 M18 38 C 24 24, 40 12, 58 2"/>
+            <ellipse cx="62" cy="-22" rx="16" ry="36" transform="rotate(42 62 -22)" fill="#f3ecdc" stroke-width="1.2"/>
+            <ellipse cx="62" cy="-22" rx="11" ry="27" transform="rotate(42 62 -22)" fill="url(#h45)"/>
+            <path d="M46 -8 L 74 -40 M52 -2 L 80 -30 M40 -16 L 66 -48" stroke-width=".5"/>
+          </g>
+          <text x="150" y="92" text-anchor="middle" font-family="Bodoni Moda, serif" font-style="italic" font-size="20" fill="#1d1a16" id="welcome" opacity="0">Welcome back</text>
+        </g>
+        <rect x="266" y="200" width="10" height="36" fill="#f3ecdc" stroke="#1d1a16" stroke-width=".8"/>
+      </svg>
+      <div class="leaf" id="leaf">
+        <svg viewBox="0 0 232 406" aria-hidden="true">
+          <rect x="0" y="0" width="232" height="406" fill="#f3ecdc"/>
+          <rect x="0" y="0" width="232" height="406" fill="url(#hv)" opacity=".7"/>
+          <rect x=".6" y=".6" width="230.8" height="404.8" fill="none" stroke="#1d1a16" stroke-width="1.2"/>
+          <g id="panels"></g>
+          <!-- knocker -->
+          <g transform="translate(116 132)" stroke="#1d1a16" fill="#f3ecdc">
+            <circle r="13" stroke-width="1.2"/><circle r="8" fill="url(#h135)" stroke-width=".8"/>
+            <path d="M-6 10 C -26 30, -26 62, 0 70 C 26 62, 26 30, 6 10" fill="none" stroke-width="5"/>
+            <path d="M-6 10 C -26 30, -26 62, 0 70 C 26 62, 26 30, 6 10" fill="none" stroke="#f3ecdc" stroke-width="2.4"/>
+            <path d="M-6 10 C -26 30, -26 62, 0 70 C 26 62, 26 30, 6 10" fill="none" stroke-width=".6" stroke-dasharray="1.5 2" transform="translate(1.5 1)"/>
+          </g>
+          <!-- handle & keyhole -->
+          <g transform="translate(200 218)" stroke="#1d1a16">
+            <rect x="-8" y="-26" width="16" height="64" rx="8" fill="#f3ecdc" stroke-width="1"/>
+            <rect x="-8" y="-26" width="16" height="64" rx="8" fill="url(#h45)" opacity=".6"/>
+            <circle cx="0" cy="-6" r="6.5" fill="#f3ecdc" stroke-width="1.2"/>
+            <path d="M-2 22 a3 3 0 1 1 4 0 l1.5 9 h-7z" fill="#1d1a16"/>
+          </g>
+          <text x="116" y="40" text-anchor="middle" font-family="Bodoni Moda, serif" font-size="11" letter-spacing="3" fill="#1d1a16">Nº 26</text>
+        </svg>
+      </div>
+      <svg viewBox="0 0 300 440" aria-hidden="true" style="pointer-events:none"><g id="bolt"><rect x="252" y="208" width="26" height="18" fill="#f3ecdc" stroke="#1d1a16" stroke-width="1"/><rect x="252" y="208" width="26" height="18" fill="url(#hh)"/></g></svg>
+      <svg class="ripples" viewBox="0 0 300 440" aria-hidden="true" id="ripples"></svg>
+    </button>
+    <section class="score" aria-label="Your knock, written as a score">
+      <div class="marking"><span class="tempo" id="tempo"><span class="q">♩</span> = ?</span><span class="expr" id="expr"><span class="dyn">mf</span>Knock the secret rhythm on the door to sign in.</span></div>
+      <svg id="staff" viewBox="0 0 700 200" role="img" aria-label="Staff showing your knocks"></svg>
+      <div class="actions">
+        <button class="cart" id="compose" type="button">Compose a new knock</button>
+        <button class="cart" id="lock" type="button" hidden>Lock the door again</button>
+        <span class="status" id="status"></span>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="fn">* For this demo the secret knock is <i>“shave and a haircut — two bits”</i>: knock, knock‑knock, knock, knock … knock, knock. Any tempo works; the Space bar knocks too.<button class="mute" id="mute" aria-label="Mute" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="plate">F. &amp; L. 4471 — Paris, 2026</div>
+  </footer>
+  <p class="sr" id="live" aria-live="assertive"></p>
+</article>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); if (p) p.appendChild(n); return n; };
+
+/* ---------------- engraved door details ---------------- */
+(function panels(){
+  const g = $('#panels');
+  const P = [[22,58,84,128],[126,58,84,128],[22,236,84,148],[126,236,84,148]];
+  P.forEach(([x,y,w,h]) => {
+    el('rect', {x, y, width:w, height:h, fill:'#f3ecdc', stroke:'#1d1a16', 'stroke-width':1}, g);
+    el('path', {d:`M${x} ${y+h} L${x+8} ${y+h-8} L${x+w-8} ${y+h-8} L${x+w} ${y+h} Z M${x+w} ${y} L${x+w-8} ${y+8} L${x+w-8} ${y+h-8} L${x+w} ${y+h} Z`, fill:'url(#h135)', stroke:'#1d1a16', 'stroke-width':.6}, g);
+    el('path', {d:`M${x} ${y} L${x+8} ${y+8} L${x+w-8} ${y+8} L${x+w} ${y} Z`, fill:'url(#hh)', opacity:.5, stroke:'#1d1a16', 'stroke-width':.6}, g);
+    el('rect', {x:x+8, y:y+8, width:w-16, height:h-16, fill:'none', stroke:'#1d1a16', 'stroke-width':.8}, g);
+    el('rect', {x:x+8, y:y+8, width:w-16, height:h-16, fill:'url(#hv)', opacity:.35}, g);
+  });
+  const rays = $('#rays');
+  for (let i = 0; i < 46; i++){ const a = -Math.PI + i/45*Math.PI; el('line', {x1:150, y1:250, x2:150 + Math.cos(a)*260, y2:250 + Math.sin(a)*260}, rays); }
+})();
+
+/* ---------------- staff ---------------- */
+const staff = $('#staff');
+const SP = 15, Y0 = 62, MID = Y0 + 2*SP, X0 = 92, XMAX = 680;
+staff.innerHTML = '';
+const staffG = el('g', {}, staff);
+for (let i = 0; i < 5; i++) el('line', {x1:10, y1:Y0 + i*SP, x2:690, y2:Y0 + i*SP, stroke:'#1d1a16', 'stroke-width':.9}, staffG);
+el('line', {x1:10, y1:Y0, x2:10, y2:Y0 + 4*SP, stroke:'#1d1a16', 'stroke-width':1.2}, staffG);
+const endBar = el('g', {opacity:0}, staffG);
+el('line', {x1:682, y1:Y0, x2:682, y2:Y0 + 4*SP, stroke:'#1d1a16', 'stroke-width':1}, endBar);
+el('rect', {x:686, y:Y0, width:4.5, height:4*SP, fill:'#1d1a16'}, endBar);
+const clefPerc = el('g', {}, staffG);
+el('rect', {x:30, y:Y0 + SP, width:5, height:2*SP, fill:'#1d1a16'}, clefPerc); el('rect', {x:41, y:Y0 + SP, width:5, height:2*SP, fill:'#1d1a16'}, clefPerc);
+const clefTreble = el('text', {x:22, y:Y0 + 3*SP + 2, 'font-family':'Noto Music, serif', 'font-size':SP*5.6, fill:'#1d1a16', opacity:0}, staffG); clefTreble.textContent = '\u{1D11E}';
+const notesG = el('g', {}, staff), marksG = el('g', {}, staff), ghostG = el('g', {}, staff), lyricsG = el('g', {}, staff);
+const fineT = el('text', {x:690, y:Y0 - 22, 'text-anchor':'end', 'font-family':'Bodoni Moda, serif', 'font-style':'italic', 'font-weight':700, 'font-size':20, fill:'#1d1a16', opacity:0}, staff); fineT.textContent = 'Fine';
+const recT = el('text', {x:X0 - 30, y:Y0 - 22, 'font-family':'EB Garamond, serif', 'font-style':'italic', 'font-size':17, fill:'#a3231b', opacity:0}, staff); recT.textContent = 'Rec.';
+
+/* ---------------- rhythm model ---------------- */
+// secret: onsets in eighth-note units — shave and a haircut … two bits
+let secret = [2, 1, 1, 2, 4, 2];        // intervals between knocks
+const MELODY = [72, 67, 67, 69, 67, 71, 72]; // C5 G4 G4 A4 G4 B4 C5
+let taps = [], state = 'idle', fails = 0, silenceT = 0, enrolFirst = null, lockedUntil = 0;
+const ALLOWED = [1, 1.5, 2, 3, 4, 6, 8];
+function quantize(ints){
+  if (!ints.length) return {units: [], k: 0};
+  const sorted = [...ints].sort((a, b) => a - b), base = sorted[0];
+  let best = null;
+  for (const unit of [base, base/2, base*2/3]){
+    const units = ints.map(v => { const r = v/unit; return ALLOWED.reduce((b, a) => Math.abs(a - r) < Math.abs(b - r) ? a : b, 1); });
+    const err = ints.reduce((s, v, i) => s + Math.abs(v/unit - units[i]) / units[i], 0);
+    if (!best || err < best.err - 0.05) best = {units, err, k: unit};
+  }
+  return best;
+}
+function match(ints, target){
+  if (ints.length !== target.length) return {ok:false, reason:'count'};
+  const k = ints.reduce((a, b) => a + b, 0) / target.reduce((a, b) => a + b, 0);
+  let worst = 0, wi = -1, dir = 0;
+  ints.forEach((v, i) => { const e = (v/k - target[i]) / target[i]; if (Math.abs(e) > Math.abs(worst)){ worst = e; wi = i; dir = Math.sign(e); } });
+  const ok = Math.abs(worst) < 0.34;
+  return {ok, k, wi, dir, worst};
+}
+
+/* ---------------- notation rendering ---------------- */
+function headX(g, x, y, circled){
+  el('path', {d:`M${x-4.6} ${y-4.4} L${x+4.6} ${y+4.4} M${x-4.6} ${y+4.4} L${x+4.6} ${y-4.4}`, stroke:'#1d1a16', 'stroke-width':1.9, 'stroke-linecap':'round'}, g);
+  if (circled) el('circle', {cx:x, cy:y, r:7.4, fill:'none', stroke:'#1d1a16', 'stroke-width':1.1}, g);
+}
+function headOval(g, x, y, hollow){
+  el('ellipse', {cx:x, cy:y, rx:6.4, ry:4.6, transform:`rotate(-22 ${x} ${y})`, fill: hollow ? 'none' : '#1d1a16', stroke:'#1d1a16', 'stroke-width': hollow ? 1.6 : 1}, g);
+}
+function rest(g, x, kind){
+  if (kind === 'q'){ el('path', {d:`M${x-2} ${MID-15} l6 8 l-6 7 l6 8 c-6 -3, -9 2, -4 7`, fill:'none', stroke:'#1d1a16', 'stroke-width':2.6, 'stroke-linejoin':'round', 'stroke-linecap':'round'}, g); }
+  else { el('circle', {cx:x-1, cy:MID-6, r:2.8, fill:'#1d1a16'}, g); el('path', {d:`M${x-1} ${MID-4} Q ${x+4} ${MID-3} ${x+6} ${MID-8} L ${x+1} ${MID+12}`, fill:'none', stroke:'#1d1a16', 'stroke-width':1.6}, g); }
+}
+// notes: [{x, units (duration), pitchY?}]
+function engrave(list, opts = {}){
+  notesG.innerHTML = '';
+  const g = el('g', {}, notesG);
+  const stemUpTop = y => y - 3.4*SP;
+  for (let i = 0; i < list.length; i++){
+    const n = list[i], y = n.y == null ? MID : n.y, x = n.x, d = n.units;
+    const g1 = el('g', {class:'note', 'data-i':i}, g);
+    if (!reduce && opts.fresh === i){ g1.style.transformOrigin = `${x}px ${y}px`; g1.animate([{transform:'scale(1.6)', opacity:0}, {transform:'scale(1)', opacity:1}], {duration:180, easing:'cubic-bezier(.3,1.6,.5,1)'}); }
+    const noteDur = Math.min(d, 4), restU = d - noteDur;
+    const up = y >= MID; const sx = up ? x + 5.6 : x - 5.6, sy0 = y, sy1 = up ? y - 3.4*SP : y + 3.4*SP;
+    if (opts.melody) headOval(g1, x, y, noteDur >= 4); else headX(g1, x, y, noteDur >= 4);
+    if (noteDur < 4) el('line', {x1:sx, y1:sy0 + (up ? -2 : 2), x2:sx, y2:sy1, stroke:'#1d1a16', 'stroke-width':1.3}, g1);
+    if (noteDur === 1.5 || noteDur === 3) el('circle', {cx:x + 11, cy:y - (Math.round((y - Y0)/SP*2) % 2 === 0 ? SP/2 : 0), r:2, fill:'#1d1a16'}, g1);
+    // ledger lines for pitches above/below the staff
+    if (y < Y0 - 1) for (let ly = Y0 - SP; ly >= y - 1; ly -= SP) el('line', {x1:x-10, x2:x+10, y1:ly, y2:ly, stroke:'#1d1a16', 'stroke-width':.9}, g1);
+    if (y > Y0 + 4*SP + 1) for (let ly = Y0 + 5*SP; ly <= y + 1; ly += SP) el('line', {x1:x-10, x2:x+10, y1:ly, y2:ly, stroke:'#1d1a16', 'stroke-width':.9}, g1);
+    // eighths: beam with a neighbouring eighth, otherwise a flag
+    if (noteDur === 1){
+      const nx = list[i+1];
+      const beamNext = nx && Math.min(nx.units, 4) === 1 && !opts.melody;
+      const beamPrev = i > 0 && Math.min(list[i-1].units, 4) === 1 && !opts.melody && !list[i-1]._beamed;
+      if (beamNext){ el('path', {d:`M${sx} ${sy1} L${nx.x + 5.6} ${stemUpTop(nx.y == null ? MID : nx.y)} l0 5 L${sx} ${sy1 + 5}z`, fill:'#1d1a16'}, g1); n._beamed = true; }
+      else if (!list[i-1] || !list[i-1]._beamed) el('path', {d: up ? `M${sx} ${sy1} c 2 8, 12 10, 9 22 c 1 -8, -4 -12, -9 -14z` : `M${sx} ${sy1} c 2 -8, 12 -10, 9 -22 c 1 8, -4 12, -9 14z`, fill:'#1d1a16'}, g1);
+    }
+    if (restU >= 2 && list[i+1]){ const rx = x + (list[i+1].x - x)*0.55; rest(g1, rx, 'q'); }
+    else if (restU >= 1 && list[i+1]){ const rx = x + (list[i+1].x - x)*0.6; rest(g1, rx, 'e'); }
+  }
+  list.forEach(n => delete n._beamed);
+}
+let liveNotes = [];
+function liveLayout(){
+  if (!taps.length) return [];
+  const t0 = taps[0], span = taps[taps.length - 1] - t0;
+  const ppm = Math.min(0.24, (XMAX - X0 - 30) / Math.max(1, span));
+  return taps.map((t, i) => ({x: X0 + (t - t0)*ppm, units: 2}));
+}
+function engravedLayout(units){
+  const total = units.reduce((a, b) => a + b, 0) + 2;
+  const u = Math.min(54, (XMAX - X0 - 10) / total);
+  const xs = [X0]; units.forEach(v => xs.push(xs[xs.length - 1] + v*u));
+  return xs.map((x, i) => ({x, units: i < units.length ? units[i] : 2}));
+}
+function animateTo(from, to, ms, done){
+  if (reduce){ engrave(to); done && done(); return; }
+  const t0 = performance.now();
+  const tick = t => { const k = Math.min(1, (t - t0)/ms), e = 1 - Math.pow(1 - k, 3);
+    engrave(to.map((n, i) => ({...n, x: (from[i] ? from[i].x : n.x) + (n.x - (from[i] ? from[i].x : n.x))*e, y: n.y == null ? undefined : ((from[i] && from[i].y != null ? from[i].y : MID) + (n.y - (from[i] && from[i].y != null ? from[i].y : MID))*e)})), to.melodic);
+    if (k < 1) requestAnimationFrame(tick); else { engrave(to, to.melodic); done && done(); } };
+  requestAnimationFrame(tick);
+}
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false, nb = null;
+function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; } try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .2; master.connect(ac.destination); nb = ac.createBuffer(1, ac.sampleRate*.4, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; } catch(e){ ac = null; } }
+function knockSound(){
+  if (!ac || muted) return; const t = ac.currentTime;
+  const s = ac.createBufferSource(); s.buffer = nb; const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; const g = ac.createGain(); g.gain.setValueAtTime(.9, t); g.gain.exponentialRampToValueAtTime(.0001, t + .07); s.connect(lp).connect(g).connect(master); s.start(t, Math.random()*.2, .1);
+  const o = ac.createOscillator(), g2 = ac.createGain(); o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(75, t + .12); g2.gain.setValueAtTime(.8, t); g2.gain.exponentialRampToValueAtTime(.0001, t + .16); o.connect(g2).connect(master); o.start(t); o.stop(t + .18);
+  const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 230; bp.Q.value = 8; const s2 = ac.createBufferSource(); s2.buffer = nb; const g3 = ac.createGain(); g3.gain.setValueAtTime(.7, t); g3.gain.exponentialRampToValueAtTime(.0001, t + .22); s2.connect(bp).connect(g3).connect(master); s2.start(t, .1, .25);
+}
+function bell(midi, when, len = .9){
+  if (!ac || muted) return; const t = ac.currentTime + when, f = 440*Math.pow(2, (midi - 69)/12);
+  [[1, .5], [2.01, .18], [3.98, .08], [5.4, .03]].forEach(([m, a]) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f*m; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a, t + .006); g.gain.exponentialRampToValueAtTime(.0001, t + len/m*1.2); o.connect(g).connect(master); o.start(t); o.stop(t + len); });
+}
+function clack(when = 0){ if (!ac || muted) return; const t = ac.currentTime + when; const s = ac.createBufferSource(); s.buffer = nb; const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 3; const g = ac.createGain(); g.gain.setValueAtTime(.6, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05); s.connect(bp).connect(g).connect(master); s.start(t, 0, .06); }
+function creak(when){ if (!ac || muted) return; const t = ac.currentTime + when, o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(110, t + .5); o.frequency.linearRampToValueAtTime(85, t + 1.1); f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 6; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.12, t + .1); g.gain.exponentialRampToValueAtTime(.0001, t + 1.2); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + 1.3); }
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute' : 'Mute'); $('#mw').style.opacity = muted ? 0 : 1; });
+
+/* ---------------- UI text ---------------- */
+const expr = $('#expr'), tempoEl = $('#tempo'), statusEl = $('#status'), live = $('#live');
+function say(dyn, text, err){ expr.innerHTML = `<span class="dyn">${dyn}</span>${text}`; expr.classList.toggle('err', !!err); live.textContent = text; }
+function setTempo(bpm){ tempoEl.innerHTML = `<span class="q">♩</span> = ${bpm ? Math.round(bpm) : '?'}`; }
+
+/* ---------------- knocking ---------------- */
+const door = $('#door'), leaf = $('#leaf'), ripples = $('#ripples');
+function ripple(px, py){
+  if (reduce) return;
+  for (let k = 0; k < 3; k++){
+    const c = el('circle', {cx:px, cy:py, r:4, fill:'none', stroke:'#1d1a16', 'stroke-width':.8, 'stroke-dasharray': k === 1 ? '2 3' : ''}, ripples);
+    c.animate([{r:4, opacity:.9}, {r:44 + k*16, opacity:0}], {duration:520 + k*120, delay:k*50, easing:'cubic-bezier(.2,.7,.3,1)'}).onfinish = () => c.remove();
+  }
+}
+function knock(px, py, at){
+  const now = at || performance.now();
+  if (taps.length && listening && now - taps[taps.length - 1] < 70) return; // a bounce, not a knock
+  if (state === 'open' || state === 'opening') return;
+  audio();
+  if (now < lockedUntil) { knockSound(); leaf.classList.remove('rattle'); void leaf.offsetWidth; leaf.classList.add('rattle'); return; }
+  if (!listening){
+    taps = []; listening = true; clearMarks(); lyricsG.innerHTML = '';
+    if (!enrolMode){ state = 'listening'; fineT.setAttribute('opacity', 0); endBar.setAttribute('opacity', 0); }
+    say('pp', enrolMode ? 'listening — compose your knock…' : 'listening…');
+  }
+  taps.push(now);
+  knockSound();
+  leaf.classList.remove('thump'); void leaf.offsetWidth; leaf.classList.add('thump');
+  ripple(px, py);
+  liveNotes = liveLayout(); engrave(liveNotes, {fresh: liveNotes.length - 1});
+  if (taps.length > 1){ const q = quantize(intervals()); setTempo(60000 / (q.k*2)); }
+  clearTimeout(silenceT);
+  const ints = intervals(), med = ints.length ? [...ints].sort((a, b) => a - b)[Math.floor(ints.length/2)] : 600;
+  silenceT = setTimeout(phraseEnd, Math.max(1100, Math.min(2200, med*3.2)));
+}
+const intervals = () => taps.slice(1).map((t, i) => t - taps[i]);
+let listening = false, enrolMode = false;
+door.addEventListener('pointerdown', e => {
+  if (e.button > 0) return; e.preventDefault();
+  const r = door.getBoundingClientRect(); knock((e.clientX - r.left)/r.width*300, (e.clientY - r.top)/r.height*440, e.timeStamp);
+  door.focus({preventScroll:true});
+});
+door.addEventListener('click', e => { if (e.detail === 0) knock(150, 200, e.timeStamp); });
+document.addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.code === 'Space') && !e.repeat && (document.activeElement === document.body || document.activeElement === door)){ e.preventDefault(); knock(150, 200, e.timeStamp); }
+});
+door.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.repeat){ e.preventDefault(); knock(150, 200, e.timeStamp); } if (e.key === ' ') e.preventDefault(); });
+
+function clearMarks(){ marksG.innerHTML = ''; ghostG.innerHTML = ''; }
+function phraseEnd(){
+  listening = false;
+  const ints = intervals();
+  if (taps.length < 3){
+    say('p', 'Knock a rhythm of at least three knocks.', true); state = enrolMode ? state : 'judged'; taps = []; engrave([]); return;
+  }
+  const q = quantize(ints);
+  const engraved = engravedLayout(q.units);
+  animateTo(liveNotes, engraved, 420);
+  setTempo(60000/(q.k*2));
+  if (enrolMode) return enrolStep(ints, q);
+  const m = match(ints, secret);
+  if (m.ok) succeed(ints, m, engraved);
+  else fail(m, engraved, ints);
+}
+function strike(engraved, wi){
+  if (reduce) {}
+  const x1 = engraved[0].x - 14, x2 = engraved[engraved.length - 1].x + 14;
+  let d = `M${x1} ${MID + 6}`; for (let x = x1; x < x2; x += 34) d += ` C ${x + 10} ${MID - 22}, ${x + 22} ${MID - 22}, ${x + 17} ${MID - 4} S ${x + 26} ${MID + 14}, ${x + 34} ${MID + 4 + Math.random()*4}`;
+  const p = el('path', {d, fill:'none', stroke:'#a3231b', 'stroke-width':2.2, 'stroke-linecap':'round', opacity:.85}, marksG);
+  const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L;
+  p.animate([{strokeDashoffset: L}, {strokeDashoffset: 0}], {duration: reduce ? 1 : 420, fill:'forwards', easing:'ease-out'});
+  if (wi >= 0 && engraved[wi + 1]){
+    const n = engraved[wi + 1];
+    el('ellipse', {cx:n.x, cy:MID - 16, rx:18, ry:34, fill:'none', stroke:'#a3231b', 'stroke-width':1.6, transform:`rotate(8 ${n.x} ${MID - 16})`}, marksG);
+    const t = el('text', {x:n.x, y:MID + 46, 'text-anchor':'middle', 'font-family':'EB Garamond, serif', 'font-style':'italic', 'font-size':15, fill:'#a3231b'}, marksG);
+    t.textContent = m_dirText;
+  }
+}
+let m_dirText = '';
+function fail(m, engraved, ints){
+  fails++; state = 'judged';
+  leaf.classList.remove('rattle'); void leaf.offsetWidth; leaf.classList.add('rattle');
+  setTimeout(() => clack(), 40);
+  if (m.reason === 'count'){
+    m_dirText = '';
+    strike(engraved, -1);
+    say('f', `That was ${taps.length} knocks — the secret has a different number. Try again.`, true);
+  } else {
+    m_dirText = m.dir < 0 ? 'too soon' : 'too late';
+    strike(engraved, m.wi);
+    say('f', `Not quite — knock ${m.wi + 2} came ${m.dir < 0 ? 'early' : 'late'}. Try again at any tempo.`, true);
+  }
+  if (fails >= 5){
+    lockedUntil = performance.now() + 20000; restCountdown();
+  }
+  statusEl.textContent = fails >= 2 && fails < 5 ? `${5 - fails} tries before a short rest.` : '';
+}
+function restCountdown(){
+  // a multi-bar rest: the door rests for twenty seconds
+  notesG.innerHTML = ''; clearMarks();
+  const g = el('g', {}, marksG);
+  el('rect', {x:300, y:MID - 6, width:100, height:12, fill:'#1d1a16'}, g);
+  el('line', {x1:300, x2:300, y1:MID - 13, y2:MID + 13, stroke:'#1d1a16', 'stroke-width':1.3}, g); el('line', {x1:400, x2:400, y1:MID - 13, y2:MID + 13, stroke:'#1d1a16', 'stroke-width':1.3}, g);
+  const t = el('text', {x:350, y:Y0 - 14, 'text-anchor':'middle', 'font-family':'Bodoni Moda, serif', 'font-weight':700, 'font-size':24, fill:'#1d1a16'}, g);
+  const tick = () => { const left = Math.ceil((lockedUntil - performance.now())/1000);
+    if (left <= 0){ fails = 0; marksG.innerHTML = ''; say('mf', 'Rested. Knock the secret rhythm on the door to sign in.'); statusEl.textContent = ''; state = 'idle'; return; }
+    t.textContent = left; say('pp', `Too many tries — the door rests for ${left} seconds.`, true); setTimeout(tick, 250); };
+  tick();
+}
+function succeed(ints, m, engraved){
+  state = 'opening'; fails = 0; statusEl.textContent = '';
+  say('ff', 'Fine — welcome back, Ines.');
+  const k = m.k; // ms per eighth
+  // the knocks become a melody: x-heads slide onto pitches and the phrase plays back at your tempo
+  const pitchY = midi => { const steps = {60:-6,62:-5,64:-4,65:-3,67:-2,69:-1,71:0,72:1,74:2,76:3,77:4,79:5}; return MID - (steps[midi] ?? 0)*SP/2; };
+  const mel = (secret === DEFAULT_SECRET ? MELODY : customMelody(engraved.length));
+  const target = engraved.map((n, i) => ({...n, y: pitchY(mel[i] || 72)})); target.melodic = {melody:true};
+  setTimeout(() => {
+    clefPerc.animate && !reduce && clefPerc.animate([{opacity:1}, {opacity:0}], {duration:300, fill:'forwards'}); if (reduce) clefPerc.setAttribute('opacity', 0);
+    clefTreble.setAttribute('opacity', 1); if (!reduce) clefTreble.animate([{opacity:0}, {opacity:1}], {duration:400});
+    animateTo(engraved, target, 600, () => { endBar.setAttribute('opacity', 1); fineT.setAttribute('opacity', 1);
+      const words = secret === DEFAULT_SECRET ? ['Shave','and','a','hair‑','cut —','two','bits.'] : [];
+      words.forEach((w, i) => { const n = target[i]; if (!n) return; const t = el('text', {x:n.x, y:Y0 + 4*SP + 40, 'text-anchor':'middle', 'font-family':'EB Garamond, serif', 'font-style':'italic', 'font-size':17, fill:'#1d1a16', opacity:0}, lyricsG); t.textContent = w;
+        t.animate([{opacity:0, transform:'translateY(4px)'}, {opacity:1, transform:'none'}], {duration:300, delay:i*90, fill:'forwards'}); });
+    });
+    let at = 0.05; ints.forEach((v, i) => { bell(mel[i] || 72, at); at += v/1000 * (k > 0 ? 1 : 1); }); bell(mel[ints.length] || 72, at, 1.6);
+    const openAt = at*1000 + 250;
+    setTimeout(() => { door.classList.add('unbolted'); clack(); clack(.12); }, Math.max(300, openAt - 500));
+    setTimeout(() => { door.classList.add('open'); creak(0); $('#welcome').setAttribute('opacity', 1); state = 'open'; $('#lock').hidden = false; $('#compose').hidden = true;
+      door.setAttribute('aria-label', 'The door is open. You are signed in.'); }, openAt);
+  }, 480);
+}
+const DEFAULT_SECRET = secret;
+function customMelody(n){ const scale = [67, 69, 72, 74, 76, 79]; const out = []; for (let i = 0; i < n; i++) out.push(i === n - 1 ? 72 : scale[(i*3 + 1) % scale.length]); return out; }
+
+/* ---------------- composing a new knock ---------------- */
+function enrolStep(ints, q){
+  if (state === 'enrol1'){
+    enrolFirst = ints; state = 'enrol2';
+    say('mp', `Good — ${taps.length} knocks. Knock the same rhythm once more to confirm.`); taps = [];
+    statusEl.textContent = 'Composing · 2 of 2';
+  } else if (state === 'enrol2'){
+    const firstUnits = quantize(enrolFirst).units;
+    const m = match(ints, firstUnits.map(u => u));
+    const m2 = match(ints, enrolFirst.map(v => v));
+    if (m.ok && m2.ok){
+      secret = quantize(enrolFirst.map((v, i) => (v + ints[i]*(m2.k ? 1/m2.k : 1)) / 2)).units;
+      enrolMode = false; state = 'judged'; recT.setAttribute('opacity', 0);
+      say('mf', `New knock saved — ${secret.length + 1} knocks. Knock it on the door to sign in.`);
+      statusEl.textContent = ''; $('#compose').textContent = 'Compose a new knock';
+      $('.fn').firstChild.textContent = '* You composed a new secret knock. Any tempo works; the Space bar knocks too. ';
+      fineT.setAttribute('opacity', 1); endBar.setAttribute('opacity', 1);
+    } else {
+      state = 'enrol1'; enrolFirst = null; taps = [];
+      say('f', 'Those two didn’t match. Start again — knock your new rhythm.', true);
+      statusEl.textContent = 'Composing · 1 of 2';
+    }
+  }
+}
+$('#compose').addEventListener('click', () => {
+  audio();
+  if (enrolMode){ enrolMode = false; state = 'idle'; recT.setAttribute('opacity', 0); $('#compose').textContent = 'Compose a new knock'; statusEl.textContent = ''; say('mf', 'Knock the secret rhythm on the door to sign in.'); return; }
+  enrolMode = true; state = 'enrol1'; taps = []; engrave([]); clearMarks(); recT.setAttribute('opacity', 1); fineT.setAttribute('opacity', 0); endBar.setAttribute('opacity', 0);
+  $('#compose').textContent = 'Cancel composing'; statusEl.textContent = 'Composing · 1 of 2';
+  say('mp', 'Knock a new rhythm on the door — three knocks or more.'); door.focus({preventScroll:true});
+});
+$('#lock').addEventListener('click', () => {
+  audio(); door.classList.remove('open'); creak(0);
+  setTimeout(() => { door.classList.remove('unbolted'); clack(); }, reduce ? 0 : 1300);
+  state = 'idle'; taps = []; engrave([]); clearMarks(); lyricsG.innerHTML = ''; $('#welcome').setAttribute('opacity', 0);
+  clefPerc.getAnimations && clefPerc.getAnimations().forEach(a => a.cancel()); clefPerc.setAttribute('opacity', 1); clefTreble.setAttribute('opacity', 0);
+  fineT.setAttribute('opacity', 0); endBar.setAttribute('opacity', 0); setTempo(0);
+  $('#lock').hidden = true; $('#compose').hidden = false;
+  door.setAttribute('aria-label', 'The door. Press to knock — tap the secret rhythm, or use the Space bar.');
+  say('mf', 'Locked. Knock the secret rhythm on the door to sign in.'); door.focus({preventScroll:true});
+});
+$('#notyou').addEventListener('click', () => say('mp', 'Signing in as someone else? Ask them to knock their own rhythm.'));
+
+window.__knockState = () => ({taps: taps.map(t => Math.round(t - taps[0])), state, listening});
+window.__knock = (pattern, ms) => { // test hook: knock a pattern of eighth-units at a tempo
+  let t = 0; const seq = [0]; pattern.forEach(u => { t += u*ms; seq.push(t); });
+  const t0 = performance.now() + 30; seq.forEach(at => setTimeout(() => knock(150, 160, t0 + at), at + 30));
+};
+})();
+</script>
+</body>
+</html>

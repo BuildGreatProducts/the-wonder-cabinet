@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page Curl Pagination</title>
+<meta name="description" content="Search-result pagination as an antique gilded book: drag a page corner and it curls with real fold geometry, thumb-index notches jump by decade, and a silk ribbon keeps your place.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Page Curl Pagination","reimagines":"Pagination","category":"Navigation & Wayfinding","description":"Results are set in a leather-bound, gilt-edged book. Grab any page corner and the paper folds along a true crease that follows your finger, showing the next page on its back; thumb-index notches riffle to a decade, and a silk ribbon remembers the page you marked.","hint":"Drag a page corner to turn it, or press the arrow keys"}
+</script>
+<style>
+  :root{--paper:#f1e6cc;--paper2:#e6d6b2;--ink:#2a1d12;--rubric:#8e1d14;--gilt:#c9a24a;--leather:#4a1c14}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#1d2a20}
+  body{font-family:"EB Garamond",Garamond,"Times New Roman",serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;display:grid;place-items:center;
+    background:radial-gradient(ellipse 70% 55% at 50% 38%, rgba(255,214,140,.30), transparent 70%),
+      radial-gradient(ellipse at 50% 50%, #2f4a35, #182419 75%)}
+  #stage::before{content:"";position:absolute;inset:18px;border:2px solid rgba(201,162,74,.45);box-shadow:inset 0 0 0 5px rgba(0,0,0,.25), inset 0 0 0 7px rgba(201,162,74,.25);pointer-events:none}
+  .leathergrain{position:absolute;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:26px}
+  .book{position:relative;width:calc(var(--sx) + var(--pw));height:var(--ph)}
+  .cover{position:absolute;inset:-16px -18px;border-radius:6px;
+    background:radial-gradient(ellipse at 50% 30%, #6a2a1d, #3e140d 70%);box-shadow:0 40px 60px -20px rgba(0,0,0,.75), 0 6px 14px rgba(0,0,0,.4)}
+  .cover::before{content:"";position:absolute;inset:5px;border:1.5px solid var(--gilt);border-radius:4px;opacity:.8}
+  .cover::after{content:"";position:absolute;inset:0;border-radius:6px;opacity:.5;mix-blend-mode:overlay;background-image:inherit}
+  .block{position:absolute;top:-3px;bottom:-3px;background:#efe2c2}
+  .block.l{left:calc(var(--sx) - var(--pw) - 4px);width:var(--pw);box-shadow:-1px 0 0 #d9c79f,-2px 0 0 #f2e7cc,-3px 0 0 #d4c196,-4px 0 0 #efe3c4}
+  .block.r{left:calc(var(--sx) + 4px);width:var(--pw);box-shadow:1px 0 0 #d9c79f,2px 0 0 #f2e7cc,3px 0 0 #d4c196,4px 0 0 #efe3c4}
+  .block::before,.block::after{content:"";position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,#8c6a22,#f3d98a 30%,#b98f35 60%,#f0d382 85%,#8c6a22)}
+  .block::before{top:0}.block::after{bottom:0}
+  .spread{position:absolute;inset:0}
+  .page{position:absolute;top:0;width:var(--pw);height:var(--ph);overflow:hidden;background:var(--paper);user-select:none;-webkit-user-select:none}
+  .page .pc{position:absolute;inset:0;padding:46px 50px 40px 54px;
+    background:
+      radial-gradient(circle at 18% 72%, rgba(150,95,40,.10) 0 18px, transparent 30px),
+      radial-gradient(circle at 82% 16%, rgba(150,95,40,.08) 0 10px, transparent 22px),
+      radial-gradient(circle at 70% 88%, rgba(150,95,40,.07) 0 6px, transparent 14px),
+      radial-gradient(ellipse at 50% 45%, var(--paper) 55%, var(--paper2) 100%)}
+  .page.L .pc{box-shadow:inset -34px 0 34px -22px rgba(60,35,10,.45)}
+  .page.R .pc{box-shadow:inset 34px 0 34px -22px rgba(60,35,10,.45)}
+  .page.ghost .pc > *{opacity:.13}
+  .rh{font-variant:small-caps;letter-spacing:.14em;font-size:13px;text-align:center;margin:0 0 18px;color:#5a4330;border-bottom:1px solid rgba(90,67,48,.4);padding-bottom:7px}
+  .entry{margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid rgba(90,67,48,.22);position:relative}
+  .entry:last-of-type{border-bottom:0}
+  .entry .no{position:absolute;left:-32px;top:3px;font-size:12px;color:var(--rubric);font-variant:small-caps;width:26px;text-align:right}
+  .entry h3{margin:0;font-weight:600;font-size:17.5px;line-height:1.18}
+  .entry .src{margin:2px 0 4px;font-style:italic;font-size:14px;color:#5d4532}
+  .entry p{margin:0;font-size:15px;line-height:1.36;text-align:justify;hyphens:auto}
+  mark{background:none;color:var(--rubric);font-style:italic;font-weight:500}
+  .folio{position:absolute;bottom:18px;font-size:15px;color:#5a4330;font-variant:oldstyle-nums}
+  .page.L .folio{left:30px}.page.R .folio{right:30px}
+  .tp{display:flex;flex-direction:column;align-items:center;text-align:center;height:100%;justify-content:center;gap:10px}
+  .tp h1{margin:0;font-weight:500;font-size:30px;letter-spacing:.16em;font-variant:small-caps;line-height:1.1}
+  .tp .rule{width:60%;border-top:1px solid #5a4330;border-bottom:3px double #5a4330;height:5px}
+  .tp p{margin:0;font-size:17px;font-style:italic;max-width:24em}
+  .tp .q{font-style:normal;font-size:22px;color:var(--rubric)}
+  .tp svg{width:120px;height:150px}
+  .fleuron{text-align:center;color:var(--rubric);font-size:20px;margin-top:6px}
+  /* curl layers */
+  .layer{position:absolute;inset:0;pointer-events:none}
+  .shadowbox{position:absolute;inset:0;pointer-events:none;filter:drop-shadow(0 0 14px rgba(40,20,5,.45))}
+  .grad{position:absolute;left:0;top:0;transform-origin:0 0}
+  /* corners and controls */
+  .corner{position:absolute;width:88px;height:88px;z-index:20;cursor:grab;touch-action:none;background:none;border:0;padding:0}
+  .corner:focus-visible{outline:2px dashed var(--rubric);outline-offset:-10px}
+  .corner.br{right:0;bottom:0}.corner.tr{right:0;top:0}
+  .corner.bl{left:0;bottom:0}.corner.tl{left:0;top:0}
+  .edge{position:absolute;top:88px;bottom:88px;width:34px;z-index:19;cursor:grab;touch-action:none}
+  .edge.r{right:0}.edge.l{left:0}
+  .thumbs{position:absolute;top:0;bottom:0;z-index:25;pointer-events:none}
+  .thumb{position:absolute;width:36px;height:54px;pointer-events:auto;cursor:pointer;border:0;padding:0;background:none;font:inherit}
+  .thumb i{position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 70% 50%, #3a1a10, #120603 80%);box-shadow:inset 3px 0 5px rgba(0,0,0,.8)}
+  .thumb.onR i{clip-path:inset(0 50% 0 0)}
+  .thumb.onL i{clip-path:inset(0 0 0 50%);box-shadow:inset -3px 0 5px rgba(0,0,0,.8)}
+  .thumb b{position:absolute;top:50%;font-weight:500;font-size:10.5px;color:#e8c96d;letter-spacing:.04em;white-space:nowrap;line-height:1}
+  .thumb.onR b{left:9px;transform:translate(-50%,-50%) rotate(-90deg)}
+  .thumb.onL b{right:9px;transform:translate(50%,-50%) rotate(90deg)}
+  .thumb:hover i,.thumb:focus-visible i{background:radial-gradient(ellipse at 70% 50%, #7a3020, #2a0d07 80%)}
+  .thumb[aria-current] b{color:#fff3c4}
+  .thumb:focus-visible{outline:none}
+  .thumb:focus-visible b{text-decoration:underline}
+  .ribbon{position:absolute;z-index:22;width:16px;cursor:pointer;border:0;padding:0;
+    background:linear-gradient(90deg,#4e0d0c,#9a1f1b 35%,#c33a2e 50%,#9a1f1b 65%,#4e0d0c);clip-path:polygon(0 0,100% 0,100% 100%,50% calc(100% - 10px),0 100%);transition:left .5s cubic-bezier(.3,1.2,.5,1), top .45s cubic-bezier(.3,1.2,.5,1), height .45s cubic-bezier(.3,1.2,.5,1);box-shadow:2px 3px 4px rgba(0,0,0,.35)}
+  .ribbon:focus-visible{outline:2px solid #f0d382;outline-offset:2px}
+  .bar{display:flex;align-items:center;gap:18px;color:#e9d9b0;font-size:16px;z-index:5}
+  .bar button{all:unset;cursor:pointer;color:#f0d382;font-size:16px;padding:4px 8px;border-radius:3px}
+  .bar button:hover,.bar button:focus-visible{background:rgba(240,211,130,.14)}
+  .bar button:focus-visible{outline:1px solid #f0d382}
+  .bar button[disabled]{opacity:.35;pointer-events:none}
+  .bar .where{font-style:italic;min-width:12em;text-align:center}
+  .hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:#e9d9b0;font-style:italic;font-size:16px;opacity:.9;transition:opacity 1s;white-space:nowrap;z-index:5}
+  .hint.hide{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:760px){
+    .page .pc{padding:30px 30px 34px 34px}
+    .entry .no{left:-27px;width:22px;font-size:11px}
+    .entry h3{font-size:15.5px}.entry .src{font-size:12.5px}.entry p{font-size:13.6px;line-height:1.32}
+    .rh{font-size:11.5px;margin-bottom:12px}
+    .tp h1{font-size:22px}.tp p{font-size:15px}.tp .q{font-size:19px}
+    .bar{gap:8px;font-size:14px}.bar .where{min-width:8em}
+    .hint{font-size:13px;bottom:6px}
+    .thumb{width:28px;height:36px}.thumb b{font-size:10px}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="leathergrain" aria-hidden="true"></div>
+  <p class="hint" id="hint">Drag a page corner to turn it · or use ← →</p>
+  <div class="wrap">
+    <div class="book" id="book">
+      <div class="cover" aria-hidden="true"></div>
+      <div class="block l" aria-hidden="true"></div>
+      <div class="block r" aria-hidden="true"></div>
+      <div class="spread" id="spread" aria-live="polite"></div>
+      <div class="thumbs" id="thumbs" role="group" aria-label="Thumb index by decade"></div>
+      <button class="ribbon" id="ribbon" type="button"></button>
+    </div>
+    <nav class="bar" aria-label="Pagination">
+      <button type="button" id="prev" aria-label="Previous pages">← Previous</button>
+      <span class="where" id="where"></span>
+      <button type="button" id="next" aria-label="Next pages">Next →</button>
+    </nav>
+  </div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+
+/* ---------------- results ---------------- */
+const LH = ['Eddystone','Bell Rock','Skerryvore','Fastnet','Longships','Bishop Rock','South Stack','the Smalls','Wolf Rock','Hook Head','Beachy Head','Muckle Flugga','Start Point','Lundy North','Godrevy'];
+const PAPERS = ['The Cornish Echo','Shipping Gazette','The Orcadian','Western Morning News','Lloyd’s List','The Pembrokeshire Herald','Belfast News-Letter','The Scotsman','The Sussex Express'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const T = {
+  storm: l => [`Storm damage at ${l}`, `The principal keeper records the lantern glass cracked by spray at two in the morning; the keepers kept the light burning by hand until dawn.`],
+  relief: l => [`Relief boat delayed five weeks at ${l}`, `Heavy seas prevented the relief. The three keepers lived on ship’s biscuit and rainwater, and logged every gale in turn.`],
+  appoint: l => [`New keepers appointed to ${l}`, `Trinity House names two assistant keepers for the station, one of them formerly a cooper of Penzance, the other a fisherman’s son.`],
+  fog: l => [`Fog signal installed at ${l}`, `A compressed-air horn now sounds twice a minute in thick weather; the keepers say it can be heard nine miles to seaward.`],
+  rescue: l => [`Eleven saved from the brig Anne Lacey off ${l}`, `The keepers rowed out in the station boat and brought the crew ashore before the vessel broke up on the reef.`],
+  letters: l => [`Letters of a keeper’s wife, ${l}`, `“We watch the supply steamer as a speck for a whole morning before it reaches us,” she writes to her sister about the keepers’ cottages.`],
+  paraffin: l => [`Lamp converted to paraffin at ${l}`, `The old colza burners are gone. The keepers report a whiter light and far less soot to scrub from the great lens.`],
+  electric: l => [`Electric light reaches ${l}`, `A generator house now stands on the rock, and the keepers must tend engines as well as the lens and the clockwork.`],
+  wireless: l => [`Wireless set for the keepers of ${l}`, `For the first time the keepers can speak to the shore; the first message sent was a request for tobacco and newspapers.`],
+  last: l => [`Last keepers leave ${l}`, `With automation complete, the final keepers hand over the keys after ninety years of unbroken watch on the rock.`]
+};
+const ERA = y => y < 1870 ? ['storm','relief','appoint','rescue','letters'] : y < 1900 ? ['paraffin','fog','storm','rescue','relief','letters'] : y < 1930 ? ['fog','electric','storm','rescue','appoint','letters'] : y < 1950 ? ['wireless','electric','storm','relief','rescue'] : ['last','wireless','storm','letters'];
+const RESULTS = [];
+for (let i = 0; i < 44; i++) {
+  const y = Math.round(1852 + i * (1958 - 1852) / 43), lh = LH[(i * 7) % LH.length], kinds = ERA(y), k = kinds[(i * 7 + (i >> 1) + (i >> 2)) % kinds.length];
+  const [t, s] = T[k](lh), m = MONTHS[(i * 5) % 12], d = 1 + (i * 11) % 27;
+  RESULTS.push({ no: i + 1, y, title: t, src: `${PAPERS[(i * 3) % PAPERS.length]} · ${d} ${m} ${y} · p. ${1 + (i % 7)}`, text: s.replace(/\b(keepers?)\b/g, '<mark>$1</mark>') });
+}
+const DECADES = [1850, 1870, 1890, 1910, 1930, 1950];
+
+/* ---------------- pages ---------------- */
+let PER = 4, PAGES = [];
+const LIGHT = '<svg viewBox="0 0 120 150" aria-hidden="true"><g fill="none" stroke="#3b2a1c" stroke-width="1.2"><path d="M50 40h20l6 80H44z"/><path d="M47 60h26M46 80h28M45 100h30" /><path d="M48 40V30h24v10M52 30v-8h16v8M60 22v-8"/><path d="M60 14l-4 4h8z" fill="#3b2a1c"/>' +
+  [...Array(9)].map((_, i) => `<path d="M${50 + i * 2.5} 40L${44 + i * 4} 120" stroke-width=".5"/>`).join('') +
+  '<path d="M10 130q20-8 40-2t40-2 30 4M4 140q30-6 56 0t56 0"/><path d="M72 26l40-12M72 30l44 2M48 26L8 14M48 30L4 32" stroke="#8e1d14" stroke-dasharray="2 3"/></g></svg>';
+function buildPages(){
+  PAGES = [{ kind: 'title' }];
+  for (let i = 0; i < RESULTS.length; i += PER) PAGES.push({ kind: 'res', items: RESULTS.slice(i, i + PER) });
+  if (!mobile && PAGES.length % 2) PAGES.push({ kind: 'end' });
+}
+function pageHTML(p, side, ghost){
+  if (p < 0 || p >= PAGES.length) return `<div class="page ${side}"><div class="pc"></div></div>`;
+  const P = PAGES[p]; let inner = '';
+  if (P.kind === 'title') inner = `<div class="tp">${LIGHT}<h1>The Maritime Archive</h1><div class="rule"></div><p>Search results for</p><p class="q">“lighthouse keepers”</p><p>${RESULTS.length} entries from ${PAPERS.length} newspapers, 1852 – 1958, set out in order of date.</p><div class="fleuron">❦</div><p style="font-size:14px">Thumb the index on the fore-edge to go straight to a decade.</p></div>`;
+  else if (P.kind === 'end') inner = `<div class="tp"><div class="fleuron">❦ ❦ ❦</div><p>Here end the results.</p><p style="font-size:14px">Searched 2,914,006 pages of 81 newspapers on 7 October 2026.</p><div class="rule"></div><p style="font-size:14px">Narrow your search by keeper, light or year to see fewer entries.</p></div>`;
+  else inner = `<p class="rh">${side === 'L' ? 'The Maritime Archive' : 'Lighthouse keepers'}</p>` + P.items.map(r => `<article class="entry"><span class="no">${r.no}.</span><h3>${r.title}</h3><p class="src">${r.src}</p><p>${r.text}</p></article>`).join('');
+  return `<div class="page ${side}${ghost ? ' ghost' : ''}"><div class="pc">${inner}${P.kind === 'res' || P.kind === 'end' ? `<span class="folio">${p}</span>` : ''}</div></div>`;
+}
+
+/* ---------------- geometry ---------------- */
+let mobile = false, PW = 460, PH = 640, SX = 460;
+let cur = 0; // desktop: spread index (left page = 2*cur); mobile: page index
+const maxCur = () => mobile ? PAGES.length - 1 : Math.ceil(PAGES.length / 2) - 1;
+function layout(){
+  mobile = innerWidth <= 760;
+  const W = innerWidth, H = innerHeight;
+  if (mobile) { PW = Math.min(420, W - 46); PH = Math.min(Math.round(PW * 1.6), H - 120); SX = 0; PER = 3; }
+  else { PH = Math.min(660, H - 140); PW = Math.min(Math.round(PH * 0.72), Math.floor((W - 160) / 2)); SX = PW; PER = 4; }
+  const book = $('#book'); book.style.setProperty('--pw', PW + 'px'); book.style.setProperty('--ph', PH + 'px'); book.style.setProperty('--sx', SX + 'px');
+  book.querySelector('.block.l').style.display = mobile ? 'none' : '';
+}
+function clipHalf(poly, M, n, keepPositive){
+  const out = [], side = p => ((p[0] - M[0]) * n[0] + (p[1] - M[1]) * n[1]) * (keepPositive ? 1 : -1);
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], sa = side(a), sb = side(b);
+    if (sa >= 0) out.push(a);
+    if ((sa >= 0) !== (sb >= 0)) { const t = sa / (sa - sb); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+  }
+  return out;
+}
+const poly = (pts, dx = 0) => pts.length ? 'polygon(' + pts.map(p => `${(p[0] - dx).toFixed(2)}px ${p[1].toFixed(2)}px`).join(',') + ')' : 'polygon(0 0,0 0,0 0)';
+function constrain(P, C){
+  const top = C[1] === 0, Sn = [SX, top ? 0 : PH], Sf = [SX, top ? PH : 0], R1 = PW, R2 = Math.hypot(PW, PH);
+  let [x, y] = P;
+  let dx = x - Sn[0], dy = y - Sn[1], d = Math.hypot(dx, dy); if (d > R1) { x = Sn[0] + dx / d * R1; y = Sn[1] + dy / d * R1; }
+  dx = x - Sf[0]; dy = y - Sf[1]; d = Math.hypot(dx, dy); if (d > R2) { x = Sf[0] + dx / d * R2; y = Sf[1] + dy / d * R2; }
+  return [x, y];
+}
+
+/* ---------------- DOM for a turn ---------------- */
+const spread = $('#spread');
+let T0 = null; // active turn {C, P, els...}
+function staticRender(){
+  spread.innerHTML = '';
+  if (mobile) { spread.insertAdjacentHTML('beforeend', pageHTML(cur, 'R')); spread.lastElementChild.style.left = '0px'; }
+  else {
+    spread.insertAdjacentHTML('beforeend', pageHTML(2 * cur, 'L')); spread.lastElementChild.style.left = '0px';
+    spread.insertAdjacentHTML('beforeend', pageHTML(2 * cur + 1, 'R')); spread.lastElementChild.style.left = SX + 'px';
+  }
+  addCorners(); updateBar(); placeThumbs(); placeRibbon();
+}
+function beginTurn(dir, C){
+  // dir +1 forward, -1 back. Everything uses forward geometry; back turns start fully turned.
+  const pages = mobile
+    ? (dir > 0 ? { left: null, front: cur, back: cur, backGhost: true, under: cur + 1 } : { left: null, front: cur - 1, back: cur - 1, backGhost: true, under: cur })
+    : (dir > 0 ? { left: 2 * cur, front: 2 * cur + 1, back: 2 * cur + 2, under: 2 * cur + 3 } : { left: 2 * cur - 2, front: 2 * cur - 1, back: 2 * cur, under: 2 * cur + 1 });
+  spread.innerHTML = '';
+  const add = (html, x, z) => { spread.insertAdjacentHTML('beforeend', html); const e = spread.lastElementChild; e.style.left = x + 'px'; e.style.zIndex = z; return e; };
+  if (!mobile) add(pageHTML(pages.left, 'L'), 0, 1);
+  add(pageHTML(pages.under, 'R'), SX, 1);
+  const shU = document.createElement('div'); shU.className = 'layer'; shU.style.zIndex = 2; shU.innerHTML = '<div class="grad"></div>'; spread.appendChild(shU);
+  const front = add(pageHTML(pages.front, 'R'), SX, 3);
+  const frontSh = document.createElement('div'); frontSh.className = 'grad'; front.appendChild(frontSh);
+  const box = document.createElement('div'); box.className = 'shadowbox'; box.style.zIndex = 4; spread.appendChild(box);
+  const flap = document.createElement('div'); flap.className = 'layer'; box.appendChild(flap);
+  flap.insertAdjacentHTML('beforeend', pageHTML(pages.back, 'L', pages.backGhost)); const back = flap.lastElementChild; back.style.left = '0px'; back.style.transformOrigin = '0 0';
+  const flapSh = document.createElement('div'); flapSh.className = 'grad'; flap.appendChild(flapSh);
+  const farC = [SX - PW, C[1]];
+  T0 = { dir, C, P: dir > 0 ? C.slice() : farC.slice(), front, frontSh, shU, shUg: shU.firstChild, flap, back, flapSh, farC, lastP: null };
+  drawTurn();
+}
+function drawTurn(){
+  const t = T0, C = t.C, P = t.P;
+  const dx = C[0] - P[0], dy = C[1] - P[1], L = Math.hypot(dx, dy);
+  const rect = [[SX, 0], [SX + PW, 0], [SX + PW, PH], [SX, PH]];
+  if (L < 0.5) { t.front.style.clipPath = 'none'; t.flap.style.clipPath = poly([]); t.shU.style.clipPath = poly([]); t.frontSh.style.opacity = 0; return; }
+  const n = [dx / L, dy / L], M = [(C[0] + P[0]) / 2, (C[1] + P[1]) / 2];
+  const keep = clipHalf(rect, M, n, false), cut = clipHalf(rect, M, n, true);
+  const refl = p => { const d = (p[0] - M[0]) * n[0] + (p[1] - M[1]) * n[1]; return [p[0] - 2 * d * n[0], p[1] - 2 * d * n[1]]; };
+  const flapPoly = cut.map(refl);
+  t.front.style.clipPath = poly(keep, SX);
+  t.shU.style.clipPath = poly(cut);
+  t.flap.style.clipPath = poly(flapPoly);
+  // back page transform: reflect ∘ mirror(u -> K - u)
+  const K = SX + PW, nx = n[0], ny = n[1];
+  const a = -(1 - 2 * nx * nx), b = 2 * nx * ny, c = -2 * nx * ny, d = 1 - 2 * ny * ny;
+  const md = 2 * (M[0] * nx + M[1] * ny);
+  const e = K * (1 - 2 * nx * nx) + md * nx, f = -2 * K * nx * ny + md * ny;
+  t.back.style.transform = `matrix(${a},${b},${c},${d},${e},${f})`;
+  // gradients aligned with the fold line
+  const ang = Math.atan2(n[1], n[0]) * 180 / Math.PI, BIG = 3000, prog = Math.min(1, L / (2 * PW));
+  const w = Math.max(30, Math.min(90, L * 0.35));
+  const g1 = t.shUg; g1.style.width = BIG + 'px'; g1.style.height = BIG + 'px';
+  g1.style.transform = `translate(${M[0]}px,${M[1]}px) rotate(${ang}deg) translate(0,-${BIG / 2}px)`;
+  g1.style.background = `linear-gradient(90deg, rgba(30,15,5,${0.5 - prog * 0.2}) 0, rgba(30,15,5,0) ${w}px)`;
+  const g2 = t.flapSh; g2.style.width = BIG + 'px'; g2.style.height = BIG + 'px';
+  g2.style.transform = `translate(${M[0]}px,${M[1]}px) rotate(${ang + 180}deg) translate(0,-${BIG / 2}px)`;
+  g2.style.background = `linear-gradient(90deg, rgba(60,35,10,.35) 0, rgba(255,250,235,.18) ${w * 0.5}px, rgba(60,35,10,.08) ${w * 1.6}px, rgba(60,35,10,0) ${w * 3}px)`;
+  const g3 = t.frontSh; g3.style.width = BIG + 'px'; g3.style.height = BIG + 'px'; g3.style.opacity = 1;
+  g3.style.transform = `translate(${M[0] - SX}px,${M[1]}px) rotate(${ang + 180}deg) translate(0,-${BIG / 2}px)`;
+  g3.style.background = `linear-gradient(90deg, rgba(60,35,10,.22) 0, rgba(60,35,10,0) ${w * 0.6}px)`;
+  rustle(t);
+}
+function endTurn(done){
+  const t = T0; T0 = null;
+  if (done) { cur += t.dir; thump(); announce(); }
+  staticRender();
+}
+
+/* ---------------- animation ---------------- */
+let animating = false, queue = 0;
+function animateP(to, ms, lift){
+  return new Promise(res => {
+    const t = T0, from = t.P.slice(), t0 = performance.now(); animating = true;
+    const step = now => {
+      const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+      let x = from[0] + (to[0] - from[0]) * e, y = from[1] + (to[1] - from[1]) * e;
+      if (lift) y -= Math.sin(Math.PI * e) * lift * (t.C[1] === 0 ? -1 : 1);
+      t.P = constrain([x, y], t.C); drawTurn();
+      if (k < 1) requestAnimationFrame(step); else { animating = false; res(); }
+    };
+    requestAnimationFrame(step);
+  });
+}
+async function turn(dir, fast){
+  audio();
+  if (animating || T0) { queue += dir; return; }
+  if ((dir > 0 && cur >= maxCur()) || (dir < 0 && cur <= 0)) { nudge(dir); return; }
+  hideHint();
+  if (RM) { cur += dir; announce(); staticRender(); return; }
+  const C = [SX + PW, PH];
+  beginTurn(dir, C);
+  const ms = fast ? 300 : 620;
+  await animateP(dir > 0 ? T0.farC : C, ms, PH * 0.18);
+  endTurn(true);
+  if (queue) { const q = Math.sign(queue); queue -= q; turn(q, true); }
+}
+async function jumpTo(target){
+  target = Math.max(0, Math.min(maxCur(), target));
+  if (target === cur || animating || T0) return;
+  const dir = Math.sign(target - cur);
+  while (cur !== target) { await new Promise(r => { const before = cur; turn(dir, true); const chk = () => { if (!T0 && !animating && cur !== before) r(); else requestAnimationFrame(chk); }; requestAnimationFrame(chk); }); if (RM) break; }
+  if (RM) { cur = target; staticRender(); announce(); }
+}
+function nudge(dir){ const b = $('#book'); if (RM) return; b.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${-dir * 6}px)` }, { transform: `translateX(${dir * 3}px)` }, { transform: 'translateX(0)' }], { duration: 320 }); }
+
+/* ---------------- dragging ---------------- */
+function addCorners(){
+  const mk = (cls, dir, top) => { const b = document.createElement(cls.startsWith('edge') ? 'div' : 'button'); b.className = cls; if (b.tagName === 'BUTTON') { b.type = 'button'; b.setAttribute('aria-label', dir > 0 ? 'Turn to next page' : 'Turn to previous page'); }
+    b.addEventListener('pointerdown', e => startDrag(e, dir, top));
+    b.addEventListener('click', e => { if (dragMoved) { dragMoved = false; return; } turn(dir); });
+    b.addEventListener('pointerenter', () => tease(dir, top, true)); b.addEventListener('pointerleave', () => tease(dir, top, false));
+    spread.appendChild(b);
+    if (dir > 0) { b.style.left = (SX + PW - (cls.startsWith('edge') ? 34 : 88)) + 'px'; b.style.right = 'auto'; }
+  };
+  if (cur < maxCur()) { mk('corner br', 1, false); mk('corner tr', 1, true); mk('edge r', 1, false); }
+  if (cur > 0) { mk('corner bl', -1, false); mk('corner tl', -1, true); mk('edge l', -1, false); }
+}
+let drag = null, dragMoved = false, teaseOn = false;
+function toLocal(e){ const r = spread.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function startDrag(e, dir, top){
+  if (animating || (T0 && !teaseOn)) return; audio(); hideHint();
+  e.preventDefault(); e.target.setPointerCapture(e.pointerId);
+  const [x, y] = toLocal(e);
+  const C = [SX + PW, (top || y < PH / 2) ? 0 : PH];
+  if (!T0 || T0.dir !== dir || T0.C[1] !== C[1]) { if (T0) T0 = null; beginTurn(dir, C); }
+  teaseOn = false;
+  drag = { dir, id: e.pointerId, x0: x, y0: y, el: e.target, t0: performance.now() };
+  // in mobile back turns, the finger is near the left edge: map it to the far-left geometry
+  drag.offx = dir > 0 ? (SX + PW) - x : (SX - PW) - x;
+  drag.offy = C[1] - y;
+  dragMoved = false;
+  e.target.addEventListener('pointermove', onDrag); e.target.addEventListener('pointerup', endDrag); e.target.addEventListener('pointercancel', endDrag);
+}
+function onDrag(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  const [x, y] = toLocal(e);
+  if (Math.hypot(x - drag.x0, y - drag.y0) > 4) dragMoved = true;
+  T0.P = constrain([x + drag.offx * Math.max(0, 1 - Math.abs(x - drag.x0) / 60), y + drag.offy * Math.max(0, 1 - Math.abs(y - drag.y0) / 60)], T0.C);
+  drawTurn();
+}
+async function endDrag(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  const el = drag.el; el.removeEventListener('pointermove', onDrag); el.removeEventListener('pointerup', endDrag); el.removeEventListener('pointercancel', endDrag);
+  const d = drag; drag = null;
+  if (!dragMoved) { const t = T0; T0 = null; staticRender(); turn(d.dir); return; }
+  const past = T0.P[0] < SX; // crossed the spine?
+  const complete = d.dir > 0 ? past : !past;
+  await animateP(past ? T0.farC : T0.C, 380, 0);
+  endTurn(complete ? true : false);
+  if (!complete) cur = cur; // stays
+}
+async function tease(dir, top, on){
+  if (drag || animating || RM) return;
+  if (on) {
+    if (T0) return; const C = [SX + PW, top ? 0 : PH]; beginTurn(dir, C); teaseOn = true;
+    const tgt = dir > 0 ? [C[0] - 26, C[1] + (top ? 18 : -18)] : [T0.farC[0] + 26, C[1] + (top ? 18 : -18)];
+    await animateP(tgt, 260, 0);
+  } else if (T0 && teaseOn) {
+    teaseOn = false; await animateP(dir > 0 ? T0.C : T0.farC, 220, 0); if (T0 && !drag) { T0 = null; staticRender(); }
+  }
+}
+
+/* ---------------- thumb index, ribbon, bar ---------------- */
+const thumbs = $('#thumbs');
+function decadeTarget(dec){ const i = RESULTS.findIndex(r => r.y >= dec); const page = 1 + Math.floor(i / PER); return mobile ? page : Math.floor(page / 2); }
+function placeThumbs(){
+  thumbs.innerHTML = ''; thumbs.style.left = '0'; thumbs.style.width = (SX + PW) + 'px';
+  const gap = (PH - 120) / DECADES.length;
+  DECADES.forEach((dec, i) => {
+    const tg = decadeTarget(dec), onR = tg > cur || (mobile ? true : tg === cur && false);
+    if (mobile && tg <= cur && tg !== cur) { /* passed: still reachable from the right edge on a single page */ }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'thumb ' + (onR || mobile ? 'onR' : 'onL');
+    b.innerHTML = `<i></i><b>${dec}s</b>`; b.setAttribute('aria-label', `Jump to the ${dec}s`);
+    const x = (onR || mobile) ? SX + PW - 18 : SX - PW - 18;
+    b.style.left = x + 'px'; b.style.top = (52 + i * gap) + 'px';
+    if (tg === cur) b.setAttribute('aria-current', 'true');
+    b.addEventListener('click', () => { audio(); hideHint(); jumpTo(tg); });
+    thumbs.appendChild(b);
+  });
+}
+let mark = null; // marked spread/page
+const ribbon = $('#ribbon');
+function placeRibbon(){
+  const there = mark === cur, gx = mobile ? 8 : SX - 8;
+  if (mark === null) { ribbon.style.left = gx + 'px'; ribbon.style.top = (PH - 30) + 'px'; ribbon.style.height = '58px'; ribbon.setAttribute('aria-label', 'Mark these pages with the ribbon'); ribbon.title = 'Mark these pages'; }
+  else if (there) { ribbon.style.left = gx + 'px'; ribbon.style.top = '-12px'; ribbon.style.height = (PH + 44) + 'px'; ribbon.setAttribute('aria-label', 'Remove the ribbon from these pages'); ribbon.title = 'Remove ribbon'; }
+  else { ribbon.style.left = (mark > cur ? SX + PW * 0.78 : (mobile ? PW * 0.2 : SX - PW * 0.78)) + 'px'; ribbon.style.top = (PH - 14) + 'px'; ribbon.style.height = '44px'; ribbon.setAttribute('aria-label', `Go to the ${mobile ? 'page' : 'pages'} marked with the ribbon`); ribbon.title = 'Go to ribbon'; }
+  ribbon.style.zIndex = 22;
+}
+ribbon.addEventListener('click', () => {
+  audio(); hideHint();
+  if (mark === null) { mark = cur; swish(); $('#live').textContent = 'Ribbon placed.'; }
+  else if (mark === cur) { mark = null; swish(); $('#live').textContent = 'Ribbon removed.'; }
+  else { jumpTo(mark); return; }
+  placeRibbon(); updateBar();
+});
+function where(){ if (mobile) return cur === 0 ? 'Title page' : `Page ${cur} of ${PAGES.length - 1}`; const a = 2 * cur, b = 2 * cur + 1; return a === 0 ? `Title · page 1 of ${PAGES.length - 1}` : `Pages ${a}–${Math.min(b, PAGES.length - 1)} of ${PAGES.length - 1}`; }
+function updateBar(){ $('#where').textContent = where() + (mark !== null ? (mark === cur ? ' · ribbon here' : '') : ''); $('#prev').disabled = cur <= 0; $('#next').disabled = cur >= maxCur(); }
+function announce(){ $('#live').textContent = where(); }
+$('#prev').addEventListener('click', () => turn(-1)); $('#next').addEventListener('click', () => turn(1));
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,textarea')) return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); turn(1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); turn(-1); }
+  else if (e.key === 'Home') { e.preventDefault(); jumpTo(0); } else if (e.key === 'End') { e.preventDefault(); jumpTo(maxCur()); }
+});
+let hinted = true; function hideHint(){ if (hinted) { hinted = false; $('#hint').classList.add('hide'); } }
+
+/* ---------------- audio ---------------- */
+let AC = null, master = null, nb = null, rus = null;
+function audio(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.18; master.connect(AC.destination);
+  nb = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate); const d = nb.getChannelData(0); let l = 0; for (let i = 0; i < d.length; i++) { l = l * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = l * (Math.random() < 0.02 ? 3 : 1); } } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume(); }
+function rustle(t){
+  if (!AC) return;
+  if (!rus) { const s = AC.createBufferSource(); s.buffer = nb; s.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.7; const g = AC.createGain(); g.gain.value = 0; s.connect(bp).connect(g).connect(master); s.start(); rus = { g, bp }; }
+  const now = performance.now(), sp = t.lastP ? Math.hypot(t.P[0] - t.lastP[0], t.P[1] - t.lastP[1]) / Math.max(1, now - t.lastT) : 0;
+  t.lastP = t.P.slice(); t.lastT = now;
+  rus.g.gain.setTargetAtTime(Math.min(0.5, sp * 0.25), AC.currentTime, 0.03); rus.bp.frequency.setTargetAtTime(1600 + sp * 1500, AC.currentTime, 0.05);
+  clearTimeout(rustle.t); rustle.t = setTimeout(() => rus && rus.g.gain.setTargetAtTime(0, AC.currentTime, 0.05), 80);
+}
+function thump(){ if (!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nb; f.type = 'lowpass'; f.frequency.value = 600; g.gain.setValueAtTime(0.6, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.15); }
+function swish(){ if (!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = nb; f.type = 'highpass'; f.frequency.setValueAtTime(1200, t); f.frequency.exponentialRampToValueAtTime(5000, t + 0.25); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.32); }
+
+/* ---------------- boot ---------------- */
+function full(){ const wasMobile = mobile; const pageNow = mobile ? cur : 2 * cur; layout(); buildPages(); if (wasMobile !== mobile) { cur = mobile ? Math.max(0, pageNow) : Math.floor(pageNow / 2); mark = null; } cur = Math.min(cur, maxCur()); T0 = null; staticRender(); }
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(full, 80); });
+layout(); buildPages(); staticRender();
+window.__pc = { turn, jumpTo, drag: (x, y) => { beginTurn(1, [SX + PW, PH]); T0.P = constrain([x, y], T0.C); drawTurn(); } };
+})();
+</script>
+</body>
+</html>

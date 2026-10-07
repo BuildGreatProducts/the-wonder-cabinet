@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rubber Band Range</title>
+<meta name="description" content="A min/max price filter in 1980s Memphis style: a real rubber band stretched between two pegs over a patterned price histogram. It thins and pales under tension, twangs when plucked and flings pegs with spring physics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Rubber Band Range","reimagines":"Range slider (min/max)","category":"Sliders, Knobs & Dials","description":"Filter holiday rentals by nightly price with two pegs and a real rubber band over a Memphis-pattern histogram. The band thins and pales as it stretches, pegs fling and overshoot with spring physics, plucking it twangs, and the bars inside your range stand up and put on hats.","hint":"Drag or flick a peg; pluck the band"}
+</script>
+<style>
+  :root{
+    --ink:#121212; --paper:#fbf6ec; --pink:#ff9ec4; --mint:#7fe0c5; --lemon:#ffe066; --lilac:#b9a3ff; --red:#ff4b36; --teal:#18b3b0; --sky:#8fd3ff;
+    --disp:'Syne', 'Futura', 'Avenir Next', sans-serif;
+    --mono:'Space Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--paper); color:var(--ink); font-family:var(--disp); overflow:hidden}
+  .terrazzo{position:fixed; inset:0; overflow:hidden}
+  #deco{position:absolute; inset:0; width:100%; height:100%}
+  .wrap{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px}
+  .head{width:min(1040px, 100%); display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:18px}
+  .head h1{font-weight:800; font-size:54px; line-height:.92; margin:0; letter-spacing:-.02em}
+  .head h1 em{font-style:normal; display:inline-block; background:var(--lemon); padding:0 10px; border:3px solid var(--ink); transform:rotate(-2deg); margin-left:4px}
+  .head p{margin:10px 0 0; font-family:var(--mono); font-size:14px}
+  .squig{display:block; width:220px; height:16px; margin-top:8px}
+  .panel{position:relative; width:min(1040px, 100%); background:#fff; border:3.5px solid var(--ink); padding:22px 28px 22px}
+  .panel::before{content:""; position:absolute; left:14px; top:14px; right:-16px; bottom:-16px; z-index:-1; border:3.5px solid var(--ink);
+    background:repeating-linear-gradient(45deg, var(--ink) 0 3px, var(--lilac) 3px 11px)}
+  .row{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  .lab{font-weight:800; font-size:20px; text-transform:uppercase; letter-spacing:.04em}
+  .lab small{display:block; font-family:var(--mono); font-weight:400; text-transform:none; letter-spacing:0; font-size:13px; margin-top:2px}
+  .range{font-family:var(--mono); font-weight:700; font-size:40px; letter-spacing:-.02em; line-height:1}
+  .range span{display:inline-block; padding:0 8px; border:3px solid var(--ink)}
+  .range .lo{background:var(--lemon)} .range .hi{background:var(--mint)}
+  .range i{font-style:normal; margin:0 8px}
+  .chart{position:relative; height:300px; margin:14px 0 6px; touch-action:none}
+  #cv{position:absolute; inset:0; width:100%; height:100%; display:block; cursor:default}
+  .peg{position:absolute; width:52px; height:52px; margin:-26px 0 0 -26px; border-radius:50%; outline:none; cursor:grab; touch-action:none; top:0; left:0}
+  .peg:focus-visible{box-shadow:0 0 0 4px #fff, 0 0 0 8px var(--ink)}
+  .peg.drag{cursor:grabbing}
+  .foot{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-top:8px}
+  .count{font-family:var(--mono); font-size:15px}
+  .count b{font-family:var(--disp); font-size:24px; font-weight:800}
+  .btns{display:flex; gap:14px; align-items:center}
+  .go{font-family:var(--disp); font-weight:800; font-size:18px; text-transform:uppercase; letter-spacing:.04em; padding:12px 22px; background:var(--pink); border:3px solid var(--ink); cursor:pointer; position:relative; box-shadow:6px 6px 0 var(--ink); transition:transform .1s, box-shadow .1s}
+  .go:hover{transform:translate(-2px,-2px); box-shadow:8px 8px 0 var(--ink)}
+  .go:active{transform:translate(4px,4px); box-shadow:2px 2px 0 var(--ink)}
+  .reset{font-family:var(--mono); font-size:13px; background:none; border:0; border-bottom:2.5px solid var(--ink); padding:2px 0; cursor:pointer}
+  .go:focus-visible, .reset:focus-visible, .mute:focus-visible{outline:3px dashed var(--teal); outline-offset:4px}
+  .hint{font-family:var(--mono); font-size:13px; transition:opacity .8s}
+  .hint b{background:var(--lemon); padding:0 4px}
+  .mute{position:fixed; right:14px; bottom:12px; font-family:var(--mono); font-size:12px; background:#fff; border:2.5px solid var(--ink); padding:3px 8px; cursor:pointer}
+  .toast{font-family:var(--mono); font-size:13px; min-height:1.2em}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    .wrap{padding:16px 14px; justify-content:flex-start; padding-top:30px}
+    .head{flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:22px}
+    .head h1{font-size:36px}
+    .head p{font-size:12px}
+    .panel{padding:14px 12px}
+    .panel::before{left:9px; top:9px; right:-10px; bottom:-10px}
+    .lab{font-size:15px}
+    .range{font-size:26px}
+    .range i{margin:0 4px}
+    .chart{height:250px}
+    .go{font-size:15px; padding:10px 14px}
+    .foot{gap:10px}
+    .count b{font-size:20px}
+    .hint{font-size:11.5px}
+  }
+</style>
+</head>
+<body>
+<div class="terrazzo">
+  <svg id="deco" aria-hidden="true"></svg>
+  <div class="wrap">
+    <header class="head">
+      <div>
+        <h1>Palm Springs<em>stays</em></h1>
+        <p>Sat 14 – Wed 18 Nov 2026 · 4 nights · 2 guests</p>
+        <svg class="squig" viewBox="0 0 220 16" aria-hidden="true"><path d="M2 8q9-10 18 0t18 0 18 0 18 0 18 0 18 0 18 0 18 0 18 0 18 0 18 0 18 0" fill="none" stroke="#121212" stroke-width="4" stroke-linecap="round"/></svg>
+      </div>
+      <div class="hint" id="hint"><b>Drag or flick</b> a peg. <b>Pluck</b> the band.</div>
+    </header>
+
+    <section class="panel" aria-labelledby="lab">
+      <div class="row">
+        <div class="lab" id="lab">Price per night<small>Before taxes and the cleaning fee</small></div>
+        <div class="range" aria-hidden="true"><span class="lo" id="lo">$90</span><i>—</i><span class="hi" id="hi">$320</span></div>
+      </div>
+      <div class="chart" id="chart">
+        <canvas id="cv"></canvas>
+        <div class="peg" id="pegL" role="slider" tabindex="0" aria-label="Minimum price per night" aria-valuemin="40" aria-valuemax="600"></div>
+        <div class="peg" id="pegR" role="slider" tabindex="0" aria-label="Maximum price per night" aria-valuemin="40" aria-valuemax="600"></div>
+      </div>
+      <div class="foot">
+        <div class="count" aria-live="polite"><b id="count">212</b> stays match · avg <span id="avg">$184</span>/night</div>
+        <div class="btns">
+          <button class="reset" id="reset">Reset</button>
+          <button class="go" id="go">Show <span id="count2">212</span> stays</button>
+        </div>
+      </div>
+      <div class="toast" id="toast" aria-live="polite"></div>
+    </section>
+  </div>
+  <button class="mute" id="mute" aria-pressed="false">sound: on</button>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const MIN = 40, MAX = 600, STEP = 10, GAP = 30;
+  const BINS = 28, BW = (MAX - MIN) / BINS;
+  // realistic-ish nightly price distribution (log-normal, peak ~$150)
+  const counts = [];
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < BINS; i++){
+    const p = MIN + (i + .5) * BW, mu = Math.log(165), sg = .55;
+    const pdf = Math.exp(-Math.pow(Math.log(p) - mu, 2) / (2 * sg * sg)) / p;
+    counts.push(Math.max(1, Math.round(pdf * 26000 * (0.82 + rnd() * .36))));
+  }
+  const maxC = Math.max(...counts);
+
+  // ---------- state (values in $) ----------
+  const thumbs = [
+    { v: 90, vel: 0, tgt: 90, el: $('pegL'), drag: false, col:'#ffe066', pat: 0 },
+    { v: 320, vel: 0, tgt: 320, el: $('pegR'), drag: false, col:'#7fe0c5', pat: 1 },
+  ];
+  const bars = counts.map(() => ({ h: 0, v: 0, hat: 0, hv: 0 }));
+
+  // band string sim (transverse offsets for upper strand; lower follows with lag)
+  const NS = 32;
+  let su = new Float32Array(NS), sv = new Float32Array(NS);
+  let grabbed = -1, grabY = 0;
+
+  const cv = $('cv'), ctx = cv.getContext('2d'), chart = $('chart');
+  let W = 800, H = 300, dpr = 1, padX = 40, baseY = 250, pegR = 16;
+  const pats = {};
+
+  function makePattern(kind, bg){
+    const c = document.createElement('canvas'), s = 16 * dpr; c.width = s; c.height = s;
+    const g = c.getContext('2d'); g.scale(dpr, dpr);
+    g.fillStyle = bg; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#121212'; g.strokeStyle = '#121212';
+    if (kind === 'dots'){ g.beginPath(); g.arc(4, 4, 1.8, 0, 7); g.arc(12, 12, 1.8, 0, 7); g.fill(); }
+    else if (kind === 'stripes'){ g.lineWidth = 2.2; for (let k = -16; k < 32; k += 6){ g.beginPath(); g.moveTo(k, 16); g.lineTo(k + 16, 0); g.stroke(); } }
+    else if (kind === 'zig'){ g.lineWidth = 1.8; g.strokeStyle = '#fff'; g.beginPath(); g.moveTo(0, 6); for (let x = 0; x <= 16; x += 4) g.lineTo(x, x % 8 ? 2 : 6); g.stroke(); g.beginPath(); g.moveTo(0, 14); for (let x = 0; x <= 16; x += 4) g.lineTo(x, x % 8 ? 10 : 14); g.stroke(); }
+    else if (kind === 'cross'){ g.lineWidth = 1.6; [[4,4],[12,12]].forEach(([x,y]) => { g.beginPath(); g.moveTo(x-2.5,y); g.lineTo(x+2.5,y); g.moveTo(x,y-2.5); g.lineTo(x,y+2.5); g.stroke(); }); }
+    else if (kind === 'blob'){ g.beginPath(); g.ellipse(4, 5, 2.6, 1.4, .6, 0, 7); g.fill(); g.beginPath(); g.ellipse(12, 11, 1.6, 2.6, -.4, 0, 7); g.fill(); g.beginPath(); g.arc(13, 3, 1, 0, 7); g.fill(); }
+    else if (kind === 'grey'){ g.fillStyle = '#d6d0c4'; g.beginPath(); g.arc(4, 4, 1.3, 0, 7); g.arc(12, 12, 1.3, 0, 7); g.fill(); }
+    else if (kind === 'check'){ g.fillRect(0,0,8,8); g.fillRect(8,8,8,8); }
+    const p = ctx.createPattern(c, 'repeat');
+    if (p && p.setTransform) p.setTransform(new DOMMatrix().scale(1/dpr));
+    return p;
+  }
+  const BAR_STYLES = [['dots','#ff9ec4'],['stripes','#ffe066'],['zig','#18b3b0'],['cross','#b9a3ff'],['blob','#7fe0c5']];
+
+  function resize(){
+    dpr = Math.min(2, devicePixelRatio || 1);
+    const r = chart.getBoundingClientRect(); W = r.width; H = r.height;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const mob = W < 500;
+    padX = mob ? 22 : 34; baseY = H - (mob ? 46 : 54); pegR = mob ? 14 : 17;
+    BAR_STYLES.forEach(([k, c], i) => pats['bar' + i] = makePattern(k, c));
+    pats.grey = makePattern('grey', '#fbf6ec');
+    pats.pegL = makePattern('stripes', '#ffe066');
+    pats.pegR = makePattern('dots', '#7fe0c5');
+    pats.check = makePattern('check', '#fff');
+  }
+  const xOf = v => padX + (v - MIN) / (MAX - MIN) * (W - padX * 2);
+  const vOf = x => MIN + (x - padX) / (W - padX * 2) * (MAX - MIN);
+
+  // ---------- derived UI ----------
+  let lastSig = '';
+  function updateUI(){
+    const lo = Math.round(thumbs[0].tgt), hi = Math.round(thumbs[1].tgt);
+    const sig = lo + '-' + hi;
+    if (sig === lastSig) return; lastSig = sig;
+    $('lo').textContent = '$' + lo; $('hi').textContent = '$' + hi + (hi >= MAX ? '+' : '');
+    let n = 0, sum = 0;
+    counts.forEach((c, i) => { const p0 = MIN + i * BW, p1 = p0 + BW, ov = Math.max(0, Math.min(p1, hi) - Math.max(p0, lo)) / BW; n += c * ov; sum += c * ov * (p0 + BW/2); });
+    n = Math.round(n);
+    $('count').textContent = n; $('count2').textContent = n;
+    $('avg').textContent = n ? '$' + Math.round(sum / Math.max(1, n)) : '—';
+    thumbs.forEach((t, i) => { const v = Math.round(t.tgt); t.el.setAttribute('aria-valuenow', v); t.el.setAttribute('aria-valuetext', `$${v}${i && v >= MAX ? ' or more' : ''} per night`); });
+    $('go').disabled = n === 0;
+    $('toast').textContent = '';
+  }
+
+  // ---------- input ----------
+  let interacted = false;
+  function touched(){ if (!interacted){ interacted = true; $('hint').style.opacity = .35; } audio(); }
+  const snap = v => Math.round(v / STEP) * STEP;
+  function clampT(i, v){ return i === 0 ? Math.max(MIN, Math.min(v, thumbs[1].v - GAP)) : Math.min(MAX, Math.max(v, thumbs[0].v + GAP)); }
+
+  let samples = [];
+  thumbs.forEach((t, i) => {
+    t.el.addEventListener('pointerdown', e => {
+      touched(); t.drag = true; t.el.classList.add('drag'); t.el.setPointerCapture(e.pointerId);
+      t.off = vOf(e.clientX - chart.getBoundingClientRect().left) - t.v; samples = [];
+      e.stopPropagation();
+    });
+    t.el.addEventListener('pointermove', e => {
+      if (!t.drag) return;
+      const x = e.clientX - chart.getBoundingClientRect().left;
+      t.tgt = clampT(i, vOf(x) - t.off);
+      samples.push([performance.now(), t.tgt]); if (samples.length > 6) samples.shift();
+      updateUI();
+    });
+    const up = () => {
+      if (!t.drag) return;
+      t.drag = false; t.el.classList.remove('drag');
+      // flick velocity from recent samples
+      let fv = 0;
+      if (samples.length > 1){ const a = samples[0], b = samples[samples.length - 1], dt = (b[0] - a[0]) / 1000; if (dt > 0 && performance.now() - b[0] < 80) fv = (b[1] - a[1]) / dt; }
+      t.vel = reduce ? 0 : fv;
+      t.flying = Math.abs(fv) > 120;
+      if (!t.flying){ t.tgt = clampT(i, snap(t.tgt)); boing(.4); }
+      kickBand(i, (t.vel || 0) * .002 + (i ? -1 : 1) * 3);
+      updateUI();
+    };
+    t.el.addEventListener('pointerup', up); t.el.addEventListener('pointercancel', up);
+    t.el.addEventListener('keydown', e => {
+      let d = 0;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') d = e.shiftKey ? 50 : STEP;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') d = -(e.shiftKey ? 50 : STEP);
+      else if (e.key === 'PageUp') d = 100; else if (e.key === 'PageDown') d = -100;
+      else if (e.key === 'Home'){ d = -1e4; } else if (e.key === 'End'){ d = 1e4; }
+      else return;
+      e.preventDefault(); touched();
+      t.tgt = clampT(i, snap(t.tgt + d)); t.flying = false;
+      kickBand(i, d > 0 ? 3 : -3); boing(.3);
+      updateUI();
+    });
+  });
+
+  // pluck the band: grab near the strand between the pegs
+  chart.addEventListener('pointerdown', e => {
+    const r = chart.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    const x0 = xOf(thumbs[0].v), x1 = xOf(thumbs[1].v);
+    if (x > x0 + pegR && x < x1 - pegR && Math.abs(y - baseY) < 34){
+      touched();
+      grabbed = Math.max(1, Math.min(NS - 2, Math.round((x - x0) / (x1 - x0) * (NS - 1))));
+      grabY = y - baseY; chart.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing';
+    }
+  });
+  chart.addEventListener('pointermove', e => {
+    const r = chart.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (grabbed >= 0){ grabY = Math.max(-70, Math.min(40, y - baseY)); return; }
+    const x0 = xOf(thumbs[0].v), x1 = xOf(thumbs[1].v);
+    cv.style.cursor = (x > x0 + pegR && x < x1 - pegR && Math.abs(y - baseY) < 34) ? 'grab' : 'default';
+  });
+  const letGo = () => { if (grabbed < 0) return; const amp = Math.abs(grabY); grabbed = -1; cv.style.cursor = 'default'; twang(amp / 70); };
+  chart.addEventListener('pointerup', letGo); chart.addEventListener('pointercancel', letGo);
+
+  function kickBand(side, amt){ if (reduce) return; for (let j = 1; j < 5; j++){ const k = side === 0 ? j : NS - 1 - j; sv[k] += amt * 70 * (1 - j / 6); } }
+
+  $('reset').addEventListener('click', () => { touched(); thumbs[0].tgt = 90; thumbs[1].tgt = 320; thumbs.forEach(t => { t.flying = false; t.vel = 0; }); kickBand(0, -6); boing(.5); updateUI(); });
+  $('go').addEventListener('click', () => { touched(); $('toast').textContent = `Showing ${$('count').textContent} stays between ${$('lo').textContent} and ${$('hi').textContent} a night.`; twang(.6); });
+
+  // ---------- audio ----------
+  let ac = null, master, mute = false;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch(_) {}
+  }
+  function bandLen(){ return Math.max(1, xOf(thumbs[1].v) - xOf(thumbs[0].v)); }
+  function twang(a){
+    a = Math.max(.15, Math.min(1, a));
+    if (!ac || mute) return;
+    // pitch rises with tension (shorter = slacker = lower)
+    const ten = bandLen() / (W - padX*2), f = 70 + ten * 150;
+    const n = ac.currentTime, o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+    o.type = 'triangle'; o2.type = 'sine';
+    o.frequency.setValueAtTime(f * 1.6, n); o.frequency.exponentialRampToValueAtTime(f, n + .06);
+    o2.frequency.setValueAtTime(f * 2.01, n);
+    const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 9; lg.gain.value = f * .05; lfo.connect(lg); lg.connect(o.frequency); lfo.start(n); lfo.stop(n + .8);
+    lp.type = 'lowpass'; lp.frequency.setValueAtTime(2200, n); lp.frequency.exponentialRampToValueAtTime(300, n + .6);
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.9 * a, n + .008); g.gain.exponentialRampToValueAtTime(.0001, n + .75);
+    o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master); o.start(n); o2.start(n); o.stop(n + .8); o2.stop(n + .8);
+  }
+  function boing(a){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(260, n); o.frequency.exponentialRampToValueAtTime(520, n + .05); o.frequency.exponentialRampToValueAtTime(330, n + .18);
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(.25 * a, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + .22);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .25);
+  }
+  function thock(a){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(180, n); o.frequency.exponentialRampToValueAtTime(70, n + .08);
+    g.gain.setValueAtTime(.5 * a, n); g.gain.exponentialRampToValueAtTime(.0001, n + .12);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + .14);
+  }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'sound: off' : 'sound: on'; $('mute').setAttribute('aria-pressed', mute); });
+
+  // ---------- simulation ----------
+  function physics(dt){
+    thumbs.forEach((t, i) => {
+      if (t.drag){
+        // stiff spring toward the finger gives a hint of rubbery lag
+        const a = (t.tgt - t.v) * 900 - t.vel * 50;
+        t.vel += a * dt; t.v += t.vel * dt;
+      } else if (t.flying){
+        t.vel *= Math.exp(-3.2 * dt);
+        t.v += t.vel * dt;
+        const lo = i === 0 ? MIN : thumbs[0].v + GAP, hi = i === 0 ? thumbs[1].v - GAP : MAX;
+        if (t.v < lo){ t.v = lo; t.vel = -t.vel * .45; thock(Math.min(1, Math.abs(t.vel) / 400)); kickBand(i, 4); }
+        if (t.v > hi){ t.v = hi; t.vel = -t.vel * .45; thock(Math.min(1, Math.abs(t.vel) / 400)); kickBand(i, -4); }
+        if (Math.abs(t.vel) < 60){ t.flying = false; t.tgt = clampT(i, snap(t.v)); boing(.35); }
+        t.tgt = t.v;
+      } else {
+        // spring to the snapped target with overshoot
+        const a = (t.tgt - t.v) * 260 - t.vel * 11;
+        t.vel += a * dt; t.v += t.vel * dt;
+        if (reduce){ t.v = t.tgt; t.vel = 0; }
+      }
+    });
+    if (thumbs.some(t => t.flying)) updateUI(); else lastSig === '' && updateUI();
+    // string: wave equation along the band (speed rises with tension)
+    const len = bandLen(), ten = Math.min(1, len / (W - padX * 2));
+    const spd = 150 + 300 * ten, c2 = spd * spd, damp = 2.4;
+    const sub = 12, h = dt / sub;
+    for (let s = 0; s < sub; s++){
+      for (let i = 1; i < NS - 1; i++){
+        const lap = su[i-1] + su[i+1] - 2 * su[i];
+        sv[i] += (lap * c2 - sv[i] * damp) * h;
+      }
+      for (let i = 1; i < NS - 1; i++) su[i] += sv[i] * h;
+      if (grabbed >= 0){
+        for (let i = 1; i < NS - 1; i++){ const k = i < grabbed ? i / grabbed : (NS - 1 - i) / (NS - 1 - grabbed); su[i] += (grabY * k - su[i]) * .2; sv[i] = 0; }
+      }
+      su[0] = su[NS-1] = 0;
+    }
+    // bars: selected rise; band bumps them when it flicks upward
+    const lo = thumbs[0].v, hi = thumbs[1].v, x0 = xOf(lo), x1 = xOf(hi);
+    bars.forEach((b, i) => {
+      const p0 = MIN + i * BW, p1 = p0 + BW, inside = Math.max(0, Math.min(p1, hi) - Math.max(p0, lo)) / BW;
+      const tgtH = (counts[i] / maxC) * (inside > .5 ? 1 : .42);
+      b.v += ((tgtH - b.h) * 220 - b.v * 13) * dt; b.h += b.v * dt;
+      b.hv += (((inside > .5 ? 1 : 0) - b.hat) * 300 - b.hv * 12) * dt; b.hat += b.hv * dt;
+      // band contact
+      const bx = xOf(p0 + BW/2);
+      if (bx > x0 && bx < x1){
+        const k = (bx - x0) / (x1 - x0) * (NS - 1), j = Math.floor(k), off = su[j] + (su[Math.min(NS-1, j+1)] - su[j]) * (k - j);
+        if (off < -14) b.v += -off * .02;
+      }
+      if (reduce){ b.h = tgtH; b.v = 0; b.hat = inside > .5 ? 1 : 0; }
+    });
+  }
+
+  // ---------- render ----------
+  function draw(){
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const mob = W < 500;
+    const top = 26, chartH = baseY - top - 26;
+    const bw = (W - padX * 2) / BINS;
+    // floor stripe + ticks
+    ctx.lineWidth = 3; ctx.strokeStyle = '#121212';
+    ctx.beginPath(); ctx.moveTo(padX - 10, baseY); ctx.lineTo(W - padX + 10, baseY); ctx.stroke();
+    ctx.font = `${mob ? 10 : 12}px 'Space Mono', monospace`; ctx.fillStyle = '#121212'; ctx.textAlign = 'center';
+    for (let v = 100; v <= 600; v += 100){ const x = xOf(v); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, baseY + 30); ctx.lineTo(x, baseY + 36); ctx.stroke(); if (!(mob && v % 200)) ctx.fillText('$' + v + (v === 600 ? '+' : ''), x, baseY + (mob ? 46 : 50)); }
+    // bars
+    const hats = ['circle','tri','half','square','circle'];
+    bars.forEach((b, i) => {
+      const x = padX + i * bw + bw * .12, w = bw * .76, h = Math.max(2, b.h * chartH), y = baseY - 6 - h;
+      const on = b.hat > .5;
+      ctx.fillStyle = on ? pats['bar' + (i % 5)] : pats.grey;
+      ctx.fillRect(x, y, w, h);
+      ctx.lineWidth = mob ? 1.8 : 2.4; ctx.strokeStyle = on ? '#121212' : '#bdb5a6';
+      ctx.strokeRect(x, y, w, h);
+      // hats on selected bars
+      const s = Math.max(0, Math.min(1.25, b.hat));
+      if (s > .05){
+        const cx = x + w/2, cy = y - 2, r = Math.min(w * .42, 9) * s;
+        ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = ['#ff4b36','#121212','#18b3b0','#ffe066','#b9a3ff'][i % 5]; ctx.strokeStyle = '#121212'; ctx.lineWidth = 1.8;
+        const hk = hats[i % 5];
+        ctx.beginPath();
+        if (hk === 'circle') ctx.arc(0, -r, r, 0, 7);
+        else if (hk === 'tri'){ ctx.moveTo(-r, 0); ctx.lineTo(0, -r * 1.9); ctx.lineTo(r, 0); ctx.closePath(); }
+        else if (hk === 'half') ctx.arc(0, 0, r, Math.PI, 0);
+        else { ctx.rect(-r * .8, -r * 1.6, r * 1.6, r * 1.6); }
+        ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+    });
+    // rubber band (loop around two pegs)
+    const xa = xOf(thumbs[0].v), xb = xOf(thumbs[1].v), len = xb - xa;
+    const full = W - padX * 2, rest = full * .22;
+    const stretch = Math.max(.6, len / rest);
+    const thick = Math.max(2.6, Math.min(13, 10 / Math.sqrt(stretch)));
+    const tension = Math.max(0, Math.min(1, (stretch - 1) / 3.2));
+    const col = `rgb(${Math.round(232 + (255-232) * tension)},${Math.round(64 + (186-64) * tension)},${Math.round(44 + (160-44) * tension)})`;
+    const R = pegR + thick * .5 + 1;
+    const strand = (sign, lag) => {
+      ctx.beginPath();
+      for (let i = 0; i < NS; i++){
+        const k = i / (NS - 1), x = xa + len * k;
+        const y = baseY + sign * R + su[i] * (sign < 0 ? 1 : lag);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      return ctx;
+    };
+    // shadow
+    ctx.save(); ctx.translate(3, 5); ctx.strokeStyle = 'rgba(18,18,18,.18)'; ctx.lineWidth = thick; ctx.lineCap = 'round';
+    strand(-1, .7).stroke(); strand(1, .7).stroke(); ctx.restore();
+    // wraps around the pegs
+    ctx.lineCap = 'round';
+    for (const [cx, a0, a1] of [[xa, Math.PI/2, Math.PI*1.5], [xb, -Math.PI/2, Math.PI/2]]){
+      ctx.lineWidth = thick + 3.2; ctx.strokeStyle = '#121212'; ctx.beginPath(); ctx.arc(cx, baseY, R, a0, a1); ctx.stroke();
+      ctx.lineWidth = thick; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(cx, baseY, R, a0, a1); ctx.stroke();
+    }
+    for (const sign of [1, -1]){
+      ctx.lineWidth = thick + 3.2; ctx.strokeStyle = '#121212'; strand(sign, .7).stroke();
+      ctx.lineWidth = thick; ctx.strokeStyle = col; strand(sign, .7).stroke();
+      // sheen line
+      ctx.lineWidth = Math.max(.8, thick * .22); ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.save(); ctx.translate(0, -thick * .22); strand(sign, .7).stroke(); ctx.restore();
+    }
+    // pegs (Memphis knobs)
+    thumbs.forEach((t, i) => {
+      const x = xOf(t.v), y = baseY;
+      ctx.save(); ctx.translate(x, y);
+      // post shadow
+      ctx.fillStyle = 'rgba(18,18,18,.2)'; ctx.beginPath(); ctx.ellipse(4, 6, pegR, pegR, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = i ? pats.pegR : pats.pegL; ctx.strokeStyle = '#121212'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, pegR, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#121212'; ctx.beginPath(); ctx.arc(0, 0, pegR * .34, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-pegR * .36, -pegR * .4, pegR * .16, 0, 7); ctx.fill();
+      // price flag pops up while the peg is being handled
+      t.flag = (t.flag || 0) + (((t.drag || t.flying || t.el === document.activeElement || Date.now() - (t.touchedAt || 0) < 900) ? 1 : 0) - (t.flag || 0)) * .2;
+      if (t.drag || t.flying) t.touchedAt = Date.now();
+      if (t.flag < .03){ ctx.restore(); t.el.style.left = x + 'px'; t.el.style.top = y + 'px'; return; }
+      ctx.globalAlpha = Math.min(1, t.flag * 1.4); ctx.translate(0, (1 - t.flag) * 12);
+      const lab = '$' + Math.round(t.tgt) + (i && t.tgt >= MAX ? '+' : '');
+      ctx.font = `700 ${mob ? 12 : 14}px 'Space Mono', monospace`;
+      const tw = ctx.measureText(lab).width + 12, fy = -pegR - (mob ? 34 : 40);
+      ctx.fillStyle = i ? '#7fe0c5' : '#ffe066'; ctx.strokeStyle = '#121212'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.rect(-tw/2, fy, tw, mob ? 20 : 24); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, fy + (mob ? 20 : 24)); ctx.lineTo(0, -pegR); ctx.stroke();
+      ctx.fillStyle = '#121212'; ctx.textAlign = 'center'; ctx.fillText(lab, 0, fy + (mob ? 15 : 17));
+      ctx.restore();
+      t.el.style.left = x + 'px'; t.el.style.top = y + 'px';
+    });
+  }
+
+  // ---------- background decoration (Memphis) ----------
+  function deco(){
+    const s = $('deco'), w = innerWidth, h = innerHeight, mob = w < 760;
+    let g = '';
+    let r = 3;
+    const R = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    // terrazzo chips
+    const chips = ['#ff9ec4','#7fe0c5','#ffe066','#b9a3ff','#121212','#8fd3ff','#ff4b36'];
+    for (let i = 0; i < (mob ? 90 : 220); i++){
+      const x = R() * w, y = R() * h, sz = 2 + R() * (i % 9 === 0 ? 9 : 5), c = chips[Math.floor(R() * chips.length)];
+      const pts = []; for (let k = 0; k < 5; k++){ const a = k / 5 * Math.PI * 2 + R(); pts.push((x + Math.cos(a) * sz * (.6 + R()*.6)).toFixed(1) + ',' + (y + Math.sin(a) * sz * (.6 + R()*.6)).toFixed(1)); }
+      g += `<polygon points="${pts.join(' ')}" fill="${c}" opacity="${c === '#121212' ? .55 : .8}"/>`;
+    }
+    // big shapes
+    if (!mob){
+      g += `<circle cx="${w - 90}" cy="90" r="70" fill="#ff9ec4" stroke="#121212" stroke-width="4"/>`;
+      g += `<circle cx="${w - 90}" cy="90" r="70" fill="url(#dotsP)"/>`;
+      g += `<path d="M60 ${h - 40} l90 -150 l90 150z" fill="url(#stripeP)" stroke="#121212" stroke-width="4"/>`;
+      g += `<path d="M${w - 260} ${h - 70} q30 -50 60 0 t60 0 t60 0 t60 0" fill="none" stroke="#18b3b0" stroke-width="12" stroke-linecap="round"/>`;
+      g += `<path d="M${w - 260} ${h - 70} q30 -50 60 0 t60 0 t60 0 t60 0" fill="none" stroke="#121212" stroke-width="3" stroke-linecap="round" transform="translate(5 6)"/>`;
+      g += `<path d="M40 70 a70 70 0 0 1 140 0z" fill="#ffe066" stroke="#121212" stroke-width="4"/>`;
+      g += `<rect x="${w*.42}" y="${h - 46}" width="120" height="24" fill="url(#checkP)" stroke="#121212" stroke-width="3" transform="rotate(-8 ${w*.42} ${h-46})"/>`;
+      g += `<path d="M${w*.3} 40 l18 18 l18 -18 l18 18 l18 -18 l18 18" fill="none" stroke="#121212" stroke-width="5" stroke-linejoin="round"/>`;
+    } else {
+      g += `<circle cx="${w - 30}" cy="40" r="44" fill="#ff9ec4" stroke="#121212" stroke-width="3"/><circle cx="${w - 30}" cy="40" r="44" fill="url(#dotsP)"/>`;
+      g += `<path d="M20 ${h - 20} l50 -84 l50 84z" fill="url(#stripeP)" stroke="#121212" stroke-width="3"/>`;
+      g += `<path d="M${w - 170} ${h - 40} q20 -34 40 0 t40 0 t40 0" fill="none" stroke="#18b3b0" stroke-width="9" stroke-linecap="round"/>`;
+    }
+    s.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    s.innerHTML = `<defs>
+      <pattern id="dotsP" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="6" cy="6" r="2.4" fill="#121212"/></pattern>
+      <pattern id="stripeP" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="12" height="12" fill="#ffe066"/><rect width="5" height="12" fill="#121212"/></pattern>
+      <pattern id="checkP" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#fff"/><rect width="8" height="8" fill="#121212"/><rect x="8" y="8" width="8" height="8" fill="#121212"/></pattern>
+    </defs>` + g;
+  }
+
+  // ---------- loop ----------
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.033, (now - last) / 1000); last = now;
+    physics(dt); draw();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) running = false; else { running = true; last = performance.now(); requestAnimationFrame(frame); } });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { resize(); deco(); }, 60); });
+  resize(); deco(); updateUI();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => resize());
+  requestAnimationFrame(frame);
+  window.__band = {
+    flick(i, v){ const t = thumbs[i]; t.flying = true; t.vel = v; },
+    set(lo, hi){ thumbs[0].tgt = lo; thumbs[1].tgt = hi; lastSig = ''; updateUI(); },
+    pluck(a){ for (let i = 1; i < NS - 1; i++){ const k = i / (NS - 1); su[i] = -a * Math.sin(Math.PI * k); } }
+  };
+})();
+</script>
+</body>
+</html>

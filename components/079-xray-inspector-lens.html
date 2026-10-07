@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>X-ray Inspector Lens</title>
+<meta name="description" content="A radiographer's loupe for UI: move it over a clean clinic booking screen and see the layout, box model and markup underneath as glowing X-ray film. Turn up the kV to see deeper, and expose a film to pin an element's report.">
+<script type="application/json" id="component-meta">
+{"name":"X-ray Inspector Lens","reimagines":"Inspector / dev-tools tooltip","category":"Overlays & Reveals","description":"Dev tools as radiology. A heavy loupe follows your pointer over a working clinic booking screen and shows what's under the skin on blue X-ray film: soft tissue (layout boxes and ghosted text), contrast (padding, content and margin densities with measurements) or bone (the markup skeleton). Expose a film to pin a radiology-style report of any element.","hint":"Move the loupe over the page; scroll or press [ ] to change the kV"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --teal:#0f9d8a; --teal-d:#0b7a6b; --ink:#16232e; --muted:#61707c; --line:#e3e9ee; --bg:#f6f8f9; --film:#0a1a2a; --bone:#d9f1ff; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);font-family:'Figtree',system-ui,sans-serif}
+  button,input,textarea{font:inherit;color:inherit}
+  button{background:none;border:0;cursor:pointer}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* ———— the clean interface ———— */
+  .ui{position:absolute;left:50%;top:0;transform:translateX(-50%);width:min(1120px,100%);height:100%;padding:18px 28px 0;display:flex;flex-direction:column}
+  .ui :focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .nav{display:flex;align-items:center;gap:26px;padding:6px 4px 16px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;letter-spacing:-.01em}
+  .logo svg{width:28px;height:28px}
+  .links{display:flex;gap:20px;font-size:14.5px;font-weight:600;color:var(--muted)}
+  .links span:first-child{color:var(--ink)}
+  .me{margin-left:auto;width:34px;height:34px;border-radius:50%;background:#dff3ef;color:var(--teal-d);display:grid;place-items:center;font-weight:800;font-size:13px}
+  .cols{flex:1;min-height:0;display:grid;grid-template-columns:1.45fr 1fr;gap:26px;padding-bottom:20px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px 26px;box-shadow:0 1px 2px rgba(22,35,46,.04),0 8px 24px -12px rgba(22,35,46,.12)}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .lead{color:var(--muted);font-size:15px;margin-top:4px}
+  h3{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px}
+  .docs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .doc{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;padding:14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;transition:border-color .2s,box-shadow .2s}
+  .doc[aria-checked="true"]{border-color:var(--teal);box-shadow:0 0 0 3px rgba(15,157,138,.14)}
+  .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff}
+  .doc b{font-size:15px;font-weight:700;line-height:1.15}
+  .doc small{font-size:13px;color:var(--muted)}
+  .doc em{font-style:normal;font-size:12px;font-weight:700;color:var(--teal-d);background:#e8f6f3;padding:3px 8px;border-radius:999px}
+  .days{display:flex;gap:8px;flex-wrap:wrap}
+  .day{min-width:70px;padding:9px 12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;text-align:center;font-weight:700;font-size:14px;line-height:1.1}
+  .day small{display:block;font-weight:500;font-size:12px;color:var(--muted)}
+  .day[aria-checked="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .day[aria-checked="true"] small{color:#b9c6cf}
+  .slots{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .slot{padding:10px 0;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+  .slot[aria-checked="true"]{background:var(--teal);border-color:var(--teal);color:#fff}
+  .slot:disabled{color:#b9c3cb;background:#f3f6f8;text-decoration:line-through;cursor:not-allowed}
+  .visits{list-style:none;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .visits li{display:grid;grid-template-columns:110px 1fr auto;gap:12px;align-items:center;padding:11px 14px;font-size:14px;border-top:1px solid var(--line)}
+  .visits li:first-child{border-top:0}
+  .visits .vd{color:var(--muted);font-variant-numeric:tabular-nums}
+  .visits li span:last-child{font-size:12.5px;font-weight:700;color:var(--muted)}
+  .visits .ok{color:var(--teal-d) !important}
+  .sum h2{font-size:20px;font-weight:800;letter-spacing:-.01em}
+  .who{display:flex;gap:12px;align-items:center;margin-top:14px;padding:12px;border-radius:14px;background:#f3f8f7}
+  .who b{display:block;font-size:15px}.who small{color:var(--muted);font-size:13px}
+  .when{display:flex;gap:10px;margin-top:10px}
+  .when div{flex:1;padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+  .when small{display:block;font-size:12px;color:var(--muted)}
+  .when b{font-size:15px}
+  label.f{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}
+  textarea{width:100%;height:76px;resize:none;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;background:#fff}
+  .tg{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:14px;font-weight:600}
+  .switch{width:44px;height:26px;border-radius:13px;background:#cfd8de;position:relative;transition:background .2s}
+  .switch span{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .2s}
+  .switch[aria-checked="true"]{background:var(--teal)}
+  .switch[aria-checked="true"] span{transform:translateX(18px)}
+  .cta{width:100%;margin-top:16px;padding:14px;border-radius:12px;background:var(--teal);color:#fff;font-weight:800;font-size:16px}
+  .cta:hover{background:var(--teal-d)}
+  .fine{font-size:12.5px;color:var(--muted);margin-top:8px;text-align:center;min-height:16px}
+
+  /* ———— the X-ray layer: a clone of the UI rendered as film, clipped to the loupe ———— */
+  .xr-layer{position:fixed;inset:0;pointer-events:none;z-index:20;clip-path:circle(var(--r,140px) at var(--x,-500px) var(--y,-500px));
+    background:radial-gradient(circle at var(--x) var(--y),#163552 0,#0c2034 45%,#06111d 100%)}
+  .xr-layer .ui{transform:translateX(-50%);filter:drop-shadow(0 0 2px rgba(150,215,255,.55))}
+  .xr *{background:none !important;box-shadow:none !important;color:transparent !important;border-color:rgba(200,236,255,.35) !important;
+    text-shadow:0 0 5px rgba(170,225,255,.65),0 0 1px rgba(220,245,255,.9) !important;text-decoration-color:transparent !important;transition:none !important}
+  .xr svg *{fill:rgba(190,230,255,.18) !important;stroke:rgba(210,240,255,.7) !important}
+  .xr .panel,.xr .doc,.xr .day,.xr .slot,.xr .who,.xr .when div,.xr textarea,.xr .switch,.xr .cta,.xr .av,.xr .me{outline:1px solid rgba(210,240,255,.55);outline-offset:-1px}
+  .xr .av,.xr .me,.xr .switch span{background:radial-gradient(circle,rgba(220,245,255,.55),rgba(220,245,255,.08) 70%) !important}
+  .xr textarea{color:transparent !important}
+  /* contrast: densities for padding (hatched) and content (bright) */
+  .xr.m1 *{text-shadow:none !important;color:rgba(200,236,255,.22) !important;
+    background:linear-gradient(rgba(200,238,255,.05),rgba(200,238,255,.05)) content-box,repeating-linear-gradient(-45deg,rgba(200,238,255,.16) 0 1px,transparent 1px 6px) padding-box !important;
+    outline:1px solid rgba(220,245,255,.4);outline-offset:-1px}
+  .xr.m1 .panel{background:repeating-linear-gradient(-45deg,rgba(200,238,255,.12) 0 1px,transparent 1px 6px) padding-box !important}
+  .xr.m1 .cols,.xr.m1 .panel > *:not(.docs):not(.days):not(.slots):not(.who):not(.when):not(.tg):not(.visits){background:linear-gradient(rgba(200,238,255,.05),rgba(200,238,255,.05)) content-box !important}
+  /* bone: the markup skeleton */
+  .xr.m2 *{color:transparent !important;text-shadow:none !important;outline:1px solid rgba(220,245,255,.22);outline-offset:-1px;box-shadow:inset 2px 0 0 rgba(230,248,255,.75) !important}
+  .xr.m2 [data-x]{position:relative}
+  .xr.m2 [data-x]::before{content:attr(data-x);position:absolute;left:3px;top:2px;z-index:2;font:500 10px/1 'IBM Plex Mono',monospace;color:#e8f8ff;text-shadow:0 0 4px rgba(150,220,255,.9);white-space:nowrap;letter-spacing:0;text-transform:none;font-style:normal;pointer-events:none}
+  .xr.m2 svg,.xr.m2 svg *{opacity:.25}
+  .film-grain{position:absolute;inset:-50%;opacity:.28;mix-blend-mode:screen;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .6 0 0 0 0 .8 0 0 0 0 1 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")}
+  .vign{position:absolute;inset:0;background:radial-gradient(circle var(--r) at var(--x) var(--y),transparent 55%,rgba(2,8,14,.75) 100%)}
+  #measure{position:absolute;inset:0;width:100%;height:100%}
+  .marker{position:absolute;font:700 18px 'IBM Plex Mono',monospace;color:#fff;text-shadow:0 0 6px rgba(200,240,255,.9);transform:translate(-50%,-50%)}
+
+  /* the loupe's housing, outside the clip */
+  .ring{position:fixed;left:0;top:0;width:calc(var(--r) * 2 + 34px);height:calc(var(--r) * 2 + 34px);margin:calc(var(--r) * -1 - 17px) 0 0 calc(var(--r) * -1 - 17px);z-index:21;pointer-events:none;border-radius:50%;
+    background:radial-gradient(circle,transparent calc(var(--r) - 1px),#0b0f14 calc(var(--r)),#2d3640 calc(var(--r) + 4px),#11161c calc(var(--r) + 10px),#3d4752 calc(var(--r) + 14px),#0b0f14 calc(var(--r) + 17px),transparent calc(var(--r) + 17.5px));
+    filter:drop-shadow(0 14px 22px rgba(0,0,0,.35))}
+  .ring svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .readout{position:fixed;z-index:30;pointer-events:none;font:500 11.5px/1.35 'IBM Plex Mono',monospace;color:#e2f6ff;background:rgba(6,17,29,.92);border:1px solid rgba(200,236,255,.35);
+    padding:6px 9px;border-radius:4px;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+  .readout b{color:#fff;font-weight:600}
+  .readout i{font-style:normal;color:#8fd3ff}
+
+  /* control panel styled as a film viewer */
+  .ctrl{position:fixed;left:16px;bottom:16px;z-index:25;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#0b1622;color:#d9eefb;
+    font:500 12px 'IBM Plex Mono',monospace;box-shadow:0 10px 24px -8px rgba(0,0,0,.5)}
+  .ctrl .t{font-weight:600;letter-spacing:.14em;color:#8fd3ff;margin-right:2px}
+  .kv{display:flex;border:1px solid rgba(200,236,255,.3);border-radius:8px;overflow:hidden}
+  .kv button{padding:6px 9px;color:#bcd7e8;font:600 12px 'IBM Plex Mono',monospace}
+  .kv button[aria-checked="true"]{background:#d9f1ff;color:#0b1622}
+  .ctrl .x{padding:7px 11px;border-radius:8px;background:#1d3550;color:#fff;font:600 12px 'IBM Plex Mono',monospace}
+  .ctrl .x:hover{background:#27486c}
+  .ctrl :focus-visible{outline:2px solid #8fd3ff;outline-offset:2px}
+  .ctrl .help{color:#7f9bb0}
+  .films{position:fixed;right:14px;top:70px;z-index:24;display:flex;flex-direction:column;gap:10px;width:250px}
+  .filmcard{position:relative;padding:12px 12px 10px;border-radius:6px;color:#dff4ff;font:500 11.5px/1.45 'IBM Plex Mono',monospace;
+    background:radial-gradient(120% 80% at 30% 20%,#18395a,#0a1a2a 70%);box-shadow:0 0 0 1px rgba(200,236,255,.25),0 10px 24px -8px rgba(0,0,0,.6);animation:expose .7s ease-out}
+  .filmcard::after{content:"";position:absolute;inset:0;border-radius:inherit;opacity:.25;mix-blend-mode:screen;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .6 0 0 0 0 .8 0 0 0 0 1 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")}
+  .filmcard b{display:block;font-weight:600;color:#fff;font-size:12.5px;margin-bottom:4px;word-break:break-all}
+  .filmcard .bm{display:grid;grid-template-columns:auto 1fr;gap:0 10px;margin-top:4px}
+  .filmcard .bm span:nth-child(odd){color:#8fd3ff}
+  .filmcard .rm{position:absolute;right:6px;top:4px;color:#9fc3da;font-size:14px;line-height:1;padding:4px;pointer-events:auto}
+  .filmcard .id{display:flex;justify-content:space-between;color:#7f9bb0;font-size:10px;margin-bottom:6px;letter-spacing:.08em}
+  @keyframes expose{0%{filter:brightness(3) blur(2px);opacity:0;transform:translateX(16px)}100%{filter:none;opacity:1;transform:none}}
+
+  @media (max-width:820px){
+    .ui{padding:12px 14px 0}
+    .links{display:none}
+    .cols{grid-template-columns:1fr;overflow:auto;padding-bottom:90px}
+    .panel{padding:18px 16px}
+    h1{font-size:24px}
+    .docs{grid-template-columns:1fr 1fr 1fr;gap:8px}
+    .doc{padding:10px;gap:6px}.doc b{font-size:13px}.doc small{font-size:11.5px}.doc em{display:none}
+    .av{width:32px;height:32px;font-size:12px}
+    .slots{grid-template-columns:repeat(3,1fr)}
+    .visits li{grid-template-columns:1fr auto;font-size:13px}.visits .vd{grid-column:1/-1;font-size:12px}
+    .ctrl{left:8px;right:8px;bottom:8px;flex-wrap:wrap;gap:6px 8px;justify-content:space-between}
+    .ctrl .help{display:none}
+    .films{top:auto;bottom:74px;right:8px;width:200px}
+  }
+</style>
+</head>
+<body>
+  <div class="ui" id="ui">
+    <nav class="nav" data-x="nav.nav" aria-label="Main">
+      <span class="logo"><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="8" fill="#0f9d8a"/><path d="M14 7v14M7 14h14" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/></svg>Northside Health</span>
+      <span class="links"><span>Appointments</span><span>Prescriptions</span><span>Messages</span><span>Test results</span></span>
+      <span class="me" aria-label="Signed in as Asha Kapoor">AK</span>
+    </nav>
+    <div class="cols">
+      <section class="panel" aria-labelledby="h1">
+        <h1 id="h1">Book an appointment</h1>
+        <p class="lead">Wednesday is fully booked. These clinicians can see you this week.</p>
+        <h3>Who would you like to see?</h3>
+        <div class="docs" role="radiogroup" aria-label="Clinician">
+          <button class="doc" role="radio" aria-checked="true" data-name="Dr Amara Okafor" data-role="GP"><span class="av" style="background:#0f9d8a">AO</span><b>Dr Amara Okafor</b><small>GP · 12 years</small><em>Thu 8 Oct</em></button>
+          <button class="doc" role="radio" aria-checked="false" data-name="Dr Tomás Reyes" data-role="Physiotherapist"><span class="av" style="background:#5b6cff">TR</span><b>Dr Tomás Reyes</b><small>Physiotherapist</small><em>Fri 9 Oct</em></button>
+          <button class="doc" role="radio" aria-checked="false" data-name="Priya Shah" data-role="Nurse practitioner"><span class="av" style="background:#e0784a">PS</span><b>Priya Shah</b><small>Nurse practitioner</small><em>Today</em></button>
+        </div>
+        <h3>Day</h3>
+        <div class="days" role="radiogroup" aria-label="Day">
+          <button class="day" role="radio" aria-checked="true">Thu<small>8 Oct</small></button>
+          <button class="day" role="radio" aria-checked="false">Fri<small>9 Oct</small></button>
+          <button class="day" role="radio" aria-checked="false">Mon<small>12 Oct</small></button>
+          <button class="day" role="radio" aria-checked="false">Tue<small>13 Oct</small></button>
+        </div>
+        <h3>Time</h3>
+        <div class="slots" role="radiogroup" aria-label="Time">
+          <button class="slot" role="radio" aria-checked="false">08:30</button>
+          <button class="slot" role="radio" aria-checked="true">09:10</button>
+          <button class="slot" role="radio" aria-checked="false" disabled>10:40</button>
+          <button class="slot" role="radio" aria-checked="false">11:20</button>
+          <button class="slot" role="radio" aria-checked="false" disabled>14:00</button>
+          <button class="slot" role="radio" aria-checked="false">15:30</button>
+        </div>
+        <h3>Recent visits</h3>
+        <ul class="visits">
+          <li><span class="vd">14 Sep 2026</span><span>Blood test · Priya Shah</span><span class="ok">Results ready</span></li>
+          <li><span class="vd">2 Aug 2026</span><span>Knee check · Dr Tomás Reyes</span><span>Notes</span></li>
+          <li><span class="vd">19 May 2026</span><span>Annual review · Dr Amara Okafor</span><span>Notes</span></li>
+        </ul>
+      </section>
+      <aside class="panel sum" aria-labelledby="sumh">
+        <h2 id="sumh">Your appointment</h2>
+        <div class="who"><span class="av" id="sumAv" style="background:#0f9d8a">AO</span><div><b id="sumName">Dr Amara Okafor</b><small id="sumRole">GP · Northside surgery, room 4</small></div></div>
+        <div class="when"><div><small>Day</small><b id="sumDay">Thu 8 Oct</b></div><div><small>Time</small><b id="sumTime">09:10</b></div><div><small>Length</small><b>15 min</b></div></div>
+        <label class="f" for="reason">Reason for visit</label>
+        <textarea id="reason" placeholder="A few words help us prepare">Follow-up on blood test results</textarea>
+        <div class="tg"><span id="remLbl">Text me a reminder the day before</span><button class="switch" role="switch" aria-checked="true" aria-labelledby="remLbl"><span></span></button></div>
+        <button class="cta" id="cta">Confirm appointment</button>
+        <p class="fine" id="fine" role="status">You can cancel up to 2 hours before.</p>
+      </aside>
+    </div>
+  </div>
+
+  <div class="xr-layer" id="xr" aria-hidden="true">
+    <div id="clone"></div>
+    <canvas id="measure"></canvas>
+    <span class="marker" id="mkR">R</span>
+    <div class="film-grain"></div>
+    <div class="vign"></div>
+  </div>
+  <div class="ring" id="ring" aria-hidden="true"><svg id="ringSvg"></svg></div>
+  <div class="readout" id="readout" aria-hidden="true"></div>
+
+  <div class="ctrl" role="group" aria-label="X-ray inspector">
+    <span class="t">X-RAY</span>
+    <div class="kv" role="radiogroup" aria-label="Penetration">
+      <button role="radio" aria-checked="true" data-m="0" title="Soft tissue: layout">60 kV</button>
+      <button role="radio" aria-checked="false" data-m="1" title="Contrast: box model">90 kV</button>
+      <button role="radio" aria-checked="false" data-m="2" title="Bone: markup">120 kV</button>
+    </div>
+    <button class="x" id="expose">Expose film (X)</button>
+    <span class="help" id="help">scroll or [ ] for kV · Tab to inspect</span>
+  </div>
+  <div class="films" id="films" aria-live="polite" aria-label="Exposed films"></div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ui = $('#ui'), xr = $('#xr'), cloneHost = $('#clone'), ring = $('#ring'), readout = $('#readout'), mcv = $('#measure'), mctx = mcv.getContext('2d');
+  const MODES = ['Soft tissue · layout', 'Contrast · box model', 'Bone · markup'];
+  let mode = 0;
+
+  /* ——— the clean UI behaves like a real booking screen ——— */
+  function radioGroup(sel, on) {
+    document.querySelectorAll(sel).forEach(g => {
+      const items = [...g.querySelectorAll('[role=radio]')];
+      items.forEach((b, i) => {
+        b.tabIndex = b.getAttribute('aria-checked') === 'true' ? 0 : -1;
+        b.addEventListener('click', () => { if (b.disabled) return; items.forEach(x => { x.setAttribute('aria-checked', String(x === b)); x.tabIndex = x === b ? 0 : -1; }); on && on(b); });
+        b.addEventListener('keydown', e => {
+          const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0; if (!d) return;
+          e.preventDefault(); let j = i; do { j = (j + d + items.length) % items.length; } while (items[j].disabled && j !== i); items[j].focus(); items[j].click();
+        });
+      });
+    });
+  }
+  radioGroup('.docs', b => { $('#sumName').textContent = b.dataset.name; $('#sumRole').textContent = b.dataset.role + ' · Northside surgery'; const av = b.querySelector('.av'); $('#sumAv').textContent = av.textContent; $('#sumAv').style.background = av.style.background; });
+  radioGroup('.days', b => { $('#sumDay').textContent = b.firstChild.textContent + ' ' + b.querySelector('small').textContent; });
+  radioGroup('.slots', b => { $('#sumTime').textContent = b.textContent; });
+  document.querySelector('.switch').addEventListener('click', e => { const s = e.currentTarget; s.setAttribute('aria-checked', String(s.getAttribute('aria-checked') !== 'true')); });
+  $('#cta').addEventListener('click', () => { $('#fine').textContent = `Booked: ${$('#sumName').textContent}, ${$('#sumDay').textContent} at ${$('#sumTime').textContent}. Confirmation sent.`; });
+
+  /* ——— tag every element so the bone setting can show its markup ——— */
+  function tagOf(el) {
+    const cls = [...el.classList].filter(c => c.length < 14).slice(0, 2).join('.');
+    return el.tagName.toLowerCase() + (cls ? '.' + cls : '');
+  }
+  ui.querySelectorAll('*').forEach(el => { if (!(el instanceof SVGElement) || el.tagName === 'svg') el.dataset.x = tagOf(el); });
+
+  /* ——— clone the UI into the film layer ——— */
+  let cloneTimer = 0;
+  function reclone() {
+    const c = ui.cloneNode(true);
+    c.removeAttribute('id'); c.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+    c.querySelectorAll('[aria-label],[aria-labelledby]').forEach(n => { n.removeAttribute('aria-label'); n.removeAttribute('aria-labelledby'); });
+    const ta = c.querySelector('textarea'); if (ta) ta.value = $('#reason').value;
+    c.classList.add('xr', 'm' + mode); c.inert = true;
+    cloneHost.replaceChildren(c);
+    syncScroll();
+  }
+  function syncScroll() {
+    const a = ui.querySelector('.cols'), b = cloneHost.querySelector('.cols'); if (a && b) b.scrollTop = a.scrollTop;
+  }
+  new MutationObserver(() => { clearTimeout(cloneTimer); cloneTimer = setTimeout(reclone, 30); }).observe(ui, { subtree: true, attributes: true, childList: true, characterData: true });
+  $('#reason').addEventListener('input', () => { const t = cloneHost.querySelector('textarea'); if (t) t.value = $('#reason').value; });
+  ui.querySelector('.cols').addEventListener('scroll', () => { syncScroll(); lens.dirty = true; wake(); });
+
+  /* ——— the loupe ——— */
+  const lens = { x: innerWidth * .38, y: innerHeight * .42, tx: innerWidth * .38, ty: innerHeight * .42, vx: 0, vy: 0, r: 140, dirty: true, hit: null, kv: 0 };
+  function sizeLens() { lens.r = innerWidth < 820 ? 104 : 140; xr.style.setProperty('--r', lens.r + 'px'); ring.style.setProperty('--r', lens.r + 'px'); readout.style.setProperty('--r', lens.r + 'px'); drawRing(); const d = Math.min(2, devicePixelRatio || 1); mcv.width = innerWidth * d; mcv.height = innerHeight * d; }
+  function drawRing() {
+    const R = lens.r, S = R * 2 + 34, c = S / 2, svg = $('#ringSvg');
+    let ticks = '';
+    for (let i = 0; i < 60; i++) { const a = i / 60 * Math.PI * 2, r1 = R + 6, r2 = R + (i % 5 ? 10 : 14); ticks += `<line x1="${c + Math.cos(a) * r1}" y1="${c + Math.sin(a) * r1}" x2="${c + Math.cos(a) * r2}" y2="${c + Math.sin(a) * r2}" stroke="rgba(220,235,245,${i % 5 ? .35 : .7})" stroke-width="${i % 5 ? 1 : 1.5}"/>`; }
+    const kvLabel = ['60', '90', '120'][mode];
+    svg.setAttribute('viewBox', `0 0 ${S} ${S}`);
+    svg.innerHTML = ticks + `<path id="arc" d="M ${c - R - 9} ${c} A ${R + 9} ${R + 9} 0 0 1 ${c + R + 9} ${c}" fill="none"/>
+      <rect x="${c + R * .52}" y="${c + R * .78}" width="58" height="22" rx="11" fill="#0b0f14" stroke="rgba(220,235,245,.4)"/>
+      <text x="${c + R * .52 + 29}" y="${c + R * .78 + 15}" text-anchor="middle" font-family="IBM Plex Mono" font-weight="600" font-size="11" fill="#d9f1ff">${kvLabel} kV</text>`;
+  }
+  addEventListener('pointermove', e => { lens.tx = e.clientX; lens.ty = e.clientY; lens.kbd = false; wake(); });
+  addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { lens.tx = e.clientX; lens.ty = e.clientY - (e.pointerType === 'touch' ? lens.r * .6 : 0); wake(); } });
+  addEventListener('wheel', e => { if (e.target.closest && e.target.closest('.cols') && innerWidth < 820) return; e.preventDefault(); lens.kv += e.deltaY; if (Math.abs(lens.kv) > 90) { setMode(clamp(mode + Math.sign(lens.kv), 0, 2)); lens.kv = 0; } }, { passive: false });
+  // keyboard: Tab through the UI and the loupe follows focus; [ ] change kV; X exposes a film; arrows nudge when the page has focus
+  document.addEventListener('focusin', e => { if (ui.contains(e.target)) { const r = e.target.getBoundingClientRect(); lens.tx = r.left + r.width / 2; lens.ty = r.top + r.height / 2; lens.kbd = true; wake(); } });
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'TEXTAREA') return;
+    if (e.key === '[') setMode(clamp(mode - 1, 0, 2));
+    else if (e.key === ']') setMode(clamp(mode + 1, 0, 2));
+    else if (e.key === 'x' || e.key === 'X') expose();
+  });
+  function setMode(m) {
+    if (m === mode) { bump(); return; }
+    mode = m; document.querySelectorAll('.kv button').forEach(b => b.setAttribute('aria-checked', String(+b.dataset.m === m)));
+    const c = cloneHost.firstElementChild; if (c) { c.classList.remove('m0', 'm1', 'm2'); c.classList.add('m' + m); }
+    drawRing(); hum(m); flashFilm(); lens.dirty = true; wake();
+    $('#help').textContent = MODES[m];
+  }
+  document.querySelectorAll('.kv button').forEach(b => b.addEventListener('click', () => setMode(+b.dataset.m)));
+  let flash = 0; function flashFilm() { flash = 1; } function bump() { flash = .4; wake(); }
+
+  /* ——— what's under the crosshair ——— */
+  function underLens() {
+    const els = document.elementsFromPoint(lens.x, lens.y);
+    return els.find(el => ui.contains(el) && el !== ui && !(el instanceof SVGElement && el.tagName !== 'svg')) || null;
+  }
+  const px = v => Math.round(parseFloat(v) || 0);
+  function boxOf(el) {
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    const m = ['Top', 'Right', 'Bottom', 'Left'].map(s => px(cs['margin' + s])), p = ['Top', 'Right', 'Bottom', 'Left'].map(s => px(cs['padding' + s])), b = ['Top', 'Right', 'Bottom', 'Left'].map(s => px(cs['border' + s + 'Width']));
+    return { r, m, p, b, cs };
+  }
+  function drawMeasure() {
+    const d = mcv.width / innerWidth; mctx.setTransform(d, 0, 0, d, 0, 0); mctx.clearRect(0, 0, innerWidth, innerHeight);
+    const el = lens.hit; if (!el) return;
+    const { r, m, p, b } = boxOf(el), c = mctx;
+    // margin halo, padding band, content core: three film densities
+    c.save();
+    c.fillStyle = 'rgba(255,214,150,.13)'; c.fillRect(r.left - m[3], r.top - m[0], r.width + m[1] + m[3], m[0]); c.fillRect(r.left - m[3], r.bottom, r.width + m[1] + m[3], m[2]); c.fillRect(r.left - m[3], r.top, m[3], r.height); c.fillRect(r.right, r.top, m[1], r.height);
+    const ix = r.left + b[3], iy = r.top + b[0], iw = r.width - b[1] - b[3], ih = r.height - b[0] - b[2];
+    c.fillStyle = 'rgba(160,255,210,.14)'; c.fillRect(ix, iy, iw, p[0]); c.fillRect(ix, iy + ih - p[2], iw, p[2]); c.fillRect(ix, iy + p[0], p[3], ih - p[0] - p[2]); c.fillRect(ix + iw - p[1], iy + p[0], p[1], ih - p[0] - p[2]);
+    c.fillStyle = 'rgba(150,215,255,.16)'; c.fillRect(ix + p[3], iy + p[0], iw - p[1] - p[3], ih - p[0] - p[2]);
+    c.strokeStyle = 'rgba(235,250,255,.95)'; c.lineWidth = 1.2; c.setLineDash([]); c.strokeRect(r.left + .5, r.top + .5, r.width - 1, r.height - 1);
+    c.strokeStyle = 'rgba(255,214,150,.7)'; c.setLineDash([3, 3]); c.strokeRect(r.left - m[3] + .5, r.top - m[0] + .5, r.width + m[1] + m[3] - 1, r.height + m[0] + m[2] - 1);
+    // dimension callouts like a radiologist's calipers
+    c.setLineDash([]); c.strokeStyle = 'rgba(235,250,255,.8)'; c.fillStyle = '#eaf9ff'; c.font = "500 10px 'IBM Plex Mono', monospace";
+    const y = r.bottom + Math.max(m[2], 0) + 10;
+    c.beginPath(); c.moveTo(r.left, y); c.lineTo(r.right, y); c.moveTo(r.left, y - 4); c.lineTo(r.left, y + 4); c.moveTo(r.right, y - 4); c.lineTo(r.right, y + 4); c.stroke();
+    c.textAlign = 'center'; c.fillText(Math.round(r.width) + ' px', (r.left + r.right) / 2, y + 12);
+    const x = r.right + Math.max(m[1], 0) + 10;
+    c.beginPath(); c.moveTo(x, r.top); c.lineTo(x, r.bottom); c.moveTo(x - 4, r.top); c.lineTo(x + 4, r.top); c.moveTo(x - 4, r.bottom); c.lineTo(x + 4, r.bottom); c.stroke();
+    c.save(); c.translate(x + 11, (r.top + r.bottom) / 2); c.rotate(-Math.PI / 2); c.fillText(Math.round(r.height) + ' px', 0, 0); c.restore();
+    // crosshair
+    c.strokeStyle = 'rgba(235,250,255,.45)'; c.beginPath(); c.moveTo(lens.x - 10, lens.y); c.lineTo(lens.x + 10, lens.y); c.moveTo(lens.x, lens.y - 10); c.lineTo(lens.x, lens.y + 10); c.stroke();
+    c.restore();
+  }
+  function report(el) {
+    const { r, m, p, cs } = boxOf(el), tag = el.dataset.x || tagOf(el);
+    const text = (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 28);
+    return { tag, w: Math.round(r.width), h: Math.round(r.height), m: m.join(' '), p: p.join(' '), font: `${px(cs.fontSize)}px/${cs.fontWeight}`, color: cs.color, radius: cs.borderTopLeftRadius, text, role: el.getAttribute('role') || '' };
+  }
+  function updateReadout() {
+    const el = lens.hit;
+    if (!el) { readout.style.opacity = 0; return; }
+    const R = report(el);
+    readout.innerHTML = `<b>&lt;${R.tag}&gt;</b>  <i>${R.w}×${R.h}</i><br>pad ${R.p} · mar ${R.m}${R.role ? '<br>role ' + R.role : ''}`;
+    readout.style.opacity = 1;
+    const rx = lens.x + lens.r * .72, ry = lens.y + lens.r * .62;
+    const w = readout.offsetWidth, h = readout.offsetHeight;
+    readout.style.left = clamp(rx, 6, innerWidth - w - 6) + 'px'; readout.style.top = clamp(ry, 6, innerHeight - h - 6) + 'px';
+  }
+
+  /* ——— expose a film: pin a radiology-style report ——— */
+  let filmNo = 1;
+  function expose() {
+    const el = lens.hit; if (!el) return;
+    const R = report(el), films = $('#films');
+    const card = document.createElement('div'); card.className = 'filmcard';
+    card.innerHTML = `<div class="id"><span>NHS-XR · ${String(filmNo++).padStart(3, '0')}</span><span>${['60', '90', '120'][mode]} kV</span></div>
+      <b>&lt;${R.tag}&gt;</b>${R.text ? `“${R.text.replace(/</g, '&lt;')}”` : ''}
+      <div class="bm"><span>size</span><span>${R.w} × ${R.h}</span><span>padding</span><span>${R.p}</span><span>margin</span><span>${R.m}</span><span>font</span><span>${R.font}</span><span>radius</span><span>${R.radius}</span></div>
+      <button class="rm" aria-label="Remove this film">×</button>`;
+    card.querySelector('.rm').addEventListener('click', () => card.remove());
+    films.prepend(card);
+    while (films.children.length > (innerWidth < 820 ? 1 : 3)) films.lastElementChild.remove();
+    shutter(); flash = 1; wake();
+  }
+  $('#expose').addEventListener('click', expose);
+
+  /* ——— sound: x-ray tube hum and the exposure clunk ——— */
+  let AC = null;
+  function ac() { try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) { AC = null; } return AC; }
+  function hum(m) { const a = ac(); if (!a) return; const t = a.currentTime, o = a.createOscillator(), g = a.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(60 + m * 30, t); o.frequency.linearRampToValueAtTime(120 + m * 60, t + .25); const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.05, t + .05); g.gain.exponentialRampToValueAtTime(.0001, t + .4); o.connect(lp).connect(g).connect(a.destination); o.start(t); o.stop(t + .45); }
+  function shutter() { const a = ac(); if (!a) return; const t = a.currentTime, b = a.createBuffer(1, a.sampleRate * .08, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); const s = a.createBufferSource(); s.buffer = b; const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200; const g = a.createGain(); g.gain.value = .25; s.connect(lp).connect(g).connect(a.destination); s.start(t); hum(mode); }
+
+  /* ——— loop: a heavy loupe that lags behind your hand ——— */
+  let raf = 0, last = 0;
+  function wake() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0; const dt = Math.min(.033, (now - last) / 1000); last = now;
+    const k = reduce ? 1e4 : 170, cdm = reduce ? 200 : 24;
+    lens.vx += (k * (lens.tx - lens.x) - cdm * lens.vx) * dt; lens.vy += (k * (lens.ty - lens.y) - cdm * lens.vy) * dt;
+    lens.x += lens.vx * dt; lens.y += lens.vy * dt;
+    if (reduce) { lens.x = lens.tx; lens.y = lens.ty; }
+    xr.style.setProperty('--x', lens.x.toFixed(1) + 'px'); xr.style.setProperty('--y', lens.y.toFixed(1) + 'px');
+    ring.style.transform = `translate(${lens.x.toFixed(1)}px,${lens.y.toFixed(1)}px) rotate(${(lens.vx * .004).toFixed(3)}deg)`;
+    const mk = $('#mkR'); mk.style.left = (lens.x - lens.r * .62) + 'px'; mk.style.top = (lens.y - lens.r * .55) + 'px';
+    const hit = underLens(); if (hit !== lens.hit) { lens.hit = hit; }
+    drawMeasure(); updateReadout();
+    if (flash > 0) { flash = Math.max(0, flash - dt * 2.5); xr.style.filter = `brightness(${1 + flash * 1.6})`; } else xr.style.filter = '';
+    const moving = Math.hypot(lens.tx - lens.x, lens.ty - lens.y) > .3 || Math.hypot(lens.vx, lens.vy) > 1 || flash > 0;
+    if (moving) raf = requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else wake(); });
+  addEventListener('resize', () => { sizeLens(); reclone(); wake(); });
+  function init() { sizeLens(); reclone(); const doc = document.querySelector('.doc'); const r = doc.getBoundingClientRect(); lens.x = lens.tx = r.left + r.width * .5; lens.y = lens.ty = r.top + r.height * .45; wake(); }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(init); else init();
+  window.__xr = { setMode, moveTo: (x, y) => { lens.tx = x; lens.ty = y; wake(); }, expose };
+})();
+</script>
+</body>
+</html>

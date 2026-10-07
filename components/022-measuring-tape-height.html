@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Measuring Tape Height</title>
+<meta name="description" content="A height input drawn as a comic page: pull a tape measure up the doorframe, lock it to keep the reading, or let go and watch it SNAP back.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Measuring Tape Height","reimagines":"Numeric slider / height input","category":"Sliders, Knobs & Dials","description":"Log a child's height on a comic-book growth chart by pulling a real tape measure up the doorframe. Lock it to keep the reading and pencil a new mark on the frame; let go unlocked and the tape whips back with a SNAP.","hint":"Drag the tape case up to the top of Maya's head, then hit the red lock (or press L)"}
+</script>
+<style>
+  :root{
+    --ink:#111; --paper:#f4ecd4; --yellow:#ffd21f; --red:#e8322a; --blue:#2c74c9; --sky:#bfe0f2; --wood:#d9893d; --skin:#f7c69c;
+    --bang:'Bangers', 'Impact', 'Arial Black', sans-serif;
+    --letter:'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:#fbf7ea; color:var(--ink); font-family:var(--letter); font-weight:700; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    position:fixed; inset:0; padding:14px; display:grid; gap:12px;
+    grid-template-columns: 340px minmax(0,1fr);
+    grid-template-rows: 214px minmax(0,1fr) 250px;
+    grid-template-areas: "title hero" "face hero" "read hero";
+    background:
+      radial-gradient(circle at 1px 1px, rgba(40,30,0,.05) 1px, transparent 1.4px) 0 0/5px 5px,
+      #fbf7ea;
+  }
+  .panel{position:relative; border:3.5px solid var(--ink); background:var(--paper); overflow:hidden; box-shadow:2px 2px 0 rgba(0,0,0,.12)}
+  .dots-y{background:radial-gradient(circle, #f7a51d 1.5px, transparent 1.8px) 0 0/7px 7px, var(--yellow)}
+  /* TITLE */
+  .title{grid-area:title; padding:12px 14px; background:
+      repeating-conic-gradient(from 0deg at 85% 115%, #ffe46a 0 6deg, #ffd21f 6deg 12deg);}
+  .title h1{font-family:var(--bang); font-weight:400; font-size:54px; line-height:.86; margin:4px 0 0; letter-spacing:.02em;
+    color:var(--red); -webkit-text-stroke:2px var(--ink); paint-order:stroke fill; text-shadow:4px 4px 0 var(--ink); transform:rotate(-3deg); transform-origin:left}
+  .title h1 span{display:block; color:#fff; font-size:.62em}
+  .issue{position:absolute; right:10px; top:10px; border:3px solid var(--ink); background:#fff; padding:4px 7px 3px; text-align:center; font-size:11px; line-height:1.1; transform:rotate(3deg)}
+  .issue b{display:block; font-family:var(--bang); font-weight:400; font-size:22px; color:var(--blue)}
+  .caption{display:inline-block; background:#fff7b8; border:2.5px solid var(--ink); padding:5px 8px 4px; font-size:13px; text-transform:uppercase; line-height:1.15; box-shadow:3px 3px 0 var(--ink)}
+  .title .caption{position:absolute; left:14px; bottom:12px; right:14px}
+  /* FACE */
+  .face{grid-area:face; background:radial-gradient(circle, #8fc6ea 1.6px, transparent 2px) 0 0/8px 8px, var(--sky)}
+  .face svg.kid{position:absolute; left:-6px; bottom:-14px; width:62%; height:auto}
+  .balloon{position:absolute; right:10px; top:12px; width:58%; min-height:84px; background:#fff; border:3px solid var(--ink); border-radius:50% / 46%;
+    display:flex; align-items:center; justify-content:center; text-align:center; padding:14px 16px; font-size:16px; line-height:1.12; text-transform:uppercase}
+  .balloon svg{position:absolute; left:6px; bottom:-26px; width:46px; height:34px; overflow:visible}
+  .balloon.shout{font-family:var(--bang); font-weight:400; font-size:28px; letter-spacing:.03em; border-radius:6px; clip-path:none}
+  /* READOUT */
+  .read{grid-area:read; padding:12px 14px; background:radial-gradient(circle, rgba(232,50,42,.22) 1.4px, transparent 1.7px) 0 0/7px 7px, #fff6e3; display:flex; flex-direction:column; gap:8px}
+  .read .caption{align-self:flex-start; font-size:12px}
+  .big{font-family:var(--bang); font-weight:400; font-size:66px; line-height:.9; letter-spacing:.02em; color:var(--blue); -webkit-text-stroke:2px var(--ink); paint-order:stroke fill; text-shadow:3px 3px 0 var(--ink)}
+  .big small{font-size:.45em; color:var(--ink); -webkit-text-stroke:0; text-shadow:none; margin-left:4px}
+  .imp{font-size:15px; text-transform:uppercase; margin-top:-2px}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .btn{font-family:var(--bang); font-weight:400; font-size:24px; letter-spacing:.04em; color:#fff; background:var(--red); border:3px solid var(--ink); padding:6px 16px 4px;
+    box-shadow:4px 4px 0 var(--ink); cursor:pointer; transform:rotate(-1.5deg); -webkit-text-stroke:1px var(--ink); paint-order:stroke fill; transition:transform .12s, box-shadow .12s}
+  .btn:hover{transform:rotate(-1.5deg) translate(-1px,-1px); box-shadow:5px 5px 0 var(--ink)}
+  .btn:active{transform:rotate(-1.5deg) translate(3px,3px); box-shadow:1px 1px 0 var(--ink)}
+  .btn[disabled]{background:#cfc7b2; color:#f4ecd4; cursor:not-allowed; box-shadow:2px 2px 0 var(--ink)}
+  .mini{font-family:var(--letter); font-weight:700; font-size:12px; text-transform:uppercase; background:#fff; border:2.5px solid var(--ink); padding:4px 8px; cursor:pointer; box-shadow:2px 2px 0 var(--ink)}
+  .mini[aria-pressed="true"]{background:var(--yellow)}
+  .btn:focus-visible, .mini:focus-visible, #tapeCase:focus-visible{outline:3px dashed var(--blue); outline-offset:3px}
+  .lockstate{font-size:13px; text-transform:uppercase}
+  .lockstate b{color:var(--red)}
+  /* HERO */
+  .hero{grid-area:hero; background:#fff}
+  .hero svg#scene{position:absolute; inset:0; width:100%; height:100%; display:block}
+  #tapeCase{cursor:grab; outline:none; touch-action:none}
+  #tapeCase:active{cursor:grabbing}
+  .hint{position:absolute; left:12px; top:12px; max-width:290px; transition:opacity .8s, transform .8s}
+  .hint.gone{opacity:0; transform:translateY(-10px); pointer-events:none}
+  .sfx{position:absolute; pointer-events:none; font-family:var(--bang); color:var(--yellow); -webkit-text-stroke:3px var(--ink); paint-order:stroke fill; text-shadow:5px 5px 0 var(--ink); letter-spacing:.03em; white-space:nowrap; transform-origin:center; z-index:5}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @keyframes pop{0%{transform:translate(-50%,-50%) scale(.2) rotate(var(--r))} 18%{transform:translate(-50%,-50%) scale(1.15) rotate(var(--r))} 30%{transform:translate(-50%,-50%) scale(1) rotate(var(--r))} 80%{opacity:1} 100%{opacity:0; transform:translate(-50%,-62%) scale(1.04) rotate(var(--r))}}
+  .sfx{animation:pop 1.1s cubic-bezier(.2,.8,.3,1) forwards}
+
+  @media (max-width: 760px){
+    .page{padding:8px; gap:8px; grid-template-columns:minmax(0,1fr); grid-template-rows:84px 96px minmax(0,1fr) 156px; grid-template-areas:"title" "face" "hero" "read"}
+    .title{padding:8px}
+    .title h1{font-size:30px; -webkit-text-stroke:1.5px var(--ink); text-shadow:3px 3px 0 var(--ink); margin:0}
+    .title h1 span{display:inline; margin-left:6px}
+    .issue{transform:rotate(3deg) scale(.7); transform-origin:top right; right:6px; top:6px}
+    .title .caption{font-size:10px; left:8px; right:8px; bottom:7px; padding:3px 5px}
+    .face svg.kid{width:118px; left:-4px; bottom:-30px}
+    .balloon{width:auto; left:118px; right:8px; top:8px; bottom:8px; min-height:0; font-size:12px; padding:6px 12px; border-width:2.5px}
+    .balloon.shout{font-size:22px}
+    .balloon svg{left:-20px; bottom:20px; width:30px; height:20px; transform:rotate(70deg)}
+    .read{padding:8px 10px; gap:5px}
+    .big{font-size:44px}
+    .imp{font-size:12px}
+    .btn{font-size:19px; padding:5px 12px 3px}
+    .hint{max-width:210px; left:8px; top:8px}
+    .hint.caption{font-size:10.5px}
+    .read .caption{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="panel title" aria-label="Maya's growth chart">
+    <div class="issue">OCT<b>No.12</b>2026</div>
+    <h1>Maya's<span>Growth Chart!</span></h1>
+    <div class="caption">Meanwhile, at the hallway doorframe... it's measuring day!</div>
+  </section>
+
+  <section class="panel face" aria-hidden="true">
+    <svg class="kid" viewBox="0 0 220 220">
+      <defs>
+        <pattern id="skinDots" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#f9d3ae"/><circle cx="3" cy="3" r="1.5" fill="#f0a27a"/></pattern>
+        <pattern id="hairDots" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#6a3a1c"/><circle cx="2.5" cy="2.5" r="1.3" fill="#3a1d0b"/></pattern>
+        <pattern id="shirtDots" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#e8322a"/><circle cx="3" cy="3" r="1.4" fill="#b71e18"/></pattern>
+      </defs>
+      <path d="M40 220c4-38 30-58 70-58s66 20 70 58z" fill="url(#shirtDots)" stroke="#111" stroke-width="4"/>
+      <path d="M92 168l18 22 18-22" fill="none" stroke="#111" stroke-width="3.5"/>
+      <circle cx="58" cy="52" r="24" fill="url(#hairDots)" stroke="#111" stroke-width="4"/>
+      <circle cx="162" cy="52" r="24" fill="url(#hairDots)" stroke="#111" stroke-width="4"/>
+      <ellipse cx="110" cy="104" rx="64" ry="66" fill="url(#hairDots)" stroke="#111" stroke-width="4"/>
+      <path d="M50 112c0-38 22-58 60-58s60 20 60 58c0 36-26 60-60 60s-60-24-60-60z" fill="url(#skinDots)" stroke="#111" stroke-width="4"/>
+      <path d="M52 100c10-30 30-40 58-40 26 0 46 10 58 40-16-14-36-20-58-20-24 0-42 6-58 20z" fill="url(#hairDots)" stroke="#111" stroke-width="3.5"/>
+      <g id="brows"><path d="M74 92q12-8 22 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/><path d="M124 92q12-8 22 0" fill="none" stroke="#111" stroke-width="4" stroke-linecap="round"/></g>
+      <g id="eyes">
+        <ellipse cx="86" cy="112" rx="10" ry="13" fill="#fff" stroke="#111" stroke-width="3.5"/>
+        <ellipse cx="134" cy="112" rx="10" ry="13" fill="#fff" stroke="#111" stroke-width="3.5"/>
+        <circle id="pupL" cx="87" cy="106" r="5" fill="#111"/><circle id="pupR" cx="135" cy="106" r="5" fill="#111"/>
+        <circle cx="89" cy="104" r="1.6" fill="#fff"/><circle cx="137" cy="104" r="1.6" fill="#fff"/>
+      </g>
+      <g id="happyEyes" style="display:none"><path d="M76 114q10-12 20 0M124 114q10-12 20 0" fill="none" stroke="#111" stroke-width="4.5" stroke-linecap="round"/></g>
+      <circle cx="70" cy="134" r="9" fill="#ef7f86" opacity=".7"/><circle cx="150" cy="134" r="9" fill="#ef7f86" opacity=".7"/>
+      <path id="mouth" d="M94 140q16 14 32 0" fill="#7a1d1d" stroke="#111" stroke-width="4" stroke-linejoin="round"/>
+      <path id="sweat" d="M168 84c4 8 6 12 2 16-4 3-9-1-7-6z" fill="#8fd0f5" stroke="#111" stroke-width="2.5" style="display:none"/>
+    </svg>
+    <div class="balloon" id="balloon" aria-live="polite">Measure me! I bet I grew since March!<svg viewBox="0 0 46 34"><path d="M10 0 L2 34 L30 2" fill="#fff" stroke="#111" stroke-width="3" stroke-linejoin="round"/><path d="M8 -2h24" stroke="#fff" stroke-width="5"/></svg></div>
+  </section>
+
+  <section class="panel read" aria-label="Height reading">
+    <div class="caption">Today's reading — Wed 7 Oct 2026</div>
+    <div class="big" id="big" aria-live="polite">— —<small>CM</small></div>
+    <div class="imp" id="imp">Pull the tape up to measure</div>
+    <div class="row">
+      <button class="btn" id="save" disabled>Pencil the mark!</button>
+      <button class="mini" id="lockBtn" aria-pressed="false">Lock: off</button>
+      <button class="mini" id="mute" aria-pressed="false" aria-label="Sound effects on">Sfx: on</button>
+    </div>
+    <div class="lockstate" id="lockstate">Last mark: <b>126 cm</b> · March 2026</div>
+  </section>
+
+  <section class="panel hero" id="hero" aria-label="Doorframe with tape measure">
+    <svg id="scene" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="caption hint" id="hint">Drag the tape case up to the top of Maya's head. Smack the red lock (or press L) to hold it!</div>
+  </section>
+</div>
+<div class="sr" id="sr" aria-live="assertive"></div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = $('scene'), hero = $('hero');
+  const MAXCM = 190;
+  const MARKS = [
+    { cm:108, who:'MAYA', when:'9/24', col:'#333' },
+    { cm:115, who:'MAYA', when:'3/25', col:'#333' },
+    { cm:121.5, who:'MAYA', when:'9/25', col:'#333' },
+    { cm:126, who:'MAYA', when:'3/26', col:'#333' },
+    { cm:139, who:'LEO', when:'9/25', col:'#c92a22' },
+  ];
+
+  // ---------- state ----------
+  let val = 0, vel = 0, mode = 'rest', locked = false, lean = 0, leanV = 0, squash = 0, squashV = 0;
+  let W = 800, H = 700, floorY = 640, ppc = 3, tapeX = 300, jambX = 360, jambW = 70, caseW = 112, caseH = 96;
+  let dragOff = 0, dragX0 = 0, lastY = 0, lastT = 0, pv = 0, lastTickCm = 0, armed = false, saved = [];
+  let sfxOn = true;
+
+  // ---------- build scene ----------
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  let gTape, tapeRect, tapeTicks, gCase, readLine, readTag, readTagText, gMarks, tapeClip, gTapeAll;
+
+  function build(){
+    const r = hero.getBoundingClientRect();
+    W = r.width; H = r.height;
+    const mob = W < 500;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = '';
+    floorY = H - (mob ? 34 : 54);
+    caseW = mob ? 84 : 112; caseH = mob ? 72 : 96;
+    jambW = mob ? 54 : 74;
+    jambX = mob ? W * .56 : W * .6;
+    tapeX = jambX - (mob ? 36 : 50);
+    ppc = (floorY - caseH - 20) / MAXCM;
+
+    const defs = el('defs', {}, svg);
+    defs.innerHTML = `
+      <pattern id="wallDots" width="9" height="9" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="#cfe7f4"/><circle cx="4.5" cy="4.5" r="1.9" fill="#a6d2ec"/></pattern>
+      <pattern id="wallDots2" width="9" height="9" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="#a9d0ea"/><circle cx="4.5" cy="4.5" r="2.6" fill="#7db6dd"/></pattern>
+      <pattern id="hallDots" width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#2b3a66"/><circle cx="3.5" cy="3.5" r="2.2" fill="#1c2547"/></pattern>
+      <pattern id="woodDots" width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#f2b56b"/><circle cx="3.5" cy="3.5" r="1.7" fill="#de8d3c"/></pattern>
+      <pattern id="woodShade" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#d98a3a"/><circle cx="3" cy="3" r="2" fill="#a85f1e"/></pattern>
+      <pattern id="floorDots" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#b7652a"/><circle cx="4" cy="4" r="2.2" fill="#8c4818"/></pattern>
+      <pattern id="caseDots" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#ffd21f"/><circle cx="3" cy="3" r="1.6" fill="#f2a20c"/></pattern>
+      <pattern id="caseShade" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#e9a30d"/><circle cx="2.5" cy="2.5" r="1.7" fill="#a86a00"/></pattern>
+      <pattern id="rubber" width="5" height="5" patternUnits="userSpaceOnUse"><rect width="5" height="5" fill="#2a2a2a"/><circle cx="2.5" cy="2.5" r="1.1" fill="#4a4a4a"/></pattern>
+      <pattern id="lampDots" width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#ffe680"/><circle cx="3.5" cy="3.5" r="1.8" fill="#ffc93c"/></pattern>
+      <pattern id="coatDots" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#ffd21f"/><circle cx="3" cy="3" r="1.7" fill="#e89a0c"/></pattern>
+      <clipPath id="tapeClip"><rect id="tapeClipR" x="0" y="0" width="${W}" height="${H}"/></clipPath>
+    `;
+    // wall + hallway
+    el('rect', { x:0, y:0, width:jambX, height:floorY, fill:'url(#wallDots)' }, svg);
+    el('rect', { x:jambX + jambW, y:0, width:W - jambX - jambW, height:floorY, fill:'url(#hallDots)' }, svg);
+    // hallway depth: far wall + light patch
+    el('path', { d:`M${jambX + jambW} ${floorY} L${W} ${floorY - (mob?40:70)} L${W} ${floorY}Z`, fill:'#3b2a1a', stroke:'#111', 'stroke-width':3 }, svg);
+    el('path', { d:`M${jambX + jambW + 40} 0 L${W} 0 L${W} ${floorY*0.18}Z`, fill:'rgba(255,240,170,.18)' }, svg);
+    {
+      const hx = jambX + jambW, hw = W - hx;
+      if (hw > 60){
+        const dw = Math.min(hw * .42, 120), dx = hx + hw * .5 - dw / 2, dh = floorY * .52, dy = floorY - (mob?40:70) * .5 - dh;
+        el('rect', { x:dx, y:dy, width:dw, height:dh, fill:'url(#lampDots)', stroke:'#111', 'stroke-width':3.5 }, svg);
+        el('path', { d:`M${dx} ${dy + dh} L${dx - dw*.5} ${floorY + 2} L${dx + dw*1.5} ${floorY + 2} L${dx + dw} ${dy + dh}Z`, fill:'rgba(255,214,90,.35)' }, svg);
+      }
+    }
+    // wall shadow by jamb
+    el('rect', { x:jambX - 16, y:0, width:16, height:floorY, fill:'url(#wallDots2)' }, svg);
+    // picture frame on wall (comic detail)
+    if (!mob){
+      const px = Math.max(30, jambX - 300), py = floorY * .16;
+      el('rect', { x:px, y:py, width:120, height:90, fill:'#fff', stroke:'#111', 'stroke-width':4 }, svg);
+      el('rect', { x:px + 10, y:py + 10, width:100, height:70, fill:'url(#wallDots2)', stroke:'#111', 'stroke-width':2 }, svg);
+      el('path', { d:`M${px+12} ${py+78} l28 -34 l18 20 l14 -14 l36 28z`, fill:'#7bbf5a', stroke:'#111', 'stroke-width':2.5, 'stroke-linejoin':'round' }, svg);
+      el('circle', { cx:px + 88, cy:py + 26, r:9, fill:'#ffd21f', stroke:'#111', 'stroke-width':2.5 }, svg);
+    }
+    // jamb
+    el('rect', { x:jambX, y:-4, width:jambW, height:floorY + 4, fill:'url(#woodDots)', stroke:'#111', 'stroke-width':4 }, svg);
+    el('rect', { x:jambX + jambW - 14, y:-4, width:14, height:floorY + 4, fill:'url(#woodShade)', stroke:'#111', 'stroke-width':3 }, svg);
+    for (let i = 0; i < 6; i++){ const yy = 40 + i * floorY / 6.3; el('path', { d:`M${jambX + 10} ${yy} q8 6 0 ${16 + i % 3 * 6}`, fill:'none', stroke:'#a85f1e', 'stroke-width':1.6 }, svg); }
+    // floor + skirting
+    el('rect', { x:0, y:floorY, width:W, height:H - floorY, fill:'url(#floorDots)', stroke:'#111', 'stroke-width':4 }, svg);
+    for (let x = -40; x < W; x += 120){ el('line', { x1:x, y1:floorY, x2:x - 50, y2:H, stroke:'#111', 'stroke-width':2.5 }, svg); }
+    el('rect', { x:-4, y:floorY - (mob?12:18), width:jambX + 4, height:(mob?12:18), fill:'#fff', stroke:'#111', 'stroke-width':3.5 }, svg);
+
+    // pencil marks on jamb
+    gMarks = el('g', {}, svg);
+    MARKS.concat(saved).forEach(m => drawMark(m, false));
+
+    // reading line (behind tape)
+    readLine = el('line', { x1:tapeX - 20, x2:jambX + jambW + 6, y1:-50, y2:-50, stroke:'#e8322a', 'stroke-width':3, 'stroke-dasharray':'9 6', opacity:0 }, svg);
+
+    // tape group (skewed for whip)
+    gTapeAll = el('g', {}, svg);
+    gTape = el('g', { 'clip-path':'url(#tapeClip)' }, gTapeAll);
+    const tw = mob ? 32 : 42;
+    el('rect', { x:tapeX, y:floorY - MAXCM*ppc - 40, width:tw, height:MAXCM*ppc + 40, fill:'#ffe14a', stroke:'#111', 'stroke-width':3 }, gTape);
+    // ticks — metric on left edge, imperial on right edge
+    let tk = '';
+    for (let c = 0; c <= MAXCM; c++){
+      const y = floorY - c * ppc;
+      const len = c % 10 === 0 ? tw * .42 : c % 5 === 0 ? tw * .28 : tw * .16;
+      if (ppc < 2.6 && c % 2 && c % 5) continue;
+      tk += `<line x1="${tapeX}" x2="${tapeX + len}" y1="${y}" y2="${y}" stroke="#111" stroke-width="${c%10?1:1.8}"/>`;
+      if (c % 10 === 0 && c > 0) tk += `<text x="${tapeX + tw*.47}" y="${y + 4}" font-family="Bangers, Impact, sans-serif" font-size="${mob?12:15}" fill="${c % 50 === 0 ? '#e8322a' : '#111'}" text-anchor="middle" transform="rotate(-90 ${tapeX + tw*.47} ${y})">${c}</text>`;
+    }
+    const ipp = ppc * 2.54;
+    for (let i = 0; i * 2.54 <= MAXCM; i++){
+      const y = floorY - i * ipp;
+      tk += `<line x1="${tapeX + tw}" x2="${tapeX + tw - (i % 12 === 0 ? tw*.38 : tw*.18)}" y1="${y}" y2="${y}" stroke="#111" stroke-width="${i%12?1:1.8}"/>`;
+      if (i % 12 === 0 && i > 0) tk += `<text x="${tapeX + tw - 2}" y="${y - 3}" font-family="Comic Neue, sans-serif" font-weight="700" font-size="${mob?7:8.5}" fill="#e8322a" text-anchor="end">${i/12}FT</text>`;
+    }
+    gTape.insertAdjacentHTML('beforeend', tk);
+    // hook tab at the floor
+    el('path', { d:`M${tapeX - 4} ${floorY + 2} h${tw + 8} v-10 h-${tw + 8}z`, fill:'#9aa3ad', stroke:'#111', 'stroke-width':3 }, gTapeAll);
+    tapeClip = $('tapeClipR');
+
+    // case
+    gCase = el('g', { id:'tapeCase', tabindex:0, role:'slider', 'aria-label':"Tape measure — Maya's height", 'aria-valuemin':0, 'aria-valuemax':MAXCM, 'aria-valuenow':0, 'aria-valuetext':'Not measured' }, gTapeAll);
+    const cx0 = tapeX - (caseW - tw) * .3;
+    gCase.dataset.cx0 = cx0;
+    const C = el('g', { id:'caseBody' }, gCase);
+    const cw = caseW, ch = caseH, rr = ch * .2;
+    // shadow-ish back
+    el('rect', { x:6, y:6, width:cw, height:ch, rx:rr, fill:'#111' }, C);
+    el('rect', { x:0, y:0, width:cw, height:ch, rx:rr, fill:'url(#caseDots)', stroke:'#111', 'stroke-width':4 }, C);
+    el('path', { d:`M${cw*.62} 2 h${cw*.38 - rr} a${rr} ${rr} 0 0 1 ${rr} ${rr} v${ch - rr*2} a${rr} ${rr} 0 0 1 -${rr} ${rr} h-${cw*.38 - rr} z`, fill:'url(#caseShade)' }, C);
+    el('rect', { x:0, y:0, width:cw, height:ch, rx:rr, fill:'none', stroke:'#111', 'stroke-width':4 }, C);
+    // rubber grip band
+    el('rect', { x:-4, y:ch * .22, width:cw * .22, height:ch * .62, rx:8, fill:'url(#rubber)', stroke:'#111', 'stroke-width':3 }, C);
+    // label
+    el('circle', { cx:cw * .56, cy:ch * .5, r:ch * .3, fill:'#fff', stroke:'#111', 'stroke-width':3 }, C);
+    const lt = el('text', { x:cw * .56, y:ch * .45, 'font-family':'Bangers, Impact, sans-serif', 'font-size':ch * .17, 'text-anchor':'middle', fill:'#e8322a' }, C); lt.textContent = 'GRO-';
+    const lt2 = el('text', { x:cw * .56, y:ch * .63, 'font-family':'Bangers, Impact, sans-serif', 'font-size':ch * .17, 'text-anchor':'middle', fill:'#111' }, C); lt2.textContent = 'MASTER';
+    // slot at bottom + blade stub
+    el('rect', { x:cx0 > 0 ? (tapeX - cx0) : 10, y:ch - 6, width:tw, height:10, fill:'#111' }, C);
+    // lock button (top)
+    const L = el('g', { id:'lockKnob', style:'cursor:pointer' }, gCase);
+    el('rect', { x:cw * .3, y:-ch * .17, width:cw * .32, height:ch * .22, rx:5, fill:'#e8322a', stroke:'#111', 'stroke-width':3.5 }, L);
+    el('rect', { x:cw * .34, y:-ch * .13, width:cw * .1, height:ch * .1, rx:2, fill:'#ff8a7a' }, L);
+    // belt clip
+    el('path', { d:`M${cw - 4} ${ch*.18} h10 v${ch*.6} h-10`, fill:'#9aa3ad', stroke:'#111', 'stroke-width':3 }, C);
+
+    // reading tag on jamb
+    readTag = el('g', { opacity:0 }, svg);
+    el('path', { d:`M0 0 l12 -14 h${mob?58:76} v28 h-${mob?58:76} z`, fill:'#e8322a', stroke:'#111', 'stroke-width':3, 'stroke-linejoin':'round' }, readTag);
+    readTagText = el('text', { x:mob?41:50, y:7, 'font-family':'Bangers, Impact, sans-serif', 'font-size':mob?17:21, 'text-anchor':'middle', fill:'#fff', stroke:'#111', 'stroke-width':1, 'paint-order':'stroke' }, readTag);
+
+    bindCase();
+    draw();
+  }
+
+  function drawMark(m, animate){
+    const y = floorY - m.cm * ppc, mob = W < 500;
+    const g = el('g', {}, gMarks);
+    const ln = el('path', { d:`M${jambX + 4} ${y} l${jambW - 12} ${-1.5}`, stroke:m.col, 'stroke-width':m.fresh ? 3 : 2.2, 'stroke-linecap':'round', fill:'none' }, g);
+    const t = el('text', { x:jambX + jambW*.5 - 4, y:y - 4, 'font-family':'Comic Neue, Comic Sans MS, sans-serif', 'font-style':'italic', 'font-weight':700, 'font-size':mob?8.5:11, 'text-anchor':'middle', fill:m.col, transform:`rotate(-2 ${jambX + jambW/2} ${y})` }, g);
+    t.textContent = `${m.who} ${m.when}`;
+    if (animate && !reduce){
+      const len = jambW;
+      ln.setAttribute('stroke-dasharray', len); ln.setAttribute('stroke-dashoffset', len);
+      ln.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 500, fill:'forwards', easing:'cubic-bezier(.3,.6,.3,1)' });
+      t.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 350, fill:'backwards' });
+    }
+  }
+
+  // ---------- render ----------
+  function draw(){
+    const slotY = floorY - val * ppc;
+    const skew = lean;  // degrees
+    gTapeAll.setAttribute('transform', `translate(0 0) skewX(${skew.toFixed(2)})`);
+    // skewX shears around y=0; compensate so the hook stays planted on the floor
+    const comp = Math.tan(skew * Math.PI/180) * floorY;
+    gTapeAll.setAttribute('transform', `translate(${(-comp).toFixed(2)} 0) skewX(${skew.toFixed(2)})`);
+    tapeClip.setAttribute('y', slotY - 4); tapeClip.setAttribute('height', Math.max(0, floorY - slotY + 8));
+    const cx0 = +gCase.dataset.cx0;
+    const sq = 1 - squash;
+    gCase.setAttribute('transform', `translate(${cx0} ${slotY - caseH * sq}) scale(${(1 + squash*.6).toFixed(3)} ${sq.toFixed(3)})`);
+    const showRead = val > 4;
+    readLine.setAttribute('y1', slotY); readLine.setAttribute('y2', slotY); readLine.setAttribute('opacity', showRead ? 1 : 0);
+    readTag.setAttribute('transform', `translate(${jambX + jambW + 4} ${slotY})`);
+    readTag.setAttribute('opacity', showRead ? 1 : 0);
+    readTagText.textContent = fmt(val) + ' CM';
+  }
+  const fmt = v => (Math.round(v * 2) / 2).toFixed(1).replace(/\.0$/, '');
+  function inches(cm){
+    const tot = cm / 2.54, ft = Math.floor(tot / 12); let inch = Math.round((tot - ft*12) * 4) / 4;
+    const whole = Math.floor(inch), frac = inch - whole, fr = frac === .25 ? '¼' : frac === .5 ? '½' : frac === .75 ? '¾' : '';
+    return `${ft} ft ${whole}${fr} in`;
+  }
+
+  function updateUI(){
+    const has = val > 4;
+    $('big').innerHTML = has ? `${fmt(val)}<small>CM</small>` : `— —<small>CM</small>`;
+    $('imp').textContent = has ? `${inches(val)}` + (locked ? ' · locked in!' : ' · not locked — careful!') : 'Pull the tape up to measure';
+    $('save').disabled = !(locked && val >= 40);
+    $('lockBtn').textContent = locked ? 'Lock: on' : 'Lock: off';
+    $('lockBtn').setAttribute('aria-pressed', locked);
+    gCase.setAttribute('aria-valuenow', fmt(val));
+    gCase.setAttribute('aria-valuetext', has ? `${fmt(val)} centimetres, ${inches(val)}${locked ? ', locked' : ', unlocked'}` : 'Not measured');
+    const k = $('lockKnob'); if (k) k.setAttribute('transform', locked ? `translate(0 ${caseH*.07})` : '');
+  }
+
+  // ---------- Maya ----------
+  const MOUTHS = {
+    smile:'M94 140q16 14 32 0', grin:'M90 136q20 26 40 0z', o:'M104 140a7 9 0 1 0 14 0a7 9 0 1 0 -14 0z', frown:'M94 148q16 -12 32 0', huge:'M86 132q24 34 48 0z'
+  };
+  let moodT = null;
+  function maya(mood, text, shout){
+    $('mouth').setAttribute('d', MOUTHS[mood === 'snap' ? 'o' : mood === 'pull' ? 'grin' : mood === 'saved' ? 'huge' : mood === 'shrink' ? 'frown' : mood === 'locked' ? 'grin' : 'smile']);
+    $('mouth').setAttribute('fill', mood === 'idle' || mood === 'shrink' ? 'none' : '#7a1d1d');
+    $('happyEyes').style.display = mood === 'saved' ? '' : 'none';
+    $('eyes').style.display = mood === 'saved' ? 'none' : '';
+    $('sweat').style.display = mood === 'snap' || mood === 'shrink' ? '' : 'none';
+    $('brows').setAttribute('transform', mood === 'snap' ? 'translate(0 -8)' : mood === 'shrink' ? 'rotate(0)' : '');
+    const look = mood === 'pull' || mood === 'locked' ? -4 : 0;
+    $('pupL').setAttribute('cy', 108 + look); $('pupR').setAttribute('cy', 108 + look);
+    const b = $('balloon');
+    b.firstChild.textContent = text;
+    b.classList.toggle('shout', !!shout);
+  }
+
+  // ---------- SFX ----------
+  function sfx(text, x, y, size, rot){
+    if (reduce && text !== 'SNAP!') return;
+    const d = document.createElement('div');
+    d.className = 'sfx'; d.textContent = text;
+    d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.fontSize = size + 'px'; d.style.setProperty('--r', (rot || 0) + 'deg');
+    hero.appendChild(d);
+    d.addEventListener('animationend', () => d.remove());
+  }
+  function burst(x, y, s){
+    // jagged star burst + speed lines behind SNAP
+    const g = el('g', { transform:`translate(${x} ${y})` }, svg);
+    let p = '';
+    const n = 18;
+    for (let i = 0; i <= n * 2; i++){ const a = i / (n*2) * Math.PI * 2, r = (i % 2 ? .55 : 1) * s * (0.9 + Math.random()*.25); p += (i ? 'L' : 'M') + (Math.cos(a)*r).toFixed(1) + ' ' + (Math.sin(a)*r*.62).toFixed(1); }
+    el('path', { d:p + 'Z', fill:'#fff', stroke:'#111', 'stroke-width':4, 'stroke-linejoin':'round' }, g);
+    for (let i = 0; i < 14; i++){ const a = Math.random() * Math.PI * 2, r0 = s * 1.1, r1 = s * (1.6 + Math.random()*.6); el('line', { x1:Math.cos(a)*r0, y1:Math.sin(a)*r0*.62, x2:Math.cos(a)*r1, y2:Math.sin(a)*r1*.62, stroke:'#111', 'stroke-width':3, 'stroke-linecap':'round' }, g); }
+    const an = g.animate([{ opacity:1, transform:`translate(${x}px, ${y}px) scale(.3)` }, { opacity:1, transform:`translate(${x}px, ${y}px) scale(1.05)`, offset:.2 }, { opacity:0, transform:`translate(${x}px, ${y}px) scale(1.1)` }], { duration: 900, easing:'ease-out', fill:'forwards' });
+    an.onfinish = () => g.remove();
+  }
+
+  // ---------- audio ----------
+  let ac = null, master;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return ac; }
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); } catch(_) {}
+    return ac;
+  }
+  function noise(dur, f, q, g0, type){
+    if (!ac || !sfxOn) return;
+    const n = ac.currentTime, len = Math.max(1, Math.floor(ac.sampleRate * dur)), b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2 - 1) * Math.pow(1 - i/len, 2);
+    const s = ac.createBufferSource(); s.buffer = b; const fl = ac.createBiquadFilter(); fl.type = type || 'bandpass'; fl.frequency.value = f; fl.Q.value = q;
+    const g = ac.createGain(); g.gain.value = g0; s.connect(fl); fl.connect(g); g.connect(master); s.start(n);
+  }
+  function thump(f0, dur, g0){
+    if (!ac || !sfxOn) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(f0, n); o.frequency.exponentialRampToValueAtTime(f0 * .35, n + dur);
+    g.gain.setValueAtTime(g0, n); g.gain.exponentialRampToValueAtTime(.0001, n + dur);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + dur + .02);
+  }
+  const tickSnd = () => noise(.012, 4200, 3, .5);
+  const clickSnd = () => { noise(.03, 2600, 2, 1.2); thump(900, .05, .3); };
+  const snapSnd = s => { noise(.18, 1800, .7, 1.6 * s); thump(160, .22, .9 * s); };
+  function scribble(){ if (!ac || !sfxOn) return; for (let i = 0; i < 5; i++) setTimeout(() => noise(.09, 5200 + Math.random()*1500, 1.2, .7, 'highpass'), i * 95); }
+
+  // ---------- interaction ----------
+  function bindCase(){
+    gCase.addEventListener('pointerdown', e => {
+      audio();
+      if (e.target.closest('#lockKnob')){ e.stopPropagation(); toggleLock(); return; }
+      if (mode === 'drag'){ return; }
+      mode = 'drag'; vel = 0;
+      gCase.setPointerCapture(e.pointerId);
+      const slotY = floorY - val * ppc;
+      dragOff = e.clientY - (hero.getBoundingClientRect().top + slotY);
+      dragX0 = e.clientX; lastY = e.clientY; lastT = performance.now(); pv = 0;
+      maya('pull', 'Higher... higher...!');
+    });
+    gCase.addEventListener('pointermove', e => {
+      if (mode !== 'drag') return;
+      const r = hero.getBoundingClientRect();
+      const slotY = e.clientY - r.top - dragOff;
+      const nv = Math.max(0, Math.min(MAXCM, (floorY - slotY) / ppc));
+      const now = performance.now(), dt = Math.max(1, now - lastT);
+      pv = pv * .6 + ((nv - val) / dt * 1000) * .4;
+      lastT = now;
+      if (Math.abs(nv - lastTickCm) >= 1){ if (Math.abs(pv) < 400) tickSnd(); else if (Math.random() < .3) tickSnd(); lastTickCm = Math.round(nv); }
+      if (pv > 260 && !armed && nv > 30 && !reduce){ armed = true; sfx('ZZZIP!', tapeX + 70, r.height * .5 - (nv * ppc) * .1, W < 500 ? 22 : 34, -8); setTimeout(() => armed = false, 900); }
+      val = nv;
+      // lean with sideways pointer drift
+      const dx = (e.clientX - dragX0);
+      lean = Math.max(-6, Math.min(6, dx / Math.max(60, val * ppc) * 30));
+      hideHint(false);
+      updateUI();
+    });
+    const up = e => {
+      if (mode !== 'drag') return;
+      if (locked){ mode = 'held'; vel = 0; settledLock(); }
+      else { mode = 'retract'; vel = Math.min(0, pv); maya('pull', 'Uh oh...'); }
+      leanV = -lean * 2;
+    };
+    gCase.addEventListener('pointerup', up);
+    gCase.addEventListener('pointercancel', up);
+    gCase.addEventListener('keydown', e => {
+      audio();
+      let d = 0;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') d = e.shiftKey ? 5 : .5;
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') d = e.shiftKey ? -5 : -.5;
+      else if (e.key === 'PageUp') d = 10; else if (e.key === 'PageDown') d = -10;
+      else if (e.key === 'Home'){ e.preventDefault(); if (locked) toggleLock(); else if (val > 0){ mode = 'retract'; } return; }
+      if (d){
+        e.preventDefault();
+        val = Math.max(0, Math.min(MAXCM, Math.round((val + d) * 2) / 2));
+        if (!locked){ locked = true; clickSnd(); }
+        mode = 'held'; settledLock(); hideHint(false);
+      }
+    });
+  }
+  function settledLock(){
+    updateUI();
+    if (val < 4){ maya('idle', 'That\'s the floor, silly!'); return; }
+    const last = 126, diff = val - last;
+    if (diff < -1) maya('shrink', `${fmt(val)} cm?! Hey — I didn't shrink!`);
+    else maya('locked', `Is that me?! ${fmt(val)} cm!` + (diff > 0 ? ` +${fmt(diff)} since March!` : ''));
+  }
+  function toggleLock(){
+    audio();
+    locked = !locked;
+    clickSnd();
+    const r = hero.getBoundingClientRect(), slotY = floorY - val * ppc;
+    sfx(locked ? 'CLICK!' : 'CLACK!', (+gCase.dataset.cx0) + caseW * .5, slotY - caseH - 26, W < 500 ? 20 : 30, locked ? -10 : 8);
+    if (!locked && mode !== 'drag' && val > 0){ mode = 'retract'; vel = 0; maya('pull', 'Wait—!'); }
+    else if (locked && mode !== 'drag'){ mode = 'held'; settledLock(); }
+    else if (locked && mode === 'drag') maya('locked', 'Locked! Now let go!');
+    updateUI();
+    $('sr').textContent = locked ? `Tape locked at ${fmt(val)} centimetres` : 'Tape unlocked';
+  }
+  $('lockBtn').addEventListener('click', toggleLock);
+  addEventListener('keydown', e => {
+    if ((e.key === 'l' || e.key === 'L') && !e.metaKey && !e.ctrlKey){ e.preventDefault(); toggleLock(); }
+    else if (e.key === ' ' && mode === 'drag'){ e.preventDefault(); toggleLock(); }
+  });
+  $('mute').addEventListener('click', () => { sfxOn = !sfxOn; $('mute').textContent = sfxOn ? 'Sfx: on' : 'Sfx: off'; $('mute').setAttribute('aria-pressed', !sfxOn); $('mute').setAttribute('aria-label', sfxOn ? 'Sound effects on' : 'Sound effects off'); });
+  $('save').addEventListener('click', () => {
+    audio();
+    const v = Math.round(val * 2) / 2;
+    const m = { cm:v, who:'MAYA', when:'10/26', col:'#1f5fb0', fresh:true };
+    saved.push(m); drawMark(m, true); scribble();
+    sfx('SCRIBBLE!', jambX + jambW * .5, floorY - v * ppc - 30, W < 500 ? 18 : 26, -4);
+    const diff = v - 126;
+    maya('saved', diff > 0 ? `I grew ${fmt(diff)} cm!!` : 'Marked!', true);
+    $('lockstate').innerHTML = `Saved: <b>${fmt(v)} cm</b> · 7 Oct 2026`;
+    $('sr').textContent = `Saved ${fmt(v)} centimetres for Maya`;
+    // release the tape after saving — with the signature snap
+    setTimeout(() => { locked = false; updateUI(); if (val > 0){ mode = 'retract'; vel = 0; } }, 900);
+  });
+
+  let hintGone = false;
+  function hideHint(){ if (hintGone) return; hintGone = true; setTimeout(() => $('hint').classList.add('gone'), 2500); }
+
+  // ---------- physics loop ----------
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.033, (now - last) / 1000); last = now;
+    if (mode === 'retract'){
+      if (reduce){ val = 0; vel = -400; }
+      vel -= (2300 + val * 14) * dt;
+      val += vel * dt;
+      // whip: the blade flexes sideways while it races home
+      leanV += (Math.sin(now / 38) * 40 * Math.min(1, -vel / 600)) * dt;
+      if (val <= 0){
+        const speed = Math.min(1, -vel / 900);
+        val = 0;
+        if (-vel > 120){
+          vel = -vel * .22; // hop off the floor
+          squash = .22 * speed; squashV = 0;
+          leanV += (Math.random() < .5 ? -1 : 1) * 60 * speed;
+          if (speed > .15){
+            const x = (+gCase.dataset.cx0) + caseW * .5, y = floorY - caseH * 1.25;
+            burst(x, y, W < 500 ? 46 : 70); sfx('SNAP!', x, y, W < 500 ? 40 : 64, -6);
+            snapSnd(.5 + speed * .5);
+            maya('snap', 'WHOA!', true);
+            setTimeout(() => { if (mode === 'rest') maya('idle', 'Try again — and lock it this time!'); }, 1500);
+            $('sr').textContent = 'The tape snapped back. Lock it to keep the reading.';
+            if (window.__tape.freezeOnSnap) setTimeout(() => window.__tape.freeze(), 160);
+          }
+        } else { vel = 0; mode = 'rest'; }
+      }
+      updateUI();
+    }
+    // lean spring (wobble)
+    if (mode !== 'drag'){
+      leanV += (-lean * 260 - leanV * 9) * dt;
+      lean += leanV * dt;
+      if (reduce){ lean = 0; leanV = 0; }
+    }
+    squashV += (-squash * 900 - squashV * 18) * dt; squash += squashV * dt;
+    if (Math.abs(squash) < .0005 && Math.abs(squashV) < .01) squash = 0;
+    draw();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden){ running = false; } else { running = true; last = performance.now(); requestAnimationFrame(frame); } });
+
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { build(); updateUI(); }, 80); });
+  build(); updateUI();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { build(); updateUI(); });
+  requestAnimationFrame(frame);
+
+  window.__tape = {
+    pull(cm){ val = cm; mode = 'held'; updateUI(); },
+    lock(){ if (!locked) toggleLock(); },
+    release(){ mode = 'retract'; vel = -200; },
+    state: () => ({ val, mode, locked }),
+    freeze(){ running = false; document.getAnimations().forEach(a => a.pause()); }
+  };
+})();
+</script>
+</body>
+</html>

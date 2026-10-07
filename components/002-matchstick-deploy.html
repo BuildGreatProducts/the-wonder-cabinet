@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matchstick Deploy</title>
+<meta name="description" content="A production deploy button printed as a vintage Eastern-European matchbox label: strike a match fast across the striker, then touch it to the fuse that burns through each deploy step.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Ruslan+Display&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Matchstick Deploy","reimagines":"Primary \"Deploy to production\" button","category":"Buttons & Actions","description":"Deploying to production takes a fast, committed strike of a match across the striker — slow drags only scuff it. Touch the flame to the fuse and it burns through build, migrate and canary to light the 'live' seal; pinch the spark to halt mid-way. Friction as a safety mechanism, printed like a 1960s matchbox label.","hint":"Drag the match fast across the striker strip, then touch the flame to the fuse"}
+</script>
+<style>
+:root{
+  --paper:#efe2c2; --paper2:#e6d4ab; --red:#d23a20; --black:#1d1915; --ochre:#e7a62a; --brown:#6e2a19;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--black)}
+body{font-family:Oswald,"Arial Narrow",sans-serif;color:var(--black);user-select:none;-webkit-user-select:none;-webkit-font-smoothing:antialiased}
+.stage{position:relative;width:100vw;height:100dvh;overflow:hidden;touch-action:none;
+  background:
+   radial-gradient(ellipse at 38% 45%, rgba(231,166,42,.07), transparent 60%),
+   var(--black)}
+/* flood of black ink with paper peeking through */
+.stage::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='8'/%3E%3CfeColorMatrix values='0 0 0 0 .93 0 0 0 0 .88 0 0 0 0 .76 0 0 0 14 -10.6'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23f)'/%3E%3C/svg%3E")}
+#rays{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.ink{filter:url(#litho)}
+.box{position:absolute;left:var(--bx);top:var(--by);width:var(--bw)}
+.label{position:relative;height:var(--lh);background:var(--paper);container-type:inline-size;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+.label::before{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.9;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.6 .04' numOctaves='3' seed='2'/%3E%3CfeColorMatrix values='0 0 0 0 .78 0 0 0 0 .66 0 0 0 0 .45 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23f)'/%3E%3C/svg%3E"),
+   radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(140,98,40,.28))}
+.frame{position:absolute;inset:2.2cqw;border:.7cqw solid var(--black);pointer-events:none}
+.frame::after{content:"";position:absolute;inset:.8cqw;border:.25cqw solid var(--black)}
+.corner{position:absolute;width:7cqw;height:7cqw;fill:var(--black)}
+.band{position:absolute;left:4.3cqw;right:4.3cqw;top:4.3cqw;height:7.4cqw;background:var(--red);display:flex;align-items:center;justify-content:space-between;padding:0 3cqw;color:var(--paper);
+  font-weight:600;font-size:2.6cqw;letter-spacing:.18em;text-transform:uppercase;transform:translate(.25cqw,.2cqw)}
+.band .brand{font-family:"Ruslan Display",serif;font-size:3.2cqw;letter-spacing:.12em;font-weight:400}
+.mid{position:absolute;left:5.5cqw;right:5.5cqw;top:13cqw;bottom:15cqw;display:flex;align-items:center;gap:4cqw}
+.badge{position:relative;flex:none;width:27cqw;height:27cqw;margin-left:2cqw}
+.badge svg{position:absolute;inset:-6cqw;width:calc(100% + 12cqw);height:calc(100% + 12cqw);overflow:visible}
+.badge .rays{transform-origin:50% 50%;transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}
+.badge .state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:"Ruslan Display",serif;font-size:3.6cqw;line-height:1;color:var(--black)}
+.badge .state small{font-family:Oswald,sans-serif;font-size:2.1cqw;letter-spacing:.2em;margin-top:1.4cqw;font-weight:600}
+.badge.live .state{color:var(--red)}
+.ribbon{position:absolute;right:-12%;top:12%;width:62%;padding:1.2cqw 0;background:var(--red);color:var(--paper);text-align:center;transform:rotate(32deg) scaleX(0);transform-origin:50% 50%;
+  font:600 2.6cqw Oswald,sans-serif;letter-spacing:.3em;text-transform:uppercase;border-top:.5cqw double var(--paper);border-bottom:.5cqw double var(--paper);transition:transform .5s cubic-bezier(.2,1.4,.4,1);pointer-events:none;box-shadow:0 0 0 .4cqw var(--black)}
+.ribbon.on{transform:rotate(32deg) scaleX(1)}
+.copy{min-width:0;flex:1}
+.title{font-family:"Ruslan Display",serif;font-weight:400;font-size:10.5cqw;line-height:.86;margin:0;color:var(--black);position:relative;letter-spacing:-.01em}
+.title::before{content:attr(data-t);position:absolute;left:.9cqw;top:.7cqw;color:var(--ochre);z-index:-1}
+.title-wrap{position:relative;isolation:isolate}
+.sub{margin:1.6cqw 0 1.8cqw;font-size:2.5cqw;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--red)}
+.facts{list-style:none;margin:0;padding:0;font-size:2.45cqw;letter-spacing:.06em;line-height:1.5;text-transform:uppercase}
+.facts li{display:flex;gap:1.4cqw;align-items:center}
+.facts li::before{content:"";width:1.4cqw;height:1.4cqw;background:var(--red);transform:rotate(45deg);flex:none}
+.timeline{position:absolute;left:5cqw;right:5cqw;bottom:4.6cqw;height:10cqw;border-top:.3cqw solid var(--black)}
+.timeline .step{position:absolute;top:5.6cqw;transform:translateX(-50%);font-size:2.2cqw;font-weight:600;letter-spacing:.16em;text-transform:uppercase;white-space:nowrap;transition:color .3s}
+.timeline .step::before{content:"";position:absolute;left:50%;top:-2.3cqw;width:1.4cqw;height:1.4cqw;margin-left:-.7cqw;border:.3cqw solid var(--black);border-radius:50%;background:var(--paper)}
+.timeline .step.done{color:var(--red)} .timeline .step.done::before{background:var(--red)}
+.timeline .lh{position:absolute;right:0;top:-6cqw;font-size:2cqw;letter-spacing:.2em;font-weight:600;color:var(--red);text-transform:uppercase;transition:opacity .4s}
+.side{position:relative;height:var(--sh);background:linear-gradient(var(--red),#b9301a);display:flex;align-items:center;padding:0 3%;overflow:hidden}
+.side::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.25),transparent 30%,rgba(0,0,0,.35));pointer-events:none}
+.strip{position:relative;height:56%;flex:1;background:var(--brown);border:2px solid var(--black);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .06 0 0 0 0 .03 0 0 0 0 .02 0 0 0 -3 2.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23f)'/%3E%3C/svg%3E")}
+.sidetext{position:absolute;left:3%;right:3%;top:2px;display:flex;justify-content:space-between;color:var(--paper);font-size:10px;letter-spacing:.24em;font-weight:600;text-transform:uppercase;z-index:1}
+.sidetext.b{top:auto;bottom:2px}
+.log{position:absolute;left:var(--gx);top:var(--gy);width:var(--gw);background:var(--paper);padding:20px 22px 18px;container-type:inline-size}
+.log::before{content:"";position:absolute;inset:6px;border:2px solid var(--black);pointer-events:none}
+.log h2{font-family:"Ruslan Display",serif;font-weight:400;font-size:24px;margin:2px 0 2px;line-height:1}
+.log .ver{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);font-weight:600;margin:0 0 12px}
+.log ol{list-style:none;margin:0;padding:0;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.log li{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;padding:6px 0;border-top:1.5px solid var(--black)}
+.log li .bx{width:14px;height:14px;border:2px solid var(--black);position:relative}
+.log li.done .bx{background:var(--red)}
+.log li.done .bx::after{content:"";position:absolute;left:3px;top:-1px;width:4px;height:8px;border:solid var(--paper);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.log li.run .bx{background:repeating-linear-gradient(45deg,var(--ochre) 0 3px,transparent 3px 6px)}
+.log li .t{font-size:11px;opacity:.7}
+.matches{margin-top:14px;padding-top:10px;border-top:3px double var(--black);display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:600}
+.sticks{display:flex;gap:3px;height:24px;align-items:flex-end}
+.sticks i{width:4px;height:22px;background:var(--ochre);position:relative;border:1px solid var(--black)}
+.sticks i::before{content:"";position:absolute;left:-2px;top:-5px;width:6px;height:7px;border-radius:50% 50% 45% 45%;background:var(--red);border:1px solid var(--black)}
+.sticks i.spent{background:var(--black);opacity:.45}
+.sticks i.spent::before{background:var(--black)}
+.status{margin:12px 0 0;font-size:12px;letter-spacing:.06em;line-height:1.45;min-height:3em}
+.status b{color:var(--red);font-weight:600}
+.again{margin-top:10px;width:100%;font:600 13px Oswald,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--paper);background:var(--red);border:2px solid var(--black);padding:9px 10px;cursor:pointer;display:none;box-shadow:3px 3px 0 var(--black)}
+.again.on{display:block}
+.again:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--black)}
+.again:focus-visible,#matchBtn:focus-visible,.mute:focus-visible{outline:3px dashed var(--ochre);outline-offset:3px}
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#matchBtn{position:absolute;background:transparent;border:0;padding:0;cursor:grab;opacity:1;color:transparent;font-size:0}
+.hint{position:absolute;color:var(--paper);font-size:12px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;text-align:center;transition:opacity .5s;pointer-events:none}
+.hint b{color:var(--ochre);font-weight:600}
+.hint.warn b{color:var(--red)}
+.mute{position:absolute;right:14px;top:12px;width:34px;height:34px;border:2px solid var(--paper);background:transparent;color:var(--paper);cursor:pointer;padding:6px}
+.mute svg{width:100%;height:100%;display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mob .mid{top:14cqw;bottom:17cqw;gap:4cqw}
+.mob .badge{width:29cqw;height:29cqw;margin-left:3cqw}
+.mob .badge .state{font-size:4cqw}
+.mob .title{font-size:11cqw}
+.mob .sub{font-size:2.9cqw;letter-spacing:.1em}
+.mob .facts{font-size:3.2cqw;line-height:1.45}
+.mob .band{font-size:2.9cqw;padding:0 2.4cqw;height:8cqw}
+.mob .band .brand{font-size:3.6cqw}
+.mob .timeline .step{font-size:2.8cqw;top:6cqw}
+.mob .timeline .lh{font-size:2.8cqw;top:-7.5cqw}
+@media (max-width:760px){
+  .log{padding:12px 14px 12px}
+  .log h2{font-size:18px} .log .ver{margin-bottom:6px}
+  .log ol{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;font-size:11px}
+  .log li{padding:4px 0;grid-template-columns:16px 1fr;gap:6px} .log li .t{display:none}
+  .log li .bx{width:12px;height:12px}
+  .matches{margin-top:8px;padding-top:6px}
+  .status{margin-top:6px;font-size:11px;min-height:2.6em}
+  .sidetext{font-size:7.5px;letter-spacing:.16em}
+  .hint{font-size:10.5px;letter-spacing:.16em}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="litho" x="-3%" y="-3%" width="106%" height="106%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="3" seed="3" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="2.4" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".95" numOctaves="1" seed="9" result="g"/>
+    <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3.2 0 0 0 2.75" result="m"/>
+    <feComposite in="d" in2="m" operator="in"/>
+  </filter>
+</svg>
+<main class="stage" id="stage">
+  <canvas id="rays" aria-hidden="true"></canvas>
+
+  <div class="box" id="box">
+    <div class="label" id="label">
+      <div class="frame ink"></div>
+      <svg class="corner ink" style="left:3cqw;top:3cqw" viewBox="0 0 40 40" aria-hidden="true"><path d="M2 2h14c0 6-4 9-9 9 0 5 3 8 8 8-1 6-6 9-13 8z"/><circle cx="22" cy="8" r="3"/><circle cx="8" cy="22" r="3"/></svg>
+      <svg class="corner ink" style="right:3cqw;top:3cqw;transform:scaleX(-1)" viewBox="0 0 40 40" aria-hidden="true"><path d="M2 2h14c0 6-4 9-9 9 0 5 3 8 8 8-1 6-6 9-13 8z"/><circle cx="22" cy="8" r="3"/><circle cx="8" cy="22" r="3"/></svg>
+      <svg class="corner ink" style="left:3cqw;bottom:3cqw;transform:scaleY(-1)" viewBox="0 0 40 40" aria-hidden="true"><path d="M2 2h14c0 6-4 9-9 9 0 5 3 8 8 8-1 6-6 9-13 8z"/><circle cx="22" cy="8" r="3"/><circle cx="8" cy="22" r="3"/></svg>
+      <svg class="corner ink" style="right:3cqw;bottom:3cqw;transform:scale(-1)" viewBox="0 0 40 40" aria-hidden="true"><path d="M2 2h14c0 6-4 9-9 9 0 5 3 8 8 8-1 6-6 9-13 8z"/><circle cx="22" cy="8" r="3"/><circle cx="8" cy="22" r="3"/></svg>
+      <header class="band ink"><span>Nº 2.14.0</span><span class="brand">Northwind</span><span>Production</span></header>
+      <div class="mid">
+        <div class="badge" id="badge">
+          <svg viewBox="-60 -60 120 120" aria-hidden="true" class="ink">
+            <g class="rays" id="badgeRays" fill="var(--ochre)" transform="translate(1.2 1)"></g>
+            <circle r="40" fill="var(--paper)" stroke="var(--black)" stroke-width="2.4"/>
+            <circle r="35.5" fill="none" stroke="var(--black)" stroke-width=".8"/>
+            <circle r="27" fill="var(--paper)" stroke="var(--red)" stroke-width="1.6" transform="translate(.8 .6)"/>
+            <path id="ring" d="M0,-31.5 a31.5,31.5 0 1,1 -0.01,0" fill="none"/>
+            <text font-family="Oswald" font-weight="600" font-size="5.6" letter-spacing="1.6" fill="var(--black)"><textPath href="#ring">DEPLOY TO PRODUCTION · DEPLOY TO PRODUCTION ·</textPath></text>
+          </svg>
+          <div class="state ink" id="state">Standby<small>fuse unlit</small></div>
+        </div>
+        <div class="copy">
+          <div class="title-wrap ink"><h1 class="title" data-t="Deploy">Deploy</h1></div>
+          <p class="sub ink">release 2.14.0 to production</p>
+          <ul class="facts ink">
+            <li>34 commits · 3 migrations</li>
+            <li>412 of 412 checks · reviewed by D. Okoye</li>
+            <li>Rollback: 2.13.4 kept warm</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ribbon ink" id="ribbon">Live in production</div>
+      <div class="timeline ink" id="timeline"><span class="lh" id="lightHere">light here ▸</span></div>
+    </div>
+    <div class="side" id="side">
+      <div class="sidetext ink"><span>Strike firmly</span><span>Northwind safety matches</span><span>Away from body</span></div>
+      <div class="strip" id="strip"></div>
+      <div class="sidetext b ink"><span>Fuse 4 stages</span><span>Made in workshop Nº 7</span><span>Keep dry</span></div>
+    </div>
+  </div>
+
+  <aside class="log" id="log" aria-label="Release log">
+    <h2 class="ink">Release log</h2>
+    <p class="ver ink">2.14.0 · production</p>
+    <ol class="ink" id="steps"></ol>
+    <div class="matches ink"><span>Matches</span><span class="sticks" id="sticks" aria-label="Matches left"></span></div>
+    <p class="status ink" id="status" role="status" aria-live="polite">Nothing is shipped until the fuse burns down. Strike a match to begin.</p>
+    <button class="again" id="again" type="button">Prepare next release</button>
+  </aside>
+
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <button id="matchBtn" type="button" aria-label="Match. Press Enter to strike it, Enter again to light the deploy fuse, Escape to shake it out."></button>
+  <p class="hint" id="hint"><b>Strike fast</b> across the striker · then touch the flame to the fuse</p>
+  <button class="mute" id="mute" type="button" aria-label="Mute sound" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h3l4-3v10l-4-3H3z" fill="currentColor"/><path id="mw" d="M13 7c1.5 1.5 1.5 4.5 0 6M15.5 5c3 3 3 7 0 10"/></svg></button>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const C = { paper:'#efe2c2', red:'#d23a20', black:'#1d1915', ochre:'#e7a62a', brown:'#6e2a19' };
+const stage = $('#stage'), fx = $('#fx'), ctx = fx.getContext('2d');
+const label = $('#label'), strip = $('#strip'), badge = $('#badge'), timeline = $('#timeline');
+const statusEl = $('#status'), hint = $('#hint'), again = $('#again'), matchBtn = $('#matchBtn');
+let W = 0, H = 0, DPR = 1, mobile = false;
+
+/* ---------- deploy model ---------- */
+const STEPS = [
+  {name:'Build image', at:.2, dur:1.7, note:'image 2.14.0 · 312 MB'},
+  {name:'Migrate DB', at:.43, dur:1.4, note:'3 migrations'},
+  {name:'Canary 10%', at:.66, dur:2.1, note:'error rate 0.02%'},
+  {name:'Live 100%', at:1, dur:.6, note:'all regions'},
+];
+let release = {v:'2.14.0'};
+const steps = $('#steps');
+function renderSteps(){
+  steps.innerHTML = STEPS.map((s,i) => `<li id="st${i}"><span class="bx"></span><span>${s.name}</span><span class="t">${s.note}</span></li>`).join('');
+  timeline.querySelectorAll('.step').forEach(e => e.remove());
+}
+renderSteps();
+let matchesLeft = 12;
+function renderSticks(){ $('#sticks').innerHTML = Array.from({length:12},(_,i)=>`<i class="${i>=matchesLeft?'spent':''}"></i>`).join(''); $('#sticks').setAttribute('aria-label', `${matchesLeft} matches left`); }
+renderSticks();
+
+/* ---------- audio ---------- */
+let ac = null, master = null, muted = false, NB = null, hiss = null;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination);
+  const b = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = b.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; NB = b; } catch(e){ ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume(); return ac; }
+function noise({dur=.2, type='bandpass', f=2000, f2=null, q=1, gain=.5, attack=.005}){
+  if (!audio() || muted) return; const t = ac.currentTime;
+  const n = ac.createBufferSource(); n.buffer = NB; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.setValueAtTime(f,t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2,t+dur); fl.Q.value = q;
+  const g = ac.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain,t+attack); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  n.connect(fl).connect(g).connect(master); n.start(t, Math.random()*.5); n.stop(t+dur+.05);
+}
+function scratch(speed){ noise({dur:.12, f:1800+speed*.8, q:.8, gain:clamp(speed/2500,.08,.45)}); }
+function whoomp(){ noise({dur:.6, type:'lowpass', f:300, f2:2600, q:.7, gain:.9, attack:.02}); noise({dur:.25, f:5000, q:.5, gain:.35}); }
+function fizzle(){ noise({dur:.5, type:'highpass', f:3000, f2:900, q:.4, gain:.25, attack:.03}); }
+function hissOn(on){
+  if (!audio() || muted){ if (hiss){ hiss.n.stop(); hiss = null; } return; }
+  if (on && !hiss){ const n = ac.createBufferSource(); n.buffer = NB; n.loop = true; const f = ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value = 4200; f.Q.value = .6;
+    const g = ac.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(.12, ac.currentTime, .05); n.connect(f).connect(g).connect(master); n.start(); hiss = {n,g}; }
+  if (!on && hiss){ const h = hiss; hiss = null; h.g.gain.setTargetAtTime(0, ac.currentTime, .04); h.n.stop(ac.currentTime+.3); }
+}
+function chime(){ if (!audio() || muted) return; const t = ac.currentTime;
+  [523.25, 659.25, 783.99, 1046.5].forEach((f,i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type='triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0,t+i*.09); g.gain.linearRampToValueAtTime(.22,t+i*.09+.01); g.gain.exponentialRampToValueAtTime(.001,t+i*.09+1.1); o.connect(g).connect(master); o.start(t+i*.09); o.stop(t+i*.09+1.2); }); }
+$('#mute').addEventListener('click', () => { muted = !muted; $('#mute').setAttribute('aria-pressed', muted); $('#mw').style.display = muted ? 'none' : ''; if (muted) hissOn(false); else if (fuse.burning) hissOn(true); });
+
+/* ---------- layout ---------- */
+let geo = {};
+function layout(){
+  DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; mobile = W < 760;
+  fx.width = W*DPR; fx.height = H*DPR;
+  let bw, lh, sh, bx, by, gx, gy, gw;
+  if (!mobile){
+    bw = Math.min(640, W*.54); lh = bw*.6; sh = Math.max(46, bw*.085);
+    bx = Math.max(40, (W - bw - 330)/2 - 20); by = Math.max(60, (H - lh - sh)/2 - 30);
+    gw = 300; gx = bx + bw + 60; gy = by + 6;
+  } else {
+    bw = W - 28; lh = bw*.92; sh = 40; bx = 14; by = 60;
+    gw = W - 28; gx = 14; gy = by + lh + sh + 140;
+  }
+  stage.style.setProperty('--bw', bw+'px'); stage.style.setProperty('--lh', lh+'px'); stage.style.setProperty('--sh', sh+'px');
+  stage.style.setProperty('--bx', bx+'px'); stage.style.setProperty('--by', by+'px');
+  stage.style.setProperty('--gx', gx+'px'); stage.style.setProperty('--gy', gy+'px'); stage.style.setProperty('--gw', gw+'px');
+  label.style.containerType = 'inline-size';
+  stage.classList.toggle('mob', mobile);
+  requestAnimationFrame(measure);
+}
+function measure(){
+  const lr = label.getBoundingClientRect(), sr = strip.getBoundingClientRect(), br = badge.getBoundingClientRect(), tr = timeline.getBoundingClientRect();
+  const len = mobile ? 150 : 205;
+  geo = { lr, sr, br, tr, len,
+    rest: mobile ? {x: W*.5 + len*.5, y: sr.bottom + 92, a: Math.PI + .06} : {x: sr.right + 50, y: sr.bottom + 34, a: .12},
+  };
+  // fuse path: from right end of the timeline, along it, then curling up into the seal
+  const y0 = tr.top + (mobile ? 7 : 11), bx = br.left + br.width/2, by = br.bottom - br.width*.06;
+  const sx = tr.right - 6;
+  const pts = [];
+  const N = 220;
+  for (let i=0;i<=N;i++){
+    const t = i/N; let x, y;
+    if (t < .8){ const u = t/.8; x = lerp(sx, bx + br.width*.18, u); y = y0 + Math.sin(u*Math.PI*5)*2.2; }
+    else { const u = (t-.8)/.2; const e = 1 - Math.pow(1-u, 2);
+      x = lerp(bx + br.width*.18, bx, Math.sin(u*Math.PI/2)); y = lerp(y0, by, e); }
+    pts.push({x,y});
+  }
+  // arc-length param
+  let L = 0; pts[0].s = 0; for (let i=1;i<pts.length;i++){ L += Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y); pts[i].s = L; }
+  pts.forEach(p => p.s /= L);
+  geo.fuse = pts;
+  // step labels sit under the fuse
+  timeline.querySelectorAll('.step').forEach(e => e.remove());
+  STEPS.forEach((s,i) => { if (i === STEPS.length-1) return; const p = fusePoint(s.at), el = document.createElement('span'); el.className = 'step' + (fuse.passed > i ? ' done' : ''); el.id = 'tl'+i; el.textContent = s.name;
+    el.style.left = (p.x - tr.left) + 'px'; timeline.appendChild(el); });
+  if (!match.held && !match.auto) placeAtRest();
+  const hb = geo.rest; const btnW = len + 30;
+  matchBtn.style.left = (Math.min(hb.x, hb.x + Math.cos(hb.a)*len) - 15) + 'px'; matchBtn.style.top = (hb.y - 26) + 'px'; matchBtn.style.width = btnW + 'px'; matchBtn.style.height = '52px';
+  hint.style.left = (mobile ? 14 : lr.left) + 'px'; hint.style.width = (mobile ? W-28 : lr.width) + 'px'; hint.style.top = (sr.bottom + (mobile ? 18 : 22) + (mobile ? 0 : 0)) + 'px';
+  if (mobile) hint.style.top = (sr.bottom + 10) + 'px';
+  drawRays();
+}
+function fusePoint(s){
+  const P = geo.fuse; if (!P) return {x:0,y:0};
+  let lo = 0, hi = P.length-1; while (hi - lo > 1){ const m = (lo+hi)>>1; if (P[m].s < s) lo = m; else hi = m; }
+  const a = P[lo], b = P[hi], t = (s - a.s)/Math.max(1e-6, b.s - a.s);
+  return {x: lerp(a.x,b.x,t), y: lerp(a.y,b.y,t)};
+}
+function drawRays(){
+  // printed sunburst behind the box, ochre on black
+  const c = $('#rays'); c.width = W*DPR; c.height = H*DPR; const g = c.getContext('2d'); g.setTransform(DPR,0,0,DPR,0,0);
+  const cx = geo.br.left + geo.br.width/2, cy = geo.br.top + geo.br.height/2;
+  g.fillStyle = 'rgba(231,166,42,.06)';
+  for (let i=0;i<36;i++){ const a = i/36*Math.PI*2; g.beginPath(); g.moveTo(cx,cy); g.arc(cx,cy,Math.hypot(W,H),a,a+Math.PI/72); g.closePath(); g.fill(); }
+}
+// badge rays
+(function(){ const g = $('#badgeRays'); let s=''; for (let i=0;i<24;i++){ const a = i/24*Math.PI*2, a2 = a + Math.PI/24; s += `<path d="M0 0 L${Math.cos(a)*58} ${Math.sin(a)*58} L${Math.cos(a2)*58} ${Math.sin(a2)*58}Z"/>`; } g.innerHTML = s; })();
+
+/* ---------- the match ---------- */
+const match = { x:0, y:0, a:0, vx:0, vy:0, held:false, lit:false, burn:0, flare:0, out:false, auto:null, grab:{dx:0,dy:0}, dropped:false, life:14 };
+const spent = []; // charred matches on the table
+function placeAtRest(){ match.x = geo.rest.x; match.y = geo.rest.y; match.a = geo.rest.a; match.vx = match.vy = 0; }
+function headPos(){ return {x: match.x, y: match.y}; }
+function tailPos(){ return {x: match.x + Math.cos(match.a)*geo.len, y: match.y + Math.sin(match.a)*geo.len}; }
+function newMatch(){
+  if (matchesLeft <= 0){ say('<b>Box empty.</b> A fresh box of 12 is on the way.'); matchesLeft = 12; renderSticks(); }
+  Object.assign(match, {lit:false, burn:0, flare:0, out:false, held:false, auto:null, dropped:false});
+  placeAtRest(); match.y += 40; // slides in
+  match.entering = 1;
+}
+
+/* ---------- particles ---------- */
+const sparks = [], smoke = [], scuffs = [];
+function burst(x, y, n, spd, kind='spark'){
+  for (let i=0;i<n;i++){ const a = Math.random()*Math.PI*2, v = spd*(.3+Math.random()*.9);
+    sparks.push({x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v - spd*.25, life:.4+Math.random()*.6, t:0, s:2+Math.random()*3, c: Math.random()<.5?C.ochre:(Math.random()<.5?C.paper:C.red)}); }
+}
+function puff(x, y, n=1, big=1){
+  for (let i=0;i<n;i++) smoke.push({x:x+(Math.random()-.5)*6, y, vx:(Math.random()-.5)*14, vy:-30-Math.random()*25, r:4*big+Math.random()*4, t:0, life:2+Math.random()*1.5, ph:Math.random()*6});
+}
+
+/* ---------- fuse ---------- */
+const fuse = { p:0, burning:false, done:false, passed:0, pause:0, halted:false };
+function say(html){ statusEl.innerHTML = html; }
+function lightFuse(){
+  if (fuse.burning || fuse.done) return;
+  fuse.burning = true; fuse.halted = false; hissOn(true);
+  $('#lightHere').style.opacity = 0;
+  $('#state').innerHTML = 'Burning<small>deploy running</small>';
+  say(fuse.p > 0 ? '<b>Fuse relit.</b> Resuming the deploy.' : '<b>Fuse lit.</b> Building image 2.14.0…');
+  // the match has done its job: shake it out
+  setTimeout(() => extinguish('used'), 380);
+  hint.style.opacity = 0;
+}
+function haltFuse(){
+  if (!fuse.burning) return;
+  fuse.burning = false; fuse.halted = true; hissOn(false); fizzle();
+  const p = fusePoint(fuse.p); puff(p.x, p.y, 4);
+  const step = STEPS[Math.min(fuse.passed, STEPS.length-1)];
+  document.querySelectorAll('.log li.run').forEach(l => l.classList.remove('run'));
+  say(`<b>Deploy halted</b> before “${step.name}”. Nothing past this point shipped. Strike a match and relight the burnt end to resume.`);
+  $('#state').innerHTML = 'Halted<small>pinched out</small>';
+  $('#lightHere').style.opacity = 1;
+}
+function stepTick(dt){
+  if (!fuse.burning) return;
+  const next = STEPS[fuse.passed];
+  if (fuse.pause > 0){
+    fuse.pause -= dt;
+    if (fuse.pause <= 0){
+      $('#st'+fuse.passed).classList.remove('run'); $('#st'+fuse.passed).classList.add('done');
+      const tl = $('#tl'+fuse.passed); if (tl) tl.classList.add('done');
+      fuse.passed++;
+      if (fuse.passed >= STEPS.length){ goLive(); return; }
+      say(`<b>${STEPS[fuse.passed-1].name}</b> done. ${STEPS[fuse.passed].name}…`);
+    }
+    return;
+  }
+  const speed = reduce ? .6 : .22; // fraction per second between stations
+  fuse.p = Math.min(next.at, fuse.p + speed*dt);
+  if (fuse.p >= next.at - 1e-4){ fuse.pause = next.dur; $('#st'+fuse.passed).classList.add('run'); }
+}
+function goLive(){
+  fuse.burning = false; fuse.done = true; hissOn(false);
+  badge.classList.add('live'); $('#badgeRays').style.transform = 'rotate(30deg) scale(1.08)';
+  const t = new Date(); const hh = String(t.getHours()).padStart(2,'0'), mm = String(t.getMinutes()).padStart(2,'0');
+  $('#state').innerHTML = `Live<small>since ${hh}:${mm}</small>`;
+  $('#ribbon').textContent = `Live · ${release.v} · ${hh}:${mm}`; setTimeout(() => $('#ribbon').classList.add('on'), 250);
+  say(`<b>2.14.0 is live in production</b> at ${hh}:${mm}. All regions healthy.`);
+  const c = {x: geo.br.left + geo.br.width/2, y: geo.br.top + geo.br.height/2};
+  burst(c.x, c.y, 60, 420); flash = 1; chime();
+  again.classList.add('on');
+}
+again.addEventListener('click', () => {
+  Object.assign(fuse, {p:0, burning:false, done:false, passed:0, pause:0, halted:false});
+  badge.classList.remove('live'); $('#badgeRays').style.transform = ''; $('#ribbon').classList.remove('on');
+  const v = release.v.split('.'); v[2] = +v[2] + 1; release.v = v.join('.');
+  document.querySelectorAll('.band span')[0].textContent = 'Nº ' + release.v;
+  document.querySelector('.log .ver').textContent = release.v + ' · production';
+  document.querySelector('.sub').textContent = `release ${release.v} to production`;
+  STEPS[0].note = `image ${release.v} · ${300 + (Math.random()*30|0)} MB`;
+  renderSteps(); measure();
+  $('#state').innerHTML = 'Standby<small>fuse unlit</small>'; $('#lightHere').style.opacity = 1;
+  say(`Fresh fuse laid for <b>${release.v}</b>. Strike a match when you're ready.`);
+  again.classList.remove('on'); hint.style.opacity = 1;
+});
+let flash = 0;
+
+/* ---------- strike detection ---------- */
+const stroke = { on:false, len:0, t0:0, pts:[], maxV:0 };
+function inStrip(p, m=8){ const r = geo.sr; return p.x > r.left - m && p.x < r.right + m && p.y > r.top - m && p.y < r.bottom + m; }
+function strikeThreshold(){ return Math.max(620, geo.sr.width*1.55); }
+function trackStrike(prev, cur, dt){
+  if (match.lit) return;
+  const inside = inStrip(cur);
+  if (inside){
+    if (!stroke.on){ stroke.on = true; stroke.len = 0; stroke.t0 = performance.now(); stroke.pts = [{...prev}]; stroke.maxV = 0; }
+    const d = Math.hypot(cur.x-prev.x, cur.y-prev.y); stroke.len += d; stroke.pts.push({...cur});
+    const v = d / Math.max(dt, .004); stroke.maxV = Math.max(stroke.maxV, v);
+    if (d > 2) scratch(v);
+    const el = (performance.now() - stroke.t0)/1000, avg = stroke.len / Math.max(el,.016);
+    if (stroke.len > Math.min(90, geo.sr.width*.22) && avg > strikeThreshold()){ ignite(cur); stroke.on = false; return; }
+  } else if (stroke.on){ endStroke(); }
+}
+function endStroke(){
+  if (!stroke.on) return; stroke.on = false;
+  if (stroke.len > 14 && !match.lit){
+    scuffs.push(stroke.pts.slice(0, 60)); if (scuffs.length > 26) scuffs.shift();
+    const p = stroke.pts[stroke.pts.length-1]; puff(p.x, p.y, 2, .6);
+    hint.classList.add('warn'); hint.innerHTML = '<b>Too slow</b> — only scuffed it. Strike fast and firm';
+    say('Scuffed the striker. A deploy this big needs a <b>fast, committed strike</b>.');
+  }
+}
+function ignite(p){
+  match.lit = true; match.flare = 1; match.burn = 0;
+  scuffs.push(stroke.pts.slice(0,60).map(q => ({...q, scorch:true})));
+  burst(p.x, p.y, 38, 360); whoomp(); flash = .8;
+  hint.classList.remove('warn'); hint.innerHTML = '<b>Lit.</b> Touch the flame to the fuse end · shake to put it out';
+  say('<b>Match lit.</b> You have about 14 seconds. Touch it to the fuse to start the deploy.');
+}
+function extinguish(why){
+  if (!match.lit) return;
+  match.lit = false; match.out = true; fizzle();
+  const h = headPos(); puff(h.x, h.y - 8, 6);
+  matchesLeft = Math.max(0, matchesLeft - 1); renderSticks();
+  if (why === 'shaken') say(fuse.burning ? statusEl.innerHTML : 'Shook the match out. Nothing deployed.');
+  if (why === 'burnt'){ say('<b>Burnt your fingers</b> — the match went out before reaching the fuse. Nothing deployed.'); }
+  const keep = {x:match.x, y:match.y, a:match.a, burn:match.burn};
+  setTimeout(() => {
+    spent.push({x: geo.rest.x + (mobile? 30 : 60) + Math.random()*40, y: geo.rest.y + (mobile? 34 : 46) + Math.random()*12, a: keep.a + (Math.random()-.5)*.6, burn: Math.max(.35, keep.burn)});
+    if (spent.length > 9) spent.shift();
+    match.held = false; match.dropped = false; newMatch();
+    if (!fuse.burning && !fuse.done){ hint.style.opacity = 1; hint.innerHTML = '<b>Strike fast</b> across the striker · then touch the flame to the fuse'; }
+  }, why === 'used' ? 700 : 520);
+}
+
+/* ---------- pointer ---------- */
+let pid = null, last = {x:0,y:0,t:0}, shake = {dir:0, flips:0, t:0};
+function distToMatch(p){
+  const h = headPos(), t = tailPos(); const vx = t.x-h.x, vy = t.y-h.y; const L2 = vx*vx+vy*vy;
+  const u = clamp(((p.x-h.x)*vx + (p.y-h.y)*vy)/L2, 0, 1); return Math.hypot(p.x - (h.x+vx*u), p.y - (h.y+vy*u));
+}
+stage.addEventListener('pointerdown', e => {
+  audio();
+  const p = {x:e.clientX, y:e.clientY};
+  if (e.target === again || e.target.closest('.mute')) return;
+  if (fuse.burning){ const fp = fusePoint(fuse.p); if (Math.hypot(p.x-fp.x, p.y-fp.y) < 34){ haltFuse(); return; } }
+  if (match.out || match.auto) return;
+  if (distToMatch(p) < (e.pointerType === 'touch' ? 34 : 22)){
+    match.held = true; match.dropped = false; pid = e.pointerId;
+    match.grab = {dx: match.x - p.x, dy: match.y - p.y};
+    last = {x:p.x, y:p.y, t:performance.now()};
+    try { stage.setPointerCapture(e.pointerId); } catch(_){}
+    matchBtn.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+});
+stage.addEventListener('pointermove', e => {
+  if (!match.held || e.pointerId !== pid) return;
+  const now = performance.now(), dt = Math.max(.001, (now - last.t)/1000);
+  const prevHead = headPos();
+  match.x = e.clientX + match.grab.dx; match.y = e.clientY + match.grab.dy;
+  const cur = headPos();
+  match.vx = lerp(match.vx, (cur.x - prevHead.x)/dt, .5); match.vy = lerp(match.vy, (cur.y - prevHead.y)/dt, .5);
+  trackStrike(prevHead, cur, dt);
+  // shake to extinguish
+  if (match.lit){
+    const d = Math.sign(cur.x - prevHead.x); const sp = Math.abs(match.vx);
+    if (sp > 1300 && d && d !== shake.dir){ shake.flips++; shake.dir = d; if (shake.flips === 1) shake.t = now; }
+    if (now - shake.t > 700){ shake.flips = 0; }
+    if (shake.flips >= 4){ shake.flips = 0; extinguish('shaken'); }
+    tryLight();
+  }
+  last = {x:e.clientX, y:e.clientY, t:now};
+});
+function endDrag(e){
+  if (!match.held || (e && e.pointerId !== pid)) return;
+  endStroke();
+  match.held = false; pid = null; matchBtn.style.cursor = '';
+  if (match.lit){ match.dropped = true; tryLight(); }
+}
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+function fuseStart(){ return fusePoint(fuse.p); }
+function tryLight(){
+  if (!match.lit || fuse.burning || fuse.done) return;
+  const h = headPos(), f = fuseStart();
+  // flame sits just above the head
+  if (Math.hypot(h.x - f.x, (h.y - 10) - f.y) < (mobile ? 30 : 26)) lightFuse();
+}
+
+/* ---------- keyboard ---------- */
+function tween(fromP, toP, ms){ return new Promise(res => { const t0 = performance.now();
+  match.auto = {tick: now => { const u = clamp((now - t0)/(reduce ? 1 : ms), 0, 1), e = u<.5 ? 2*u*u : 1 - Math.pow(-2*u+2,2)/2;
+    const prev = headPos(); match.x = lerp(fromP.x, toP.x, e); match.y = lerp(fromP.y, toP.y, e);
+    const dt = 1/60; const cur = headPos(); match.vx = (cur.x-prev.x)/dt; match.vy = (cur.y-prev.y)/dt;
+    if (match.strikeAuto) trackStrike(prev, cur, dt);
+    if (u >= 1){ match.auto = null; res(); } }}; }); }
+matchBtn.addEventListener('keydown', async e => {
+  if (e.key === 'Escape'){ extinguish('shaken'); return; }
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault(); audio();
+  if (match.out || match.auto) return;
+  if (!match.lit){
+    const r = geo.sr, y = r.top + r.height/2;
+    await tween(headPos(), {x: r.right - 10, y}, 380);
+    match.strikeAuto = true; stroke.on = false;
+    await tween(headPos(), {x: r.left + r.width*.35, y: y+2}, 140);
+    match.strikeAuto = false; endStroke();
+    if (match.lit) say('<b>Match lit.</b> Press Enter again to touch it to the fuse, or Escape to shake it out.');
+  } else if (!fuse.burning && !fuse.done){
+    const f = fuseStart(); await tween(headPos(), {x: f.x, y: f.y + 10}, 650); tryLight();
+  }
+});
+addEventListener('keydown', e => { if (e.key === 'Escape' && match.lit) extinguish('shaken'); });
+
+/* ---------- drawing ---------- */
+function drawMatch(m, burn, lit, alpha=1){
+  const L = geo.len, hx = m.x, hy = m.y, a = m.a;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(hx, hy); ctx.rotate(a); const flip = Math.cos(a) < 0 ? -1 : 1; ctx.scale(1, flip);
+  const sw = mobile ? 7 : 9, char = burn * L * .78;
+  // shadow (flat, printed)
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(4, sw/2+3, L, 4);
+  // wood
+  ctx.fillStyle = C.ochre; ctx.strokeStyle = C.black; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.rect(char, -sw/2, L - char, sw); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(239,226,194,.7)'; ctx.fillRect(char+2, -sw/2+1.5, L-char-6, 2);
+  // charred stick, slightly curled
+  if (char > 0){
+    ctx.strokeStyle = C.black; ctx.lineWidth = sw*.75; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(char, 0); ctx.quadraticCurveTo(char*.5, -char*.06, 4, -char*.16); ctx.stroke();
+    ctx.strokeStyle = '#4a3f36'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(char-2, -1); ctx.quadraticCurveTo(char*.5, -char*.06-1.5, 6, -char*.16-1.5); ctx.stroke();
+  }
+  // head
+  const hr = mobile ? 9 : 12;
+  const hxo = char > 0 ? 2 : 0, hyo = char > 0 ? -char*.16 : 0;
+  ctx.translate(hxo, hyo);
+  if (burn < .05 || !lit){
+    ctx.fillStyle = (burn > 0 || m.out) ? C.black : C.red; ctx.strokeStyle = C.black; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(hr*.35, 0, hr, hr*.78, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    if (!(burn > 0 || m.out)){ ctx.fillStyle = C.paper; ctx.beginPath(); ctx.ellipse(hr*.05, -hr*.32, hr*.35, hr*.16, -.3, 0, Math.PI*2); ctx.fill(); }
+  } else { ctx.fillStyle = C.black; ctx.beginPath(); ctx.ellipse(hr*.25, 0, hr*.8, hr*.62, 0, 0, Math.PI*2); ctx.fill(); }
+  ctx.restore();
+  return {x: hx + Math.cos(a)*hxo - Math.sin(a)*hyo*flip, y: hy + Math.sin(a)*hxo + Math.cos(a)*hyo*flip};
+}
+function flameShape(x, y, s, sway, t, layers){
+  // stylised litho flame: three flat teardrops, slightly off-register
+  const cols = [C.red, C.ochre, C.paper];
+  layers.forEach((k, i) => {
+    const sc = s * k, w = sc*.55, h = sc*1.7;
+    const wob = Math.sin(t*13 + i*2) * sc*.08 + Math.sin(t*7.3 + i)*sc*.05;
+    const tipX = x + sway*h*.9 + wob, tipY = y - h + Math.sin(t*9+i)*sc*.06;
+    const ox = i===0 ? 0 : 1.2, oy = i===0 ? 0 : -.8;
+    ctx.fillStyle = cols[i];
+    ctx.beginPath(); ctx.moveTo(tipX+ox, tipY+oy);
+    ctx.bezierCurveTo(x + w*1.1 + sway*h*.3 + ox, y - h*.45 + oy, x + w + ox, y + w*.6 + oy, x + ox, y + w*.75 + oy);
+    ctx.bezierCurveTo(x - w + ox, y + w*.6 + oy, x - w*1.1 + sway*h*.3 + ox, y - h*.45 + oy, tipX + ox, tipY + oy);
+    ctx.fill();
+  });
+}
+function star(x, y, r, rot){ ctx.beginPath(); for (let i=0;i<8;i++){ const a = rot + i*Math.PI/4, rr = i%2 ? r*.35 : r; ctx.lineTo(x+Math.cos(a)*rr, y+Math.sin(a)*rr); } ctx.closePath(); ctx.fill(); }
+
+let lastT = performance.now(), T = 0, speckle = null;
+function makeSpeckle(){ const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  for (let i=0;i<520;i++){ g.fillStyle = `rgba(0,0,0,${.35+Math.random()*.6})`; g.fillRect(Math.random()*128, Math.random()*128, Math.random()<.85?1:2, 1); }
+  speckle = ctx.createPattern(c, 'repeat'); }
+function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden){ lastT = now; return; }
+  const dt = Math.min(.033, (now - lastT)/1000); lastT = now; T += dt;
+  if (match.auto) match.auto.tick(now);
+  if (match.entering){ match.entering = Math.max(0, match.entering - dt*3); match.y = lerp(geo.rest.y, match.y, .82); if (match.entering === 0) placeAtRest(); }
+  // match burn
+  if (match.lit){
+    match.burn = Math.min(1, match.burn + dt/match.life);
+    match.flare = Math.max(0, match.flare - dt*1.6);
+    if (match.burn >= 1) extinguish('burnt');
+    if (Math.random() < dt*6){ const h = headPos(); puff(h.x, h.y - 30, 1, .5); }
+  }
+  if (!match.held && !match.auto){ match.vx *= .85; match.vy *= .85;
+    if (!match.lit && !match.out && !match.entering && geo.rest){ const k = reduce ? 1 : Math.min(1, dt*9);
+      match.x = lerp(match.x, geo.rest.x, k); match.y = lerp(match.y, geo.rest.y, k); match.a = lerp(match.a, geo.rest.a, k); } }
+  stepTick(dt);
+  flash = Math.max(0, flash - dt*1.8);
+
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H);
+  // scuffs and scorch on the striker
+  const sr = geo.sr; if (sr){
+    ctx.save(); ctx.beginPath(); ctx.rect(sr.left+2, sr.top+2, sr.width-4, sr.height-4); ctx.clip();
+    scuffs.forEach(s => { ctx.strokeStyle = s[0] && s[0].scorch ? 'rgba(10,6,4,.85)' : 'rgba(239,226,194,.28)'; ctx.lineWidth = s[0] && s[0].scorch ? 6 : 3; ctx.lineCap = 'round';
+      ctx.beginPath(); s.forEach((p,i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); });
+    ctx.restore();
+  }
+  // fuse
+  if (geo.fuse){
+    const P = geo.fuse;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // burnt (ash)
+    ctx.strokeStyle = 'rgba(29,25,21,.35)'; ctx.lineWidth = mobile ? 3 : 4; ctx.setLineDash([2,5]);
+    ctx.beginPath(); let started = false;
+    for (const p of P){ if (p.s > fuse.p) break; if (!started){ ctx.moveTo(p.x,p.y); started = true; } else ctx.lineTo(p.x,p.y); }
+    ctx.stroke(); ctx.setLineDash([]);
+    // unburnt cord
+    ctx.strokeStyle = C.black; ctx.lineWidth = mobile ? 5 : 6;
+    ctx.beginPath(); const fp = fusePoint(fuse.p); ctx.moveTo(fp.x, fp.y);
+    for (const p of P){ if (p.s > fuse.p) ctx.lineTo(p.x,p.y); } ctx.stroke();
+    ctx.strokeStyle = C.ochre; ctx.lineWidth = mobile ? 1.6 : 2; ctx.setLineDash([3,4]); ctx.lineDashOffset = 0;
+    ctx.beginPath(); ctx.moveTo(fp.x, fp.y); for (const p of P){ if (p.s > fuse.p) ctx.lineTo(p.x,p.y); } ctx.stroke(); ctx.setLineDash([]);
+    // tip: frayed end or burning spark
+    if (fuse.burning){
+      const s = (mobile ? 9 : 11) * (fuse.pause > 0 ? .75 + Math.sin(T*30)*.15 : 1);
+      ctx.fillStyle = 'rgba(231,166,42,.18)'; ctx.beginPath(); ctx.arc(fp.x, fp.y, s*2.6, 0, 7); ctx.fill();
+      flameShape(fp.x, fp.y, s*.7, 0, T*1.6, [1,.62,.3]);
+      ctx.fillStyle = C.ochre; star(fp.x, fp.y, s*1.1, T*8);
+      if (Math.random() < .7) burst(fp.x, fp.y, 1, 160);
+      if (Math.random() < dt*8) puff(fp.x, fp.y - 6, 1, .5);
+    } else if (!fuse.done){
+      ctx.strokeStyle = C.black; ctx.lineWidth = 2;
+      for (let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(fp.x, fp.y); ctx.lineTo(fp.x + 9, fp.y + k*5); ctx.stroke(); }
+      // pulsing target ring when a lit match is near
+      if (match.lit){ ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(fp.x, fp.y, 18 + Math.sin(T*6)*3, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    }
+  }
+  // spent matches
+  spent.forEach(s => drawMatch({x:s.x, y:s.y, a:s.a, out:true}, s.burn, false, .9));
+  // the match
+  if (geo.len){
+    const showMatch = !(match.out && !match.held);
+    if (showMatch){
+      const hp = drawMatch(match, match.burn, match.lit, match.entering ? 1 - match.entering*.6 : 1);
+      if (match.lit){
+        const sway = clamp(-match.vx/1400, -.9, .9);
+        const s = (mobile ? 11 : 14) * (1 + match.flare*1.6);
+        ctx.fillStyle = 'rgba(231,166,42,.13)'; ctx.beginPath(); ctx.arc(hp.x, hp.y - s*.6, s*3.2, 0, 7); ctx.fill();
+        flameShape(hp.x, hp.y - 2, s, sway, T, [1,.66,.32]);
+      }
+    }
+  }
+  // sparks
+  for (let i = sparks.length-1; i>=0; i--){ const p = sparks[i]; p.t += dt; if (p.t > p.life){ sparks.splice(i,1); continue; }
+    p.vy += 520*dt; p.vx *= .985; p.x += p.vx*dt; p.y += p.vy*dt; ctx.fillStyle = p.c; star(p.x, p.y, p.s*(1-p.t/p.life), p.t*9); }
+  // smoke: flat paper-grey curls
+  for (let i = smoke.length-1; i>=0; i--){ const s = smoke[i]; s.t += dt; if (s.t > s.life){ smoke.splice(i,1); continue; }
+    s.x += (s.vx + Math.sin(T*2 + s.ph)*14)*dt; s.y += s.vy*dt; s.r += 7*dt;
+    const a = (1 - s.t/s.life)*.45; ctx.strokeStyle = `rgba(239,226,194,${a})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, s.ph, s.ph + 4.2); ctx.stroke(); }
+  // printed flash: sunburst rays
+  if (flash > 0 && !reduce){
+    const c = match.lit ? headPos() : {x: geo.br.left + geo.br.width/2, y: geo.br.top + geo.br.height/2};
+    ctx.fillStyle = `rgba(231,166,42,${flash*.35})`;
+    for (let i=0;i<18;i++){ const a = i/18*Math.PI*2 + T*.4; ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.arc(c.x,c.y, 60 + flash*260, a, a + Math.PI/36); ctx.closePath(); ctx.fill(); }
+  }
+  // ink speckle knocks gaps out of everything drawn, like a worn litho plate
+  if (speckle){ ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = speckle; ctx.fillRect(0,0,W,H); ctx.globalCompositeOperation = 'source-over'; }
+}
+
+addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 100); });
+layout(); makeSpeckle();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => measure());
+requestAnimationFrame(t => { lastT = t; frame(t); });
+})();
+</script>
+</body>
+</html>

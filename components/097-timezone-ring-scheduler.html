@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timezone Ring Scheduler</title>
+<meta name="description" content="A meeting scheduler built as an engraved brass astrolabe: one ring per teammate's city, polished where they work and hatched where they sleep. Turn the rings until the alidade's slit lines up with everyone's day.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Timezone Ring Scheduler","reimagines":"Meeting scheduler","category":"Novel Interactions","description":"An antique brass astrolabe whose rings are your teammates' cities — polished where they work, hatched where they sleep. Turn the rings under the alidade's slit to find the hour that suits everyone, with detents every quarter hour and a 'find the overlap' that spins it there for you.","hint":"Turn the rings until the slit lines up with everyone's working hours"}
+</script>
+<style>
+:root{--velvet:#1a2030;--brass:#c49a45;--brass-l:#ecd08a;--brass-d:#7a5a22;--engrave:#3a260d;--patina:#4f7062;--paper:#efe3c4}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"IM Fell English",Georgia,serif;color:var(--engrave);overflow:hidden;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(70% 60% at 40% 45%, #27304a 0%, #1a2030 55%, #10141f 100%)}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='v'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='8'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .55 0 0 0 0 .75 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23v)'/%3E%3C/svg%3E")}
+.stage{position:relative;height:100dvh;display:grid;grid-template-columns:auto 360px;gap:46px;align-items:center;justify-content:center;padding:18px}
+.instrument{position:relative;width:var(--D);height:var(--D);flex:none;margin-top:calc(var(--D)*.03)}
+.instrument::before{content:"";position:absolute;inset:-3%;border-radius:50%;background:radial-gradient(closest-side, rgba(0,0,0,.55), rgba(0,0,0,0));transform:translate(14px,22px);filter:blur(14px)}
+.mater{position:absolute;inset:0;border-radius:50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(255,240,200,.05) 0 1px, rgba(60,35,5,.05) 1px 2.5px),
+    radial-gradient(circle at 42% 38%, #f0d488 0%, #c99d48 38%, #a07a30 70%, #6e5018 100%);
+  box-shadow: inset 0 0 0 calc(var(--D)*.006) #f2d68e, inset 0 0 0 calc(var(--D)*.012) #7a5a22, inset 0 0 calc(var(--D)*.04) rgba(60,30,0,.55)}
+#dial{position:absolute;inset:0;width:100%;height:100%;overflow:visible;touch-action:none;cursor:grab;border-radius:50%}
+#dial.grabbing{cursor:grabbing}
+#dial,#dial *{user-select:none;-webkit-user-select:none}
+#dial:focus-visible{outline:3px solid #f2d68e;outline-offset:6px}
+.sheen{position:absolute;inset:0;border-radius:50%;pointer-events:none;mix-blend-mode:soft-light;
+  background:conic-gradient(from 200deg, rgba(255,250,220,.0), rgba(255,250,220,.65) 6%, rgba(255,250,220,0) 16%, rgba(0,0,0,.25) 30%, rgba(255,250,220,0) 42%, rgba(255,250,220,.5) 56%, rgba(255,250,220,0) 66%, rgba(0,0,0,.3) 82%, rgba(255,250,220,0) 100%)}
+.patina{position:absolute;inset:0;border-radius:50%;pointer-events:none;opacity:.28;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='4' seed='14'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .52 0 0 0 0 .44 0 0 0 -3.2 1.6'/%3E%3C/filter%3E%3Crect width='600' height='600' filter='url(%23p)'/%3E%3C/svg%3E");background-size:cover}
+/* the ledger plate */
+.ledger{position:relative;padding:26px 26px 22px;border-radius:6px;color:var(--engrave);
+  background:
+    repeating-linear-gradient(90deg, rgba(255,240,200,.05) 0 1px, rgba(60,35,5,.04) 1px 3px),
+    linear-gradient(160deg,#ecd08a 0%,#c99d48 45%,#a98436 100%);
+  box-shadow: inset 0 0 0 2px #f2d68e, inset 0 0 0 4px #7a5a22, inset 0 0 0 7px rgba(242,214,142,.5), 0 20px 40px rgba(0,0,0,.5), 0 2px 4px rgba(0,0,0,.4)}
+.ledger::before,.ledger::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;top:12px;background:radial-gradient(circle at 40% 35%, #f6e2a6, #8a6a2a 70%);box-shadow:inset 0 0 0 1px rgba(60,35,5,.5)}
+.ledger::before{left:12px}.ledger::after{right:12px}
+.eng{color:var(--engrave);text-shadow:0 1px 0 rgba(255,244,210,.55), 0 -1px 0 rgba(60,35,5,.25)}
+.ledger .sc{font-family:"IM Fell English SC",serif;letter-spacing:.14em;font-size:13px}
+.ledger h1{margin:2px 0 2px;font-weight:400;font-size:30px;line-height:1.05}
+.ledger .when{font-style:italic;font-size:17px}
+.rule{height:0;border-top:1px solid rgba(58,38,13,.7);border-bottom:1px solid rgba(255,244,210,.5);margin:12px 0}
+.dur{display:flex;gap:6px;margin:6px 0 2px}
+.tab{font:inherit;font-size:15px;color:var(--engrave);cursor:pointer;padding:4px 10px;border-radius:3px;border:0;
+  background:linear-gradient(180deg,#e8c97c,#b98e3d);box-shadow:inset 0 1px 0 #f7e3a8, inset 0 -1px 0 #7a5a22, 0 1px 2px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(255,244,210,.5)}
+.tab[aria-checked="true"]{background:linear-gradient(180deg,#8e6a28,#b48a3c);box-shadow:inset 0 2px 3px rgba(40,20,0,.55), 0 1px 0 rgba(255,244,210,.4);color:#2a1a05}
+.tab:focus-visible,.prow:focus-visible,.act:focus-visible{outline:2px solid #2a1a05;outline-offset:2px}
+.people{display:flex;flex-direction:column;gap:2px;margin:4px 0 0}
+.prow{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:5px 4px;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;border-radius:3px}
+.prow:hover{background:rgba(255,244,210,.12)}
+.prow .seal{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:"IM Fell English SC";font-size:14px;
+  background:radial-gradient(circle at 40% 35%, #f3dc9a, #b28a3c 70%);box-shadow:inset 0 0 0 1.5px #7a5a22, inset 0 0 0 3px rgba(242,214,142,.6)}
+.prow .nm{font-size:17px;line-height:1.05}
+.prow .nm small{display:block;font-style:italic;font-size:13.5px;opacity:.85}
+.prow .st{font-size:15px;text-align:right;line-height:1.05;white-space:nowrap}
+.prow .st small{display:block;font-family:"IM Fell English SC";font-size:11.5px;letter-spacing:.12em}
+.prow.opt{opacity:.5}
+.prow.opt .nm small::after{content:" · optional"}
+.st.sleep small{color:#5a1a0a}
+.verdict{font-style:italic;font-size:16.5px;min-height:42px;line-height:1.3;margin-top:4px}
+.acts{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.act{font:inherit;font-size:16px;cursor:pointer;padding:8px 14px;border-radius:4px;border:0;color:#2a1a05;
+  background:linear-gradient(180deg,#f0d58f,#b98e3d);box-shadow:inset 0 1px 0 #fbeab9, inset 0 -2px 0 #7a5a22, 0 3px 0 #5e4416, 0 5px 8px rgba(0,0,0,.35);text-shadow:0 1px 0 rgba(255,244,210,.5)}
+.act:active{transform:translateY(2px);box-shadow:inset 0 1px 0 #fbeab9, inset 0 -2px 0 #7a5a22, 0 1px 0 #5e4416}
+.act.primary{background:linear-gradient(180deg,#e7c06a,#a87a26)}
+.hint{font-style:italic;font-size:14px;opacity:.85;margin:10px 0 0}
+.sent{position:absolute;right:20px;bottom:64px;transform:rotate(-12deg) scale(1.6);opacity:0;pointer-events:none;font-family:"IM Fell English SC";font-size:22px;letter-spacing:.12em;color:#6e1d0c;border:3px double #6e1d0c;border-radius:6px;padding:4px 10px;transition:opacity .25s, transform .35s cubic-bezier(.3,1.6,.5,1);mix-blend-mode:multiply}
+.sent.on{opacity:.85;transform:rotate(-12deg) scale(1)}
+.mute{position:absolute;right:16px;top:14px;border:0;background:none;color:#c9b37a;cursor:pointer;padding:4px;opacity:.8}
+.mute svg{width:16px;height:16px;display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:900px){
+  html,body{overflow-y:auto;overflow-x:hidden}
+  .stage{overflow-x:clip}
+  .stage{grid-template-columns:1fr;gap:16px;justify-items:center;align-content:start;height:auto;min-height:100dvh;padding:14px 12px 20px}
+  .ledger{width:100%;max-width:420px;padding:18px 18px 16px}
+  .ledger h1{font-size:24px}
+  .prow .nm{font-size:15px}.prow .st{font-size:14px}
+  .verdict{font-size:15px;min-height:0}
+}
+@media (prefers-reduced-motion: reduce){ .sent{transition:none} }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="instrument" id="inst">
+    <div class="mater"></div>
+    <svg id="dial" viewBox="0 0 1000 1000" tabindex="0" role="slider" aria-label="Meeting time — turn the rings" aria-valuemin="0" aria-valuemax="95" aria-valuenow="52">
+      <defs>
+        <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><line x1="0" y1="0" x2="0" y2="7" stroke="#3a260d" stroke-width="1.6" opacity=".75"/><line x1="1.4" y1="0" x2="1.4" y2="7" stroke="#f3dc9a" stroke-width=".6" opacity=".35"/></pattern>
+        <pattern id="stip" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r=".9" fill="#3a260d" opacity=".55"/><circle cx="6.5" cy="6.5" r=".9" fill="#3a260d" opacity=".55"/></pattern>
+        <radialGradient id="polish" cx=".5" cy=".5" r=".5"><stop offset=".3" stop-color="#fff3c4" stop-opacity=".0"/><stop offset="1" stop-color="#fff3c4" stop-opacity=".0"/></radialGradient>
+        <mask id="slitMask"><rect width="1000" height="1000" fill="#fff"/><path id="slitHole" fill="#000"/></mask>
+        <filter id="glow"><feGaussianBlur stdDeviation="6"/></filter>
+      </defs>
+      <g id="rete"></g>
+      <!-- outside the slit the rings sit in shadow under the alidade's arms -->
+      <circle cx="500" cy="500" r="492" fill="rgba(30,18,4,.2)" mask="url(#slitMask)" pointer-events="none"/>
+      <path id="slitGlow" fill="#fff3c4" opacity="0" filter="url(#glow)" pointer-events="none"/>
+      <g id="alidade" pointer-events="none"></g>
+      <g id="boss"></g>
+    </svg>
+    <div class="sheen"></div>
+    <div class="patina"></div>
+  </div>
+  <aside class="ledger" aria-label="Meeting details">
+    <div class="sc eng">Invitation · Q4 roadmap review</div>
+    <h1 class="eng">Find an hour for all five</h1>
+    <div class="when eng" id="when">Thursday 15 October 2026</div>
+    <div class="rule"></div>
+    <div class="sc eng">Length</div>
+    <div class="dur" role="radiogroup" aria-label="Meeting length">
+      <button class="tab" role="radio" aria-checked="false" data-m="30">30 min</button>
+      <button class="tab" role="radio" aria-checked="false" data-m="45">45 min</button>
+      <button class="tab" role="radio" aria-checked="true" data-m="60">1 hour</button>
+      <button class="tab" role="radio" aria-checked="false" data-m="90">1½ hours</button>
+    </div>
+    <div class="rule"></div>
+    <div class="people" id="people"></div>
+    <div class="rule"></div>
+    <div class="verdict eng" id="verdict" aria-live="polite"></div>
+    <div class="acts">
+      <button class="act" id="best">Find the overlap</button>
+      <button class="act primary" id="send">Send invitation</button>
+    </div>
+    <p class="hint eng" id="hint">Turn the rings (or use the arrow keys) until the slit catches everyone's polished hours.</p>
+    <div class="sent" id="sent">Sent</div>
+  </aside>
+  <button class="mute" id="mute" aria-label="Mute instrument sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+</div>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a, p) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); if (p) p.appendChild(n); return n; };
+const C = 500;
+
+/* ---------------- the crew (offsets valid for mid-October 2026) ---------------- */
+const PEOPLE = [
+  {id:'maya', name:'Maya Brooks', city:'New York', off:-4, work:[9, 18]},
+  {id:'leo', name:'Leo Duarte', city:'São Paulo', off:-3, work:[9, 18]},
+  {id:'ines', name:'Inês Costa', city:'Lisbon', off:1, work:[9, 17.5]},
+  {id:'arjun', name:'Arjun Rao', city:'Bengaluru', off:5.5, work:[10, 19]},
+  {id:'hana', name:'Hana Sato', city:'Tokyo', off:9, work:[9, 18]},
+];
+PEOPLE.forEach(p => p.optional = false);
+const RINGS = [[440, 388], [384, 332], [328, 276], [272, 220], [216, 164]];
+const LIMB = [488, 448];
+const statusAt = (p, local) => { const h = ((local % 24) + 24) % 24; if (h >= p.work[0] && h < p.work[1]) return 'work'; if ((h >= 7 && h < p.work[0]) || (h >= p.work[1] && h < 22.5)) return 'awake'; return 'sleep'; };
+
+/* ---------------- geometry helpers (angles in degrees, clockwise from top) ---------------- */
+const P = (r, a) => { const t = (a - 90)*Math.PI/180; return [C + r*Math.cos(t), C + r*Math.sin(t)]; };
+function annulus(r1, r0, a0, a1){
+  const [x0, y0] = P(r1, a0), [x1, y1] = P(r1, a1), [x2, y2] = P(r0, a1), [x3, y3] = P(r0, a0), lg = (a1 - a0) > 180 ? 1 : 0;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r1} ${r1} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} L${x2.toFixed(2)} ${y2.toFixed(2)} A${r0} ${r0} 0 ${lg} 0 ${x3.toFixed(2)} ${y3.toFixed(2)}Z`;
+}
+function engravedText(parent, x, y, txt, size, rot, opts = {}){
+  const g = el('g', {transform:`rotate(${rot} ${x} ${y})`}, parent);
+  const common = {'text-anchor':'middle', 'dominant-baseline':'central', 'font-family': opts.sc ? 'IM Fell English SC, serif' : 'IM Fell English, serif', 'font-size':size, 'font-style': opts.italic ? 'italic' : 'normal', 'letter-spacing': opts.ls || 0};
+  el('text', {...common, x, y: y + 1, fill:'#f6e3a6', opacity:.55}, g).textContent = txt;
+  el('text', {...common, x, y, fill:'#3a260d'}, g).textContent = txt;
+  return g;
+}
+function engravedCircle(parent, r, w = 1.4){ el('circle', {cx:C, cy:C + .9, r, fill:'none', stroke:'#f6e3a6', 'stroke-width':w*.7, opacity:.5}, parent); el('circle', {cx:C, cy:C, r, fill:'none', stroke:'#3a260d', 'stroke-width':w}, parent); }
+
+/* ---------------- build the rete (rotating rings) ---------------- */
+const rete = $('#rete');
+function buildRete(){
+  rete.innerHTML = '';
+  // the limb: Greenwich hours
+  engravedCircle(rete, LIMB[0], 2); engravedCircle(rete, LIMB[1], 1.4);
+  for (let m = 0; m < 24*4; m++){ const a = m*3.75, long = m % 4 === 0; const [x0, y0] = P(LIMB[1], a), [x1, y1] = P(LIMB[1] + (long ? 14 : 7), a); el('line', {x1:x0, y1:y0, x2:x1, y2:y1, stroke:'#3a260d', 'stroke-width': long ? 1.6 : .9}, rete); }
+  for (let h = 0; h < 24; h++){ const a = h*15 + 7.5, [x, y] = P(LIMB[1] + 26, a); engravedText(rete, x, y, h === 0 ? 'XXIV' : String(h), 15, a, {sc: h === 0}); }
+  const [gx, gy] = P(LIMB[1] + 26, 0); // a little Greenwich mark
+  el('path', {d:`M${gx - 5} ${gy - 15} l5 -8 l5 8z`, fill:'#3a260d'}, rete);
+  // one ring per teammate: the same day, turned by their offset
+  PEOPLE.forEach((p, i) => {
+    const [r1, r0] = RINGS[i], g = el('g', {class:'ring', 'data-id':p.id}, rete); p.g = g;
+    for (let q = 0; q < 96; q++){
+      const local = q/4, st = statusAt(p, local), a0 = (local - p.off)*15, a1 = a0 + 3.75;
+      if (st === 'sleep'){ el('path', {d: annulus(r1, r0, a0, a1 + .05), fill:'rgba(52,32,8,.42)'}, g); el('path', {d: annulus(r1, r0, a0, a1 + .05), fill:'url(#hatch)'}, g); }
+      else if (st === 'awake') el('path', {d: annulus(r1, r0, a0, a1 + .05), fill:'url(#stip)'}, g);
+      else el('path', {d: annulus(r1, r0, a0, a1 + .05), fill:'rgba(255,246,205,.5)'}, g);
+    }
+    engravedCircle(g, r1, 1.6); engravedCircle(g, r0, 1.2);
+    for (let h = 0; h < 24; h++){
+      const a = (h - p.off)*15, [x0, y0] = P(r0, a), [x1, y1] = P(r1, a);
+      el('line', {x1:x0, y1:y0, x2:x1, y2:y1, stroke:'#3a260d', 'stroke-width': h % 6 === 0 ? 1.6 : .8, opacity:.85}, g);
+      const am = a + 7.5, [tx, ty] = P((r0 + r1)/2, am);
+      const st = statusAt(p, h + .5);
+      engravedText(g, tx, ty, String(h).padStart(2, '0'), i > 2 ? 14 : 16, am, {italic: st !== 'work'});
+    }
+    // little engraved sun at noon, moon at three in the morning
+    const [sx, sy] = P(r1 - 8, (12 - p.off)*15 + 1.5); sunGlyph(g, sx, sy, 6);
+    const [mx, my] = P(r1 - 8, (3 - p.off)*15 + 1.5); moonGlyph(g, mx, my, 6);
+    // the city name, engraved around the ring at its local midnight
+    const [cx, cy] = P((r0 + r1)/2, (0 - p.off)*15 - 0.01); // marker only
+  });
+}
+function sunGlyph(g, x, y, r){ el('circle', {cx:x, cy:y, r:r*.5, fill:'none', stroke:'#3a260d', 'stroke-width':1}, g); for (let k = 0; k < 8; k++){ const a = k*Math.PI/4; el('line', {x1:x + Math.cos(a)*r*.75, y1:y + Math.sin(a)*r*.75, x2:x + Math.cos(a)*r*1.15, y2:y + Math.sin(a)*r*1.15, stroke:'#3a260d', 'stroke-width':.9}, g); } }
+function moonGlyph(g, x, y, r){ el('path', {d:`M${x + r*.2} ${y - r} A${r} ${r} 0 1 0 ${x + r*.2} ${y + r} A${r*.75} ${r*.75} 0 1 1 ${x + r*.2} ${y - r}Z`, fill:'#3a260d'}, g); }
+
+/* ---------------- alidade (fixed) + boss ---------------- */
+let durMin = 60;
+const alidade = $('#alidade'), boss = $('#boss');
+function buildAlidade(){
+  alidade.innerHTML = '';
+  const w = durMin/60*15, a0 = -w/2, a1 = w/2;
+  const hole = annulus(492, 160, a0, a1);
+  $('#slitHole').setAttribute('d', hole); $('#slitGlow').setAttribute('d', annulus(440, 164, a0, a1));
+  // two brass blades that frame the slit, with sight vanes at the limb
+  [a0, a1].forEach((a, k) => {
+    const side = k ? 1 : -1, b0 = a + side*0.2, b1 = a + side*2.2;
+    el('path', {d: annulus(498, 158, Math.min(b0, b1), Math.max(b0, b1)), fill:'url(#bladeG)'}, alidade);
+    el('path', {d: annulus(498, 158, Math.min(b0, b1), Math.max(b0, b1)), fill:'none', stroke:'#4a3210', 'stroke-width':1.2}, alidade);
+  });
+  const [vx, vy] = P(505, 0);
+  el('path', {d:`M${vx - 26} ${vy + 6} L${vx - 18} ${vy - 22} L${vx + 18} ${vy - 22} L${vx + 26} ${vy + 6}Z`, fill:'url(#bladeG)', stroke:'#4a3210', 'stroke-width':1.2}, alidade);
+  el('circle', {cx:vx, cy:vy - 8, r:4.5, fill:'#1c1206'}, alidade);
+  // names engraved on small plates beside the slit
+  PEOPLE.forEach((p, i) => {
+    const [r1, r0] = RINGS[i], rm = (r0 + r1)/2, aL = a0 - 2.4, [x, y] = P(rm, aL);
+    const g = el('g', {}, alidade); p.plate = g;
+    const wpx = mobileLabels ? 50 : 132;
+    el('rect', {x: x - wpx - 4, y: y - 13, width: wpx, height: 26, rx: 3, fill:'url(#plateG)', stroke:'#4a3210', 'stroke-width':1}, g);
+    const tx = x - wpx/2 - 2;
+    el('text', {x: tx, y: y + 1.4, 'text-anchor':'middle', 'dominant-baseline':'central', 'font-family':'IM Fell English SC, serif', 'font-size': mobileLabels ? 17 : 15, fill:'#f6e3a6', opacity:.55}, g).textContent = mobileLabels ? p.name.split(' ')[0].slice(0, 3) : `${p.name.split(' ')[0]} · ${p.city}`;
+    el('text', {x: tx, y, 'text-anchor':'middle', 'dominant-baseline':'central', 'font-family':'IM Fell English SC, serif', 'font-size': mobileLabels ? 17 : 15, fill:'#3a260d'}, g).textContent = mobileLabels ? p.name.split(' ')[0].slice(0, 3) : `${p.name.split(' ')[0]} · ${p.city}`;
+    // the local-time tag on the other side
+    const [x2, y2] = P(rm, a1 + 2.4), tg = el('g', {}, alidade); p.tag = tg;
+    el('rect', {x: x2 + 4, y: y2 - 13, width: 62, height: 26, rx: 3, fill:'url(#plateG)', stroke:'#4a3210', 'stroke-width':1}, tg);
+    p.tagText = el('text', {x: x2 + 35, y: y2, 'text-anchor':'middle', 'dominant-baseline':'central', 'font-family':'IM Fell English, serif', 'font-size':17, fill:'#3a260d'}, tg);
+    p.tagMark = el('g', {}, tg); p.tagXY = [x2 + 74, y2];
+  });
+}
+let mobileLabels = false;
+function buildBoss(){
+  boss.innerHTML = '';
+  el('circle', {cx:C, cy:C, r:160, fill:'url(#bossG)'}, boss);
+  engravedCircle(boss, 158, 2); engravedCircle(boss, 146, 1);
+  // a compass-rose rete in the centre
+  for (let k = 0; k < 16; k++){ const a = k*22.5, long = k % 4 === 0, r = long ? 136 : k % 2 ? 70 : 100; const [x, y] = P(r, a), [xl, yl] = P(long ? 18 : 12, a - 11.25), [xr, yr] = P(long ? 18 : 12, a + 11.25);
+    el('path', {d:`M${C} ${C} L${xl} ${yl} L${x} ${y} Z`, fill: long ? '#3a260d' : 'rgba(58,38,13,.35)'}, boss); el('path', {d:`M${C} ${C} L${xr} ${yr} L${x} ${y} Z`, fill: long ? 'rgba(58,38,13,.55)' : 'rgba(58,38,13,.18)'}, boss); }
+  el('circle', {cx:C, cy:C, r:98, fill:'url(#bossG)', opacity:.92}, boss);
+  engravedCircle(boss, 98, 1.2);
+  bossTime = engravedTextRaw(boss, C, C - 18, '', 44);
+  bossSub = engravedTextRaw(boss, C, C + 22, '', 17, true);
+  bossDate = engravedTextRaw(boss, C, C + 50, 'Greenwich · Thu 15 Oct', 14, false, true);
+  el('circle', {cx:C, cy:C - 128, r:7, fill:'url(#pinG)', stroke:'#4a3210'}, boss);
+}
+function engravedTextRaw(parent, x, y, txt, size, italic, sc){
+  const g = el('g', {}, parent), common = {'text-anchor':'middle', 'dominant-baseline':'central', 'font-family': sc ? 'IM Fell English SC, serif' : 'IM Fell English, serif', 'font-size':size, 'font-style': italic ? 'italic' : 'normal'};
+  const a = el('text', {...common, x, y: y + 1.2, fill:'#f6e3a6', opacity:.55}, g), b = el('text', {...common, x, y, fill:'#3a260d'}, g);
+  a.textContent = b.textContent = txt; return {set: t => { a.textContent = b.textContent = t; }};
+}
+let bossTime, bossSub, bossDate;
+(function gradients(){
+  const d = $('#dial defs');
+  d.insertAdjacentHTML('beforeend', `
+    <linearGradient id="bladeG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4dc98"/><stop offset=".5" stop-color="#c49a45"/><stop offset="1" stop-color="#8a6a2a"/></linearGradient>
+    <linearGradient id="plateG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3dc9a"/><stop offset="1" stop-color="#c49a45"/></linearGradient>
+    <radialGradient id="bossG" cx=".42" cy=".38" r=".7"><stop offset="0" stop-color="#f2d68e"/><stop offset=".6" stop-color="#c49a45"/><stop offset="1" stop-color="#8a6a2a"/></radialGradient>
+    <radialGradient id="pinG" cx=".4" cy=".35" r=".6"><stop offset="0" stop-color="#fff2c2"/><stop offset="1" stop-color="#8a6a2a"/></radialGradient>`);
+})();
+
+/* ---------------- state ---------------- */
+let utc = 17;   // hours, the slot start at the slit
+let rot = 0, vel = 0, target = null;
+const slotStart = () => utc - durMin/120;  // slit is centred on the angle
+function quarter(u){ return Math.round(u*4)/4; }
+function evaluate(u){
+  // u = centre of slit in UTC hours; meeting spans [u - d/2, u + d/2]
+  const d = durMin/60, s = u - d/2, res = [];
+  for (const p of PEOPLE){
+    let worst = 'work';
+    for (let t = 0; t < d - 1e-6; t += .25){ const st = statusAt(p, s + t + p.off + .01); if (st === 'sleep') worst = 'sleep'; else if (st === 'awake' && worst === 'work') worst = 'awake'; }
+    res.push({p, st: worst, local: s + p.off});
+  }
+  return res;
+}
+function score(u){ return evaluate(u).reduce((sum, r) => sum + (r.p.optional ? .25 : 1) * (r.st === 'work' ? 3 : r.st === 'awake' ? 1 : -4), 0); }
+const fmt = h => { h = ((h % 24) + 24) % 24; const hh = Math.floor(h + 1e-6), mm = Math.round((h - hh)*60); return `${String(hh).padStart(2, '0')}:${String(mm % 60).padStart(2, '0')}`; };
+
+/* a gilded band just inside the limb: brightest where the most people can meet */
+let bandG = null;
+function buildBand(){
+  if (bandG) bandG.remove();
+  bandG = el('g', {}, rete);
+  const scores = []; for (let q = 0; q < 96; q++) scores.push(score(q/4 + .125));
+  const lo = Math.min(...scores), hi = Math.max(...scores);
+  for (let q = 0; q < 96; q++){
+    const k = (scores[q] - lo)/Math.max(1, hi - lo), a0 = q*3.75, a1 = a0 + 3.8;
+    el('path', {d: annulus(447, 442, a0, a1), fill: k > .97 ? '#fff6cf' : `rgba(${Math.round(58 + k*190)},${Math.round(38 + k*170)},${Math.round(13 + k*120)},${.35 + k*.5})`}, bandG);
+  }
+}
+/* ---------------- people ledger ---------------- */
+const peopleEl = $('#people');
+PEOPLE.forEach(p => {
+  const b = document.createElement('button'); b.className = 'prow'; b.type = 'button';
+  b.innerHTML = `<span class="seal eng">${p.name[0]}</span><span class="nm eng">${p.name}<small>${p.city} · UTC${p.off >= 0 ? '+' : '−'}${Math.abs(p.off) % 1 ? `${Math.floor(Math.abs(p.off))}:30` : Math.abs(p.off)}</small></span><span class="st eng"></span>`;
+  b.addEventListener('click', () => { p.optional = !p.optional; b.classList.toggle('opt', p.optional); b.setAttribute('aria-pressed', p.optional); p.g.style.opacity = p.optional ? .45 : 1; audio(); tick(1.3); buildBand(); update(true); });
+  b.setAttribute('aria-pressed', 'false'); b.title = 'Mark as optional';
+  peopleEl.appendChild(b); p.row = b;
+});
+
+/* ---------------- render ---------------- */
+let lastQ = null;
+function update(force){
+  rot = -utc*15;
+  rete.setAttribute('transform', `rotate(${rot.toFixed(3)} ${C} ${C})`);
+  const q = quarter(utc);
+  if (q === lastQ && !force) return;
+  if (lastQ != null && q !== lastQ) tick();
+  lastQ = q;
+  const ev = evaluate(q), d = durMin/60;
+  bossTime.set(`${fmt(q - d/2)}`); bossSub.set(`to ${fmt(q + d/2)} UTC`);
+  let working = 0, needed = 0; const sleepers = [], awake = [];
+  ev.forEach(r => {
+    const p = r.p, st = p.row.querySelector('.st');
+    st.className = 'st eng ' + r.st;
+    st.innerHTML = `${fmt(r.local)}<small>${r.st === 'work' ? 'Working' : r.st === 'awake' ? (((r.local % 24) + 24) % 24 < 12 ? 'Early' : 'Evening') : 'Asleep'}</small>`;
+    p.tagText.textContent = fmt(r.local);
+    p.tagMark.innerHTML = ''; const [mx, my] = p.tagXY;
+    if (r.st === 'work') sunGlyph(p.tagMark, mx + 10, my, 7); else if (r.st === 'sleep') moonGlyph(p.tagMark, mx + 10, my, 7); else el('circle', {cx:mx + 10, cy:my, r:4, fill:'none', stroke:'#f2d68e', 'stroke-width':1.5}, p.tagMark);
+    if (!p.optional){ needed++; if (r.st === 'work') working++; else if (r.st === 'sleep') sleepers.push(p); else awake.push(r); }
+  });
+  const all = working === needed;
+  $('#slitGlow').setAttribute('opacity', all ? .35 : 0);
+  const v = $('#verdict');
+  if (all) v.textContent = `Everyone required is in working hours — ${fmt(q - d/2)} UTC is a good hour.`;
+  else if (sleepers.length) v.textContent = `${sleepers.map(p => p.name.split(' ')[0]).join(' and ')} would be asleep. ${working} of ${needed} in working hours.`;
+  else v.textContent = `${working} of ${needed} in working hours; ${awake.map(r => `${r.p.name.split(' ')[0]} at ${fmt(r.local)}`).join(', ')}.`;
+  const dial = $('#dial');
+  dial.setAttribute('aria-valuenow', Math.round(((q - d/2)%24 + 24)%24*4));
+  dial.setAttribute('aria-valuetext', `${fmt(q - d/2)} to ${fmt(q + d/2)} UTC. ` + ev.map(r => `${r.p.name.split(' ')[0]} ${fmt(r.local)} ${r.st === 'work' ? 'working' : r.st === 'sleep' ? 'asleep' : 'outside working hours'}`).join('; '));
+  $('#sent').classList.remove('on');
+}
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false;
+function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; } try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination); } catch(e){ ac = null; } }
+let lastTick = 0;
+function tick(k = 1){
+  if (!ac || muted) return; const now = ac.currentTime; if (now - lastTick < .025) return; lastTick = now;
+  [[2300, .14], [3720, .07], [5950, .03]].forEach(([f, g0]) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f*k*(0.98 + Math.random()*.04); g.gain.setValueAtTime(g0, now); g.gain.exponentialRampToValueAtTime(.0001, now + .06 + g0*.4); o.connect(g).connect(master); o.start(now); o.stop(now + .2); });
+}
+function chime(){ if (!ac || muted) return; const t = ac.currentTime; [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => { [1, 2.76, 5.4].forEach((m, j) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = f*m; g.gain.setValueAtTime(.0001, t + i*.09); g.gain.exponentialRampToValueAtTime(.12/(j*2 + 1), t + i*.09 + .005); g.gain.exponentialRampToValueAtTime(.0001, t + i*.09 + 1.6/(j + 1)); o.connect(g).connect(master); o.start(t + i*.09); o.stop(t + i*.09 + 1.7); }); }); }
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute instrument sounds' : 'Mute instrument sounds'); $('#mw').style.opacity = muted ? 0 : 1; });
+
+/* ---------------- input: turn the rings ---------------- */
+const dial = $('#dial');
+let drag = null;
+const angleOf = e => { const r = dial.getBoundingClientRect(), x = e.clientX - r.left - r.width/2, y = e.clientY - r.top - r.height/2; return {a: Math.atan2(y, x)*180/Math.PI, d: Math.hypot(x, y)/r.width*1000}; };
+dial.addEventListener('pointerdown', e => {
+  if (e.button > 0) return; audio();
+  e.preventDefault(); const {a, d} = angleOf(e); if (d < 100) return;
+  dial.setPointerCapture(e.pointerId); dial.classList.add('grabbing'); target = null;
+  drag = {a, hist: [[e.timeStamp, utc]]}; vel = 0;
+});
+dial.addEventListener('pointermove', e => {
+  if (!drag) return; const {a} = angleOf(e); let da = a - drag.a; if (da > 180) da -= 360; if (da < -180) da += 360; drag.a = a;
+  utc -= da/15; // turning clockwise brings earlier hours to the slit
+  drag.hist.push([e.timeStamp, utc]); if (drag.hist.length > 6) drag.hist.shift();
+  update();
+});
+function endDrag(){
+  if (!drag) return; const h = drag.hist; drag = null; dial.classList.remove('grabbing');
+  if (h.length > 1){ const [t0, u0] = h[0], [t1, u1] = h[h.length - 1]; vel = t1 > t0 ? (u1 - u0)/(t1 - t0)*1000 : 0; }
+  if (reduce || Math.abs(vel) < .4){ vel = 0; target = quarter(utc); }
+  hideHint();
+}
+dial.addEventListener('pointerup', endDrag); dial.addEventListener('pointercancel', endDrag);
+dial.addEventListener('wheel', e => { e.preventDefault(); audio(); target = quarter((target ?? utc) + Math.sign(e.deltaY)*.25); hideHint(); }, {passive:false});
+dial.addEventListener('keydown', e => {
+  const step = {ArrowRight:.25, ArrowUp:.25, ArrowLeft:-.25, ArrowDown:-.25, PageUp:1, PageDown:-1}[e.key];
+  if (step != null){ e.preventDefault(); audio(); target = quarter((target ?? utc) + step); hideHint(); }
+  if (e.key === 'Enter'){ e.preventDefault(); findBest(); }
+});
+let hinted = false; function hideHint(){ if (hinted) return; hinted = true; $('#hint').style.opacity = .55; }
+
+/* ---------------- duration & best & send ---------------- */
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-checked', x === b)); durMin = +b.dataset.m; audio(); tick(.8);
+  buildAlidade(); buildBand(); update(true);
+}));
+function findBest(){
+  audio();
+  let best = null; const cur = quarter(utc);
+  for (let q = 0; q < 96; q++){ const u = q/4 + durMin/120, s = score(u); const dist = Math.abs(((u - cur + 36) % 24) - 12); if (!best || s > best.s || (s === best.s && dist < best.dist)) best = {u, s, dist}; }
+  // spin there the long way round if it's close, for a satisfying sweep
+  let delta = ((best.u - cur) % 24 + 24) % 24; if (delta > 12) delta -= 24;
+  target = cur + delta; hideHint();
+  setTimeout(() => { const ev = evaluate(best.u), d = durMin/60;
+    if (ev.every(r => r.p.optional || r.st === 'work')) chime();
+    else { const off = ev.filter(r => !r.p.optional && r.st !== 'work'); $('#verdict').textContent = `No hour fits everyone's working day — this is the closest: ${off.map(r => `${r.p.name.split(' ')[0]} at ${fmt(r.local)}`).join(', ')}. Mark someone optional to widen the search.`; }
+  }, reduce ? 50 : 1100);
+}
+$('#best').addEventListener('click', findBest);
+$('#send').addEventListener('click', () => {
+  audio(); const q = quarter(utc), d = durMin/60, ev = evaluate(q);
+  const sleepers = ev.filter(r => !r.p.optional && r.st === 'sleep');
+  const s = $('#sent'); s.textContent = 'Sent'; s.classList.remove('on'); void s.offsetWidth; s.classList.add('on');
+  chime();
+  $('#verdict').textContent = `Invitation sent for Thu 15 Oct, ${fmt(q - d/2)}–${fmt(q + d/2)} UTC.` + (sleepers.length ? ` ${sleepers.map(r => r.p.name.split(' ')[0]).join(' and ')} will see it in the morning.` : ' Everyone gets it in their own time.');
+});
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), raf = 0;
+function frame(t){
+  const dt = Math.min(.05, (t - last)/1000); last = t;
+  if (!drag){
+    if (target != null){
+      const d = target - utc; if (reduce){ utc = target; target = null; }
+      else { utc += d*Math.min(1, dt*7) + Math.sign(d)*Math.min(Math.abs(d), dt*.6); if (Math.abs(target - utc) < .002){ utc = target; target = null; } }
+      update();
+    } else if (Math.abs(vel) > .01){
+      utc += vel*dt; vel *= Math.pow(.08, dt);
+      if (Math.abs(vel) < .4){ vel = 0; target = quarter(utc); }
+      update();
+    }
+  }
+  raf = requestAnimationFrame(frame);
+}
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else start(); });
+
+function layout(){
+  const mobile = innerWidth < 900;
+  const D = mobile ? Math.min(innerWidth - 40, 520) : Math.min(innerHeight - 96, innerWidth - 360 - 46 - 60, 740);
+  document.documentElement.style.setProperty('--D', D + 'px');
+  const ml = D < 560; if (ml !== mobileLabels){ mobileLabels = ml; buildAlidade(); update(true); }
+}
+buildRete(); buildBand(); buildBoss(); buildAlidade(); layout(); update(true); start();
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 100); });
+window.__astro = {findBest, set: u => { target = u; }};
+})();
+</script>
+</body>
+</html>

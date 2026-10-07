@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>River Timeline</title>
+<meta name="description" content="A project's history painted as a shan shui ink handscroll: the river's width is the team's headcount, tributaries are teams joining, boats are milestones, and unrolling the scroll travels downstream through the year.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&text=%E6%B2%B3%E6%B5%81%E9%95%B7%E8%88%9F" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"River Timeline","reimagines":"Timeline","category":"Data & Visualization","description":"Project history as an ink-wash handscroll read right to left: the river widens with every person on the team, each tributary is a team joining, boats moored along it are milestones, and unrolling the scroll carries you downstream through the year. The rollers grow and shrink with how much of the story is still rolled up.","hint":"Drag the scroll, or use the arrow keys, to travel downstream; hover the river or a boat for details"}
+</script>
+<style>
+  :root{ --wall:#2c2a26; --silk:#e8dcc1; --ink:#1d1b18; --seal:#b5261e; --brocade:#5d6f78; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--wall)}
+  body{font-family:"EB Garamond", Garamond, Georgia, serif;color:#e9e1cf}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden;
+    background:radial-gradient(ellipse at 50% 35%, #45413a, #24221f 70%, #1b1a17)}
+  .stage::before{content:"";position:absolute;inset:0;opacity:.35;pointer-events:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.012 .6' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 .1  0 0 0 0 .09  0 0 0 0 .07  0 0 0 .6 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>")}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none;cursor:grab}
+  canvas.drag{cursor:grabbing}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .top{position:absolute;left:0;right:0;top:18px;display:flex;justify-content:space-between;align-items:baseline;padding:0 40px;pointer-events:none}
+  .top h1{font:400 26px/1 "Yuji Syuku", "EB Garamond", serif;margin:0;color:#efe6d2;letter-spacing:.02em}
+  .top p{margin:0;font:italic 400 16px/1.2 "EB Garamond", serif;color:#b9b09d}
+  .now{position:absolute;left:50%;transform:translateX(-50%);top:16px;font:500 15px/1.2 "EB Garamond";color:#efe6d2;text-align:center;white-space:nowrap}
+  .now b{font:400 19px/1.2 "Yuji Syuku", serif;display:block;letter-spacing:.02em}
+  .slip{position:absolute;pointer-events:none;background:#f1e8d3;color:#1d1b18;padding:9px 13px 10px 13px;max-width:280px;
+    font:400 14.5px/1.4 "EB Garamond";box-shadow:0 10px 22px rgba(0,0,0,.45), 0 0 0 1px rgba(60,50,30,.25);
+    background-image:linear-gradient(90deg, rgba(120,100,60,.08) 1px, transparent 1px);background-size:5px 100%}
+  .slip b{font:400 16px/1.25 "Yuji Syuku", serif;display:block;margin-bottom:2px}
+  .slip .seal{display:inline-block;background:#b5261e;color:#f6ead6;font:500 11px/1 "EB Garamond";letter-spacing:.06em;padding:4px 5px 3px;margin-right:6px;vertical-align:1px;border-radius:1px}
+  .slip .row{display:flex;justify-content:space-between;gap:16px;font-size:13.5px}
+  .slip .row span:last-child{font-variant-numeric:tabular-nums}
+  .boat{position:absolute;width:44px;height:30px;margin:-22px 0 0 -22px;border:0;padding:0;background:transparent;cursor:pointer;border-radius:50%}
+  .boat:focus-visible{outline:2px solid #b5261e;outline-offset:2px}
+  .hint{position:absolute;left:50%;transform:translateX(-50%);font:italic 400 15px/1.3 "EB Garamond";color:#b9b09d;margin:0;white-space:nowrap;pointer-events:none;transition:opacity .8s}
+  .hint.gone{opacity:0}
+  .hint svg{width:34px;height:10px;vertical-align:middle;margin:0 6px}
+  @media (max-width:760px){
+    .top{padding:0 14px;top:12px}
+    .top h1{font-size:19px}
+    .top p{display:none}
+    .now{top:42px;font-size:12.5px}
+    .now b{font-size:16px}
+    .hint{font-size:12.5px;white-space:normal;width:90%;text-align:center}
+  }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="cv" tabindex="0" role="region" aria-roledescription="handscroll timeline" aria-describedby="summary"></canvas>
+  <div id="boats"></div>
+  <div class="top"><h1>Atlas 3.0 · the river of a project</h1><p>Handscroll, ink on silk · read from right to left</p></div>
+  <p class="now" id="now" aria-live="polite"></p>
+  <p class="hint" id="hint"><svg viewBox="0 0 34 10" aria-hidden="true"><path d="M33 5H3M8 1L2 5l6 4" fill="none" stroke="#b9b09d" stroke-width="1.2"/></svg>Drag the scroll to travel downstream<svg viewBox="0 0 34 10" aria-hidden="true"><path d="M33 5H3M8 1L2 5l6 4" fill="none" stroke="#b9b09d" stroke-width="1.2"/></svg></p>
+  <div class="slip" id="slip" hidden></div>
+  <div class="sr" id="summary"></div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+
+/* ---------------- the project ---------------- */
+const NW = 40;                                  // weeks: 5 Jan … 5 Oct 2026
+const wDate = w => new Date(2026, 0, 5 + Math.round(w*7));
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const fmt = w => { const d = wDate(w); return d.getDate() + ' ' + MONL[d.getMonth()]; };
+const fmtS = w => { const d = wDate(w); return (d.getMonth()+1) + '·' + d.getDate(); };
+const TEAMS = [
+  {name:'Core team', steps:[[0,5],[12,6],[28,7]], side:0, lead:'Wren Adebayo'},
+  {name:'Design', steps:[[5,4]], side:-1, lead:'Ines Laurent'},
+  {name:'Backend', steps:[[8,6],[31,4]], side:1, lead:'Tomás Herrera'},
+  {name:'Mobile', steps:[[14,5]], side:-1, lead:'Keiko Ota'},
+  {name:'QA', steps:[[19,3]], side:1, lead:'Dev Malhotra'},
+  {name:'Data', steps:[[24,2]], side:-1, lead:'Sunniva Berg'},
+];
+const LEAVE = {team:'Backend', w:31, n:2, to:'the Payments rewrite', side:1};
+const EVENTS = [
+  {w:1, title:'Kickoff', note:'Five people, one whiteboard and a brief to rebuild Atlas for offline use.'},
+  {w:6, title:'Design sprint', note:'Five days of prototypes; the map-first layout won the usability tests 9 to 3.'},
+  {w:9.4, title:'Architecture review', note:'Chose local-first sync. Backend team joined the week before.'},
+  {w:16.4, title:'Alpha', note:'First internal build to 40 colleagues. 212 bugs filed in two weeks.'},
+  {w:23, title:'Private beta', note:'1,800 invited users. Crash-free sessions at 99.2%.'},
+  {w:28, title:'Security review', note:'External audit passed with two medium findings, both fixed in a week.'},
+  {w:35, title:'Public launch', note:'Atlas 3.0 shipped to everyone on 8 September. 48,000 installs in the first week.'},
+  {w:38.4, title:'Version 3.1', note:'Offline maps for 30 more countries, and the top 20 beta requests.'},
+];
+const sizeAt = (team, w) => { let n = 0; for (const [s, v] of team.steps) if (w >= s) n = v; return n; };
+const headAt = w => TEAMS.reduce((a,t) => a + sizeAt(t, w), 0);
+const smoothHead = x => { // eased width so joins look like water, not steps
+  let n = 0; for (const t of TEAMS){ let prev = 0; for (const [s, v] of t.steps){ const k = Math.max(0, Math.min(1, (x - s)/0.6)); n += (v - prev)*k*k*(3-2*k); prev = v; } } return n; };
+const MAXH = Math.max(...Array.from({length:NW}, (_,w) => headAt(w)));
+
+/* ---------------- scroll geometry ---------------- */
+let W=0,H=0,DPR=1,SD=1, mob=false, G={};
+const scroll = document.createElement('canvas'), sx = scroll.getContext('2d');
+function layout(){
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height; mob = W < 760;
+  DPR = Math.min(2, devicePixelRatio||1); SD = Math.min(1.5, DPR);
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  const ph = mob ? Math.min(560, H - 270) : Math.min(560, H - 210);
+  const pxw = mob ? 74 : 118;
+  G = {ph, pxw, head: mob ? 150 : 330, tail: mob ? 300 : 420, top: mob ? 96 : 92, border: mob ? 18 : 22, k: mob ? 2.5 : 3.3};
+  G.len = G.head + NW*pxw + G.tail;
+  G.rollR = mob ? 8 : 14;
+  G.viewL = mob ? 22 : 64; G.viewR = W - (mob ? 22 : 64);
+  G.ovY = G.top + ph + (mob ? 64 : 46); G.ovH = mob ? 34 : 40;
+  scroll.width = Math.ceil(G.len*SD); scroll.height = Math.ceil(ph*SD);
+  paintScroll();
+  placeHint();
+  maxOff = Math.max(0, G.len - (G.viewR - G.viewL));
+  off = Math.min(maxOff, Math.max(0, off === null ? maxOff : off));
+}
+// scroll x of week w: river flows from the right (January) to the left (October)
+const xOfW = w => G.len - G.head - w*G.pxw;
+const wOfX = x => (G.len - G.head - x)/G.pxw;
+const cyAt = x => G.ph*0.53 + Math.sin(x/330)*G.ph*0.06 + Math.sin(x/131 + 1.3)*G.ph*0.025;
+const widthAt = x => Math.max(0, smoothHead(Math.max(-0.2, Math.min(NW - 0.01, wOfX(x)))))*G.k;
+
+/* ---------------- painting the scroll ---------------- */
+function paintScroll(){
+  const g = sx; g.setTransform(SD,0,0,SD,0,0);
+  const L = G.len, PH = G.ph, B = G.border;
+  // silk ground, aged towards the edges
+  const bg = g.createLinearGradient(0,0,0,PH); bg.addColorStop(0,'#ddd0b1'); bg.addColorStop(0.5,'#e9dec4'); bg.addColorStop(1,'#d9cba9');
+  g.fillStyle = bg; g.fillRect(0,0,L,PH);
+  const R = mulberry32(87);
+  for (let i=0;i<L*PH/900;i++){ g.fillStyle = R()<0.5 ? 'rgba(120,95,55,.07)' : 'rgba(255,250,235,.25)'; g.fillRect(R()*L, R()*PH, R()*3+0.5, 0.6); }
+  for (let i=0;i<L/60;i++){ const x = R()*L, y = R()*PH; const fx = g.createRadialGradient(x,y,0,x,y,8+R()*30); fx.addColorStop(0,'rgba(150,115,60,.07)'); fx.addColorStop(1,'rgba(150,115,60,0)'); g.fillStyle = fx; g.fillRect(x-40,y-40,80,80); }
+  // the painting lives between the brocade borders
+  g.save(); g.beginPath(); g.rect(0, B, L, PH - 2*B); g.clip();
+  const x0 = G.tail - 60, x1 = L - G.head + 60;
+  mountains(g, x0, x1, 'far'); mist(g, x0, x1, 0);
+  mountains(g, x0, x1, 'near'); mist(g, x0, x1, 1);
+  tributaries(g);
+  river(g, x0, x1);
+  banksAndTrees(g, x0, x1);
+  inscriptions(g);
+  g.restore();
+  borders(g);
+  titlePanel(g); colophon(g);
+  // paper damage at the very edges
+  const eg = g.createLinearGradient(0,0,0,PH); eg.addColorStop(0,'rgba(90,65,30,.25)'); eg.addColorStop(0.04,'rgba(90,65,30,0)'); eg.addColorStop(0.96,'rgba(90,65,30,0)'); eg.addColorStop(1,'rgba(90,65,30,.25)');
+  g.fillStyle = eg; g.fillRect(0,0,L,PH);
+}
+function noise1(seed){ const r = mulberry32(seed), a = Array.from({length:6}, () => [r()*0.02+0.004, r()*TAU, r()]); return x => a.reduce((s,[f,p,m]) => s + Math.sin(x*f + p)*m, 0)/3; }
+function mountains(g, x0, x1, layer){
+  const R = mulberry32(layer==='far' ? 11 : 23);
+  const far = layer === 'far';
+  for (const band of [-1, 1]){                 // -1 above the river, +1 below
+    let x = x0 + R()*80;
+    while (x < x1){
+      const wd = (far ? 260 : 200) + R()*(far ? 260 : 220);
+      const cx = x + wd/2;
+      const riverEdge = cyAt(cx) + band*(widthAt(cx)/2 + (far ? 46 : 22));
+      const base = band < 0 ? riverEdge : riverEdge;
+      const maxH = band < 0 ? (base - G.border - 6) : (G.ph - G.border - base);
+      const ph = maxH*(far ? 0.75 + R()*0.25 : 0.45 + R()*0.45)*(band > 0 ? 0.75 : 1);
+      if (ph > 20) peak(g, cx, base, wd, ph, band, far, Math.floor(R()*1e6));
+      x += wd*(far ? 0.55 : 0.75) + R()*60;
+    }
+  }
+}
+function peak(g, cx, base, wd, ph, band, far, seed){
+  const r = mulberry32(seed), n = noise1(seed), n2 = noise1(seed + 7);
+  // a massif of several summits: steep concave flanks, jagged crests
+  const subs = Array.from({length: 2 + Math.floor(r()*3)}, (_, i) => ({c: 0.2 + r()*0.6, w: 0.22 + r()*0.3, h: (i === 0 ? 1 : 0.45 + r()*0.45)}));
+  const steps = 90, pts = [];
+  for (let i=0;i<=steps;i++){
+    const u = i/steps, x = cx - wd/2 + u*wd;
+    let h = 0;
+    for (const sp of subs){ const d = Math.abs(u - sp.c)/sp.w; if (d < 1) h = Math.max(h, sp.h*Math.pow(1 - d, 1.55)); }
+    h *= 1 + n(x*2.2)*0.16 + n2(x*7)*0.1 + n2(x*19)*0.04;
+    h = Math.max(0, h)*Math.min(1, Math.sin(u*Math.PI)*3);
+    const y = band < 0 ? base - ph*h : G.ph - G.border - ph*0.92*h;
+    pts.push([x, y, h]);
+  }
+  const ground = band < 0 ? base : G.ph;
+  const top = Math.min(...pts.map(p=>p[1]));
+  const shape = () => { g.beginPath(); g.moveTo(pts[0][0], ground); pts.forEach(p => g.lineTo(p[0], p[1])); g.lineTo(pts[steps][0], ground); g.closePath(); };
+  // 1. base wash, dissolving downward into mist
+  const gr = g.createLinearGradient(0, top, 0, band < 0 ? base : G.ph - G.border);
+  if (band < 0){
+    gr.addColorStop(0, far ? 'rgba(78,88,90,.34)' : 'rgba(44,48,44,.42)');
+    gr.addColorStop(0.45, far ? 'rgba(100,108,108,.14)' : 'rgba(70,80,74,.2)');
+    gr.addColorStop(1, 'rgba(120,120,110,0)');
+  } else {
+    gr.addColorStop(0, far ? 'rgba(84,92,92,.26)' : 'rgba(40,44,40,.42)');
+    gr.addColorStop(1, far ? 'rgba(84,92,92,.08)' : 'rgba(60,68,60,.22)');
+  }
+  shape(); g.fillStyle = gr; g.fill();
+  g.save(); shape(); g.clip();
+  // 2. blotted wash patches (the brush laid on its side)
+  for (let k=0;k<wd/(far?40:22);k++){
+    const p = pts[Math.floor(r()*steps)], dy = r()*Math.max(8, (ground - p[1]))*0.6;
+    const rx = 8 + r()*26, ry = 4 + r()*12;
+    const bg = g.createRadialGradient(p[0], p[1] + dy, 0, p[0], p[1] + dy, rx);
+    bg.addColorStop(0, far ? 'rgba(60,70,72,.12)' : 'rgba(25,28,25,.16)'); bg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = bg; g.save(); g.translate(p[0], p[1]+dy); g.scale(1, ry/rx); g.translate(-p[0], -p[1]-dy); g.beginPath(); g.arc(p[0], p[1]+dy, rx, 0, TAU); g.fill(); g.restore();
+  }
+  // 3. mineral green in the hollows of the near hills
+  if (!far){ const mg = g.createLinearGradient(0, top, 0, top + ph*0.6); mg.addColorStop(0, 'rgba(64,108,92,.2)'); mg.addColorStop(1,'rgba(64,108,92,0)'); g.fillStyle = mg; g.fillRect(cx - wd/2, top, wd, ph); }
+  // 4. hemp-fibre texture strokes: short, curved, following the fall line, densest under the crest
+  const nC = Math.floor(wd*(far ? 0.25 : 0.7));
+  for (let k=0;k<nC;k++){
+    const i = 1 + Math.floor(r()*(steps-1)), [px, py] = pts[i];
+    const depth = Math.pow(r(), 1.8)*Math.max(4, (ground - py))*0.55;
+    const slope = (pts[i+1][1] - pts[i-1][1]);
+    const dir = slope > 0 ? 1 : -1;
+    const len = (far ? 5 : 6) + r()*(far ? 8 : 14);
+    const x = px + (r()-0.5)*4, y = py + depth + 1;
+    g.strokeStyle = far ? `rgba(55,64,66,${0.1 + r()*0.12})` : `rgba(20,22,20,${0.16 + r()*0.3})`;
+    g.lineWidth = far ? 0.5 + r()*0.4 : 0.5 + r()*1.1;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + dir*len*0.15, y + len*0.5, x + dir*len*0.45, y + len); g.stroke();
+  }
+  g.restore();
+  // 5. the outline: one pressured stroke that swells on the crests and breaks off in places
+  g.lineCap = 'round';
+  for (let i=0;i<steps;i++){
+    if (r() < (far ? 0.12 : 0.06)) continue;
+    const hh = pts[i][2], w = (far ? 0.7 : 1.4) + hh*(far ? 0.6 : 1.8)*(0.6 + r()*0.6);
+    g.strokeStyle = far ? 'rgba(48,56,58,.42)' : `rgba(16,17,15,${0.7 + r()*0.25})`; g.lineWidth = w;
+    g.beginPath(); g.moveTo(pts[i][0], pts[i][1]); g.lineTo(pts[i+1][0], pts[i+1][1]); g.stroke();
+  }
+  // 6. moss dots and pines on the crests
+  if (!far){
+    for (let k=0;k<wd/11;k++){ const i = Math.floor(r()*steps); const [px,py,hh] = pts[i]; if (hh < 0.35) continue; g.fillStyle = `rgba(12,13,12,${0.45 + r()*0.45})`; g.beginPath(); g.ellipse(px + (r()-0.5)*5, py + 1 + r()*2.5, 1 + r()*1.8, 0.7 + r()*1.1, r(), 0, TAU); g.fill(); }
+    for (let k=0;k<wd/90;k++){ const i = Math.floor(steps*(0.15 + r()*0.7)); const [px,py,hh] = pts[i]; if (hh > 0.3) pine(g, px, py + 2, 9 + r()*13, r); }
+  }
+}
+function mist(g, x0, x1, level){
+  // horizontal bands of silk showing through: the mist that separates the planes
+  const R = mulberry32(300 + level);
+  for (let x = x0; x < x1; x += 140 + R()*120){
+    const cx = x, cy = cyAt(cx) - (widthAt(cx)/2 + 12 + R()*40);
+    const w = 260 + R()*260, h = 26 + R()*30;
+    const mg = g.createRadialGradient(cx, cy, 0, cx, cy, w/2);
+    mg.addColorStop(0, 'rgba(234,224,200,.9)'); mg.addColorStop(0.6, 'rgba(234,224,200,.45)'); mg.addColorStop(1, 'rgba(234,224,200,0)');
+    g.save(); g.translate(cx, cy); g.scale(1, h/(w/2)); g.translate(-cx, -cy); g.fillStyle = mg; g.beginPath(); g.arc(cx, cy, w/2, 0, TAU); g.fill(); g.restore();
+  }
+  // the river valley is always a little misted
+  for (let x = x0; x < x1; x += 30){
+    const cy = cyAt(x), w = widthAt(x);
+    const mg = g.createLinearGradient(0, cy - w/2 - 40, 0, cy - w/2);
+    mg.addColorStop(0, 'rgba(234,224,200,0)'); mg.addColorStop(1, 'rgba(234,224,200,.55)');
+    g.fillStyle = mg; g.fillRect(x, cy - w/2 - 40, 31, 40);
+  }
+}
+function waterPath(g, pts, w){
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  const r = mulberry32(Math.round(pts[0][0]));
+  // banks: two broken dry-brush lines, fading towards the mist at the source
+  const n = pts.length;
+  const off = (i, s) => { const a = pts[Math.max(0,i-1)], b = pts[Math.min(n-1,i+1)]; let nx = -(b[1]-a[1]), ny = b[0]-a[0]; const l = Math.hypot(nx,ny)||1; return [pts[i][0] + nx/l*s, pts[i][1] + ny/l*s]; };
+  // water body
+  g.beginPath(); for (let i=0;i<n;i++){ const p = off(i, w/2); i ? g.lineTo(p[0],p[1]) : g.moveTo(p[0],p[1]); } for (let i=n-1;i>=0;i--){ const p = off(i, -w/2); g.lineTo(p[0],p[1]); } g.closePath();
+  g.fillStyle = '#e4dcc6'; g.fill(); g.fillStyle = 'rgba(110,135,138,.1)'; g.fill();
+  for (const side of [1, -1]){
+    for (let i=0;i<n-1;i++){
+      if (r() < 0.12) continue;
+      const fade = Math.min(1, i/(n*0.35));
+      const a = off(i, side*w/2), b = off(i+1, side*w/2);
+      g.strokeStyle = `rgba(22,22,20,${(0.4 + r()*0.45)*fade})`; g.lineWidth = 0.7 + r()*1.4;
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+  }
+  // a few ripple marks
+  for (let i=4;i<n-2;i+=3){ if (r() < 0.5) continue; const p = pts[i]; g.strokeStyle = 'rgba(40,50,52,.25)'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(p[0] - 3, p[1]); g.quadraticCurveTo(p[0] - 6, p[1] - 1, p[0] - 9, p[1]); g.stroke(); }
+}
+const tribs = [];
+function tributaries(g){
+  tribs.length = 0;
+  for (const t of TEAMS){
+    if (!t.side) continue;
+    const [w0, n0] = t.steps[0];
+    const xj = xOfW(w0), side = t.side;
+    const wd = n0*G.k;
+    const sx0 = xj + 300 + (side > 0 ? 40 : 0), sy0 = side < 0 ? G.border + 10 : G.ph - G.border - 6;
+    const pts = [];
+    for (let i=0;i<=60;i++){ const u = i/60; const x = sx0 + (xj - sx0)*u; const ty = cyAt(xj) + side*(widthAt(xj)*0.25);
+      const y = sy0 + (ty - sy0)*(1 - Math.pow(1-u, 1.5)) + Math.sin(u*Math.PI*3.2 + w0)*18*(1-u)*(0.4 + u); pts.push([x, y]); }
+    waterPath(g, pts, wd);
+    // the source: a waterfall spilling out of the mist
+    if (side < 0){ g.strokeStyle = 'rgba(240,233,214,.9)'; g.lineWidth = wd*0.7; g.beginPath(); g.moveTo(sx0, G.border); g.lineTo(sx0, sy0 + 6); g.stroke();
+      g.strokeStyle = 'rgba(25,25,22,.35)'; g.lineWidth = 0.6; for (let k=0;k<3;k++){ g.beginPath(); g.moveTo(sx0 - wd*0.3 + k*wd*0.3, G.border + 2); g.lineTo(sx0 - wd*0.3 + k*wd*0.3, sy0 + 4); g.stroke(); } }
+    tribs.push({t, pts, w0, n0, side, label:[sx0 + (mob ? 14 : 18), sy0]});
+  }
+  // distributary: two Backend engineers leave for another project
+  { const xj = xOfW(LEAVE.w), side = LEAVE.side, wd = LEAVE.n*G.k;
+    const pts = []; const ex = xj - 300, ey = G.ph - G.border - 6;
+    for (let i=0;i<=40;i++){ const u = i/40; const sy = cyAt(xj) + side*widthAt(xj)*0.2; pts.push([xj + (ex - xj)*u, sy + (ey - sy)*Math.pow(u, 1.4) + Math.sin(u*Math.PI*2)*12*u]); }
+    waterPath(g, pts, wd);
+    tribs.push({leave:true, pts, label:[ex + 20, ey]});
+  }
+}
+function river(g, x0, x1){
+  const top = [], bot = [];
+  for (let x = x0; x <= x1; x += 6){ const cy = cyAt(x), w = widthAt(x); top.push([x, cy - w/2]); bot.push([x, cy + w/2]); }
+  // water: the silk left almost bare, a faint cool wash
+  g.beginPath(); top.forEach(([x,y],i)=> i?g.lineTo(x,y):g.moveTo(x,y)); for (let i=bot.length-1;i>=0;i--) g.lineTo(bot[i][0], bot[i][1]); g.closePath();
+  g.fillStyle = '#e4dcc6'; g.fill();
+  g.save(); g.clip();
+  const R = mulberry32(5);
+  g.fillStyle = 'rgba(110,135,138,.1)'; g.fillRect(x0, 0, x1-x0, G.ph);
+  // ripple strokes
+  for (let x = x0; x < x1; x += 9){
+    if (R() < 0.45) continue;
+    const cy = cyAt(x), w = widthAt(x); if (w < 4) continue;
+    const y = cy + (R()-0.5)*w*0.8, len = 6 + R()*14;
+    g.strokeStyle = `rgba(40,50,52,${0.12 + R()*0.18})`; g.lineWidth = 0.7;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - len/2, y - 1.6, x - len, y); g.stroke();
+  }
+  g.restore();
+  // banks: dry-brush lines that thicken where the river bends
+  for (const edge of [top, bot]){
+    for (let i=0;i<edge.length-1;i++){
+      const w = 1 + Math.abs(Math.sin(edge[i][0]/90))*1.6 + R()*0.6;
+      g.strokeStyle = `rgba(22,22,20,${0.55 + R()*0.3})`; g.lineWidth = w;
+      g.beginPath(); g.moveTo(edge[i][0], edge[i][1]); g.lineTo(edge[i+1][0], edge[i+1][1]); g.stroke();
+    }
+  }
+  // the source spring at January
+  const xs = xOfW(-0.2), ys = cyAt(xs);
+  g.fillStyle = 'rgba(22,22,20,.75)'; for (let k=0;k<5;k++){ g.beginPath(); g.ellipse(xs + 8 + k*5, ys + (k%2?4:-4), 3, 2, 0, 0, TAU); g.fill(); }
+}
+function pine(g, x, y, h, r){
+  g.strokeStyle = 'rgba(20,20,18,.85)'; g.lineWidth = 1.1;
+  g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + (r()-0.5)*4, y - h*0.5, x + (r()-0.5)*3, y - h); g.stroke();
+  for (let k=0;k<4;k++){ const yy = y - h*(0.35 + k*0.18), ww = h*(0.42 - k*0.08);
+    g.fillStyle = `rgba(18,20,18,${0.55 + r()*0.3})`; g.beginPath(); g.ellipse(x + (r()-0.5)*3, yy, ww, h*0.06 + 0.8, (r()-0.5)*0.2, 0, TAU); g.fill(); }
+}
+function dotTree(g, x, y, h, r){
+  g.strokeStyle = 'rgba(25,25,22,.8)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r()-0.5)*3, y - h*0.6); g.stroke();
+  for (let k=0;k<14;k++){ const a = r()*TAU, d = r()*h*0.35; g.fillStyle = `rgba(25,28,24,${0.35 + r()*0.4})`; g.beginPath(); g.arc(x + Math.cos(a)*d, y - h*0.7 + Math.sin(a)*d*0.7, 1 + r()*1.4, 0, TAU); g.fill(); }
+}
+function banksAndTrees(g, x0, x1){
+  const r = mulberry32(41);
+  for (let x = x0; x < x1; x += 40 + r()*70){
+    const side = r() < 0.5 ? -1 : 1, y = cyAt(x) + side*(widthAt(x)/2 + 3);
+    if (r() < 0.55) pine(g, x, y - (side<0?0:-6), 12 + r()*14, r); else dotTree(g, x, y + (side>0?10:0), 12 + r()*10, r);
+    // shore rocks
+    g.fillStyle = 'rgba(30,30,28,.5)'; g.beginPath(); g.ellipse(x + 12, y + side*3, 5 + r()*5, 2 + r()*2, 0, 0, TAU); g.fill();
+  }
+  // a pavilion where each milestone was moored
+  for (const e of EVENTS){
+    const x = xOfW(e.w) - 30, side = -1, y = cyAt(x) - widthAt(x)/2 - 4;
+    hut(g, x, y);
+  }
+}
+function hut(g, x, y){
+  g.strokeStyle = 'rgba(20,20,18,.85)'; g.lineWidth = 1;
+  g.fillStyle = 'rgba(232,222,198,1)'; g.fillRect(x - 8, y - 9, 16, 9); g.strokeRect(x - 8, y - 9, 16, 9);
+  g.fillStyle = 'rgba(20,20,18,.85)'; g.beginPath(); g.moveTo(x - 13, y - 8); g.quadraticCurveTo(x, y - 17, x + 13, y - 8); g.quadraticCurveTo(x, y - 12, x - 13, y - 8); g.fill();
+  g.beginPath(); g.moveTo(x - 8, y); g.lineTo(x - 8, y + 4); g.moveTo(x + 8, y); g.lineTo(x + 8, y + 4); g.stroke();
+}
+function seal(g, x, y, s, text, font){
+  g.save(); g.translate(x, y); g.rotate(-0.03);
+  g.fillStyle = 'rgba(181,38,30,.92)'; g.fillRect(-s/2, -s/2, s, s);
+  // uneven ink pressure
+  const r = mulberry32(text.length*91 + Math.round(x));
+  g.fillStyle = 'rgba(232,222,198,.35)'; for (let k=0;k<10;k++) g.fillRect(-s/2 + r()*s, -s/2 + r()*s, r()*3, r()*2);
+  g.strokeStyle = 'rgba(232,222,198,.85)'; g.lineWidth = 1; g.strokeRect(-s/2 + 2.5, -s/2 + 2.5, s - 5, s - 5);
+  g.fillStyle = '#f2e6cf'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = font || `500 ${s*0.36}px "EB Garamond", serif`;
+  g.fillText(text, 0, 1);
+  g.restore();
+}
+function inkGround(g, x, y, w, h){
+  // a patch of mist behind an inscription so it stays legible over the hills
+  const cx = x + w/2, cy = y + h/2, rg = g.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w,h)*0.7);
+  rg.addColorStop(0, 'rgba(234,225,203,.82)'); rg.addColorStop(0.7, 'rgba(234,225,203,.55)'); rg.addColorStop(1, 'rgba(234,225,203,0)');
+  g.save(); g.translate(cx, cy); g.scale(w/Math.max(w,h), h/Math.max(w,h)); g.translate(-cx, -cy); g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, Math.max(w,h)*0.7, 0, TAU); g.fill(); g.restore();
+}
+function vertical(g, text, x, y, size, color){
+  // English set in a column, rotated as on the spine of a colophon
+  g.save(); g.translate(x, y); g.rotate(Math.PI/2);
+  g.fillStyle = color || 'rgba(20,20,18,.9)'; g.font = `400 ${size}px "Yuji Syuku", "EB Garamond", serif`; g.textBaseline = 'middle'; g.textAlign = 'left';
+  g.fillText(text, 0, 0); g.restore();
+}
+function inscriptions(g){
+  const f = mob ? 13 : 16;
+  for (const tb of tribs){
+    if (tb.leave){
+      const [lx, ly] = tb.label;
+      g.fillStyle = 'rgba(20,20,18,.88)'; g.font = `italic 400 ${mob?11:13}px "EB Garamond"`; g.textAlign = 'left';
+      g.fillText(`2 leave for ${LEAVE.to}`, lx - 150, ly - 14);
+      seal(g, lx - 166, ly - 18, mob?16:20, fmtS(LEAVE.w));
+      continue;
+    }
+    const [lx, ly] = tb.label;
+    const txt = `${tb.t.name} joins · ${tb.n0}`;
+    g.font = `400 ${f}px "Yuji Syuku", serif`; const tl = g.measureText(txt).width;
+    if (tb.side < 0){ inkGround(g, lx - f*0.7, G.border + 6, f*1.4, tl + 8); vertical(g, txt, lx, G.border + 10, f); seal(g, lx + 1, G.border + 26 + tl, mob?16:20, fmtS(tb.w0)); }
+    else { inkGround(g, lx - 4, G.ph - G.border - 44, tl + 8, f*1.5); g.fillStyle = 'rgba(20,20,18,.9)'; g.textAlign='left'; g.fillText(txt, lx, G.ph - G.border - 30); seal(g, lx + tl + 18, G.ph - G.border - 35, mob?16:20, fmtS(tb.w0)); }
+  }
+  // milestone inscriptions above the moorings
+  for (const e of EVENTS){
+    const x = xOfW(e.w) - 30, y = cyAt(x) - widthAt(x)/2 - 26;
+    g.font = `400 ${f}px "Yuji Syuku", serif`; const len = g.measureText(e.title).width;
+    const ty = Math.max(G.border + 30, y - len - 8);
+    inkGround(g, x + 2 - f*0.7, ty - 4, f*1.4, len + 8);
+    vertical(g, e.title, x + 2, ty, f);
+    seal(g, x - 18, ty + 8, mob?16:19, fmtS(e.w));
+  }
+}
+function borders(g){
+  const L = G.len, B = G.border, PH = G.ph;
+  for (const y of [0, PH - B]){
+    g.fillStyle = '#56686f'; g.fillRect(0, y, L, B);
+    // woven cloud-scroll brocade
+    g.strokeStyle = 'rgba(220,205,160,.35)'; g.lineWidth = 1;
+    for (let x = 6; x < L; x += 22){ g.beginPath(); g.arc(x, y + B/2, B*0.22, Math.PI*0.2, Math.PI*1.7); g.stroke(); g.beginPath(); g.arc(x + 11, y + B/2, B*0.14, Math.PI*1.2, Math.PI*2.7); g.stroke(); }
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, y === 0 ? B - 1.5 : y, L, 1.5);
+  }
+  // month marks woven into the lower border
+  g.fillStyle = '#efe3c4'; g.font = `italic 400 ${mob?11:13}px "EB Garamond"`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let m = 0; m < 10; m++){
+    const d = new Date(2026, m, 1), w = (d - new Date(2026,0,5))/864e5/7;
+    const x = xOfW(Math.max(-0.4, w));
+    g.fillText(MONL[m], x, PH - B/2 + 1);
+    g.fillRect(x - 0.5, PH - B, 1, 3);
+  }
+}
+function titlePanel(g){
+  const L = G.len, B = G.border, PH = G.ph, x0 = L - G.head;
+  g.fillStyle = 'rgba(214,200,168,1)'; g.fillRect(x0 + 40, B, G.head - 40, PH - 2*B);
+  g.fillStyle = 'rgba(80,60,30,.25)'; g.fillRect(x0 + 40, B, 1.5, PH - 2*B);
+  const big = mob ? 24 : 44;
+  vertical(g, 'Atlas 3.0', L - G.head*0.42, B + 34, big, 'rgba(18,18,16,.95)');
+  g.save(); g.fillStyle = 'rgba(30,28,24,.85)'; g.font = `italic 400 ${mob?12:15}px "EB Garamond"`; g.textAlign='left';
+  const lines = ['The river of a project,', 'January to October 2026.', '', 'Width of the water is', 'the number of people', 'working on Atlas.'];
+  g.font = `italic 400 ${mob?11:15}px "EB Garamond"`;
+  lines.forEach((t,i) => g.fillText(t, L - G.head*0.86, PH*0.62 + i*(mob?14:19)));
+  g.restore();
+  seal(g, L - G.head*0.42 + big*0.5, B + 70 + big*5.4, mob?26:34, '河', `400 ${mob?18:24}px "Ma Shan Zheng", serif`);
+}
+function colophon(g){
+  const B = G.border, PH = G.ph, w = G.tail;
+  g.fillStyle = 'rgba(214,200,168,1)'; g.fillRect(0, B, w - 40, PH - 2*B);
+  g.fillStyle = 'rgba(80,60,30,.25)'; g.fillRect(w - 41, B, 1.5, PH - 2*B);
+  g.save(); g.fillStyle = 'rgba(25,22,18,.9)'; g.textAlign = 'left';
+  g.font = `400 ${mob?16:21}px "Yuji Syuku", serif`; g.fillText('Colophon', 30, B + 44);
+  g.font = `400 ${mob?12.5:15}px "EB Garamond"`;
+  const lines = [
+    `The river began with 5 people on 5 January.`,
+    `Five teams joined; it ran widest at ${MAXH} people`,
+    `from July to early August.`,
+    `Two engineers left for the Payments rewrite`,
+    `on 10 August; ${headAt(NW-1)} people reach the sea`,
+    `in October, after 8 milestones and the`,
+    `public launch on 8 September.`,
+  ];
+  lines.forEach((t,i) => g.fillText(t, 30, B + 80 + i*(mob?17:21)));
+  g.restore();
+  seal(g, w - 92, PH - B - 54, mob?24:30, '長流', `400 ${mob?10:13}px "Ma Shan Zheng", serif`);
+  seal(g, 60, PH - B - 50, mob?20:24, '2026');
+}
+
+/* ---------------- viewing ---------------- */
+let off = null, vel = 0, maxOff = 0, unroll = reduce ? 1 : 0, hoverX = null, selEvt = null;
+function view(){
+  // left roller slides out as the scroll is unrolled
+  const R = G.viewR, Lfull = G.viewL;
+  const Lx = R - (R - Lfull)*easeOut(unroll);
+  return {L: Lx, R};
+}
+const easeOut = u => 1 - Math.pow(1 - u, 3);
+function toScreen(x){ const v = view(); return v.R - ((off + (G.viewR - G.viewL)) - x); }
+function toScroll(s){ const v = view(); return (off + (G.viewR - G.viewL)) - (v.R - s); }
+
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W,H);
+  const v = view(), top = G.top, PH = G.ph;
+  // table shadow
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(v.L - 6, top + 12, v.R - v.L + 12, PH);
+  // the unrolled paper
+  const srcX = toScroll(v.L);
+  const sw = v.R - v.L;
+  if (sw > 1){
+    ctx.drawImage(scroll, Math.max(0, srcX*SD), 0, sw*SD, PH*SD, v.L, top, sw, PH);
+    // the paper curls toward each roller
+    for (const [x, dir] of [[v.L, 1], [v.R, -1]]){
+      const cg = ctx.createLinearGradient(x, 0, x + dir*36, 0);
+      cg.addColorStop(0, 'rgba(40,30,15,.38)'); cg.addColorStop(1, 'rgba(40,30,15,0)');
+      ctx.fillStyle = cg; ctx.fillRect(Math.min(x, x + dir*36), top, 36, PH);
+    }
+  }
+  // live layer: boats, current ripples, hover line
+  ctx.save(); ctx.beginPath(); ctx.rect(v.L, top, sw, PH); ctx.clip();
+  const now = performance.now()/1000;
+  // drifting current lines
+  if (!reduce){
+    for (let k=0;k<26;k++){
+      const x = toScroll(v.L) + ((k*173 + (now*28)) % (sw + 60)) - 30; // drift leftwards visually
+      const sxp = toScreen(x - (now*28) % 40);
+      const cy = cyAt(x), w = widthAt(x); if (w < 8) continue;
+      const y = top + cy + Math.sin(k*1.7)*w*0.32;
+      ctx.strokeStyle = 'rgba(40,52,54,.18)'; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(sxp, y); ctx.quadraticCurveTo(sxp - 6, y - 1.5, sxp - 13, y); ctx.stroke();
+    }
+  }
+  for (const e of EVENTS){
+    const x = xOfW(e.w) - 30, s = toScreen(x);
+    if (s < v.L - 40 || s > v.R + 40) continue;
+    const cy = cyAt(x) + Math.min(widthAt(x)*0.15, 10);
+    const bob = reduce ? 0 : Math.sin(now*1.6 + e.w)*1.6;
+    boat(ctx, s + 4, top + cy + bob, mob ? 0.8 : 1, e === selEvt || e === hoverEvt, now + e.w);
+  }
+  if (hoverX !== null){
+    const s = toScreen(hoverX);
+    ctx.strokeStyle = 'rgba(181,38,30,.55)'; ctx.lineWidth = 1; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(s, top + G.border); ctx.lineTo(s, top + PH - G.border); ctx.stroke(); ctx.setLineDash([]);
+    const cy = cyAt(hoverX), w = widthAt(hoverX);
+    ctx.strokeStyle = 'rgba(181,38,30,.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(s - 5, top + cy - w/2); ctx.lineTo(s + 5, top + cy - w/2); ctx.moveTo(s - 5, top + cy + w/2); ctx.lineTo(s + 5, top + cy + w/2); ctx.stroke();
+  }
+  ctx.restore();
+  // rollers: thickness shows how much is still rolled up
+  const futureLen = Math.max(0, toScroll(v.L)), pastLen = Math.max(0, G.len - toScroll(v.R));
+  roller(v.L, top, PH, G.rollR + Math.sqrt(futureLen)*0.28);
+  roller(v.R, top, PH, G.rollR + Math.sqrt(pastLen)*0.28);
+  overview();
+}
+function boat(g, x, y, s, hot, t){
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = 'rgba(20,20,18,.92)';
+  g.beginPath(); g.moveTo(-16, -2); g.quadraticCurveTo(0, 6, 17, -3); g.lineTo(13, 1); g.quadraticCurveTo(0, 7, -12, 1); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(232,222,198,1)'; g.strokeStyle = 'rgba(20,20,18,.9)'; g.lineWidth = 0.9;
+  g.beginPath(); g.moveTo(-6, -2); g.quadraticCurveTo(-1, -9, 5, -2); g.closePath(); g.fill(); g.stroke();
+  // boatman with pole
+  g.fillStyle = 'rgba(20,20,18,.92)'; g.beginPath(); g.arc(10, -9, 1.8, 0, TAU); g.fill();
+  g.beginPath(); g.moveTo(8.5, -7.5); g.lineTo(11.5, -7.5); g.lineTo(11, -2); g.lineTo(9, -2); g.fill();
+  g.strokeStyle = 'rgba(20,20,18,.9)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(14, -16); g.lineTo(5 + Math.sin(t)*1.5, 8); g.stroke();
+  // wake
+  g.strokeStyle = 'rgba(30,40,42,.35)'; g.beginPath(); g.moveTo(18, 1); g.quadraticCurveTo(24, 0, 30, 2); g.moveTo(17, 3); g.quadraticCurveTo(22, 4, 27, 5); g.stroke();
+  if (hot){ g.strokeStyle = 'rgba(181,38,30,.9)'; g.lineWidth = 1.4; g.beginPath(); g.ellipse(1, -2, 24, 13, 0, 0, TAU); g.stroke(); }
+  g.restore();
+}
+function roller(x, top, PH, r){
+  r = Math.min(r, mob ? 15 : 26);
+  const g = ctx;
+  const wg = g.createLinearGradient(x - r, 0, x + r, 0);
+  wg.addColorStop(0, '#cbbd9c'); wg.addColorStop(0.45, '#efe4ca'); wg.addColorStop(1, '#a8987a');
+  g.fillStyle = wg; g.fillRect(x - r, top + 2, 2*r, PH - 4);
+  g.fillStyle = 'rgba(80,60,30,.25)'; for (let k=1;k<4;k++) g.fillRect(x - r + k*(2*r/4), top + 2, 0.8, PH - 4);
+  // brocade wraps at the ends + the wooden rod knobs
+  for (const y of [top - 14, top + PH + 2]){
+    const kg = g.createLinearGradient(x - r*0.55, 0, x + r*0.55, 0);
+    kg.addColorStop(0, '#3a2414'); kg.addColorStop(0.45, '#7a4a28'); kg.addColorStop(1, '#2a180c');
+    g.fillStyle = kg; g.beginPath(); g.roundRect ? g.roundRect(x - r*0.55, y, r*1.1, 12, 3) : g.rect(x - r*0.55, y, r*1.1, 12); g.fill();
+  }
+  g.fillStyle = 'rgba(86,104,111,1)'; g.fillRect(x - r, top + 2, 2*r, G.border - 2); g.fillRect(x - r, top + PH - G.border, 2*r, G.border - 2);
+}
+/* overview: the whole scroll in miniature, as a single ink stroke */
+function overview(){
+  const g = ctx, y0 = G.ovY, h = G.ovH, x0 = G.viewL, x1 = G.viewR, w = x1 - x0;
+  const sOf = x => x0 + (x/G.len)*w;
+  g.fillStyle = 'rgba(232,222,198,.08)'; g.fillRect(x0, y0, w, h);
+  g.beginPath();
+  for (let x = 0; x <= G.len; x += 8){ const ww = widthAt(x)/G.k/MAXH*h*0.8; const sx = sOf(x); x ? g.lineTo(sx, y0 + h/2 - ww/2) : g.moveTo(sx, y0 + h/2 - ww/2); }
+  for (let x = G.len; x >= 0; x -= 8){ const ww = widthAt(x)/G.k/MAXH*h*0.8; g.lineTo(sOf(x), y0 + h/2 + ww/2); }
+  g.closePath(); g.fillStyle = 'rgba(225,215,190,.55)'; g.fill();
+  for (const e of EVENTS){ const sx = sOf(xOfW(e.w)); g.fillStyle = '#b5261e'; g.fillRect(sx - 2, y0 + h - 6, 4, 4); }
+  g.font = `italic 400 ${mob?10:12}px "EB Garamond"`; g.fillStyle = 'rgba(232,222,198,.6)'; g.textAlign='center';
+  for (const m of [0,2,4,6,8]){ const d = new Date(2026, m, 1), ww = (d - new Date(2026,0,5))/864e5/7; g.fillText(MONL[m].slice(0,3), sOf(xOfW(ww)), y0 - 4); }
+  // window
+  const v = view();
+  const a = sOf(toScroll(v.L)), b = sOf(toScroll(v.R));
+  g.strokeStyle = 'rgba(240,230,205,.85)'; g.lineWidth = 1.2; g.strokeRect(a, y0 - 1, b - a, h + 2);
+}
+
+/* ---------------- interaction ---------------- */
+let drag = null, hoverEvt = null;
+const boatsEl = $('boats');
+EVENTS.forEach(e => {
+  const b = document.createElement('button'); b.className = 'boat'; b.type = 'button';
+  b.setAttribute('aria-label', `${e.title}, week of ${fmt(e.w)} 2026, ${headAt(Math.floor(e.w))} people on the river. ${e.note}`);
+  b.addEventListener('click', () => { audio(); selEvt = e; centerOn(xOfW(e.w) - 30); showEvent(e, b); });
+  b.addEventListener('focus', () => { selEvt = e; centerOn(xOfW(e.w) - 30); showEvent(e, b); });
+  b.addEventListener('blur', () => { if (selEvt === e){ selEvt = null; $('slip').hidden = true; } });
+  b.addEventListener('mouseenter', () => { hoverEvt = e; showEvent(e, b); });
+  b.addEventListener('mouseleave', () => { hoverEvt = null; if (selEvt !== e) $('slip').hidden = true; });
+  e.btn = b; boatsEl.appendChild(b);
+});
+function placeBoats(){
+  const v = view();
+  for (const e of EVENTS){
+    const x = xOfW(e.w) - 30, s = toScreen(x);
+    const vis = s > v.L + 10 && s < v.R - 10;
+    e.btn.style.left = (s + 4) + 'px'; e.btn.style.top = (G.top + cyAt(x)) + 'px';
+    e.btn.style.visibility = vis ? 'visible' : 'hidden';
+  }
+}
+function showEvent(e, b){
+  const slip = $('slip');
+  const n = headAt(Math.floor(e.w));
+  slip.innerHTML = `<b>${e.title}</b><span class="seal">${fmtS(e.w)}</span>Week of ${fmt(Math.floor(e.w))} 2026 · ${n} people on the river<br>${e.note}`;
+  slip.hidden = false;
+  const s = toScreen(xOfW(e.w) - 30);
+  const y = G.top + cyAt(xOfW(e.w)) + 26;
+  slip.style.left = Math.max(8, Math.min(W - slip.offsetWidth - 8, s - slip.offsetWidth/2)) + 'px';
+  slip.style.top = Math.min(H - slip.offsetHeight - 8, y) + 'px';
+  announce(`${e.title}, ${fmt(e.w)}. ${e.note}`);
+}
+function showWeek(x, sy){
+  const w = Math.max(0, Math.min(NW - 1, Math.floor(wOfX(x))));
+  const slip = $('slip');
+  const rows = TEAMS.map(t => [t, sizeAt(t, w)]).filter(([,n]) => n > 0);
+  const joined = TEAMS.filter(t => t.steps.some(([s]) => s === w && w > 0));
+  slip.innerHTML = `<b>Week of ${fmt(w)}</b>${headAt(w)} people on Atlas${joined.length ? ` · ${joined.map(t=>t.name).join(', ')} joined` : ''}${w === LEAVE.w ? ' · 2 left' : ''}<div style="margin-top:6px">${rows.map(([t,n]) => `<div class="row"><span>${t.name}</span><span>${n}</span></div>`).join('')}</div>`;
+  slip.hidden = false;
+  const s = toScreen(x);
+  slip.style.left = Math.max(8, Math.min(W - slip.offsetWidth - 8, s + 16)) + 'px';
+  slip.style.top = Math.max(8, Math.min(H - slip.offsetHeight - 8, sy - slip.offsetHeight/2)) + 'px';
+}
+function centerOn(x){ target = Math.max(0, Math.min(maxOff, x - (G.viewR - G.viewL)/2)); }
+let target = null;
+cv.addEventListener('pointerdown', e => {
+  audio();
+  const v = view();
+  if (e.clientY > G.ovY - 10 && e.clientY < G.ovY + G.ovH + 10){ ovDrag = true; jumpOverview(e.clientX); try{ cv.setPointerCapture(e.pointerId); }catch(_){} return; }
+  drag = {x: e.clientX, off, t: performance.now(), vx: 0, moved: 0};
+  target = null; vel = 0; cv.classList.add('drag');
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  dismissHint();
+});
+let ovDrag = false;
+function jumpOverview(sx){ const u = (sx - G.viewL)/(G.viewR - G.viewL); target = null; off = Math.max(0, Math.min(maxOff, u*G.len - (G.viewR - G.viewL)/2)); paper(); }
+cv.addEventListener('pointermove', e => {
+  if (ovDrag){ jumpOverview(e.clientX); return; }
+  if (drag){
+    const dx = e.clientX - drag.x;
+    const now = performance.now();
+    const nOff = Math.max(-40, Math.min(maxOff + 40, drag.off + dx));
+    drag.vx = (nOff - off)/Math.max(1, now - drag.t)*16; drag.t = now; drag.moved += Math.abs(nOff - off);
+    off = nOff; if (drag.moved > 30) paper();
+    hoverX = null; $('slip').hidden = true;
+    return;
+  }
+  const v = view();
+  if (e.clientX > v.L && e.clientX < v.R && e.clientY > G.top + G.border && e.clientY < G.top + G.ph - G.border){
+    const x = toScroll(e.clientX), y = e.clientY - G.top;
+    const cy = cyAt(x), w = widthAt(x);
+    if (Math.abs(y - cy) < w/2 + 18 && wOfX(x) >= 0 && wOfX(x) < NW){ hoverX = x; if (!hoverEvt) showWeek(x, e.clientY); return; }
+  }
+  if (hoverX !== null){ hoverX = null; if (!hoverEvt && !selEvt) $('slip').hidden = true; }
+});
+const endDrag = () => {
+  ovDrag = false;
+  if (!drag) return; vel = drag.vx; drag = null; cv.classList.remove('drag');
+};
+cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => { if (!drag){ hoverX = null; if (!hoverEvt && !selEvt) $('slip').hidden = true; } });
+cv.addEventListener('wheel', e => { e.preventDefault(); target = null; off = Math.max(0, Math.min(maxOff, off - (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : -e.deltaX))); vel = 0; dismissHint(); paper(); }, {passive:false});
+cv.addEventListener('keydown', e => {
+  const step = G.pxw;
+  let d = 0;
+  if (e.key === 'ArrowLeft') d = step; else if (e.key === 'ArrowRight') d = -step;
+  else if (e.key === 'PageDown') d = step*4; else if (e.key === 'PageUp') d = -step*4;
+  else if (e.key === 'Home'){ target = maxOff; e.preventDefault(); return; } else if (e.key === 'End'){ target = 0; e.preventDefault(); return; }
+  else return;
+  e.preventDefault(); audio(); dismissHint();
+  // left = downstream (later): the scroll moves right under the reader
+  target = Math.max(0, Math.min(maxOff, (target ?? off) - d));
+  const cx = (target + (G.viewR - G.viewL)/2), w = Math.max(0, Math.min(NW-1, Math.floor(wOfX(cx))));
+  announce(`Week of ${fmt(w)}: ${headAt(w)} people. ` + nearbyEvents(w));
+});
+function nearbyEvents(w){ const ev = EVENTS.filter(e => Math.abs(e.w - w) < 1.5); return ev.length ? 'Milestone: ' + ev.map(e => e.title).join(', ') + '.' : ''; }
+function dismissHint(){ $('hint').classList.add('gone'); }
+function announce(s){ $('live').textContent = s; }
+function placeHint(){ $('hint').style.top = (G.ovY + G.ovH + (mob ? 14 : 18)) + 'px'; }
+
+/* ---------------- sound: paper and water ---------------- */
+let AC = null, master = null, lastPaper = 0;
+function audio(){ if (AC){ if (AC.state==='suspended') AC.resume(); return; } try{ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.12; master.connect(AC.destination);}catch(e){ AC = null; } }
+function paper(){
+  if (!AC) return; const now = performance.now(); if (now - lastPaper < 90) return; lastPaper = now;
+  const t0 = AC.currentTime, len = 0.12, b = AC.createBuffer(1, Math.ceil(AC.sampleRate*len), AC.sampleRate), d = b.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*Math.sin(Math.PI*i/d.length)*(Math.random() < 0.15 ? 1 : 0.35);
+  const s = AC.createBufferSource(); s.buffer = b; const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2500;
+  const g = AC.createGain(); g.gain.value = 0.25; s.connect(f); f.connect(g); g.connect(master); s.start(t0);
+}
+
+/* ---------------- loop ---------------- */
+let last = performance.now();
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  if (unroll < 1){ unroll = Math.min(1, unroll + dt/1.6); }
+  if (!drag){
+    if (target !== null){ off += (target - off)*Math.min(1, dt*(reduce ? 60 : 7)); if (Math.abs(target - off) < 0.5){ off = target; target = null; } }
+    else if (Math.abs(vel) > 0.1){ off += vel; vel *= Math.pow(0.04, dt); if (Math.abs(vel) > 2) paper(); }
+    if (off < 0){ off += (0 - off)*Math.min(1, dt*10); vel = 0; } if (off > maxOff){ off += (maxOff - off)*Math.min(1, dt*10); vel = 0; }
+  }
+  draw(); placeBoats();
+  const v = view(), mid = toScroll((v.L + v.R)/2), w = Math.max(0, Math.min(NW - 1, Math.floor(wOfX(mid))));
+  if (w !== frame.w){ frame.w = w; $('now').innerHTML = `<b>${MONL[wDate(w).getMonth()]} 2026</b>week of ${fmt(w)} · ${headAt(w)} people on the river`; }
+  requestAnimationFrame(frame);
+}
+function summary(){
+  $('summary').textContent = `Atlas 3.0 project timeline, 5 January to 5 October 2026, drawn as a river whose width is headcount. ` +
+    TEAMS.map(t => `${t.name}: ` + t.steps.map(([s,n]) => `${n} from ${fmt(s)}`).join(', ')).join('. ') + `. Peak ${MAXH} people. ` +
+    `Milestones: ` + EVENTS.map(e => `${e.title} ${fmt(e.w)}`).join('; ') + '.';
+  cv.setAttribute('aria-label', 'Project river timeline. Arrow keys travel through the weeks; left goes downstream to later dates.');
+}
+addEventListener('resize', () => { const u = off/(maxOff||1); layout(); off = u*maxOff; });
+addEventListener('keydown', e => { if (e.key === 'Escape'){ selEvt = null; $('slip').hidden = true; } });
+summary();
+layout();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { paintScroll(); });
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

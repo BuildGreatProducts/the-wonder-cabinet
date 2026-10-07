@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Typewriter Field</title>
+<meta name="description" content="A headline text input drawn as a ligne claire comic panel: every keystroke swings a typebar, the carriage shifts, the bell rings near the margin and backspace lifts off with correction tape.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Patrick+Hand+SC&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Typewriter Field","reimagines":"Text input","category":"Text & Data Entry","description":"A newsroom headline field drawn as a ligne claire comic panel. Every keystroke swings a typebar and leaves an imperfect inked letter, the carriage slides, the bell rings five spaces before the margin and backspace lifts the letter off with correction tape. It is a real text input underneath, so mobile keyboards, paste and screen readers all work.","hint":"Click the sheet and type. Enter returns the carriage"}
+</script>
+<style>
+  :root{
+    --ink:#161616;
+    --line:2.4px;
+    --wall:#d7e6e3;
+    --wall-dark:#bcd3cf;
+    --desk:#c98d4f;
+    --desk-dark:#a86e37;
+    --paper:#fbf5e3;
+    --red:#d2392b;
+    --yellow:#ffe27a;
+    --green:#6f9f6c;
+    --green-dark:#557f53;
+    --steel:#dfe4e4;
+    --key:#2e2e2e;
+    --sky:#9fd0ec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#f4efe2;overflow:hidden}
+  body{font-family:"Patrick Hand SC","Comic Sans MS","Chalkboard SE",cursive;color:var(--ink);-webkit-tap-highlight-color:transparent}
+  .page{position:fixed;inset:0;padding:clamp(8px,1.4vw,18px);background:#f4efe2}
+  .panel{position:relative;width:100%;height:100%;border:3px solid var(--ink);background:var(--wall);overflow:hidden;border-radius:2px}
+  /* --- background art --- */
+  .wall-band{position:absolute;left:0;right:0;height:400px;box-shadow:inset 0 12px 0 #c9dcd8;background:var(--wall-dark);border-top:var(--line) solid var(--ink);border-bottom:var(--line) solid var(--ink)}
+  .desk{position:absolute;left:-4px;right:-4px;bottom:-4px;background:var(--desk);border-top:var(--line) solid var(--ink)}
+  .desk::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;background:var(--desk-dark);border-top:var(--line) solid var(--ink)}
+  .grain{position:absolute;height:0;border-top:2px solid var(--ink);border-radius:50%;opacity:.9}
+  .art{position:absolute;overflow:visible}
+  .art *{vector-effect:non-scaling-stroke}
+
+  .caption{position:absolute;left:14px;top:14px;max-width:min(330px,72%);background:var(--yellow);border:var(--line) solid var(--ink);padding:8px 12px 7px;font-size:clamp(14px,1.5vw,18px);line-height:1.12;letter-spacing:.02em;z-index:30}
+  .caption b{font-weight:400;color:var(--red)}
+
+  /* --- the rig (typewriter), scaled from design units --- */
+  .rig{position:absolute;left:0;top:0;width:700px;height:720px;transform-origin:0 0;z-index:10}
+  .carriage{position:absolute;left:0;top:0;width:0;height:0;will-change:transform}
+  .paper-clip{position:absolute;left:-40px;top:-1200px;width:940px;height:1505px;overflow:hidden;pointer-events:none}
+  .paper{position:absolute;left:40px;top:1200px;width:840px;height:560px;background:var(--paper);border:var(--line) solid var(--ink);border-bottom:none;will-change:transform;pointer-events:auto;cursor:text}
+  .paper .rule{position:absolute;left:44px;right:44px;height:0;border-top:1.6px solid #7fa7c9}
+  .paper .lbl{position:absolute;left:46px;font-size:17px;color:var(--red);letter-spacing:.06em}
+  .paper .mast{position:absolute;left:44px;right:44px;top:22px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px double var(--red);padding-bottom:6px;color:var(--red)}
+  .paper .mast .t{font-size:30px;letter-spacing:.04em}
+  .paper .mast .r{font-size:16px;text-align:right;line-height:1.1}
+  .paper .meta{position:absolute;left:46px;right:46px;top:96px;display:flex;gap:26px;font-size:16px;color:var(--red)}
+  .paper .meta span i{font-style:normal;font-family:"Special Elite",monospace;color:var(--ink);font-size:17px;margin-left:6px}
+  .paper .body-note{position:absolute;left:46px;top:420px;font-size:16px;color:#7fa7c9}
+  .typed{position:absolute;left:0;top:0;width:100%;height:100%;filter:url(#ink);pointer-events:none}
+  .ch{position:absolute;font-family:"Special Elite","Courier New",monospace;font-size:30px;line-height:1;color:#151313;white-space:pre}
+  .tape{position:absolute;width:20px;height:28px;background:#ffffff;border-radius:2px;box-shadow:0 0 0 1px rgba(22,22,22,.32), 1px 1px 0 1px rgba(127,167,201,.35)}
+  .caret{position:absolute;width:18px;height:3px;background:var(--red);opacity:0}
+  .rig.focused .caret{animation:blink 1s steps(2,end) infinite}
+  @keyframes blink{0%{opacity:1}100%{opacity:0}}
+
+  .platen{position:absolute;left:-30px;top:300px;width:900px;height:54px;background:#3a3a3a;border:var(--line) solid var(--ink);border-radius:26px}
+  .platen::before{content:"";position:absolute;left:30px;right:30px;top:8px;height:7px;border-radius:4px;background:#8a8a8a}
+  .platen::after{content:"";position:absolute;left:60px;right:120px;bottom:9px;height:3px;border-radius:2px;background:#555}
+  .knob{position:absolute;top:286px;width:62px;height:82px;background:#2b2b2b;border:var(--line) solid var(--ink);border-radius:20px}
+  .knob::before{content:"";position:absolute;left:10px;top:8px;width:10px;height:60px;border-radius:6px;background:#777}
+  .knob.l{left:-92px}.knob.r{left:892px}
+  .knob i{position:absolute;left:24px;top:0;width:2px;height:100%;background:#151515;opacity:.8}
+  .lever{position:absolute;left:-150px;top:236px;width:120px;height:68px;transform-origin:110px 60px}
+  .bail{position:absolute;left:-10px;top:304px;width:860px;height:18px;background:var(--steel);border:var(--line) solid var(--ink);border-radius:9px}
+  .bail .tick{position:absolute;top:0;width:1.6px;height:5px;background:var(--ink)}
+  .bail .tick.big{height:8px}
+  .bail .num{position:absolute;top:-1px;font-size:12px;line-height:18px;transform:translateX(-50%) translateY(4px);font-family:"Special Elite",monospace;opacity:0}
+  .bail .roller{position:absolute;top:-4px;width:30px;height:22px;border-radius:9px;background:#3a3a3a;border:var(--line) solid var(--ink)}
+
+  .guide{position:absolute;left:316px;top:290px;width:68px;height:34px;z-index:4;pointer-events:none}
+  .ribbon{position:absolute;left:337px;top:300px;width:26px;height:16px;border:var(--line) solid var(--ink);background:linear-gradient(#1c1c1c 0 50%,var(--red) 50% 100%);z-index:3;transition:transform .07s ease-out}
+  .ribbon.up{transform:translateY(-22px)}
+  svg.bars{position:absolute;left:0;top:0;width:700px;height:720px;overflow:visible;z-index:3;pointer-events:none}
+  .throat{position:absolute;left:150px;top:350px;width:400px;height:100px;background:#2a2a2a;border:var(--line) solid var(--ink);border-top:none;z-index:2;border-radius:0 0 20px 20px}
+  svg.body{position:absolute;left:0;top:0;width:700px;height:720px;overflow:visible;z-index:5;pointer-events:none}
+  .fx{position:absolute;inset:0;z-index:20;pointer-events:none}
+
+  .keys{position:absolute;left:0;top:0;z-index:6}
+  .key{position:absolute;width:46px;height:46px;margin:0;padding:0;border-radius:50%;border:var(--line) solid var(--ink);background:var(--steel);cursor:pointer;touch-action:manipulation;transition:transform .05s}
+  .key span{position:absolute;inset:4px;border-radius:50%;background:var(--key);border:2px solid var(--ink);color:#fff6e4;font-family:"Special Elite",monospace;font-size:19px;line-height:34px;text-align:center}
+  .key::after{content:"";position:absolute;left:50%;top:100%;width:4px;height:16px;margin-left:-2px;background:var(--ink);transition:height .05s}
+  .key.down{transform:translateY(7px)}
+  .key.down::after{height:9px}
+  .key.space{width:300px;border-radius:14px}
+  .key.space span{border-radius:10px}
+  .key:focus-visible{outline:4px solid var(--yellow);outline-offset:2px}
+
+  input.ghost{position:absolute;left:230px;top:262px;width:240px;height:40px;opacity:0;font-size:16px;border:0;padding:0;caret-color:transparent;color:transparent;background:transparent;pointer-events:none;z-index:1}
+
+  /* --- comic controls --- */
+  .controls{position:absolute;z-index:31;display:flex;gap:10px;align-items:flex-end}
+  .ctl{font-family:inherit;color:var(--ink);background:#fff;border:var(--line) solid var(--ink);padding:8px 14px 7px;font-size:clamp(15px,1.5vw,19px);letter-spacing:.03em;cursor:pointer;line-height:1.05;text-align:left;box-shadow:4px 4px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+  .ctl:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--ink)}
+  .ctl:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+  .ctl:focus-visible{outline:4px solid var(--red);outline-offset:3px}
+  .ctl small{display:block;font-size:.72em;color:#555;letter-spacing:.04em}
+  .ctl[aria-pressed="true"]{background:var(--yellow)}
+  .ctl.file{background:var(--red);color:#fff}
+  .ctl.file small{color:#ffe1d8}
+  .ctl[disabled]{background:#e4e0d6;color:#8a857a;cursor:not-allowed;box-shadow:2px 2px 0 #8a857a;border-color:#8a857a}
+  .ctl[disabled] small{color:#9b968b}
+  .count.warn{color:var(--red)}
+  .mute{position:absolute;right:12px;top:12px;width:44px;height:44px;border-radius:50%;background:#fff;border:var(--line) solid var(--ink);z-index:32;cursor:pointer;padding:0;display:grid;place-items:center}
+  .mute:focus-visible{outline:4px solid var(--red);outline-offset:2px}
+  .balloon{position:absolute;z-index:29;background:#fff;border:var(--line) solid var(--ink);border-radius:50% / 46%;padding:16px 26px;font-size:clamp(15px,1.55vw,20px);line-height:1.12;text-align:center;max-width:250px;transition:opacity .5s, transform .5s}
+  .balloon svg{position:absolute;overflow:visible}
+  .balloon.gone{opacity:0;transform:scale(.9)}
+  .sfx{position:absolute;font-family:"Patrick Hand SC",cursive;color:var(--yellow);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;white-space:nowrap;letter-spacing:.03em;transform-origin:50% 50%}
+  .burst{position:absolute;pointer-events:none}
+  .tray{position:absolute;z-index:8;pointer-events:none}
+  .live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (prefers-reduced-motion: reduce){
+    .ribbon,.ctl,.balloon{transition:none}
+    .rig.focused .caret{animation:none;opacity:1}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="ink" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="1.3" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="11" result="n2"/>
+      <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 2.05" result="mask"/>
+      <feComposite in="d" in2="mask" operator="in"/>
+    </filter>
+  </defs>
+</svg>
+<div class="page">
+  <main class="panel" id="panel">
+    <div class="wall-band" id="band"></div>
+    <!-- clock -->
+    <svg class="art" id="clock" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+      <circle cx="60" cy="60" r="52" fill="#fffdf6" stroke="#161616" stroke-width="2.6"/>
+      <circle cx="60" cy="60" r="44" fill="none" stroke="#161616" stroke-width="1.4"/>
+      <g id="ticks"></g>
+      <line id="hh" x1="60" y1="60" x2="60" y2="32" stroke="#161616" stroke-width="4.5" stroke-linecap="round"/>
+      <line id="mh" x1="60" y1="60" x2="60" y2="22" stroke="#161616" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="60" cy="60" r="4" fill="#d2392b" stroke="#161616" stroke-width="1.6"/>
+    </svg>
+    <!-- window -->
+    <svg class="art" id="win" viewBox="0 0 240 230" width="240" height="230" aria-hidden="true">
+      <rect x="6" y="6" width="228" height="218" fill="#fffdf6" stroke="#161616" stroke-width="2.6"/>
+      <rect x="20" y="20" width="200" height="190" fill="#9fd0ec" stroke="#161616" stroke-width="2.4"/>
+      <path d="M40 112 q12 -20 30 -8 q10 -18 30 -6 q18 -4 18 12 q14 2 10 14 H36 q-10 -6 4 -12z" fill="#fff" stroke="#161616" stroke-width="2.2"/>
+      <path d="M140 64 q8 -14 22 -6 q12 -8 20 4 q10 2 6 10 h-50 q-6 -4 2 -8z" fill="#fff" stroke="#161616" stroke-width="2.2"/>
+      <path d="M20 210 V176 h22 v-30 h18 v30 h14 v-46 h26 v46 h12 v-20 h20 v-26 h22 v46 h16 v-14 h18 v14 h12 V210z" fill="#8fb6a8" stroke="#161616" stroke-width="2.2"/>
+      <line x1="120" y1="20" x2="120" y2="210" stroke="#161616" stroke-width="2.6"/>
+      <line x1="20" y1="115" x2="220" y2="115" stroke="#161616" stroke-width="2.6"/>
+    </svg>
+    <div class="desk" id="desk">
+      <div class="grain" style="left:8%;width:22%;top:26%"></div>
+      <div class="grain" style="left:60%;width:30%;top:44%"></div>
+      <div class="grain" style="left:30%;width:18%;top:64%"></div>
+    </div>
+    <!-- mug and pencil pot -->
+    <svg class="tray" id="mug" viewBox="0 0 200 150" width="200" height="150" aria-hidden="true">
+      <path d="M44 18 q-10 -12 0 -22 M60 16 q-10 -12 0 -24" fill="none" stroke="#161616" stroke-width="2.2" stroke-linecap="round" id="steam"/>
+      <path d="M24 34 H80 L74 120 Q73 128 64 128 H40 Q31 128 30 120z" fill="#fffdf6" stroke="#161616" stroke-width="2.6" stroke-linejoin="round"/>
+      <path d="M78 52 Q100 52 98 74 Q96 96 74 98" fill="none" stroke="#161616" stroke-width="2.6"/>
+      <path d="M78 60 Q90 62 89 75 Q88 88 76 90" fill="none" stroke="#161616" stroke-width="2"/>
+      <ellipse cx="52" cy="34" rx="28" ry="6" fill="#7a4a24" stroke="#161616" stroke-width="2.4"/>
+      <path d="M28 70 H78" stroke="#d2392b" stroke-width="7"/>
+      <g stroke="#161616" stroke-width="2.4" stroke-linejoin="round">
+        <path d="M128 18 L136 70 L130 72z" fill="#ffe27a"/>
+        <path d="M150 8 L148 70 L142 70z" fill="#d2392b"/>
+        <path d="M168 22 L156 72 L150 70z" fill="#6f9f6c"/>
+        <path d="M120 66 H178 L172 128 H126z" fill="#dfe4e4"/>
+        <path d="M122 84 H176" fill="none"/>
+      </g>
+    </svg>
+    <!-- out tray -->
+    <svg class="tray" id="tray" viewBox="0 0 220 120" width="220" height="120" aria-hidden="true">
+      <g id="trayStack"></g>
+      <path d="M8 60 L24 112 H196 L212 60" fill="#e7c25b" stroke="#161616" stroke-width="2.6" stroke-linejoin="round"/>
+      <line x1="16" y1="86" x2="204" y2="86" stroke="#161616" stroke-width="2"/>
+      <text x="110" y="106" text-anchor="middle" font-family="Patrick Hand SC, cursive" font-size="18" fill="#161616">copy desk</text>
+    </svg>
+
+    <div class="caption" id="caption">The Morning Ledger, wire desk. <b>Wednesday 7 October 2026</b>, <span id="capTime">10.41 a.m.</span> The ferry story needs a headline.</div>
+
+    <div class="balloon" id="balloon">
+      Click the sheet and type. Enter returns the carriage!
+      <svg id="tail" width="60" height="60" aria-hidden="true"><path d="M8 0 Q20 30 0 56 Q34 34 40 0" fill="#fff" stroke="#161616" stroke-width="2.4" stroke-linejoin="round"/></svg>
+    </div>
+
+    <div class="rig" id="rig">
+      <div class="carriage" id="carriage">
+        <div class="paper-clip">
+          <div class="paper" id="paper">
+            <div class="mast"><span class="t">The Morning Ledger</span><span class="r">copy sheet no. 0418<br>metro desk</span></div>
+            <div class="meta"><span>slug <i>FERRY</i></span><span>date <i>07/10/26</i></span><span>sheet <i>1 of 1</i></span></div>
+            <div class="lbl" style="top:166px">headline &mdash; 40 spaces max</div>
+            <div class="rule" style="top:234px"></div>
+            <div class="lbl" style="top:252px">byline</div>
+            <div class="rule" style="top:316px"></div>
+            <div class="rule" style="top:372px"></div>
+            <div class="body-note">body copy follows on sheet 2</div>
+            <div class="typed" id="typed"></div>
+            <div class="caret" id="caret"></div>
+          </div>
+        </div>
+        <svg class="lever" viewBox="0 0 120 68" aria-hidden="true">
+          <path d="M110 60 L28 18 Q12 10 6 22 Q2 34 18 36 L104 64z" fill="#dfe4e4" stroke="#161616" stroke-width="2.4" stroke-linejoin="round"/>
+          <circle cx="12" cy="24" r="10" fill="#2b2b2b" stroke="#161616" stroke-width="2.4"/>
+        </svg>
+        <div class="platen"></div>
+        <div class="knob l"><i></i></div>
+        <div class="knob r"><i></i></div>
+        <div class="bail" id="bail"></div>
+      </div>
+      <div class="throat"></div>
+      <svg class="bars" id="bars" viewBox="0 0 700 720" aria-hidden="true"></svg>
+      <div class="ribbon" id="ribbon"></div>
+      <svg class="guide" viewBox="0 0 68 34" aria-hidden="true">
+        <path d="M2 10 H26 L34 2 L42 10 H66 V30 H2z" fill="#dfe4e4" stroke="#161616" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M34 4 L29 10 H39z" fill="#d2392b" stroke="#161616" stroke-width="1.6" stroke-linejoin="round"/>
+        <line x1="14" y1="20" x2="54" y2="20" stroke="#161616" stroke-width="1.6"/>
+      </svg>
+      <svg class="body" viewBox="0 0 700 720" aria-hidden="true">
+        <path d="M150 430 Q150 414 170 414 H530 Q550 414 550 430 L560 446 Q646 446 660 480 L684 696 Q686 714 668 714 H32 Q14 714 16 696 L40 480 Q54 446 140 446z" fill="#6f9f6c" stroke="#161616" stroke-width="2.6" stroke-linejoin="round"/>
+        <path d="M40 480 Q54 446 140 446 L150 430 L160 446 Q70 456 60 492 L36 700 Q20 710 16 696z" fill="#557f53"/>
+        <path d="M30 664 H670" stroke="#161616" stroke-width="2.2"/>
+        <path d="M34 664 L32 690 Q32 704 46 704 H654 Q668 704 668 690 L666 664z" fill="#557f53" stroke="#161616" stroke-width="2.2"/>
+        <rect x="292" y="456" width="116" height="26" rx="4" fill="#dfe4e4" stroke="#161616" stroke-width="2.2"/>
+        <text x="350" y="475" text-anchor="middle" font-family="Patrick Hand SC, cursive" font-size="17" fill="#161616" letter-spacing="2">ledger no. 5</text>
+        <path d="M176 424 H524" stroke="#161616" stroke-width="2" />
+      </svg>
+      <div class="keys" id="keys"></div>
+      <input class="ghost" id="in0" type="text" maxlength="40" autocomplete="off" autocapitalize="sentences" spellcheck="false" aria-label="Headline, 40 characters maximum" value="">
+      <input class="ghost" id="in1" type="text" maxlength="30" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Byline" value="">
+      <div class="fx" id="fx"></div>
+    </div>
+
+    <div class="controls" id="ctlLeft">
+      <button class="ctl" id="tab0" aria-pressed="true" type="button">headline<small class="count" id="c0">0 / 40</small></button>
+      <button class="ctl" id="tab1" aria-pressed="false" type="button">byline<small class="count" id="c1">0 / 30</small></button>
+    </div>
+    <div class="controls" id="ctlRight">
+      <button class="ctl file" id="file" type="button" disabled>file to copy desk<small id="fileSub">type a headline first</small></button>
+    </div>
+    <button class="mute" id="mute" type="button" aria-label="Mute typewriter sounds" aria-pressed="false">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 9 H8 L14 4 V22 L8 17 H3z" fill="#ffe27a" stroke="#161616" stroke-width="2" stroke-linejoin="round"/><g id="waves" fill="none" stroke="#161616" stroke-width="2" stroke-linecap="round"><path d="M17 9 Q20 13 17 17"/><path d="M20 6 Q25 13 20 20"/></g><path id="cross" d="M17 9 L24 17 M24 9 L17 17" stroke="#d2392b" stroke-width="2.4" stroke-linecap="round" style="display:none"/></svg>
+    </button>
+    <div class="live" id="live" aria-live="polite"></div>
+  </main>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const panel = $('panel'), rig = $('rig'), carriage = $('carriage'), paper = $('paper'), typedEl = $('typed'), caret = $('caret');
+  const STRIKE_X = 350, STRIKE_BASE = 292, PAD = 46, CW = 18.6;
+  const LINE_Y = [226, 308];
+  const fields = [
+    { input: $('in0'), max: 40, typed: '', pending: '', cols: [], tab: $('tab0'), count: $('c0') },
+    { input: $('in1'), max: 30, typed: '', pending: '', cols: [], tab: $('tab1'), count: $('c1') }
+  ];
+  let active = 0, scale = 1, hintGone = false, filedCount = 0, filing = false;
+
+  /* ---------- audio ---------- */
+  let ac = null, master = null, muted = false, noise = null;
+  function audio() {
+    if (muted) return null;
+    try {
+      if (!ac) {
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        master = ac.createGain(); master.gain.value = 0.17; master.connect(ac.destination);
+        noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+        const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    } catch (e) { return null; }
+  }
+  function burst(t, dur, type, freq, q, gain) {
+    const a = ac, s = a.createBufferSource(); s.buffer = noise;
+    const f = a.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = a.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    s.connect(f).connect(g).connect(master); s.start(t, Math.random() * 0.8, dur + 0.02);
+  }
+  function tone(t, f0, f1, dur, gain, type) {
+    const a = ac, o = a.createOscillator(); o.type = type || 'sine';
+    o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = a.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+  }
+  const snd = {
+    strike(soft) { if (!audio()) return; const t = ac.currentTime;
+      burst(t, 0.05, 'bandpass', 1700 + Math.random() * 1400, 1.1, soft ? 0.35 : 0.9);
+      tone(t, 210, 70, 0.08, soft ? 0.25 : 0.55);
+      burst(t + 0.035, 0.03, 'highpass', 4200, 0.7, 0.18); },
+    bell() { if (!audio()) return; const t = ac.currentTime + 0.02;
+      tone(t, 2637, 0, 1.5, 0.32); tone(t, 5274 * 1.007, 0, 0.7, 0.12); tone(t, 7330, 0, 0.35, 0.06); },
+    zip(dur) { if (!audio()) return; const t = ac.currentTime; const n = Math.max(4, Math.round(dur * 40));
+      for (let i = 0; i < n; i++) burst(t + i * dur / n, 0.018, 'highpass', 3000 + (i % 3) * 400, 0.8, 0.22);
+      burst(t, dur, 'lowpass', 900, 0.6, 0.25); tone(t + dur, 160, 60, 0.12, 0.5); },
+    feed() { if (!audio()) return; const t = ac.currentTime; for (let i = 0; i < 3; i++) burst(t + i * 0.05, 0.02, 'bandpass', 2600, 2, 0.4); },
+    tape() { if (!audio()) return; const t = ac.currentTime; burst(t, 0.14, 'bandpass', 5200, 0.6, 0.35); tone(t, 180, 80, 0.07, 0.3); },
+    jam() { if (!audio()) return; const t = ac.currentTime; tone(t, 120, 50, 0.18, 0.6, 'triangle'); burst(t, 0.12, 'bandpass', 700, 3, 0.5); }
+  };
+
+  /* ---------- springs ---------- */
+  const spring = (v) => ({ x: v, v: 0, target: v });
+  const carX = spring(xFor(0)), papY = spring(STRIKE_BASE - LINE_Y[0]);
+  const bars = []; // typebar states
+  let raf = 0;
+  function xFor(col) { return STRIKE_X - (PAD + (col + 0.5) * CW); }
+  function kick() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  let last = 0;
+  function stepSpring(s, k, c, dt) {
+    if (reduce) { s.x = s.target; s.v = 0; return false; }
+    const a = -k * (s.x - s.target) - c * s.v; s.v += a * dt; s.x += s.v * dt;
+    if (Math.abs(s.x - s.target) < 0.05 && Math.abs(s.v) < 0.05) { s.x = s.target; s.v = 0; return false; }
+    return true;
+  }
+  function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000); last = now;
+    let busy = false;
+    for (let i = 0; i < 2; i++) { busy = stepSpring(carX, carX.k || 1400, carX.c || 46, dt / 2) || busy; busy = stepSpring(papY, 700, 40, dt / 2) || busy; }
+    carriage.style.transform = `translateX(${carX.x}px)`;
+    paper.style.transform = `translateY(${papY.x}px)`;
+    // knobs turn with paper feed
+    document.querySelectorAll('.knob i').forEach(el => el.style.transform = `translateX(${((papY.x * 0.6) % 20 + 20) % 20 - 10}px)`);
+    for (const b of bars) { if (b.t > 0 || b.p > 0.001) { busy = true; updateBar(b, dt); } }
+    if (busy && !document.hidden) raf = requestAnimationFrame(loop); else raf = 0;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) kick(); });
+
+  /* ---------- build typebars ---------- */
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const barsSvg = $('bars');
+  const N_BARS = 34;
+  for (let i = 0; i < N_BARS; i++) {
+    const th = (30 + (120 * i) / (N_BARS - 1)) * Math.PI / 180;
+    const pv = { x: STRIKE_X + Math.cos(th) * 250, y: STRIKE_BASE + 8 + Math.sin(th) * 250 };
+    const rt = 70 / Math.sin(th);
+    const rest = { x: STRIKE_X + Math.cos(th) * rt, y: STRIKE_BASE + 8 + Math.sin(th) * rt };
+    const g = document.createElementNS(svgNS, 'g');
+    const ln = document.createElementNS(svgNS, 'line');
+    ln.setAttribute('stroke', '#161616'); ln.setAttribute('stroke-width', '5'); ln.setAttribute('stroke-linecap', 'round');
+    const ln2 = document.createElementNS(svgNS, 'line');
+    ln2.setAttribute('stroke', '#bfc6c6'); ln2.setAttribute('stroke-width', '2'); ln2.setAttribute('stroke-linecap', 'round');
+    const slug = document.createElementNS(svgNS, 'rect');
+    slug.setAttribute('width', '12'); slug.setAttribute('height', '9'); slug.setAttribute('rx', '1.5');
+    slug.setAttribute('fill', '#dfe4e4'); slug.setAttribute('stroke', '#161616'); slug.setAttribute('stroke-width', '2');
+    g.append(ln, ln2, slug); barsSvg.appendChild(g);
+    const b = { pv, rest, ln, ln2, slug, p: 0, t: 0, jam: false };
+    bars.push(b); drawBar(b);
+  }
+  function drawBar(b) {
+    const goal = b.jam ? 0.55 : 1;
+    const e = b.p * goal;
+    const tx = b.rest.x + (STRIKE_X - b.rest.x) * e, ty = b.rest.y + (STRIKE_BASE - 12 - b.rest.y) * e;
+    for (const l of [b.ln, b.ln2]) { l.setAttribute('x1', b.pv.x); l.setAttribute('y1', b.pv.y); l.setAttribute('x2', tx); l.setAttribute('y2', ty); }
+    b.slug.setAttribute('x', tx - 6); b.slug.setAttribute('y', ty - 4.5);
+  }
+  function updateBar(b, dt) {
+    // t: remaining "up" time; p: position 0..1
+    if (b.t > 0) { b.t -= dt; b.p = Math.min(1, b.p + dt / 0.035); }
+    else { b.p = Math.max(0, b.p - dt / 0.09); }
+    drawBar(b);
+  }
+  function swingBar(ch, jam) {
+    if (reduce) return;
+    const code = ch.toLowerCase().charCodeAt(0);
+    const b = bars[(code * 7) % N_BARS];
+    b.jam = !!jam; b.t = jam ? 0.18 : 0.045; kick();
+  }
+
+  /* ---------- bail scale ---------- */
+  const bail = $('bail');
+  for (let c = 0; c <= 40; c++) {
+    const x = PAD + c * CW + 10;
+    const t = document.createElement('i'); t.className = 'tick' + (c % 5 === 0 ? ' big' : ''); t.style.left = x + 'px'; bail.appendChild(t);
+    if (c % 10 === 0) { const n = document.createElement('span'); n.className = 'num'; n.textContent = c; n.style.left = x + 'px'; n.style.opacity = 1; n.style.top = '5px'; n.style.fontSize = '10px'; bail.appendChild(n); }
+  }
+  [120, 700].forEach(x => { const r = document.createElement('i'); r.className = 'roller'; r.style.left = x + 'px'; bail.appendChild(r); });
+
+  /* ---------- keyboard ---------- */
+  const keysEl = $('keys'), keyMap = {};
+  const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm,.'];
+  const rowY = [500, 556, 612];
+  rows.forEach((r, ri) => {
+    const n = r.length, sp = 56, x0 = 350 - (n * sp) / 2 + (ri === 2 ? 14 : 0);
+    [...r].forEach((ch, i) => {
+      const k = document.createElement('button'); k.type = 'button'; k.className = 'key'; k.tabIndex = -1;
+      k.setAttribute('aria-hidden', 'true');
+      k.style.left = (x0 + i * sp + 5) + 'px'; k.style.top = rowY[ri] + 'px';
+      k.innerHTML = `<span>${ch.toUpperCase()}</span>`;
+      keysEl.appendChild(k); keyMap[ch] = k;
+      bindKey(k, ch);
+    });
+  });
+  const space = document.createElement('button'); space.type = 'button'; space.className = 'key space'; space.tabIndex = -1; space.setAttribute('aria-hidden', 'true');
+  space.style.left = '200px'; space.style.top = '622px'; space.style.top = '668px'; space.style.height = '30px'; space.innerHTML = '<span style="line-height:20px;font-size:13px">&nbsp;</span>';
+  keysEl.appendChild(space); keyMap[' '] = space; bindKey(space, ' ');
+  function bindKey(k, ch) {
+    k.addEventListener('pointerdown', e => { e.preventDefault(); });
+    k.addEventListener('click', e => {
+      e.preventDefault();
+      const f = fields[active];
+      f.input.focus({ preventScroll: true });
+      if (f.input.value.length >= f.max) { jam(ch); return; }
+      f.input.value += ch; f.input.dispatchEvent(new Event('input'));
+    });
+  }
+  function pressKeyVisual(ch) {
+    const k = keyMap[ch.toLowerCase()]; if (!k) return;
+    k.classList.add('down'); clearTimeout(k._t); k._t = setTimeout(() => k.classList.remove('down'), 110);
+  }
+
+  /* ---------- typing engine ---------- */
+  const queue = []; let pumping = false;
+  function enqueueDiff(i, target) {
+    const f = fields[i], cur = f.pending;
+    let p = 0; while (p < cur.length && p < target.length && cur[p] === target[p]) p++;
+    for (let k = cur.length; k > p; k--) queue.push({ i, op: 'back' });
+    for (const ch of target.slice(p)) queue.push({ i, op: 'type', ch });
+    f.pending = target;
+    pump();
+  }
+  function pump() {
+    if (pumping) return;
+    const op = queue.shift(); if (!op) return;
+    pumping = true;
+    let delay = 0;
+    if (op.i !== active) { setActive(op.i, true); delay = 260; }
+    setTimeout(() => {
+      if (op.op === 'type') typeChar(op.i, op.ch); else backspace(op.i);
+      pumping = false;
+      if (queue.length) setTimeout(pump, queue.length > 1 ? 34 : 0);
+    }, delay);
+  }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function typeChar(i, ch) {
+    const f = fields[i]; const col = f.typed.length;
+    if (col >= f.max) { jam(ch); return; }
+    f.typed += ch;
+    const layer = lineLayer(i);
+    if (ch !== ' ') {
+      const s = document.createElement('span'); s.className = 'ch'; s.textContent = ch;
+      const heavy = Math.random() < 0.12, faint = Math.random() < 0.12;
+      const op = faint ? rand(0.55, 0.7) : rand(0.8, 1);
+      s.style.left = (PAD + col * CW + rand(-0.9, 0.9) - 1) + 'px';
+      s.style.top = (LINE_Y[i] - 24 + rand(-1.1, 1.1) + (/[A-Z]/.test(ch) ? rand(-0.8, 0.4) : 0)) + 'px';
+      s.style.opacity = op.toFixed(2);
+      s.style.transform = `rotate(${rand(-1.6, 1.6).toFixed(2)}deg)`;
+      if (heavy) s.style.textShadow = '0.5px 0 0 #151313, 0 0.4px 0 #151313';
+      layer.appendChild(s);
+      (f.cols[col] = f.cols[col] || []).push(s);
+      swingBar(ch); ribbonPop(); snd.strike();
+      if (Math.random() < 0.55) sfx(col % 3 === 0 ? 'tac!' : 'tac', 1);
+    } else { snd.strike(true); }
+    pressKeyVisual(ch);
+    carX.target = xFor(f.typed.length); kick();
+    if (f.typed.length === f.max - 5) { setTimeout(() => { snd.bell(); ding(); }, 40); }
+    afterChange();
+  }
+  function backspace(i) {
+    const f = fields[i]; if (!f.typed.length) return;
+    const col = f.typed.length - 1; const ch = f.typed[col];
+    f.typed = f.typed.slice(0, -1);
+    carX.target = xFor(col); kick();
+    if (ch !== ' ') {
+      const layer = lineLayer(i);
+      const t = document.createElement('span'); t.className = 'tape';
+      t.style.left = (PAD + col * CW - 1 + rand(-0.8, 0.8)) + 'px';
+      t.style.top = (LINE_Y[i] - 24 + rand(-0.8, 0.8)) + 'px';
+      t.style.transform = `rotate(${rand(-1.2, 1.2).toFixed(2)}deg)`;
+      layer.appendChild(t);
+      (f.cols[col] = f.cols[col] || []).push(t);
+      // keep DOM bounded: drop older layers in this column
+      while (f.cols[col].length > 6) f.cols[col].shift().remove();
+      setTimeout(() => { ribbonPop(true); }, 0);
+      snd.tape(); sfx('scritch', 0.9);
+    } else { snd.strike(true); }
+    afterChange();
+  }
+  const layers = [];
+  function lineLayer(i) { return typedEl; }
+  function jam(ch) {
+    swingBar(ch || 'm', true); snd.jam(); sfx('clonk!', 1.3, true);
+    carX.v += reduce ? 0 : (Math.random() < 0.5 ? -90 : 90); kick();
+    const f = fields[active]; f.count.classList.add('warn');
+    say(`End of line. ${f.max} characters is the limit.`);
+  }
+  function ribbonPop(white) {
+    const r = $('ribbon');
+    r.style.background = white ? '#fffffb' : '';
+    r.classList.add('up'); clearTimeout(r._t); r._t = setTimeout(() => { r.classList.remove('up'); r.style.background = ''; }, 70);
+  }
+
+  /* ---------- comic sound effects ---------- */
+  const fx = $('fx'); let lastFx = 0;
+  function sfx(word, size, big, color) {
+    const now = performance.now(); if (!big && now - lastFx < 110) return; lastFx = now;
+    const s = document.createElement('div'); s.className = 'sfx'; s.textContent = word; s.style.color = color || (big ? '#ffe27a' : '#fffdf6');
+    const left = Math.random() < 0.5;
+    const x = STRIKE_X + (left ? -1 : 1) * rand(70, 150), y = STRIKE_BASE - rand(60, 120);
+    s.style.left = x + 'px'; s.style.top = y + 'px'; s.style.fontSize = (26 * size) + 'px';
+    const rot = rand(-18, 18);
+    fx.appendChild(s);
+    if (reduce) { s.style.transform = `translate(-50%,-50%) rotate(${rot}deg)`; setTimeout(() => s.remove(), 500); return; }
+    s.animate([
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(.4)`, opacity: 0 },
+      { transform: `translate(-50%,-50%) rotate(${rot}deg) scale(1.1)`, opacity: 1, offset: .25 },
+      { transform: `translate(-50%,-70%) rotate(${rot}deg) scale(1)`, opacity: 0 }
+    ], { duration: big ? 800 : 520, easing: 'ease-out' }).onfinish = () => s.remove();
+  }
+  function ding() {
+    const wrap = document.createElement('div'); wrap.className = 'burst';
+    wrap.style.left = '600px'; wrap.style.top = '120px';
+    const pts = []; for (let k = 0; k < 22; k++) { const r = k % 2 ? 40 : 74 + (k % 4) * 6; const a = k / 22 * Math.PI * 2; pts.push((90 + Math.cos(a) * r * 1.25).toFixed(1) + ',' + (70 + Math.sin(a) * r * 0.82).toFixed(1)); }
+    wrap.innerHTML = `<svg width="180" height="140" viewBox="0 0 180 140" overflow="visible"><polygon points="${pts.join(' ')}" fill="#ffe27a" stroke="#161616" stroke-width="2.6" stroke-linejoin="round"/><text x="90" y="84" text-anchor="middle" font-family="Patrick Hand SC, cursive" font-size="40" fill="#d2392b" stroke="#161616" stroke-width="1.4" paint-order="stroke">ding!</text></svg>`;
+    fx.appendChild(wrap);
+    say('Bell: five spaces left on this line.');
+    if (reduce) { setTimeout(() => wrap.remove(), 900); return; }
+    wrap.animate([{ transform: 'scale(.2) rotate(-14deg)', opacity: 0 }, { transform: 'scale(1.08) rotate(4deg)', opacity: 1, offset: .2 }, { transform: 'scale(1) rotate(0)', opacity: 1, offset: .75 }, { transform: 'scale(.9)', opacity: 0 }], { duration: 1100, easing: 'ease-out' }).onfinish = () => wrap.remove();
+  }
+  function speedLines(dir) {
+    if (reduce) return;
+    const g = document.createElement('div'); g.className = 'burst'; g.style.left = '-60px'; g.style.top = '250px';
+    let s = '<svg width="820" height="120" viewBox="0 0 820 120" overflow="visible">';
+    for (let k = 0; k < 7; k++) { const y = 10 + k * 15 + rand(-3, 3), x0 = rand(0, 200), len = rand(260, 520); s += `<line x1="${x0}" y1="${y}" x2="${x0 + len}" y2="${y}" stroke="#161616" stroke-width="2.4" stroke-linecap="round"/>`; }
+    s += `<text x="${dir > 0 ? 640 : 120}" y="-4" font-family="Patrick Hand SC, cursive" font-size="44" fill="#ffe27a" stroke="#161616" stroke-width="1.6" paint-order="stroke">zzzip!</text></svg>`;
+    g.innerHTML = s; fx.appendChild(g);
+    g.animate([{ opacity: 0, transform: `translateX(${dir * 60}px)` }, { opacity: 1, offset: .2 }, { opacity: 0, transform: `translateX(${-dir * 40}px)` }], { duration: 650, easing: 'ease-out' }).onfinish = () => g.remove();
+  }
+
+  /* ---------- lines / focus ---------- */
+  function setActive(i, fromQueue) {
+    if (i === active && !fromQueue) { placeCaret(); return; }
+    const from = carX.x;
+    active = i;
+    const f = fields[i];
+    carX.target = xFor(f.typed.length);
+    papY.target = STRIKE_BASE - LINE_Y[i];
+    const dist = Math.abs(carX.target - from);
+    if (dist > 30) { snd.zip(Math.min(0.5, dist / 900)); speedLines(carX.target > from ? 1 : -1); leverPull(); }
+    else snd.feed();
+    kick();
+    fields.forEach((ff, k) => { ff.tab.setAttribute('aria-pressed', k === i ? 'true' : 'false'); ff.input.style.pointerEvents = 'none'; });
+    placeCaret();
+  }
+  function leverPull() {
+    const l = document.querySelector('.lever'); if (reduce) return;
+    l.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-16deg)', offset: .3 }, { transform: 'rotate(0)' }], { duration: 420, easing: 'ease-out' });
+  }
+  function placeCaret() {
+    const f = fields[active];
+    caret.style.left = (PAD + f.typed.length * CW) + 'px';
+    caret.style.top = (LINE_Y[active] + 6) + 'px';
+  }
+  function afterChange() {
+    fields.forEach((f, k) => {
+      f.count.textContent = `${f.typed.length} / ${f.max}`;
+      f.count.classList.toggle('warn', f.typed.length >= f.max - 5);
+    });
+    placeCaret();
+    const ok = fields[0].typed.trim().length > 0;
+    const fileBtn = $('file');
+    fileBtn.disabled = !ok || filing;
+    $('fileSub').textContent = ok ? (fields[1].typed.trim() ? 'headline + byline ready' : 'headline ready, no byline') : 'type a headline first';
+    if (!hintGone && fields[0].typed.length + fields[1].typed.length > 0 && userTyped) { hintGone = true; $('balloon').classList.add('gone'); }
+  }
+  let userTyped = false;
+  fields.forEach((f, i) => {
+    const inp = f.input;
+    inp.addEventListener('input', () => { userTyped = true; enqueueDiff(i, inp.value); });
+    inp.addEventListener('focus', () => { rig.classList.add('focused'); if (active !== i) setActive(i); toEnd(inp); });
+    inp.addEventListener('blur', () => rig.classList.remove('focused'));
+    ['click', 'keyup', 'select'].forEach(ev => inp.addEventListener(ev, () => toEnd(inp)));
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if ((e.metaKey || e.ctrlKey) || i === 1) { fileStory(); return; }
+        fields[1].input.focus({ preventScroll: true });
+        return;
+      }
+      if (e.key === 'ArrowDown' && i === 0) { e.preventDefault(); fields[1].input.focus({ preventScroll: true }); return; }
+      if (e.key === 'ArrowUp' && i === 1) { e.preventDefault(); fields[0].input.focus({ preventScroll: true }); return; }
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); if (e.key === 'ArrowLeft' || e.key === 'Home') { sfx('clunk', .8); snd.jam(); } return; }
+      if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey && inp.value.length >= f.max) { e.preventDefault(); jam(e.key); }
+    });
+  });
+  function toEnd(inp) { const n = inp.value.length; try { if (inp.selectionStart !== n || inp.selectionEnd !== n) inp.setSelectionRange(n, n); } catch (e) {} }
+  // click anywhere on the rig/paper focuses the nearest line
+  rig.addEventListener('click', e => {
+    if (e.target.closest('.key')) return;
+    let i = active;
+    if (e.target.closest('.paper')) {
+      const r = paper.getBoundingClientRect();
+      const y = (e.clientY - r.top) / scale;
+      i = Math.abs(y - LINE_Y[0]) < Math.abs(y - LINE_Y[1]) ? 0 : 1;
+    }
+    fields[i].input.focus({ preventScroll: true });
+    if (i !== active) setActive(i);
+  });
+  fields.forEach((f, i) => f.tab.addEventListener('click', () => { f.input.focus({ preventScroll: true }); setActive(i); }));
+
+  /* ---------- filing ---------- */
+  function fileStory() {
+    if (filing || !fields[0].typed.trim()) { if (!fields[0].typed.trim()) { jam('m'); say('Type a headline before filing.'); } return; }
+    filing = true; $('file').disabled = true;
+    const hed = fields[0].typed.trim(), by = fields[1].typed.trim();
+    // carriage return then roll the sheet out
+    carX.target = xFor(0); snd.zip(0.4); speedLines(1); leverPull(); kick();
+    setTimeout(() => {
+      papY.target = -760; snd.zip(0.6); kick();
+      if (reduce) papY.x = -760;
+    }, 380);
+    setTimeout(() => {
+      filedCount++;
+      addTraySheet();
+      const t = new Date(); const hh = t.getHours(), mm = String(t.getMinutes()).padStart(2, '0');
+      say(`Filed to the copy desk at ${hh}:${mm}: ${hed}${by ? ', by ' + by : ''}.`);
+      bubble(`Filed! “${hed.length > 26 ? hed.slice(0, 25) + '…' : hed}”`);
+      // fresh sheet
+      typedEl.innerHTML = '';
+      fields.forEach(f => { f.cols = []; });
+      const keepBy = fields[1].typed;
+      fields[0].typed = fields[0].pending = ''; fields[0].input.value = '';
+      fields[1].typed = ''; fields[1].pending = '';
+      // byline is remembered and re-typed instantly on the new sheet
+      for (const ch of keepBy) instantType(1, ch);
+      fields[1].pending = fields[1].typed; fields[1].input.value = fields[1].typed;
+      $('sheetNo') && ($('sheetNo').textContent = '');
+      document.querySelector('.mast .r').innerHTML = `copy sheet no. ${String(418 + filedCount).padStart(4, '0')}<br>metro desk`;
+      active = 0; fields.forEach((ff, k) => ff.tab.setAttribute('aria-pressed', k === 0 ? 'true' : 'false'));
+      papY.x = 420; papY.v = 0; papY.target = STRIKE_BASE - LINE_Y[0]; carX.target = xFor(0);
+      snd.feed(); kick();
+      filing = false; afterChange();
+      fields[0].input.focus({ preventScroll: true });
+    }, 1150);
+  }
+  function instantType(i, ch) {
+    const f = fields[i], col = f.typed.length; f.typed += ch;
+    if (ch === ' ') return;
+    const s = document.createElement('span'); s.className = 'ch'; s.textContent = ch;
+    s.style.left = (PAD + col * CW + rand(-0.9, 0.9) - 1) + 'px';
+    s.style.top = (LINE_Y[i] - 24 + rand(-1, 1)) + 'px';
+    s.style.opacity = rand(0.75, 1).toFixed(2);
+    s.style.transform = `rotate(${rand(-1.4, 1.4).toFixed(2)}deg)`;
+    typedEl.appendChild(s); (f.cols[col] = f.cols[col] || []).push(s);
+  }
+  function addTraySheet() {
+    const st = $('trayStack'); const n = st.childNodes.length;
+    const r = document.createElementNS(svgNS, 'rect');
+    r.setAttribute('x', 38 + rand(-6, 6)); r.setAttribute('y', 46 - Math.min(n, 8) * 3.2); r.setAttribute('width', 144); r.setAttribute('height', 40);
+    r.setAttribute('fill', '#fffdf6'); r.setAttribute('stroke', '#161616'); r.setAttribute('stroke-width', '2.2');
+    r.setAttribute('transform', `rotate(${rand(-4, 4).toFixed(1)} 110 66)`);
+    st.appendChild(r);
+  }
+  function bubble(text) {
+    const b = document.createElement('div'); b.className = 'balloon'; b.style.zIndex = 33;
+    b.textContent = text; panel.appendChild(b);
+    const rr = rig.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+    b.style.left = Math.max(10, Math.min(pr.width - 260, rr.left - pr.left + rr.width / 2 - 125)) + 'px';
+    b.style.top = Math.max(70, rr.top - pr.top + 120 * scale) + 'px';
+    b.style.maxWidth = '250px';
+    if (!reduce) b.animate([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.05)', opacity: 1, offset: .2 }, { transform: 'scale(1)', opacity: 1, offset: .85 }, { opacity: 0 }], { duration: 2600, easing: 'ease-out' }).onfinish = () => b.remove();
+    else setTimeout(() => b.remove(), 2600);
+  }
+  $('file').addEventListener('click', fileStory);
+
+  /* ---------- misc ---------- */
+  function say(t) { const l = $('live'); l.textContent = ''; setTimeout(() => l.textContent = t, 30); }
+  $('mute').addEventListener('click', () => {
+    muted = !muted; $('mute').setAttribute('aria-pressed', String(muted));
+    $('mute').setAttribute('aria-label', muted ? 'Unmute typewriter sounds' : 'Mute typewriter sounds');
+    $('waves').style.display = muted ? 'none' : ''; $('cross').style.display = muted ? '' : 'none';
+  });
+  // clock ticks + live time
+  const ticks = $('ticks');
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; const l = document.createElementNS(svgNS, 'line'); l.setAttribute('x1', 60 + Math.sin(a) * 38); l.setAttribute('y1', 60 - Math.cos(a) * 38); l.setAttribute('x2', 60 + Math.sin(a) * 44); l.setAttribute('y2', 60 - Math.cos(a) * 44); l.setAttribute('stroke', '#161616'); l.setAttribute('stroke-width', k % 3 ? 1.6 : 3); ticks.appendChild(l); }
+  function clock() {
+    const d = new Date(); const h = d.getHours() % 12, m = d.getMinutes();
+    $('hh').setAttribute('transform', `rotate(${(h + m / 60) * 30} 60 60)`);
+    $('mh').setAttribute('transform', `rotate(${m * 6} 60 60)`);
+    const hh = d.getHours(); $('capTime').textContent = `${(hh % 12) || 12}.${String(m).padStart(2, '0')} ${hh < 12 ? 'a.m.' : 'p.m.'}`;
+  }
+  clock(); setInterval(clock, 20000);
+
+  /* ---------- layout ---------- */
+  function layout() {
+    const W = panel.clientWidth, H = panel.clientHeight;
+    const mobile = W < 640;
+    let top;
+    if (mobile) {
+      scale = Math.min(W / 590, (H * 0.62) / 720);
+      top = Math.max(96, H * 0.43 - STRIKE_BASE * scale);
+    } else {
+      scale = Math.min(1.06, (H - 10) / 728, (W - 40) / 720);
+      top = H - 718 * scale;
+    }
+    const left = (W - 700 * scale) / 2;
+    rig.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+    const deskY = top + 520 * scale;
+    $('desk').style.top = deskY + 'px';
+    $('band').style.top = (deskY - 64 * scale) + 'px';
+    const clk = $('clock'), win = $('win'), tray = $('tray'), bal = $('balloon'), mug = $('mug');
+    const L = $('ctlLeft'), R = $('ctlRight');
+    if (mobile) {
+      clk.style.display = 'none'; win.style.display = 'none'; tray.style.display = 'none'; mug.style.display = 'none';
+      L.style.left = '12px'; L.style.right = 'auto'; L.style.bottom = '12px'; L.style.top = 'auto';
+      R.style.right = '12px'; R.style.bottom = (12 + 74) + 'px'; R.style.left = '12px';
+      $('file').style.width = '100%';
+      bal.style.left = (W - 214) + 'px'; bal.style.top = Math.max(118, top - 10) + 'px'; bal.style.maxWidth = '200px';
+      bal.style.fontSize = '15px'; bal.style.padding = '12px 18px';
+      $('tail').style.left = '40px'; $('tail').style.top = '100%'; $('tail').style.transform = 'translateY(-6px)';
+      $('caption').style.maxWidth = (W - 82) + 'px';
+    } else {
+      clk.style.display = ''; win.style.display = ''; tray.style.display = '';
+      const side = left; // free space either side
+      clk.style.left = Math.max(30, side * 0.35) + 'px'; clk.style.top = Math.max(120, deskY * 0.32) + 'px';
+      win.style.left = (W - Math.max(side * 0.5 + 120, 270)) + 'px'; win.style.top = Math.max(84, deskY * 0.2) + 'px';
+      if (side < 150) win.style.display = 'none';
+      tray.style.left = (W - side / 2 - 110) + 'px'; tray.style.top = (deskY + 2) + 'px';
+      if (side < 240) tray.style.display = 'none';
+      mug.style.display = side < 240 ? 'none' : ''; mug.style.left = Math.max(10, side / 2 - 100) + 'px'; mug.style.top = (deskY - 40) + 'px';
+      L.style.left = '16px'; L.style.bottom = '16px'; L.style.top = 'auto'; L.style.right = 'auto';
+      R.style.right = '16px'; R.style.bottom = '16px'; R.style.left = 'auto';
+      $('file').style.width = '';
+      bal.style.left = Math.min(W - 290, left + 700 * scale - 90) + 'px'; bal.style.top = (top + 40 * scale) + 'px';
+      bal.style.maxWidth = '250px'; bal.style.fontSize = ''; bal.style.padding = '';
+      $('tail').style.left = '10px'; $('tail').style.top = '78%'; $('tail').style.transform = 'translateX(-40px) rotate(40deg)';
+      $('caption').style.maxWidth = Math.min(330, Math.max(220, side - 30)) + 'px';
+    }
+  }
+  addEventListener('resize', layout);
+  layout();
+
+  /* ---------- start: restore an autosaved draft ---------- */
+  const draft = { hed: 'Night ferry to Kessock returns', by: 'Ines Varga' };
+  for (const ch of draft.by) instantType(1, ch);
+  fields[1].pending = fields[1].typed; fields[1].input.value = fields[1].typed;
+  for (const ch of draft.hed) instantType(0, ch);
+  fields[0].pending = fields[0].typed; fields[0].input.value = fields[0].typed;
+  carX.x = carX.target = xFor(fields[0].typed.length);
+  carriage.style.transform = `translateX(${carX.x}px)`;
+  paper.style.transform = `translateY(${papY.x}px)`;
+  afterChange();
+  window.__tw = { fields, fileStory, typeChar: (ch) => { const f = fields[active]; f.input.value += ch; f.input.dispatchEvent(new Event('input')); } };
+})();
+</script>
+</body>
+</html>

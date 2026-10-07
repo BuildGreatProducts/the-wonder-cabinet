@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paper Plane Share</title>
+<meta name="description" content="A share sheet as true 3D papercraft: the article folds itself into a paper plane in real fold steps, then you flick it to a friend standing on a white-paper horizon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Paper Plane Share","reimagines":"Share button / share sheet","category":"Buttons & Actions","description":"Pressing Share makes the article page fold itself into a dart in real 3D — corners to the centre, edges again, keel, wings — lit like a white-paper studio set. Flick the plane toward one of the paper friends on the horizon (or the mailbox to copy the link) and it banks along an arc and lands at their feet.","hint":"Press Share, then flick the plane toward a friend"}
+</script>
+<style>
+:root{ --ink:#2a2c33; --soft:#7a7e88; --paper:#f7f6f2; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#ecebe7}
+body{font-family:"Instrument Sans",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#gl{touch-action:none}
+.ui{position:fixed;z-index:3}
+.share{position:fixed;z-index:4;display:flex;align-items:center;gap:10px;font:600 15px "Instrument Sans",sans-serif;letter-spacing:.02em;color:var(--ink);background:var(--paper);border:0;padding:13px 22px 13px 16px;border-radius:3px;cursor:pointer;
+  box-shadow:0 1px 0 rgba(0,0,0,.04),0 2px 3px rgba(40,40,60,.10),0 10px 24px -6px rgba(40,40,60,.28);transition:transform .15s,box-shadow .15s,opacity .3s}
+.share:hover{transform:translateY(-2px);box-shadow:0 1px 0 rgba(0,0,0,.04),0 4px 6px rgba(40,40,60,.10),0 18px 30px -8px rgba(40,40,60,.3)}
+.share:active{transform:translateY(1px);box-shadow:0 1px 1px rgba(40,40,60,.2)}
+.share svg{width:22px;height:22px}
+.share:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.share.gone{opacity:0;pointer-events:none}
+.top{position:fixed;left:28px;top:22px;z-index:4;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#f5efe3;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.top b{color:#fff}
+.top b{color:var(--ink);font-weight:600}
+.hint{position:fixed;left:0;right:0;bottom:22px;z-index:4;text-align:center;font-family:Fraunces,Georgia,serif;font-style:italic;font-size:17px;color:#6d5c48;transition:opacity .5s;pointer-events:none}
+.toast{position:fixed;left:50%;top:22px;transform:translate(-50%,-10px);z-index:5;background:var(--paper);padding:10px 16px;border-radius:3px;font-size:14px;font-weight:500;opacity:0;transition:.3s;
+  box-shadow:0 2px 3px rgba(40,40,60,.1),0 12px 26px -8px rgba(40,40,60,.3);white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.picker{position:fixed;z-index:4;display:none;gap:6px;left:50%;transform:translateX(-50%);bottom:62px}
+.picker.on{display:flex}
+.picker button{font:500 13px "Instrument Sans",sans-serif;background:var(--paper);color:var(--ink);border:0;border-radius:3px;padding:8px 12px;cursor:pointer;box-shadow:0 2px 3px rgba(40,40,60,.1),0 8px 18px -8px rgba(40,40,60,.3)}
+.picker button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.picker button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.nogl{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:24px}
+@media (min-width:761px){ .hint{left:auto;right:44px;width:min(440px,40vw);text-align:right} }
+@media (max-width:760px){ .top{left:16px;top:16px;font-size:10.5px} .hint{font-size:15px;bottom:14px;padding:0 16px} .picker{bottom:48px;flex-wrap:wrap;justify-content:center;width:calc(100% - 24px)} .picker button{padding:7px 9px;font-size:12px} }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<canvas id="gl" aria-label="An article page that folds into a paper plane"></canvas>
+<p class="top"><b>The Fold</b> · Essays · Issue 31</p>
+<button class="share" id="share" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 11.5 21 4l-6.5 16-3.2-6.3z"/><path d="M11.3 13.7 21 4"/></svg>Share this essay</button>
+<div class="picker" id="picker" role="group" aria-label="Choose who to send it to"></div>
+<p class="hint" id="hint">Press Share and the page folds itself into a plane</p>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="nogl" id="nogl">This piece needs WebGL to fold paper.</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const ease = t => t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+const easeOut = t => 1 - Math.pow(1-t, 3);
+
+/* ---------------- vector / matrix helpers ---------------- */
+const V = {
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]], sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2], cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  len:a=>Math.hypot(a[0],a[1],a[2]), norm:a=>{ const l = Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; },
+  lerp:(a,b,t)=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)],
+};
+function rotAxis(p, o, k, th){ // rotate point p about line through o with unit dir k
+  const v = V.sub(p, o), c = Math.cos(th), s = Math.sin(th), kv = V.cross(k, v), d = V.dot(k, v);
+  return V.add(o, [v[0]*c + kv[0]*s + k[0]*d*(1-c), v[1]*c + kv[1]*s + k[1]*d*(1-c), v[2]*c + kv[2]*s + k[2]*d*(1-c)]);
+}
+function m3apply(m, p){ return [m[0]*p[0]+m[3]*p[1]+m[6]*p[2], m[1]*p[0]+m[4]*p[1]+m[7]*p[2], m[2]*p[0]+m[5]*p[1]+m[8]*p[2]]; }
+function m3cols(u, v, z){ return [u[0],u[1],u[2], v[0],v[1],v[2], z[0],z[1],z[2]]; }
+function m3mul(a, b){ const r = new Array(9); for (let c=0;c<3;c++) for (let rr=0;rr<3;rr++) r[c*3+rr] = a[rr]*b[c*3] + a[3+rr]*b[c*3+1] + a[6+rr]*b[c*3+2]; return r; }
+function rx(t){ const c = Math.cos(t), s = Math.sin(t); return [1,0,0, 0,c,s, 0,-s,c]; }
+function ry(t){ const c = Math.cos(t), s = Math.sin(t); return [c,0,-s, 0,1,0, s,0,c]; }
+function rz(t){ const c = Math.cos(t), s = Math.sin(t); return [c,s,0, -s,c,0, 0,0,1]; }
+function slerpM(a, b, t){ // slerp via quaternions
+  const qa = toQ(a), qb = toQ(b); let d = qa[0]*qb[0]+qa[1]*qb[1]+qa[2]*qb[2]+qa[3]*qb[3];
+  if (d < 0){ qb[0]=-qb[0]; qb[1]=-qb[1]; qb[2]=-qb[2]; qb[3]=-qb[3]; d = -d; }
+  let q; if (d > .9995){ q = qa.map((x,i) => lerp(x, qb[i], t)); }
+  else { const th = Math.acos(d), s = Math.sin(th), wa = Math.sin((1-t)*th)/s, wb = Math.sin(t*th)/s; q = qa.map((x,i) => x*wa + qb[i]*wb); }
+  const l = Math.hypot(...q); return fromQ(q.map(x => x/l));
+}
+function toQ(m){ const t = m[0]+m[4]+m[8]; let w,x,y,z;
+  if (t > 0){ const s = Math.sqrt(t+1)*2; w = .25*s; x = (m[5]-m[7])/s; y = (m[6]-m[2])/s; z = (m[1]-m[3])/s; }
+  else if (m[0] > m[4] && m[0] > m[8]){ const s = Math.sqrt(1+m[0]-m[4]-m[8])*2; w = (m[5]-m[7])/s; x = .25*s; y = (m[3]+m[1])/s; z = (m[6]+m[2])/s; }
+  else if (m[4] > m[8]){ const s = Math.sqrt(1+m[4]-m[0]-m[8])*2; w = (m[6]-m[2])/s; x = (m[3]+m[1])/s; y = .25*s; z = (m[7]+m[5])/s; }
+  else { const s = Math.sqrt(1+m[8]-m[0]-m[4])*2; w = (m[1]-m[3])/s; x = (m[6]+m[2])/s; y = (m[7]+m[5])/s; z = .25*s; }
+  return [w,x,y,z]; }
+function fromQ([w,x,y,z]){ return [1-2*(y*y+z*z), 2*(x*y+w*z), 2*(x*z-w*y), 2*(x*y-w*z), 1-2*(x*x+z*z), 2*(y*z+w*x), 2*(x*z+w*y), 2*(y*z-w*x), 1-2*(x*x+y*y)]; }
+function perspective(fy, a, n, f){ const t = 1/Math.tan(fy/2); return [t/a,0,0,0, 0,t,0,0, 0,0,(f+n)/(n-f),-1, 0,0,2*f*n/(n-f),0]; }
+function lookAt(e, c, up){ const z = V.norm(V.sub(e, c)), x = V.norm(V.cross(up, z)), y = V.cross(z, x);
+  return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -V.dot(x,e),-V.dot(y,e),-V.dot(z,e),1]; }
+function m4mul(a, b){ const r = new Array(16); for (let c=0;c<4;c++) for (let rr=0;rr<4;rr++){ let s = 0; for (let k=0;k<4;k++) s += a[k*4+rr]*b[c*4+k]; r[c*4+rr] = s; } return r; }
+
+/* ---------------- the sheet and its creases ---------------- */
+const SW = 1, SL = 2.8; // half width, length (nose at v=0)
+const LINES = {
+  AL: {o:[0,0], d:V.norm([-1,1,0])}, AR: {o:[0,0], d:V.norm([1,1,0])},
+  BL: {o:[0,0], d:V.norm([-0.41421,1,0])}, BR: {o:[0,0], d:V.norm([0.41421,1,0])},
+};
+const WING = .3;
+function splitPoly(poly, key, o, n){ // returns [neg, pos] pieces; vertices carry several coordinate spaces
+  const s = poly.map(p => (p[key][0]-o[0])*n[0] + (p[key][1]-o[1])*n[1]);
+  const A = [], B = [];
+  for (let i=0;i<poly.length;i++){
+    const p = poly[i], q = poly[(i+1)%poly.length], sp = s[i], sq = s[(i+1)%poly.length];
+    if (sp <= 0) A.push(p); if (sp >= 0) B.push(p);
+    if ((sp < 0 && sq > 0) || (sp > 0 && sq < 0)){ const t = sp/(sp - sq), m = {}; for (const k in p) m[k] = [lerp(p[k][0], q[k][0], t), lerp(p[k][1], q[k][1], t)]; A.push(m); B.push(m); }
+  }
+  return [A.length >= 3 ? A : null, B.length >= 3 ? B : null];
+}
+function reflect(pt, o, d){ const v = [pt[0]-o[0], pt[1]-o[1]], k = v[0]*d[0] + v[1]*d[1]; return [o[0] + 2*k*d[0] - v[0], o[1] + 2*k*d[1] - v[1]]; }
+function cutAll(list, key, o, n){
+  const out = [];
+  const cp = v => v.map(p => ({f:p.f.slice(), a:p.a.slice(), b:p.b.slice()}));
+  for (const P of list){ const [neg, pos] = splitPoly(P.v, key, o, n); if (neg) out.push({...P, v:cp(neg)}); if (pos) out.push({...P, v:cp(pos)}); }
+  return out;
+}
+const nrm = L => [-L.d[1], L.d[0]];
+function buildSheet(){
+  let polys = [{ v: [[-SW,0],[SW,0],[SW,SL],[-SW,SL]].map(p => ({f:p, a:p.slice(), b:p.slice()})), A:0, B:0, C:0, D:0 }];
+  // step A: corners to the centre line
+  polys = cutAll(polys, 'f', LINES.AL.o, nrm(LINES.AL)); polys = cutAll(polys, 'f', LINES.AR.o, nrm(LINES.AR));
+  for (const P of polys){ if (centroidSide(P.v, 'f', LINES.AL) > 1e-6) P.A = -1; else if (centroidSide(P.v, 'f', LINES.AR) < -1e-6) P.A = 1; }
+  for (const P of polys) for (const p of P.v) p.a = P.A === -1 ? reflect(p.f, LINES.AL.o, LINES.AL.d) : P.A === 1 ? reflect(p.f, LINES.AR.o, LINES.AR.d) : p.f.slice();
+  // step B: the new slanted edges to the centre again
+  polys = cutAll(polys, 'a', LINES.BL.o, nrm(LINES.BL)); polys = cutAll(polys, 'a', LINES.BR.o, nrm(LINES.BR));
+  for (const P of polys){ if (centroidSide(P.v, 'a', LINES.BL) > 1e-6) P.B = -1; else if (centroidSide(P.v, 'a', LINES.BR) < -1e-6) P.B = 1; }
+  for (const P of polys) for (const p of P.v) p.b = P.B === -1 ? reflect(p.a, LINES.BL.o, LINES.BL.d) : P.B === 1 ? reflect(p.a, LINES.BR.o, LINES.BR.d) : p.a.slice();
+  // step C (keel) and D (wings) are cut in the folded-flat state
+  polys = cutAll(polys, 'b', [0,0], [1,0]);
+  for (const P of polys) P.C = centroidSide(P.v, 'b', {o:[0,0], d:[0,-1]}) < 0 ? -1 : 1;
+  polys = cutAll(polys, 'b', [-WING,0], [1,0]); polys = cutAll(polys, 'b', [WING,0], [1,0]);
+  for (const P of polys){ let cx = 0; P.v.forEach(p => cx += p.b[0]); cx /= P.v.length; P.D = cx < -WING ? -1 : cx > WING ? 1 : 0; P.C = cx < 0 ? -1 : 1; }
+  return polys.filter(P => area(P.v.map(p => p.f)) > 1e-5);
+}
+function centroidSide(pts, key, L){ let cx = 0, cy = 0; pts.forEach(p => { cx += p[key][0]; cy += p[key][1]; }); cx /= pts.length; cy /= pts.length; const n = [-L.d[1], L.d[0]]; return (cx - L.o[0])*n[0] + (cy - L.o[1])*n[1]; }
+function area(pts){ let a = 0; for (let i=0;i<pts.length;i++){ const p = pts[i], q = pts[(i+1)%pts.length]; a += p[0]*q[1] - q[0]*p[1]; } return Math.abs(a)/2; }
+const SHEET = buildSheet();
+
+// fold kinematics: A, B rotate flaps over their creases; D folds wings; C raises the halves
+function foldPoint(p0, P, F){
+  let p = [p0.f[0], p0.f[1], 0];
+  const turn = (line, sign, amt) => { const o = [line.o[0], line.o[1], 0]; return rotAxis(p, o, line.d, sign*amt); };
+  if (P.A && F.a > 0){ const L = P.A < 0 ? LINES.AL : LINES.AR; p = turn(L, P.A < 0 ? 1 : -1, F.a*(Math.PI - .045)); }
+  if (P.B && F.b > 0){ const L = P.B < 0 ? LINES.BL : LINES.BR; p = turn(L, P.B < 0 ? 1 : -1, F.b*(Math.PI - .09)); }
+  if (P.D && F.d > 0){ const o = [P.D*WING, 0, 0]; p = rotAxis(p, o, [0,1,0], P.D*F.d*(1.2)); }
+  if (P.C && F.c > 0){ p = rotAxis(p, [0,0,0], [0,1,0], -P.C*F.c*1.42); }
+  return p;
+}
+
+/* ---------------- WebGL ---------------- */
+const gl = $('#gl').getContext('webgl', {alpha:true, antialias:true, premultipliedAlpha:true});
+const bg = $('#bg'), bctx = bg.getContext('2d');
+if (!gl){ $('#nogl').style.display = 'grid'; }
+let prog, buf, tex, U = {};
+function initGL(){
+  const vs = `attribute vec3 p; attribute vec2 uv; attribute vec3 n; uniform mat4 M; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    void main(){ vUv = uv; vN = n; vW = p; gl_Position = M*vec4(p,1.); }`;
+  const fs = `precision mediump float; varying vec2 vUv; varying vec3 vN; varying vec3 vW; uniform sampler2D tex; uniform vec3 L; uniform vec3 cam; uniform float fade;
+    float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+    void main(){
+      vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;
+      vec3 v = normalize(cam - vW);
+      float d = dot(n, L), diff = max(d, 0.), wrap = d*.5 + .5;
+      vec3 paper = vec3(.972,.966,.95);
+      vec3 print = texture2D(tex, vUv).rgb;
+      vec3 base = gl_FrontFacing ? print : mix(paper, vec3(dot(texture2D(tex, vec2(1.-vUv.x, vUv.y)).rgb, vec3(.33))), .07);
+      float trans = max(-d, 0.)*.18;               // light glowing through thin paper
+      float spec = pow(max(dot(reflect(-L, n), v), 0.), 24.)*.05;
+      float grain = (h(floor(vUv*900.)) - .5)*.025;
+      vec3 key = vec3(1.,.92,.8), amb = vec3(.78,.8,.8);
+      vec3 col = base*(amb*.62 + key*(.48*diff + .1*wrap) + trans) + spec*key + grain;
+      gl_FragColor = vec4(col*fade, fade); }`;
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+  prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+  ['M','L','cam','tex','fade'].forEach(k => U[k] = gl.getUniformLocation(prog, k));
+  buf = gl.createBuffer(); tex = gl.createTexture();
+  gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+}
+
+/* ---------------- article texture ---------------- */
+function articleTexture(){
+  const c = document.createElement('canvas'); c.width = 1000; c.height = 1400; const g = c.getContext('2d');
+  g.fillStyle = '#f8f7f3'; g.fillRect(0, 0, 1000, 1400);
+  const ink = '#2a2c33';
+  g.fillStyle = '#b4553a'; g.font = '600 26px "Instrument Sans", sans-serif'; g.fillText('ESSAY  ·  6 MIN READ', 80, 120);
+  g.fillStyle = ink; g.font = '700 92px Fraunces, Georgia, serif';
+  ['The quiet return', 'of the paper map'].forEach((l, i) => g.fillText(l, 76, 230 + i*100));
+  g.fillStyle = '#6b6f78'; g.font = '500 28px "Instrument Sans", sans-serif'; g.fillText('By Ines Duarte  ·  4 Oct 2026', 80, 400);
+  // contour-line illustration
+  g.save(); g.beginPath(); g.rect(80, 450, 840, 360); g.clip();
+  g.fillStyle = '#efece4'; g.fillRect(80, 450, 840, 360);
+  g.strokeStyle = '#8b8f98'; g.lineWidth = 2.2;
+  for (let i=0;i<12;i++){ g.beginPath(); for (let x=60; x<=940; x+=10){ const y = 760 - i*24 + Math.sin(x*.008 + i*.6)*30*(1 - i/16) + Math.sin(x*.021 + i)*12 - Math.max(0, 140 - Math.abs(x - 620)*.45)*(i/12); x === 60 ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke(); }
+  g.strokeStyle = '#b4553a'; g.lineWidth = 4; g.setLineDash([12, 10]); g.beginPath(); g.moveTo(140, 780); g.bezierCurveTo(300, 700, 420, 760, 560, 640); g.bezierCurveTo(640, 590, 700, 600, 760, 520); g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#b4553a'; g.beginPath(); g.arc(760, 520, 10, 0, 7); g.fill();
+  g.restore();
+  g.fillStyle = ink; g.font = '400 30px Fraunces, Georgia, serif';
+  const body = 'Folded maps never ran out of battery, and they never asked where you were. This autumn, outdoor shops in Lisbon and Leeds report their best map sales in a decade — bought, mostly, by people under thirty who grew up with blue dots. They want to see the whole valley at once, to argue over a ridge line, to fold the thing wrong and laugh about it.';
+  wrap(g, body, 80, 870, 840, 44);
+  g.strokeStyle = '#d8d4ca'; g.lineWidth = 2; g.beginPath(); g.moveTo(80, 1290); g.lineTo(920, 1290); g.stroke();
+  g.fillStyle = '#6b6f78'; g.font = '500 24px "Instrument Sans", sans-serif'; g.fillText('THE FOLD  ·  ISSUE 31', 80, 1336); g.fillText('3', 900, 1336);
+  return c;
+}
+function wrap(g, text, x, y, w, lh){ const words = text.split(' '); let line = ''; for (const wd of words){ const t = line ? line + ' ' + wd : wd; if (g.measureText(t).width > w){ g.fillText(line, x, y); y += lh; line = wd; } else line = t; } if (line) g.fillText(line, x, y); }
+function uploadTex(){
+  if (!gl) return; const c = articleTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+/* ---------------- scene ---------------- */
+let W = 0, H = 0, DPR = 1, VP = null, camPos = [0, 3.4, 9], mobile = false, S = .78;
+const LIGHT = V.norm([-.5, .6, .75]);
+const CONTACTS = [
+  {name:'Ines', full:'Ines Duarte', tint:'#d9694f', f:-.8, z:-9.6},
+  {name:'Kofi', full:'Kofi Mensah', tint:'#3f6f78', f:-.47, z:-12.8},
+  {name:'Hannah', full:'Hannah Berg', tint:'#e2a23c', f:-.14, z:-10.4},
+  {name:'Wen', full:'Wen Zhao', tint:'#5a6fb0', f:.22, z:-13.2},
+  {name:'Sami', full:'Sami Haddad', tint:'#c4587a', f:.55, z:-9.8},
+  {name:'Copy link', full:'Copy link', type:'mail', tint:'#d9694f', f:.86, z:-8.6},
+];
+function hillY(x, z){ return .55 + Math.sin(x*.35 + z*.2)*.35 + Math.sin(x*.13 - z)*.25 + (z < -15 ? .5 : 0); }
+function layoutScene(){
+  W = innerWidth; H = innerHeight; mobile = W < 760; DPR = Math.min(2, devicePixelRatio || 1);
+  for (const c of [bg, $('#gl')]){ c.width = Math.round(W*DPR); c.height = Math.round(H*DPR); }
+  const a = W/H, fy = (mobile ? 54 : 36)*Math.PI/180;
+  camPos = mobile ? [0, 4.0, 11.5] : [0, 3.3, 9.6];
+  const target = mobile ? [0, -.1, -4] : [0, .05, -5];
+  VP = m4mul(perspective(fy, a, .1, 100), lookAt(camPos, target, [0,1,0]));
+  S = mobile ? .86 : .54;
+  // contacts placed by screen fraction at their depth
+  CONTACTS.forEach(c => { const d = camPos[2] - c.z; const halfW = Math.tan(fy/2)*a*d; c.x = c.f*halfW*(mobile ? .88 : .8); c.y = hillY(c.x, c.z); });
+  if (gl) gl.viewport(0, 0, $('#gl').width, $('#gl').height);
+  drawBackdrop(); placeUI();
+}
+function proj(p){ const m = VP, x = m[0]*p[0]+m[4]*p[1]+m[8]*p[2]+m[12], y = m[1]*p[0]+m[5]*p[1]+m[9]*p[2]+m[13], w = m[3]*p[0]+m[7]*p[1]+m[11]*p[2]+m[15];
+  return [(x/w*.5+.5)*W, (1 - (y/w*.5+.5))*H, w]; }
+
+/* backdrop: a seamless studio sweep with layered cut-paper hills */
+let backdrop = null;
+function drawBackdrop(){
+  backdrop = document.createElement('canvas'); backdrop.width = bg.width; backdrop.height = bg.height;
+  const g = backdrop.getContext('2d'); g.scale(DPR, DPR);
+  const hz = proj([0, 0, -60])[1];
+  // a tinted paper sweep: teal at the top curving into a warm horizon
+  let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#3f6f78'); gr.addColorStop(Math.max(.05, hz/H)*.7, '#5e8f92'); gr.addColorStop(Math.max(.08, hz/H), '#9dbbb0'); gr.addColorStop(1, '#c9d3c2');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // warm key light pooling from the upper left, cool falloff to the right
+  gr = g.createRadialGradient(W*.24, H*.12, 10, W*.24, H*.12, Math.max(W, H)*.85); gr.addColorStop(0, 'rgba(255,214,160,.55)'); gr.addColorStop(.45, 'rgba(255,200,140,.18)'); gr.addColorStop(1, 'rgba(255,200,140,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  gr = g.createLinearGradient(W, 0, W*.55, 0); gr.addColorStop(0, 'rgba(20,40,60,.28)'); gr.addColorStop(1, 'rgba(20,40,60,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // paper sun + clouds, with crisp offset shadows from the key light
+  const sh = (b, x, y) => { g.shadowColor = `rgba(18,32,44,${b})`; g.shadowBlur = 8; g.shadowOffsetX = x; g.shadowOffsetY = y; };
+  const sun = proj([-10, mobile ? 7.8 : 5.4, -30]); g.save(); sh(.35, 6, 7); g.fillStyle = '#f2b75b'; g.beginPath(); g.arc(sun[0], sun[1], mobile ? 26 : 40, 0, 7); g.fill(); g.restore();
+  const cloud = (wx, wy, wz, sc) => { const c = proj([wx, wy, wz]); const k = sc*(mobile ? .75 : 1.1);
+    g.save(); sh(.32, 6, 8); g.fillStyle = '#f7f3ea';
+    g.beginPath(); g.moveTo(c[0] - 70*k, c[1]); g.arc(c[0] - 38*k, c[1] - 4*k, 24*k, Math.PI, 1.6*Math.PI); g.arc(c[0], c[1] - 18*k, 34*k, 1.15*Math.PI, 1.9*Math.PI); g.arc(c[0] + 42*k, c[1] - 6*k, 26*k, 1.3*Math.PI, 0); g.lineTo(c[0] + 70*k, c[1]); g.closePath(); g.fill(); g.restore(); };
+  if (mobile){ cloud(4, 7.4, -30, 1); cloud(-3, 9, -34, .7); cloud(12, 6.4, -28, .85); } else { cloud(3, 5.2, -30, 1); cloud(-4, 6.4, -34, .7); cloud(13, 4.6, -28, .85); }
+  // layered cut-paper hills in tinted stock, each casting a defined shadow on the one behind
+  const layers = [-24, -17, -12.5, -9.2];
+  const tints = ['#7fa596', '#c7a77c', '#e2b393', '#efe4cf'];
+  layers.forEach((z, i) => {
+    const pts = []; for (let x = -40; x <= 40; x += .5){ pts.push(proj([x, hillY(x, z) + (i === 0 ? .9 : 0), z])); }
+    g.save(); sh(.38, 7, -5); g.shadowBlur = 10;
+    g.beginPath(); g.moveTo(pts[0][0], H + 10); pts.forEach(p => g.lineTo(p[0], p[1])); g.lineTo(pts[pts.length-1][0], H + 10); g.closePath(); g.fillStyle = tints[i]; g.fill(); g.restore();
+    // light catching the cut edge
+    g.strokeStyle = 'rgba(255,240,215,.75)'; g.lineWidth = 1.4; g.beginPath(); pts.forEach((p, k) => k ? g.lineTo(p[0], p[1] + 1) : g.moveTo(p[0], p[1] + 1)); g.stroke();
+    // warm light washes the left of each layer
+    g.save(); g.globalCompositeOperation = 'source-atop';
+    const lg = g.createLinearGradient(0, 0, W, 0); lg.addColorStop(0, 'rgba(255,220,170,.22)'); lg.addColorStop(1, 'rgba(20,40,60,.12)'); g.fillStyle = lg; g.restore();
+  });
+  // floor grain
+  g.save(); g.globalAlpha = .06; for (let i=0;i<1400;i++){ g.fillStyle = Math.random() < .5 ? '#000' : '#fff'; g.fillRect(Math.random()*W, Math.random()*H, 1, 1); } g.restore();
+}
+
+/* ---------------- state ---------------- */
+let restA = .3, state = 'card', T = 0, fold = {a:restA, b:0, c:0, d:0}, seq = null, plane = null, aim = -1, sel = 0, landed = [], cardFade = 1, cardY = 0;
+const CARD_POS = () => mobile ? [0, 1.05, 5.6] : [-.5, 1.72, 5.4];
+const HOLD_POS = () => mobile ? [0, 1.7, 5.2] : [0, 1.8, 4.6];
+function cardRot(t){ // the page leans back on an invisible easel, swaying gently
+  const base = m3cols([-1,0,0], [0,-1,0], [0,0,1]);
+  return m3mul(ry(Math.sin(t*.6)*.05 + (mobile ? -.12 : .2)), m3mul(rx(-.42 + Math.sin(t*.8)*.012), m3mul(rz(Math.sin(t*.5)*.02), base)));
+}
+function planeRot(t, roll=0){ const base = m3cols([-1,0,0], [0,0,1], [0,1,0]); return m3mul(ry(.85 + Math.sin(t*.7)*.08), m3mul(rx(.22 + Math.sin(t*1.7)*.04), m3mul(rz(roll - .12 + Math.sin(t*1.3)*.06), base))); }
+function poseFrom(vel, bank){ // orient the plane along its velocity
+  const f = V.norm(vel), up0 = [0,1,0]; let r = V.norm(V.cross(f, up0)); let u = V.cross(r, f);
+  const c = Math.cos(bank), s = Math.sin(bank); const u2 = V.add(V.mul(u, c), V.mul(r, s)); const r2 = V.cross(f, u2);
+  // local: -v -> f, z -> u2, u -> v x z
+  const vm = V.mul(f, -1), zm = u2, um = V.cross(vm, zm); return m3cols(um, vm, zm);
+}
+let pose = { R: cardRot(0), P: CARD_POS(), center: [0, SL*.5, 0] };
+
+/* ---------------- audio ---------------- */
+let ac = null, master = null, NB = null;
+function audio(){ if (!ac){ try { ac = new (window.AudioContext||window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .16; master.connect(ac.destination);
+  const b = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = b.getChannelData(0); for (let i=0;i<d.length;i++) d[i] = Math.random()*2-1; NB = b; } catch(e){} }
+  if (ac && ac.state === 'suspended') ac.resume(); return ac; }
+function crease(){ if (!audio()) return; const t = ac.currentTime;
+  for (let i=0;i<7;i++){ const n = ac.createBufferSource(); n.buffer = NB; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2500 + Math.random()*3500; f.Q.value = 2;
+    const g = ac.createGain(), t0 = t + i*.022 + Math.random()*.01; g.gain.setValueAtTime(.0, t0); g.gain.linearRampToValueAtTime(.35, t0 + .004); g.gain.exponentialRampToValueAtTime(.001, t0 + .05);
+    n.connect(f).connect(g).connect(master); n.start(t0, Math.random()*.5); n.stop(t0 + .06); }
+  const n = ac.createBufferSource(); n.buffer = NB; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ac.createGain();
+  g.gain.setValueAtTime(.25, t + .12); g.gain.exponentialRampToValueAtTime(.001, t + .3); n.connect(f).connect(g).connect(master); n.start(t + .12); n.stop(t + .32); }
+function whoosh(d){ if (!audio()) return; const t = ac.currentTime; const n = ac.createBufferSource(); n.buffer = NB; n.loop = true; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = .8;
+  f.frequency.setValueAtTime(1800, t); f.frequency.exponentialRampToValueAtTime(500, t + d); const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.3, t + .08); g.gain.exponentialRampToValueAtTime(.001, t + d);
+  n.connect(f).connect(g).connect(master); n.start(t); n.stop(t + d + .05); }
+function pip(){ if (!audio()) return; const t = ac.currentTime; [880, 1320].forEach((fq, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = fq; g.gain.setValueAtTime(0, t + i*.09); g.gain.linearRampToValueAtTime(.18, t + i*.09 + .01); g.gain.exponentialRampToValueAtTime(.001, t + i*.09 + .4); o.connect(g).connect(master); o.start(t + i*.09); o.stop(t + i*.09 + .45); }); }
+
+/* ---------------- fold sequence ---------------- */
+const shareBtn = $('#share'), hint = $('#hint'), toast = $('#toast'), picker = $('#picker');
+function say(t){ toast.textContent = t; toast.classList.add('on'); clearTimeout(say.t); say.t = setTimeout(() => toast.classList.remove('on'), 2600); }
+const STEPS = [
+  {k:'lift', d:.45}, {k:'a', d:.6}, {k:'b', d:.6}, {k:'turn', d:.75}, {k:'c', d:.55}, {k:'d', d:.5}, {k:'hold', d:.45},
+];
+function startFold(){
+  if (state !== 'card') return; audio(); state = 'folding'; seq = {i:0, t:0, a0: fold.a, from:{R:pose.R, P:pose.P}};
+  shareBtn.classList.add('gone'); hint.style.opacity = 0;
+  if (reduce){ fold = {a:1,b:1,c:1,d:1}; state = 'ready'; onReady(); }
+}
+function onReady(){ hint.textContent = mobile ? 'Flick the plane toward a friend — or tap one' : 'Flick the plane toward a friend — or click one'; hint.style.opacity = 1; picker.classList.add('on'); renderPicker(); say('Folded. Who should get it?'); }
+function stepFold(dt){
+  const st = STEPS[seq.i]; seq.t += dt/st.d; const u = Math.min(1, seq.t), e = ease(u);
+  const cp = CARD_POS(), hp = HOLD_POS();
+  if (st.k === 'lift'){ pose.P = V.add(cp, [0, e*.25, e*.1]); }
+  if (st.k === 'a') fold.a = lerp(seq.a0, 1, e);
+  if (st.k === 'b') fold.b = e;
+  if (st.k === 'turn'){ pose.R = slerpM(cardRot(T), planeRot(T), e); pose.P = V.lerp(V.add(cp, [0, .25, .1]), V.add(hp, [0, .45, -.4]), e); }
+  if (st.k === 'c') fold.c = e;
+  if (st.k === 'd') fold.d = e;
+  if (st.k === 'hold'){ pose.P = V.lerp(V.add(hp, [0, .45, -.4]), hp, e); }
+  if (st.k !== 'turn' && seq.i < 3){ pose.R = cardRot(T); }
+  if (seq.i > 3) pose.R = planeRot(T);
+  if (u >= 1){ if (['a','b','c','d'].includes(st.k)) crease(); seq.i++; seq.t = 0; if (seq.i >= STEPS.length){ state = 'ready'; onReady(); } }
+}
+
+/* ---------------- throwing ---------------- */
+function contactScreen(c){ return proj([c.x, c.y + 1.2, c.z]); }
+function pickByAngle(dx, dy){
+  const pp = proj(pose.P); let best = -1, bd = 1e9;
+  CONTACTS.forEach((c, i) => { const s = contactScreen(c); const a1 = Math.atan2(s[1] - pp[1], s[0] - pp[0]), a2 = Math.atan2(dy, dx); let d = Math.abs(a1 - a2); if (d > Math.PI) d = 2*Math.PI - d; if (d < bd){ bd = d; best = i; } });
+  return best;
+}
+function launch(i){
+  if (state !== 'ready') return; audio();
+  const c = CONTACTS[i]; state = 'flying'; aim = -1; picker.classList.remove('on'); hint.style.opacity = 0;
+  const p0 = pose.P.slice(), p2 = [c.x + (c.type === 'mail' ? -.1 : .55), c.y + (c.type === 'mail' ? 1.15 : .35), c.z + .3];
+  const mid = V.lerp(p0, p2, .5); const p1 = [mid[0] + (p2[0] - p0[0])*.15, Math.max(p0[1], p2[1]) + 3.2 + Math.abs(p2[0])*.08, mid[2]];
+  plane = {i, p0, p1, p2, t:0, dur: reduce ? .3 : 1.5 + Math.abs(c.z)*.02};
+  whoosh(plane.dur);
+}
+function bez(a, b, c, t){ return V.add(V.add(V.mul(a, (1-t)*(1-t)), V.mul(b, 2*(1-t)*t)), V.mul(c, t*t)); }
+function stepFlight(dt){
+  plane.t += dt/plane.dur; const u = Math.min(1, plane.t), e = 1 - Math.pow(1 - u, 1.6);
+  const p = bez(plane.p0, plane.p1, plane.p2, e), p2 = bez(plane.p0, plane.p1, plane.p2, Math.min(1, e + .02));
+  let vel = V.sub(p2, p); if (V.len(vel) < 1e-4) vel = [0, -.1, -1];
+  const bank = clamp(-(plane.p2[0] - plane.p0[0])*.12, -.7, .7)*Math.sin(u*Math.PI) + Math.sin(u*9)*.05;
+  pose.P = p; pose.R = poseFrom(vel, bank);
+  if (u >= 1){ arrive(); }
+}
+function arrive(){
+  const c = CONTACTS[plane.i]; state = 'landed'; pip();
+  if (c.type === 'mail'){ copyLink(); } else { say(`Shared with ${c.full}`); c.got = (c.got || 0) + 1; }
+  c.pop = 1;
+  landed.push({x: plane.p2[0], y: c.y, z: plane.p2[2], i: plane.i});
+  setTimeout(resetCard, reduce ? 300 : 1300);
+}
+async function copyLink(){
+  const url = 'https://thefold.press/31/the-quiet-return-of-the-paper-map';
+  let ok = false; try { await navigator.clipboard.writeText(url); ok = true; } catch(e){ try { const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); ok = document.execCommand('copy'); ta.remove(); } catch(_){} }
+  say(ok ? 'Link copied — paste it anywhere' : 'Link: thefold.press/31');
+}
+function resetCard(){
+  fold = {a:restA, b:0, c:0, d:0}; plane = null; state = 'printing'; cardY = 1; pose = {R: cardRot(T), P: CARD_POS(), center:[0, SL*.5, 0]};
+  setTimeout(() => { state = 'card'; shareBtn.classList.remove('gone'); hint.textContent = 'Fresh copy. Share it with someone else?'; hint.style.opacity = 1; }, reduce ? 50 : 650);
+}
+
+/* pointer: drag the plane and let go with a flick */
+let drag = null;
+const glc = $('#gl');
+glc.addEventListener('pointerdown', e => {
+  audio();
+  if (state === 'card'){ // clicking the page itself shares too
+    const cp = proj(V.add(pose.P, [0,0,0])); if (Math.hypot(e.clientX - cp[0], e.clientY - cp[1]) < Math.min(W, H)*.25){ startFold(); } return; }
+  if (state !== 'ready') return;
+  // tapping a contact sends directly
+  const hit = CONTACTS.findIndex(c => { const s = contactScreen(c), s0 = proj([c.x, c.y, c.z]); return Math.abs(e.clientX - s[0]) < 40 && e.clientY > s[1] - 50 && e.clientY < s0[1] + 30; });
+  if (hit >= 0){ launch(hit); return; }
+  drag = {x0:e.clientX, y0:e.clientY, hist:[{x:e.clientX, y:e.clientY, t:performance.now()}], base: HOLD_POS()};
+  try { glc.setPointerCapture(e.pointerId); } catch(_){}
+});
+glc.addEventListener('pointermove', e => {
+  if (!drag) return; const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  drag.hist.push({x:e.clientX, y:e.clientY, t:performance.now()}); if (drag.hist.length > 6) drag.hist.shift();
+  const k = mobile ? 90 : 160; pose.P = V.add(drag.base, [dx/k, -dy/k*.6, dy/k*.4]);
+  const h = drag.hist, a = h[0], b = h[h.length-1];
+  aim = (b.y - a.y) < -6 ? pickByAngle(b.x - a.x, b.y - a.y) : -1;
+});
+function endDrag(){
+  if (!drag) return; const h = drag.hist, a = h[0], b = h[h.length-1], dt = Math.max(16, b.t - a.t)/1000;
+  const vx = (b.x - a.x)/dt, vy = (b.y - a.y)/dt; drag = null;
+  if (vy < -350){ launch(pickByAngle(vx, vy)); }
+  else { aim = -1; plane = null; }
+}
+glc.addEventListener('pointerup', endDrag); glc.addEventListener('pointercancel', endDrag);
+shareBtn.addEventListener('click', startFold);
+function renderPicker(){
+  picker.innerHTML = ''; CONTACTS.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = c.type === 'mail' ? 'Copy link' : c.name; b.setAttribute('aria-pressed', i === sel); b.addEventListener('click', () => launch(i)); b.addEventListener('focus', () => { sel = i; aim = i; }); b.addEventListener('blur', () => { if (aim === i) aim = -1; }); picker.appendChild(b); });
+}
+addEventListener('keydown', e => {
+  if (state !== 'ready') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); sel = (sel + (e.key === 'ArrowRight' ? 1 : CONTACTS.length - 1)) % CONTACTS.length; aim = sel; const bs = picker.querySelectorAll('button'); bs.forEach((b, i) => b.setAttribute('aria-pressed', i === sel)); bs[sel].focus(); }
+});
+function placeUI(){
+  if (mobile){ const cp = proj(V.add(CARD_POS(), [0, -SL*S*.5, 0])); shareBtn.style.left = (cp[0] - shareBtn.offsetWidth/2) + 'px'; shareBtn.style.top = Math.min(H - 110, cp[1] + 16) + 'px'; return; }
+  const cr = proj(V.add(CARD_POS(), [SW*S + .12, 0, 0]));
+  shareBtn.style.left = (cr[0] + 4) + 'px'; shareBtn.style.top = (cr[1] - shareBtn.offsetHeight/2) + 'px';
+}
+
+/* ---------------- render ---------------- */
+const verts = [];
+function buildGeometry(){
+  verts.length = 0; const tris = [];
+  for (const P of SHEET){
+    const pts = P.v.map(p => { const lp = foldPoint(p, P, fold); const c = V.sub(lp, pose.center); return V.add(pose.P, V.mul(m3apply(pose.R, c), S)); });
+    const uvs = P.v.map(p => [(1 - p.f[0])/2, p.f[1]/SL]);
+    for (let i=1;i<pts.length-1;i++){
+      const a = pts[0], b = pts[i], c = pts[i+1]; const n = V.norm(V.cross(V.sub(b, a), V.sub(c, a)));
+      for (const [q, t] of [[a, uvs[0]], [b, uvs[i]], [c, uvs[i+1]]]) verts.push(q[0], q[1], q[2], t[0], t[1], n[0], n[1], n[2]);
+      tris.push([a, b, c]);
+    }
+  }
+  return tris;
+}
+function drawShadows(tris, g){
+  // soft contact shadow cast by the key light onto the ground (y = 0)
+  const L = LIGHT; g.save();
+  const hAvg = tris.reduce((s, t) => s + (t[0][1] + t[1][1] + t[2][1])/3, 0)/Math.max(1, tris.length);
+  g.filter = `blur(${(2.5 + hAvg*5)*DPR}px)`; g.fillStyle = `rgba(30,40,52,${clamp(.46 - hAvg*.06, .12, .42)})`;
+  g.beginPath();
+  for (const t of tris){ const s = t.map(p => { const k = p[1]/L[1]; return proj([p[0] - L[0]*k, 0, p[2] - L[2]*k]); }); g.moveTo(s[0][0]*DPR, s[0][1]*DPR); g.lineTo(s[1][0]*DPR, s[1][1]*DPR); g.lineTo(s[2][0]*DPR, s[2][1]*DPR); g.closePath(); }
+  g.fill(); g.restore();
+}
+function drawContacts(g){
+  const order = CONTACTS.map((c, i) => i).sort((a, b) => CONTACTS[a].z - CONTACTS[b].z);
+  for (const i of order){
+    const c = CONTACTS[i]; c.pop = Math.max(0, (c.pop || 0) - .02);
+    const base = proj([c.x, c.y, c.z]), top = proj([c.x, c.y + 1.6, c.z]); const hpx = base[1] - top[1], k = hpx/120*(mobile ? 1.2 : 1.55);
+    const bounce = Math.sin((1 - c.pop)*Math.PI*3)*c.pop*14*k;
+    g.save(); g.translate(base[0]*DPR, (base[1] - bounce)*DPR); g.scale(k*DPR, k*DPR);
+    // cast shadow on the hill
+    g.save(); g.filter = `blur(${2.5*k*DPR}px)`; g.fillStyle = 'rgba(30,40,50,.34)'; g.beginPath(); g.moveTo(-22, 0); g.lineTo(60, -10); g.lineTo(74, -2); g.lineTo(22, 4); g.closePath(); g.fill(); g.restore();
+    g.shadowColor = 'rgba(25,38,50,.42)'; g.shadowBlur = 5*k*DPR; g.shadowOffsetX = 7*k*DPR; g.shadowOffsetY = 4*k*DPR;
+    if (c.type === 'mail'){
+      g.fillStyle = '#f6f5f1'; g.fillRect(-3, -70, 6, 70);
+      g.beginPath(); g.moveTo(-30, -70); g.lineTo(30, -70); g.lineTo(30, -110); g.arc(0, -110, 30, 0, Math.PI, true); g.closePath(); g.fill();
+      g.shadowColor = 'transparent'; g.fillStyle = c.tint; g.fillRect(-24, -100, 48, 6);
+      g.fillStyle = '#c96c4f'; g.fillRect(30, -122, 4, 30); g.fillRect(30, -122, 16, 10);
+      g.strokeStyle = 'rgba(42,44,51,.4)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-18, -84); g.lineTo(18, -84); g.stroke();
+    } else {
+      g.fillStyle = '#f7f6f2';
+      g.beginPath(); g.moveTo(-26, 0); g.quadraticCurveTo(-28, -56, 0, -62); g.quadraticCurveTo(28, -56, 26, 0); g.closePath(); g.fill();
+      g.beginPath(); g.arc(0, -84, 19, 0, 7); g.fill();
+      g.shadowColor = 'transparent';
+      g.fillStyle = c.tint; g.beginPath(); g.moveTo(-20, -52); g.quadraticCurveTo(0, -44, 20, -52); g.lineTo(18, -44); g.quadraticCurveTo(0, -36, -18, -44); g.closePath(); g.fill();
+      g.fillRect(6, -48, 7, 22);
+      // waving arm when they receive
+      if (c.pop > 0){ g.save(); g.translate(22, -48); g.rotate(-1.2 + Math.sin(T*16)*.4); g.fillStyle = '#f7f6f2'; g.fillRect(-4, -30, 8, 32); g.restore(); }
+    }
+    // name tag
+    g.shadowColor = 'rgba(55,55,75,.18)'; g.shadowBlur = 6*k*DPR; g.shadowOffsetY = 2*k*DPR;
+    g.font = `600 ${mobile ? 17 : 15}px "Instrument Sans", sans-serif`; const label = c.type === 'mail' ? 'Copy link' : c.name; const tw = g.measureText(label).width + 16;
+    g.fillStyle = i === aim ? '#2a2c33' : '#fbfaf7'; g.fillRect(-tw/2, 8, tw, 24);
+    g.shadowColor = 'transparent'; g.fillStyle = i === aim ? '#fbfaf7' : '#2a2c33'; g.textAlign = 'center'; g.fillText(label, 0, 25);
+    if (c.got){ g.fillStyle = '#b4553a'; g.beginPath(); g.arc(tw/2 - 2, 8, 8, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = '700 10px "Instrument Sans", sans-serif'; g.fillText(c.got, tw/2 - 2, 11.5); }
+    g.restore();
+    // aim ring
+    if (i === aim){ g.save(); g.strokeStyle = 'rgba(42,44,51,.6)'; g.setLineDash([4*DPR, 5*DPR]); g.lineWidth = 1.5*DPR; g.beginPath(); g.ellipse(base[0]*DPR, base[1]*DPR, 40*k*DPR, 10*k*DPR, 0, 0, 7); g.stroke(); g.restore(); }
+  }
+  // planes that have landed rest at their feet
+  for (const l of landed.slice(-8)){ const p = proj([l.x, l.y + .05, l.z]); const k = (proj([l.x, l.y + 1, l.z])[1] - p[1])*-1/60;
+    g.save(); g.translate(p[0]*DPR, p[1]*DPR); g.scale(k*DPR, k*DPR); g.fillStyle = '#fbfaf7'; g.shadowColor = 'rgba(55,55,75,.25)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+    g.beginPath(); g.moveTo(-26, 2); g.lineTo(26, -4); g.lineTo(-18, -10); g.closePath(); g.fill(); g.restore(); }
+}
+function drawAimArc(g){
+  if (aim < 0 || state !== 'ready') return; const c = CONTACTS[aim], p0 = pose.P, p2 = [c.x, c.y + .6, c.z], mid = V.lerp(p0, p2, .5), p1 = [mid[0], Math.max(p0[1], p2[1]) + 3.2, mid[2]];
+  g.save(); g.strokeStyle = 'rgba(42,44,51,.45)'; g.lineWidth = 1.6*DPR; g.setLineDash([2*DPR, 7*DPR]); g.lineCap = 'round'; g.beginPath();
+  for (let t = 0; t <= 1.001; t += .04){ const s = proj(bez(p0, p1, p2, t)); t ? g.lineTo(s[0]*DPR, s[1]*DPR) : g.moveTo(s[0]*DPR, s[1]*DPR); } g.stroke(); g.restore();
+}
+
+let last = performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  if (document.hidden){ last = now; return; }
+  const dt = Math.min(.033, (now - last)/1000); last = now; T += dt;
+  if (state === 'card'){ pose.R = cardRot(T); pose.P = CARD_POS(); fold.a = reduce ? restA : restA + Math.sin(T*1.3)*.07; }
+  if (state === 'printing'){ cardY = Math.max(0, cardY - dt*2.2); pose.R = cardRot(T); pose.P = V.add(CARD_POS(), [0, -cardY*3, cardY*1.5]); }
+  if (state === 'folding') stepFold(dt);
+  if (state === 'ready' && !drag){ pose.R = planeRot(T); pose.P = V.add(HOLD_POS(), [0, Math.sin(T*1.6)*.06, 0]); }
+  if (state === 'ready' && drag){ pose.R = planeRot(T, clamp((drag.hist[drag.hist.length-1].x - drag.x0)/400, -.5, .5)); }
+  if (state === 'flying') stepFlight(dt);
+  // compose
+  const g = bctx; g.setTransform(1,0,0,1,0,0); g.drawImage(backdrop, 0, 0);
+  drawContacts(g);
+  const tris = (state === 'landed') ? [] : buildGeometry();
+  if (tris.length) drawShadows(tris, g);
+  drawAimArc(g);
+  if (!gl) return;
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!tris.length) return;
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.DYNAMIC_DRAW);
+  const st = 32, pl = gl.getAttribLocation(prog, 'p'), ul = gl.getAttribLocation(prog, 'uv'), nl = gl.getAttribLocation(prog, 'n');
+  gl.enableVertexAttribArray(pl); gl.vertexAttribPointer(pl, 3, gl.FLOAT, false, st, 0);
+  gl.enableVertexAttribArray(ul); gl.vertexAttribPointer(ul, 2, gl.FLOAT, false, st, 12);
+  gl.enableVertexAttribArray(nl); gl.vertexAttribPointer(nl, 3, gl.FLOAT, false, st, 20);
+  gl.uniformMatrix4fv(U.M, false, new Float32Array(VP)); gl.uniform3fv(U.L, LIGHT); gl.uniform3fv(U.cam, camPos); gl.uniform1i(U.tex, 0); gl.uniform1f(U.fade, 1);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.drawArrays(gl.TRIANGLES, 0, verts.length/8);
+}
+
+if (gl){ initGL(); uploadTex(); }
+layoutScene();
+addEventListener('resize', () => { clearTimeout(layoutScene.t); layoutScene.t = setTimeout(layoutScene, 120); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { uploadTex(); drawBackdrop(); placeUI(); });
+requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>

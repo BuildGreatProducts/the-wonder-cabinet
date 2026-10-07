@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vault Tumbler Code</title>
+<meta name="description" content="A one-time-code input as a low-poly heist vault: six faceted tumbler wheels spin to each digit; the right code retracts the bolts and swings the door open.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Vault Tumbler Code","reimagines":"OTP / PIN input","category":"Text & Data Entry","description":"A six-digit sign-in code entered on the tumblers of a flat-shaded, low-poly bank vault. Type, paste or drag each ten-sided wheel; the right code retracts the bolts, spins the wheel and swings the door open onto your account, while a wrong one spins every tumbler back to zero.","hint":"Type the texted code, or drag a tumbler up or down"}
+</script>
+<style>
+  :root{
+    --bg:#121b22;
+    --steel:#8ea3ae;
+    --gold:#e2b84c;
+    --gold-d:#a77d22;
+    --teal:#56e0c2;
+    --red:#ff4d4d;
+    --txt:#e6eef0;
+    --mute:#8fa3ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:"Chakra Petch","Avenir Next Condensed","Arial Narrow",sans-serif}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .hud{position:fixed;inset:0;pointer-events:none}
+  .hud > *{pointer-events:auto}
+  .brand{position:absolute;left:28px;top:24px;display:flex;align-items:center;gap:12px;font-weight:700;letter-spacing:.22em;font-size:13px;color:#c8d6dc}
+  .brand svg{display:block}
+  .title{position:absolute;left:28px;top:70px;max-width:330px}
+  .title h1{margin:0;font-size:44px;line-height:.98;font-weight:700;letter-spacing:.01em;
+    background:linear-gradient(162deg,#f4f8f9 0 46%,#b7c7ce 46% 70%,#e9eff1 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .title p{margin:12px 0 0;color:var(--mute);font-size:16px;line-height:1.35}
+  .title p b{color:var(--txt);font-weight:600}
+  .facet{clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px)}
+  .sms{position:absolute;right:28px;top:96px;width:300px;padding:16px 18px 18px;
+    background:conic-gradient(from 200deg at 38% 42%,#2a3a45 0 18%,#22303a 0 41%,#304452 0 63%,#1d2a33 0 82%,#2a3a45 0);
+    transition:transform .6s cubic-bezier(.2,1.3,.4,1),opacity .4s}
+  .sms.off{transform:translateY(-30px) scale(.96);opacity:0}
+  .sms .row{display:flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.16em;color:var(--mute);font-weight:600}
+  .sms .row span:last-child{margin-left:auto;letter-spacing:.06em}
+  .sms .msg{margin-top:10px;font-size:16px;line-height:1.35;color:var(--txt)}
+  .sms .msg b{font-size:22px;letter-spacing:.14em;color:var(--gold);font-weight:700;white-space:nowrap}
+  .dock{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;display:flex;flex-direction:column;align-items:center;gap:12px;width:min(560px,calc(100% - 24px))}
+  .status{min-height:24px;font-size:16px;letter-spacing:.04em;color:var(--mute);text-align:center}
+  .status.bad{color:var(--red)}
+  .status.good{color:var(--teal)}
+  .btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .btn{font:inherit;font-weight:700;letter-spacing:.08em;font-size:15px;border:0;padding:12px 22px;cursor:pointer;color:#1a1408;
+    clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,12px 100%,0 50%);
+    background:conic-gradient(from 210deg at 46% 52%,#c79a3b 0 22%,#f0cf72 0 47%,#a87d2a 0 71%,#dcb352 0);
+    transition:filter .15s, transform .1s}
+  .btn:hover{filter:brightness(1.12)}
+  .btn:active{transform:translateY(1px) scale(.98)}
+  .btn.ghost{color:var(--txt);background:conic-gradient(from 210deg at 46% 52%,#2f414d 0 22%,#3c5261 0 47%,#24333d 0 71%,#344957 0)}
+  .btn:focus-visible{outline:none;filter:drop-shadow(0 0 0 #fff) brightness(1.25);box-shadow:none}
+  .btnwrap{padding:3px;clip-path:polygon(13px 0,calc(100% - 13px) 0,100% 50%,calc(100% - 13px) 100%,13px 100%,0 50%);background:transparent;display:inline-flex}
+  .btnwrap:focus-within{background:var(--teal)}
+  .btn[hidden],.btnwrap[hidden]{display:none}
+  #code{position:fixed;left:0;top:0;width:200px;height:40px;opacity:0;font-size:16px;border:0;padding:0;color:transparent;background:transparent;caret-color:transparent;pointer-events:none}
+  .ring{position:absolute;pointer-events:none;opacity:0;transition:opacity .2s}
+  body.kbd .ring{opacity:1}
+  .hint{position:absolute;font-size:13px;letter-spacing:.14em;color:var(--mute);text-transform:uppercase;pointer-events:none;transition:opacity .6s;text-align:center;white-space:nowrap}
+  .hint.gone{opacity:0}
+  .panel{position:absolute;width:310px;padding:20px 22px 22px;text-align:left;
+    background:conic-gradient(from 160deg at 60% 40%,rgba(32,48,58,.94) 0 20%,rgba(26,38,46,.94) 0 46%,rgba(40,58,70,.94) 0 70%,rgba(22,33,40,.94) 0);
+    opacity:0;transform:scale(.9) translateY(10px);transition:opacity .5s,transform .6s cubic-bezier(.2,1.3,.4,1);pointer-events:none}
+  .panel.on{opacity:1;transform:none;pointer-events:auto}
+  .panel small{display:block;font-size:12px;letter-spacing:.2em;color:var(--teal);font-weight:600}
+  .panel h2{margin:6px 0 12px;font-size:24px;line-height:1.05}
+  .panel dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:15px}
+  .panel dt{color:var(--mute)}
+  .panel dd{margin:0;text-align:right;font-weight:600}
+  .panel dd.big{font-size:22px;color:var(--gold)}
+  .panel .btnwrap{margin-top:16px}
+  .mute{position:absolute;right:20px;top:20px;width:42px;height:42px;border:0;padding:0;cursor:pointer;background:conic-gradient(from 210deg at 46% 52%,#2f414d 0 22%,#3c5261 0 47%,#24333d 0 71%,#344957 0);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center}
+  .mute:focus-visible{filter:brightness(1.6)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (max-width:700px){
+    .brand{left:16px;top:16px;font-size:11px}
+    .title{left:16px;right:16px;top:50px;max-width:none}
+    .title h1{font-size:30px}
+    .title p{font-size:14px;margin-top:6px}
+    .sms{left:12px;right:12px;width:auto;top:10px;z-index:5}
+    .dock{bottom:14px}
+    .panel{width:min(310px,calc(100% - 32px))}
+    .mute{right:12px;top:12px;width:36px;height:36px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .sms,.panel,.hint{transition:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-hidden="true"></canvas>
+<div class="hud">
+  <div class="brand"><svg width="26" height="28" viewBox="0 0 26 28" aria-hidden="true"><polygon points="13,0 26,7 13,11" fill="#e2b84c"/><polygon points="13,0 0,7 13,11" fill="#f0cf72"/><polygon points="0,7 13,11 13,28 0,19" fill="#a77d22"/><polygon points="26,7 13,11 13,28 26,19" fill="#c79a3b"/></svg>NORTHVAULT PRIVATE</div>
+  <div class="title" id="title">
+    <h1>Verify it’s you</h1>
+    <p>Enter the 6-digit code we texted to <b>•••• 0172</b>. It opens your vault for this session.</p>
+  </div>
+  <div class="sms facet off" id="sms" role="status" aria-live="polite">
+    <div class="row"><svg width="20" height="18" viewBox="0 0 20 18" aria-hidden="true"><polygon points="0,0 20,0 20,12 8,12 3,18 4,12 0,12" fill="#56e0c2"/><polygon points="0,0 20,0 10,6" fill="#8ff0da"/></svg><span>MESSAGES</span><span>now</span></div>
+    <div class="msg">Northvault: <b id="smsCode">482 917</b> is your sign-in code. It expires in 5 minutes. We will never call to ask for it.</div>
+  </div>
+  <div class="hint" id="hint">Type the code · or drag a tumbler</div>
+  <svg class="ring" id="ring" aria-hidden="true"></svg>
+  <div class="panel facet" id="panel" aria-hidden="true">
+    <small>VAULT OPEN · SIGNED IN</small>
+    <h2>Welcome back, Maya Okafor</h2>
+    <dl>
+      <dt>Private savings</dt><dd class="big">£48,210.36</dd>
+      <dt>Allocated gold</dt><dd>2.40 kg</dd>
+      <dt>Last visit</dt><dd>2 Oct 2026, 18:04</dd>
+    </dl>
+    <span class="btnwrap"><button class="btn" id="lock" type="button" tabindex="-1">Lock vault and sign out</button></span>
+  </div>
+  <div class="dock">
+    <div class="status" id="status" aria-live="polite">3 tries before we send a new code</div>
+    <div class="btns">
+      <span class="btnwrap" id="fillWrap" hidden><button class="btn" id="fill" type="button">From Messages · <span id="fillCode">482 917</span></button></span>
+      <span class="btnwrap"><button class="btn ghost" id="resend" type="button">Text me a new code</button></span>
+    </div>
+  </div>
+  <button class="mute" id="mute" type="button" aria-pressed="false" aria-label="Mute vault sounds"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><polygon points="2,7 7,7 12,2 12,18 7,13 2,13" fill="#e6eef0"/><g id="mw" stroke="#e6eef0" stroke-width="2" fill="none"><polyline points="14,7 16,10 14,13"/><polyline points="16,4 19,10 16,16"/></g><g id="mx" stroke="#ff4d4d" stroke-width="2" style="display:none"><line x1="14" y1="7" x2="19" y2="13"/><line x1="19" y1="7" x2="14" y2="13"/></g></svg></button>
+  <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" aria-label="Six-digit sign-in code" aria-describedby="status">
+  <div class="sr" id="live" aria-live="assertive"></div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const input = $('code');
+  let W = 0, H = 0, dpr = 1, S = 1, CX = 0, CY = 0;
+  const D = 2200;
+
+  /* ---------------- state ---------------- */
+  let secret = '482917';
+  const digits = [null, null, null, null, null, null];
+  let cursor = 0, tries = 3, phase = 'locked'; // locked | checking | opening | open | closing
+  const TUM = [];
+  for (let i = 0; i < 6; i++) TUM.push({ a: 0, v: 0, target: 0, drag: false, anim: null, lastFace: 0, flash: 0, lamp: 0 });
+  let boltR = 0, boltRT = 0;          // 0 locked .. 1 retracted
+  let wheelA = 0, doorB = 0;           // handle angle, door swing
+  let alarm = 0, laserOn = 1, shake = 0;
+  let mx = 0, my = 0, pmx = 0, pmy = 0;
+  const STEP = Math.PI / 5;
+
+  /* ---------------- audio ---------------- */
+  let ac = null, master = null, nbuf = null, muted = false;
+  function A() {
+    if (muted) return null;
+    try {
+      if (!ac) {
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        master = ac.createGain(); master.gain.value = 0.16; master.connect(ac.destination);
+        nbuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    } catch (e) { return null; }
+  }
+  function nz(t, dur, type, f, q, g) { const s = ac.createBufferSource(); s.buffer = nbuf; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const gg = ac.createGain(); gg.gain.setValueAtTime(g, t); gg.gain.exponentialRampToValueAtTime(0.0008, t + dur); s.connect(fl).connect(gg).connect(master); s.start(t, Math.random() * .5, dur + .02); }
+  function os(t, f0, f1, dur, g, type) { const o = ac.createOscillator(); o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur); const gg = ac.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.linearRampToValueAtTime(g, t + 0.005); gg.gain.exponentialRampToValueAtTime(0.0008, t + dur); o.connect(gg).connect(master); o.start(t); o.stop(t + dur + .02); }
+  let lastTick = 0;
+  const snd = {
+    tick() { if (!A()) return; const t = ac.currentTime; if (t - lastTick < 0.018) return; lastTick = t; nz(t, 0.02, 'highpass', 3600, .7, .35); os(t, 2100, 0, 0.018, .08); },
+    set() { if (!A()) return; const t = ac.currentTime; os(t, 520, 260, 0.06, .25, 'triangle'); nz(t, 0.04, 'bandpass', 1800, 2, .3); },
+    bolt(k) { if (!A()) return; const t = ac.currentTime; os(t, 110 - k * 4, 50, 0.18, .5, 'triangle'); nz(t, 0.12, 'lowpass', 600, 1, .5); },
+    creak() { if (!A()) return; const t = ac.currentTime; const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(52, t + 1.3); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 420; f.Q.value = 6; const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(.18, t + .2); g.gain.linearRampToValueAtTime(.0001, t + 1.4); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + 1.5); },
+    thud() { if (!A()) return; const t = ac.currentTime; os(t, 80, 40, .35, .6, 'sine'); nz(t, .2, 'lowpass', 300, 1, .5); },
+    chime() { if (!A()) return; const t = ac.currentTime; [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => os(t + i * .07, f, 0, 1.2, .12)); },
+    buzz() { if (!A()) return; const t = ac.currentTime; for (let i = 0; i < 2; i++) { const o = ac.createOscillator(); o.type = 'square'; o.frequency.value = 118; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t + i * .22); g.gain.linearRampToValueAtTime(.16, t + i * .22 + .01); g.gain.setValueAtTime(.16, t + i * .22 + .15); g.gain.linearRampToValueAtTime(.0001, t + i * .22 + .17); o.connect(f).connect(g).connect(master); o.start(t + i * .22); o.stop(t + i * .22 + .2); } },
+    sms() { if (!A()) return; const t = ac.currentTime; os(t, 1318, 0, .18, .1); os(t + .12, 1760, 0, .3, .1); }
+  };
+
+  /* ---------------- geometry ---------------- */
+  // rng for stable facet tints
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const C = {
+    steel: [122, 142, 154], steelD: [84, 101, 112], dark: [36, 46, 54], frame: [70, 86, 96],
+    gold: [214, 168, 64], goldL: [238, 200, 104], tum: [48, 58, 66], plate: [24, 31, 37], tunnel: [40, 52, 60], back: [30, 40, 47], red: [190, 40, 40]
+  };
+  function F(pts, col, o) { return Object.assign({ pts, col, tint: 1 + (rnd() - .5) * .1 }, o || {}); }
+  function ringQuads(out, r0, z0, r1, z1, n, col, o, a0) {
+    a0 = a0 || 0;
+    for (let i = 0; i < n; i++) {
+      const A0 = a0 + i / n * Math.PI * 2, A1 = a0 + (i + 1) / n * Math.PI * 2;
+      out.push(F([[Math.cos(A0) * r0, Math.sin(A0) * r0, z0], [Math.cos(A1) * r0, Math.sin(A1) * r0, z0], [Math.cos(A1) * r1, Math.sin(A1) * r1, z1], [Math.cos(A0) * r1, Math.sin(A0) * r1, z1]], col, o));
+    }
+  }
+  function box(out, x0, x1, y0, y1, z0, z1, col, o) {
+    const p = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+    const c = [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2];
+    [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]].forEach(f => out.push(F(f.map(k => p[k]), col, Object.assign({ c }, o || {}))));
+  }
+  // static scene: frame, tunnel, gold
+  const R = 232;
+  const STATIC = [];
+  (function buildStatic() {
+    const o = { c: [0, 0, 400] };
+    // frame (octagon) ring: front face, outer bevel, inner bevel
+    const n = 8, a0 = Math.PI / 8;
+    ringQuads(STATIC, 300, -22, 252, -22, n, C.frame, { c: [0, 0, 200] }, a0);
+    ringQuads(STATIC, 330, 6, 300, -22, n, C.steelD, { c: [0, 0, 200] }, a0);
+    ringQuads(STATIC, 252, -22, 244, 30, 16, C.dark, { c: [0, 0, -400] });
+    // rivets on frame
+    for (let i = 0; i < 8; i++) { const a = a0 + (i + .5) / 8 * Math.PI * 2, rr = 276; box(STATIC, Math.cos(a) * rr - 7, Math.cos(a) * rr + 7, Math.sin(a) * rr - 7, Math.sin(a) * rr + 7, -32, -22, C.steel); }
+    // tunnel: inward faces
+    ringQuads(STATIC, 244, 30, 244, 520, 16, C.tunnel, { c: [0, 0, 275], inward: true });
+    const back = []; for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; back.push([Math.cos(a) * 244, Math.sin(a) * 244, 520]); }
+    STATIC.push(F(back.reverse(), C.back, { c: [0, 0, 900] }));
+    // floor shelf
+    box(STATIC, -170, 170, -175, -150, 120, 500, [58, 70, 78]);
+    // gold ingots: trapezoid prisms
+    function ingot(x, y, z, rot) {
+      const w = 64, d = 30, h = 20, t = 9;
+      const b = [[-w / 2, 0, -d / 2], [w / 2, 0, -d / 2], [w / 2, 0, d / 2], [-w / 2, 0, d / 2]];
+      const u = [[-w / 2 + t, h, -d / 2 + t * .5], [w / 2 - t, h, -d / 2 + t * .5], [w / 2 - t, h, d / 2 - t * .5], [-w / 2 + t, h, d / 2 - t * .5]];
+      const tr = p => { const c = Math.cos(rot), s = Math.sin(rot); return [x + p[0] * c - p[2] * s, y + p[1], z + p[0] * s + p[2] * c]; };
+      const B = b.map(tr), U = u.map(tr), cc = [x, y + h / 2, z];
+      STATIC.push(F([U[0], U[1], U[2], U[3]], C.goldL, { c: cc, metal: 1 }));
+      STATIC.push(F([B[0], B[1], U[1], U[0]], C.gold, { c: cc, metal: 1 }));
+      STATIC.push(F([B[1], B[2], U[2], U[1]], C.gold, { c: cc, metal: 1 }));
+      STATIC.push(F([B[2], B[3], U[3], U[2]], C.gold, { c: cc, metal: 1 }));
+      STATIC.push(F([B[3], B[0], U[0], U[3]], C.gold, { c: cc, metal: 1 }));
+    }
+    const y0 = -150;
+    [[-110, 420], [-40, 420], [30, 420], [100, 420], [-75, 420], [-5, 420], [65, 420], [-40, 420], [30, 420]].forEach((p, i) => {
+      const layer = i < 4 ? 0 : i < 7 ? 1 : 2;
+      ingot(p[0], y0 + layer * 20, p[1] - layer * 0 + (i % 2) * 4, (rnd() - .5) * .08);
+    });
+    [[-120, 300], [-50, 300], [110, 330]].forEach(p => ingot(p[0], y0, p[1], (rnd() - .5) * .3));
+  })();
+
+  // door geometry (local, closed position). Built once; dynamic parts built per frame.
+  const DOOR = [];
+  (function buildDoor() {
+    const c = { c: [0, 0, 40] };
+    // faceted front: center cone
+    const n = 16, zc = -26, z1 = -12, r1 = 118, r2 = 196;
+    for (let i = 0; i < n; i++) {
+      const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2;
+      DOOR.push(F([[0, 0, zc], [Math.cos(a1) * r1, Math.sin(a1) * r1, z1 + (i % 2) * 2], [Math.cos(a0) * r1, Math.sin(a0) * r1, z1 + ((i + 1) % 2) * 2]], C.steel, Object.assign({ metal: 1 }, c)));
+    }
+    for (let i = 0; i < n; i++) {
+      const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2, za = z1 + ((i + 1) % 2) * 2, zb = z1 + (i % 2) * 2;
+      DOOR.push(F([[Math.cos(a0) * r1, Math.sin(a0) * r1, za], [Math.cos(a1) * r1, Math.sin(a1) * r1, zb], [Math.cos(a1) * r2, Math.sin(a1) * r2, -16], [Math.cos(a0) * r2, Math.sin(a0) * r2, -16]], C.steel, Object.assign({ metal: 1 }, c)));
+    }
+    ringQuads(DOOR, r2, -16, R, 6, n, C.steelD, Object.assign({ metal: 1 }, c));
+    ringQuads(DOOR, R, 6, R, 66, n, C.steelD, c);
+    const back = []; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; back.push([Math.cos(a) * R, Math.sin(a) * R, 66]); }
+    DOOR.push(F(back, C.steelD, { c: [0, 0, 0] }));
+    // back of the door: locking mechanism plate, faceted ring and gear hub
+    ringQuads(DOOR, 200, 66, 120, 80, 16, C.frame, { c: [0, 0, 0], metal: 1 });
+    const bp = []; for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; bp.push([Math.cos(a) * 120, Math.sin(a) * 120, 80]); }
+    DOOR.push(F(bp, C.steel, { c: [0, 0, 0], metal: 1 }));
+    for (let i = 0; i < 8; i++) { const a = (i + .5) / 8 * Math.PI * 2; const cx = Math.cos(a) * 150, cy = Math.sin(a) * 150; box(DOOR, cx - 12, cx + 12, cy - 12, cy + 12, 80, 96, C.gold, { metal: 1 }); }
+    box(DOOR, -30, 30, -30, 30, 80, 110, C.goldL, { metal: 1 });
+    // hinge blocks (left)
+    box(DOOR, -R - 30, -R + 8, 120, 170, -14, 40, C.steelD, { layer: 1 });
+    box(DOOR, -R - 30, -R + 8, -170, -120, -14, 40, C.steelD, { layer: 1 });
+  })();
+  // slot for tumblers
+  const TW = 52, TG = 10, TR = 70, TAX_Z = 26, SLOT_Y = -14;
+  const tx = i => (i - 2.5) * (TW + TG);
+  const SLOT = []; // plate + bezel
+  (function buildSlot() {
+    const x0 = tx(0) - TW / 2 - 16, x1 = tx(5) + TW / 2 + 16, h = 46;
+    SLOT.push(F([[x0, SLOT_Y - h, -18], [x1, SLOT_Y - h, -18], [x1, SLOT_Y + h, -18], [x0, SLOT_Y + h, -18]], C.plate, { c: [0, SLOT_Y, 60], layer: 1 }));
+    const bz = { layer: 3, metal: 1 };
+    box(SLOT, x0 - 14, x1 + 14, SLOT_Y + h, SLOT_Y + h + 18, -52, -16, C.steel, bz);
+    box(SLOT, x0 - 14, x1 + 14, SLOT_Y - h - 18, SLOT_Y - h, -52, -16, C.steel, bz);
+    box(SLOT, x0 - 14, x0, SLOT_Y - h, SLOT_Y + h, -52, -16, C.steel, bz);
+    box(SLOT, x1, x1 + 14, SLOT_Y - h, SLOT_Y + h, -52, -16, C.steel, bz);
+    for (let i = 0; i < 5; i++) { const xm = (tx(i) + tx(i + 1)) / 2; box(SLOT, xm - 3, xm + 3, SLOT_Y - h, SLOT_Y + h, -40, -16, C.steelD, { layer: 3 }); }
+    // nameplate
+    SLOT.push(F([[-92, -132, -14], [92, -132, -14], [92, -96, -14], [-92, -96, -14]], C.gold, { c: [0, -114, 40], layer: 1, metal: 1, label: { text: 'NORTHVAULT · 1931', size: .5, color: '#3b2a08' }, lw: 184, lh: 36 }));
+  })();
+
+  /* ---------------- 3D pipeline ---------------- */
+  const L = norm([-0.5, 0.62, -0.6]);
+  function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  let viewRY = 0, viewRX = 0;
+  function view(p) { // global parallax rotation about vault centre
+    let [x, y, z] = p;
+    const cy = Math.cos(viewRY), sy = Math.sin(viewRY);
+    let x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+    const cx = Math.cos(viewRX), sx = Math.sin(viewRX);
+    let y1 = y * cx - z1 * sx, z2 = y * sx + z1 * cx;
+    return [x1, y1, z2];
+  }
+  function proj(p) { const k = S * D / (p[2] + D); return [CX + p[0] * k, CY - p[1] * k]; }
+  function doorX(p) { // swing about hinge at x=-R-20,z=0
+    const hx = -R - 20, b = doorB, c = Math.cos(b), s = Math.sin(b);
+    const x = p[0] - hx, z = p[2];
+    return [hx + x * c + z * s, p[1], -x * s + z * c];
+  }
+  const drawList = [];
+  function pushFace(f, xf, group, layer, extra) {
+    const P = f.pts.map(p => view(xf ? xf(p) : p));
+    const cc = view(xf ? xf(f.c || [0, 0, 0]) : (f.c || [0, 0, 0]));
+    let n = norm(cross(sub(P[1], P[0]), sub(P[2], P[0])));
+    let fc = [0, 0, 0]; for (const p of P) { fc[0] += p[0]; fc[1] += p[1]; fc[2] += p[2]; } fc = fc.map(v => v / P.length);
+    if (dot(n, sub(fc, cc)) < 0) n = n.map(v => -v);
+    if (f.inward) n = n.map(v => -v);
+    const toCam = sub([0, 0, -D], fc);
+    const facing = dot(n, toCam);
+    if (facing <= 0) return null;
+    const ndl = Math.max(0, dot(n, L));
+    const V = norm(toCam); const Hh = norm([L[0] + V[0], L[1] + V[1], L[2] + V[2]]);
+    const spec = f.metal ? Math.pow(Math.max(0, dot(n, Hh)), 18) * .55 : Math.pow(Math.max(0, dot(n, Hh)), 30) * .15;
+    const col = (extra && extra.col) || f.col, glow = (extra && extra.glow) || 0;
+    const k = (0.32 + 0.78 * ndl) * f.tint;
+    const r = Math.min(255, col[0] * k + spec * 255 + glow * 80), g = Math.min(255, col[1] * k + spec * 255 + glow * 60), b = Math.min(255, col[2] * k + spec * 235 + glow * 20);
+    const item = { pts: P.map(proj), depth: fc[2], group, layer: layer != null ? layer : (f.layer || 0), fill: `rgb(${r | 0},${g | 0},${b | 0})`, f, n, ndv: facing / Math.hypot(...toCam), extra };
+    drawList.push(item);
+    return item;
+  }
+  function tumblerFaces(i) {
+    const t = TUM[i], out = [], x0 = tx(i) - TW / 2, x1 = tx(i) + TW / 2;
+    const ring = [];
+    for (let k = 0; k < 10; k++) {
+      const th = k * STEP - t.a; // face k centre angle; 0 == front
+      ring.push({ k, a0: th - STEP / 2, a1: th + STEP / 2 });
+    }
+    const P = a => [TR * Math.sin(a), TR * -Math.cos(a)]; // (y,z) offsets; a>0 is up
+    for (const r of ring) {
+      const [ya, za] = P(r.a0), [yb, zb] = P(r.a1);
+      out.push({ pts: [[x0, SLOT_Y + ya, TAX_Z + za], [x1, SLOT_Y + ya, TAX_Z + za], [x1, SLOT_Y + yb, TAX_Z + zb], [x0, SLOT_Y + yb, TAX_Z + zb]], col: C.tum, tint: 1 + ((r.k * 37) % 7 - 3) * .012, c: [tx(i), SLOT_Y, TAX_Z], metal: 1, digit: r.k });
+    }
+    return out;
+  }
+  function boltFaces() {
+    const out = [];
+    for (let j = 0; j < 8; j++) {
+      const a = (j + .5) / 8 * Math.PI * 2 + Math.PI / 8 * 0, ca = Math.cos(a), sa = Math.sin(a);
+      const r1 = 262 - boltR * 54, r0 = Math.max(210, r1 - 76), w = 13;
+      if (r1 - r0 < 3) continue;
+      const pts = (r, side) => [ca * r - sa * w * side, sa * r + ca * w * side];
+      const zf = -30, zb = -10;
+      const q = [pts(r0, -1), pts(r1, -1), pts(r1, 1), pts(r0, 1)];
+      const front = q.map(p => [p[0], p[1], zf]), back = q.map(p => [p[0], p[1], zb]);
+      const c = [ca * (r0 + r1) / 2, sa * (r0 + r1) / 2, -20];
+      out.push({ pts: front, col: C.gold, c, metal: 1, tint: 1 });
+      for (let e = 0; e < 4; e++) { const e2 = (e + 1) % 4; out.push({ pts: [front[e], front[e2], back[e2], back[e]], col: C.goldL, c, metal: 1, tint: .92 }); }
+    }
+    return out;
+  }
+  function wheelFaces() {
+    const out = [], cy = 128, ca = Math.cos(wheelA), sa = Math.sin(wheelA);
+    const rot = p => [p[0] * ca - (p[1] - cy) * sa, cy + p[0] * sa + (p[1] - cy) * ca, p[2]];
+    const add = (arr) => arr.forEach(f => { f.pts = f.pts.map(rot); f.c = rot(f.c); out.push(f); });
+    const tmp = [];
+    // hub (hexagonal prism)
+    const hub = [], hb = [];
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; hub.push([Math.cos(a) * 20, cy + Math.sin(a) * 20, -50]); hb.push([Math.cos(a) * 20, cy + Math.sin(a) * 20, -18]); }
+    tmp.push(F(hub.slice(), C.goldL, { c: [0, cy, -30], metal: 1 }));
+    for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6; tmp.push(F([hub[k], hub[k2], hb[k2], hb[k]], C.gold, { c: [0, cy, -30], metal: 1 })); }
+    // spokes
+    for (let s = 0; s < 3; s++) {
+      const a = s / 3 * Math.PI * 2 + Math.PI / 2, c2 = Math.cos(a), s2 = Math.sin(a);
+      const bx = []; box(bx, -5, 5, 18, 62, -42, -30, C.steel, { metal: 1 });
+      bx.forEach(f => { f.pts = f.pts.map(p => [p[0] * c2 - p[1] * s2, cy + p[0] * s2 + p[1] * c2, p[2]]); f.c = [0, cy, -36]; tmp.push(f); });
+    }
+    // rim: 9 segments
+    const n = 9;
+    for (let k = 0; k < n; k++) {
+      const a0 = k / n * Math.PI * 2, a1 = (k + 1) / n * Math.PI * 2, ri = 56, ro = 72;
+      const p = (r, a, z) => [Math.cos(a) * r, cy + Math.sin(a) * r, z];
+      const cc = [Math.cos((a0 + a1) / 2) * 64, cy + Math.sin((a0 + a1) / 2) * 64, -40];
+      tmp.push(F([p(ri, a0, -48), p(ro, a0, -46), p(ro, a1, -46), p(ri, a1, -48)], C.steel, { c: cc, metal: 1 }));
+      tmp.push(F([p(ro, a0, -46), p(ro, a0, -30), p(ro, a1, -30), p(ro, a1, -46)], C.steelD, { c: cc, metal: 1 }));
+      tmp.push(F([p(ri, a0, -48), p(ri, a1, -48), p(ri, a1, -32), p(ri, a0, -32)], C.steelD, { c: cc, metal: 1 }));
+    }
+    add(tmp);
+    return out;
+  }
+  function lampFaces(i) {
+    const x = tx(i), y = SLOT_Y + 46 + 9, z = -56, r = 7;
+    const top = [x, y, z - 6];
+    const ring = [[x - r, y, z], [x, y + r * .6, z], [x + r, y, z], [x, y - r * .6, z]];
+    const out = [];
+    for (let k = 0; k < 4; k++) out.push({ pts: [top, ring[(k + 1) % 4], ring[k]], col: [60, 30, 30], tint: 1 - k * .06, c: [x, y, z + 4], lamp: i });
+    return out;
+  }
+
+  /* ---------------- background (low-poly wall) ---------------- */
+  let bg = null;
+  function buildBg() {
+    bg = document.createElement('canvas'); bg.width = W * dpr; bg.height = H * dpr;
+    const g = bg.getContext('2d'); g.scale(dpr, dpr);
+    const step = Math.max(70, Math.min(W, H) / 8);
+    const cols = Math.ceil(W / step) + 2, rows = Math.ceil(H / step) + 2;
+    let s2 = 11; const r2 = () => (s2 = (s2 * 16807) % 2147483647) / 2147483647;
+    const pts = [];
+    for (let j = 0; j < rows; j++) { pts.push([]); for (let i = 0; i < cols; i++) pts[j].push([(i - .5) * step + (r2() - .5) * step * .7, (j - .5) * step + (r2() - .5) * step * .7]); }
+    const floorY = H * .86;
+    for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
+      const a = pts[j][i], b = pts[j][i + 1], c = pts[j + 1][i + 1], d = pts[j + 1][i];
+      const tris = r2() < .5 ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
+      for (const t of tris) {
+        const cy = (t[0][1] + t[1][1] + t[2][1]) / 3, cx = (t[0][0] + t[1][0] + t[2][0]) / 3;
+        const nx = (r2() - .5) * .9, ny = (r2() - .5) * .9; const n = norm([nx, ny, -1]);
+        const lit = .5 + .5 * dot(n, L);
+        const vign = 1 - Math.min(1, Math.hypot((cx - W * .45) / W, (cy - H * .5) / H) * 1.1);
+        const fl = cy > floorY;
+        const base = fl ? [44, 40, 38] : [26, 40, 50];
+        const k = (fl ? .6 : .45) + lit * .55 + vign * .35;
+        g.fillStyle = `rgb(${base[0] * k | 0},${base[1] * k | 0},${base[2] * k | 0})`;
+        g.strokeStyle = g.fillStyle; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(t[0][0], t[0][1]); g.lineTo(t[1][0], t[1][1]); g.lineTo(t[2][0], t[2][1]); g.closePath(); g.fill(); g.stroke();
+      }
+    }
+  }
+
+  /* ---------------- render ---------------- */
+  const tumHit = [];
+  function render(time) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(bg, 0, 0, W, H);
+    // lasers
+    if (laserOn > 0.01) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const beams = [[-.05, .2, 1.05, .62], [-.05, .78, 1.05, .35], [.12, 1.02, .9, -.02], [.3, -.02, .68, 1.02]];
+      beams.forEach((b, i) => {
+        const fl = .75 + .25 * Math.sin(time * .004 + i * 2) + alarm * .8;
+        const a = laserOn * fl;
+        ctx.strokeStyle = `rgba(255,50,50,${.10 * a})`; ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.moveTo(b[0] * W, b[1] * H); ctx.lineTo(b[2] * W, b[3] * H); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,90,80,${.55 * a})`; ctx.lineWidth = 1.6;
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+    drawList.length = 0;
+    // static
+    for (const f of STATIC) pushFace(f, null, 0);
+    // door
+    const dx = p => doorX(p);
+    for (const f of DOOR) pushFace(f, dx, 1);
+    for (const f of SLOT) pushFace(f, dx, 1);
+    for (let i = 0; i < 6; i++) {
+      const t = TUM[i];
+      const isSet = digits[i] !== null;
+      for (const f of tumblerFaces(i)) {
+        const glow = t.flash;
+        const it = pushFace(f, dx, 1, 2, { glow, col: phase === 'open' || phase === 'opening' ? [70, 64, 48] : C.tum });
+        if (it) { it.digit = f.digit; it.tum = i; it.isSet = isSet; }
+      }
+      for (const f of lampFaces(i)) {
+        const on = t.lamp;
+        const col = on > .5 ? (phase === 'opening' || phase === 'open' ? [240, 196, 80] : [70, 220, 190]) : [80, 36, 36];
+        pushFace(f, dx, 1, 4, { col, glow: on > .5 ? on * .8 : 0 });
+      }
+    }
+    for (const f of boltFaces()) pushFace(f, dx, 1, 3);
+    for (const f of wheelFaces()) pushFace(f, dx, 1, 3);
+    // alarm lamp on top of frame (static)
+    const lampCol = [120 + alarm * 135, 30, 30];
+    const top = [0, 318, -40], rr = 20;
+    for (let k = 0; k < 6; k++) { const a0 = k / 6 * Math.PI * 2, a1 = (k + 1) / 6 * Math.PI * 2; pushFace({ pts: [top, [Math.cos(a1) * rr, 300, -40 + Math.sin(a1) * rr], [Math.cos(a0) * rr, 300, -40 + Math.sin(a0) * rr]], col: lampCol, tint: 1 - (k % 3) * .08, c: [0, 290, -40] }, null, 0, 0, { glow: alarm }); }
+
+    drawList.sort((a, b) => (a.group - b.group) || (a.group === 1 ? (a.layer - b.layer) : 0) || (b.depth - a.depth));
+    for (let i = 0; i < 6; i++) tumHit[i] = { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 };
+    for (const it of drawList) {
+      const p = it.pts;
+      ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let k = 1; k < p.length; k++) ctx.lineTo(p[k][0], p[k][1]); ctx.closePath();
+      ctx.fillStyle = it.fill; ctx.fill(); ctx.strokeStyle = it.fill; ctx.lineWidth = .8; ctx.stroke();
+      if (it.digit != null && it.ndv > .2) {
+        const tc = it.tum;
+        for (const q of p) { const h = tumHit[tc]; h.x0 = Math.min(h.x0, q[0]); h.y0 = Math.min(h.y0, q[1]); h.x1 = Math.max(h.x1, q[0]); h.y1 = Math.max(h.y1, q[1]); }
+        // digit label: map unit square to face (p0 bottom-left, p1 bottom-right, p3 top-left)
+        const o = p[3], ux = p[2][0] - p[3][0], uy = p[2][1] - p[3][1], vx = p[0][0] - p[3][0], vy = p[0][1] - p[3][1];
+        ctx.save();
+        ctx.setTransform(dpr * ux / 100, dpr * uy / 100, dpr * vx / 100, dpr * vy / 100, dpr * o[0], dpr * o[1]);
+        const a = Math.max(.18, Math.min(1, (it.ndv - .72) / .22));
+        const lit = it.isSet ? (phase === 'open' || phase === 'opening' ? '#ffe39a' : '#f2c95c') : '#7f8d96';
+        ctx.globalAlpha = a;
+        ctx.fillStyle = lit;
+        ctx.font = '700 84px "Chakra Petch", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(it.digit), 50, 54);
+        ctx.restore();
+      }
+      if (it.f.label && it.ndv > .2) {
+        const o = p[3], ux = p[2][0] - p[3][0], uy = p[2][1] - p[3][1], vx = p[0][0] - p[3][0], vy = p[0][1] - p[3][1];
+        const lw = it.f.lw, lh = it.f.lh;
+        ctx.save(); ctx.setTransform(dpr * ux / lw, dpr * uy / lw, dpr * vx / lh, dpr * vy / lh, dpr * o[0], dpr * o[1]);
+        ctx.fillStyle = it.f.label.color; ctx.font = `700 ${lh * it.f.label.size}px "Chakra Petch", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(it.f.label.text, lw / 2, lh / 2 + 1); ctx.restore();
+      }
+    }
+    placeOverlays();
+  }
+
+  /* ---------------- overlays (focus ring, hint, input) ---------------- */
+  const ring = $('ring');
+  function placeOverlays() {
+    const i = Math.min(cursor, 5);
+    const h = tumHit[i];
+    if (h && h.x1 > h.x0 && phase === 'locked') {
+      const pad = 6;
+      ring.style.left = (h.x0 - pad) + 'px'; ring.style.top = (h.y0 - pad) + 'px';
+      const w = h.x1 - h.x0 + pad * 2, hh = h.y1 - h.y0 + pad * 2;
+      ring.setAttribute('width', w); ring.setAttribute('height', hh);
+      ring.innerHTML = `<polygon points="6,0 ${w - 6},0 ${w},6 ${w},${hh - 6} ${w - 6},${hh} 6,${hh} 0,${hh - 6} 0,6" fill="none" stroke="#56e0c2" stroke-width="2.5"/>`;
+      ring.style.display = '';
+    } else ring.style.display = 'none';
+  }
+
+  /* ---------------- animation ---------------- */
+  let raf = 0, last = 0;
+  const timeline = [];
+  function at(ms, fn) { timeline.push({ t: performance.now() + (reduce ? ms * .3 : ms), fn }); }
+  function loop(now) {
+    const dt = Math.min(.04, (now - last) / 1000 || .016); last = now;
+    for (let k = timeline.length - 1; k >= 0; k--) if (now >= timeline[k].t) { const e = timeline.splice(k, 1)[0]; e.fn(); }
+    // parallax
+    pmx += (mx - pmx) * Math.min(1, dt * 4); pmy += (my - pmy) * Math.min(1, dt * 4);
+    viewRY = reduce ? 0 : pmx * .16 + (shake ? Math.sin(now * .09) * shake * .03 : 0);
+    viewRX = reduce ? 0 : pmy * .1;
+    shake = Math.max(0, shake - dt * 2.2);
+    // tumblers
+    TUM.forEach((t, i) => {
+      if (t.anim) {
+        const an = t.anim; an.p = Math.min(1, an.p + dt / an.dur);
+        const e = 1 - Math.pow(1 - an.p, 3);
+        t.a = an.from + (an.to - an.from) * e;
+        if (an.p >= 1) { t.a = an.to; t.anim = null; if (an.done) an.done(); }
+      } else if (!t.drag) {
+        // inertia then snap
+        if (Math.abs(t.v) > 0.6) { t.a += t.v * dt; t.v *= Math.pow(.04, dt); }
+        else {
+          const tgt = Math.round(t.a / STEP) * STEP;
+          const f = -140 * (t.a - tgt) - 18 * t.v; t.v += f * dt; t.a += t.v * dt;
+          if (Math.abs(t.a - tgt) < .002 && Math.abs(t.v) < .02) { t.a = tgt; t.v = 0; if (t.pendingSet) { t.pendingSet = false; commitDrag(i); } }
+        }
+      }
+      const face = Math.round(t.a / STEP);
+      if (face !== t.lastFace) { t.lastFace = face; snd.tick(); }
+      t.flash = Math.max(0, t.flash - dt * 2.5);
+      const lampT = digits[i] !== null ? 1 : 0; t.lamp += (lampT - t.lamp) * Math.min(1, dt * 10);
+    });
+    boltR += (boltRT - boltR) * Math.min(1, dt * 7);
+    alarm = Math.max(0, alarm - dt * .9);
+    render(now);
+    raf = document.hidden ? 0 : requestAnimationFrame(loop);
+  }
+  function kick() { if (!raf && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  document.addEventListener('visibilitychange', kick);
+  function tween(obj, key, to, ms, ease, done) {
+    const from = obj[key], t0 = performance.now(), dur = reduce ? Math.min(ms, 200) : ms;
+    const step = () => {
+      const p = Math.min(1, (performance.now() - t0) / dur);
+      obj[key] = from + (to - from) * ease(p);
+      if (p < 1) requestAnimationFrame(step); else if (done) done();
+    };
+    requestAnimationFrame(step);
+  }
+  const easeIO = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+  const easeBack = p => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+
+  /* ---------------- input logic ---------------- */
+  function say(t) { $('live').textContent = ''; setTimeout(() => $('live').textContent = t, 20); }
+  function status(t, cls) { const s = $('status'); s.textContent = t; s.className = 'status' + (cls ? ' ' + cls : ''); }
+  function spinTo(i, d, turns, done) {
+    const t = TUM[i];
+    const cur = t.a; let target = d * STEP;
+    // go forward to the next angle equal to target (mod 2pi), plus extra turns
+    const full = Math.PI * 2;
+    while (target <= cur + 0.001) target += full;
+    target += (turns || 0) * full;
+    if (reduce) { t.a = target; t.v = 0; t.anim = null; if (done) done(); return; }
+    t.v = 0; t.anim = { from: cur, to: target, p: 0, dur: .38 + (target - cur) / (full * 2.2), done };
+  }
+  function setDigit(i, d) {
+    if (phase !== 'locked') return;
+    digits[i] = d;
+    spinTo(i, d, 0, () => { TUM[i].flash = 1; snd.set(); });
+    cursor = i + 1; while (cursor < 6 && digits[cursor] !== null) cursor++;
+    syncInput(); hideHint();
+    say(`Digit ${i + 1}: ${d}`);
+    if (digits.every(x => x !== null)) setTimeout(check, reduce ? 150 : 520);
+  }
+  function syncInput() {
+    let s = ''; for (const d of digits) { if (d === null) break; s += d; }
+    input.value = s;
+  }
+  function clearFrom(i) { for (let k = i; k < 6; k++) digits[k] = null; }
+  input.addEventListener('beforeinput', e => {
+    if (phase !== 'locked') { e.preventDefault(); return; }
+    if (e.inputType && e.inputType.startsWith('delete')) {
+      e.preventDefault();
+      let k = Math.min(cursor, 6) - 1;
+      if (cursor < 6 && digits[cursor] !== null) k = cursor; // clear current first
+      if (k < 0) return;
+      digits[k] = null; cursor = k; spinTo(k, 0, 0); syncInput(); say(`Digit ${k + 1} cleared`);
+      return;
+    }
+    const data = (e.data || '').replace(/\D/g, '');
+    if (e.inputType === 'insertText' || e.inputType === 'insertFromPaste' || e.inputType === 'insertReplacementText' || e.inputType === 'insertFromDrop') {
+      if (!e.data && e.inputType !== 'insertFromPaste') return; // let input event handle it
+      e.preventDefault();
+      if (!data) { nudge(); return; }
+      if (data.length >= 6) { fillAll(data.slice(0, 6)); return; }
+      for (const ch of data) { if (cursor > 5) break; setDigit(cursor, +ch); }
+    }
+  });
+  input.addEventListener('input', () => { // fallback (autofill / IME)
+    if (phase !== 'locked') { syncInput(); return; }
+    const v = input.value.replace(/\D/g, '');
+    if (v.length >= 6) { fillAll(v.slice(0, 6)); return; }
+    syncInput();
+  });
+  input.addEventListener('paste', e => {
+    const t = (e.clipboardData && e.clipboardData.getData('text') || '').replace(/\D/g, '');
+    if (t.length) { e.preventDefault(); if (t.length >= 6) fillAll(t.slice(0, 6)); else for (const ch of t) { if (cursor > 5) break; setDigit(cursor, +ch); } }
+  });
+  input.addEventListener('keydown', e => {
+    if (phase === 'open' && (e.key === 'Escape')) { lock(); return; }
+    if (phase !== 'locked') return;
+    const i = Math.min(cursor, 5);
+    if (e.key === 'ArrowLeft') { e.preventDefault(); cursor = Math.max(0, i - 1); say(`Tumbler ${cursor + 1}`); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); cursor = Math.min(5, i + 1); say(`Tumbler ${cursor + 1}`); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const cur = digits[i] !== null ? digits[i] : ((Math.round(TUM[i].a / STEP) % 10) + 10) % 10;
+      const d = (cur + (e.key === 'ArrowUp' ? 1 : 9)) % 10;
+      digits[i] = d; const t = TUM[i]; t.anim = null; t.v = 0;
+      const to = t.a + (e.key === 'ArrowUp' ? STEP : -STEP);
+      if (!reduce) t.anim = { from: t.a, to, p: 0, dur: .16 }; else t.a = to;
+      syncInput(); say(`Digit ${i + 1}: ${d}`); hideHint();
+      if (digits.every(x => x !== null)) { clearTimeout(input._chk); input._chk = setTimeout(check, 900); }
+    } else if (e.key === 'Enter') { if (digits.every(x => x !== null)) check(); else nudge(); }
+  });
+  input.addEventListener('focus', () => document.body.classList.add('kbd'));
+  input.addEventListener('blur', () => document.body.classList.remove('kbd'));
+  function fillAll(code) {
+    if (phase !== 'locked') return;
+    for (let i = 0; i < 6; i++) {
+      digits[i] = +code[i];
+      const d = +code[i], ii = i;
+      setTimeout(() => spinTo(ii, d, 1, () => { TUM[ii].flash = 1; snd.set(); }), reduce ? 0 : i * 110);
+    }
+    cursor = 6; syncInput(); hideHint(); say('Code entered');
+    setTimeout(check, reduce ? 200 : 1500);
+  }
+  function nudge() { shake = .6; kick(); }
+
+  function check() {
+    if (phase !== 'locked' || !digits.every(x => x !== null)) return;
+    const code = digits.join('');
+    phase = 'checking';
+    if (code === secret) {
+      status('Code accepted — opening your vault', 'good'); say('Code accepted. Opening vault.');
+      openSequence();
+    } else {
+      tries--;
+      alarm = 1; shake = 1; snd.buzz();
+      const silly = /^(\d)\1{5}$/.test(code) || code === '123456' || code === '654321';
+      const msg = tries > 0 ? (silly ? `That’s the combination on everyone’s luggage. ${tries} ${tries === 1 ? 'try' : 'tries'} left.` : `That code doesn’t match. ${tries} ${tries === 1 ? 'try' : 'tries'} left.`) : 'Too many tries — we’ve texted you a fresh code.';
+      status(msg, 'bad'); say(msg);
+      // spin everything back to zero, staggered
+      for (let i = 0; i < 6; i++) {
+        const ii = i;
+        setTimeout(() => {
+          const t = TUM[ii]; const to = Math.ceil(t.a / (Math.PI * 2) - 0.001) * Math.PI * 2 - Math.PI * 2;
+          t.anim = reduce ? null : { from: t.a, to: to, p: 0, dur: .7 };
+          if (reduce) t.a = to;
+          digits[ii] = null;
+        }, (reduce ? 0 : 260) + ii * 70);
+      }
+      setTimeout(() => {
+        phase = 'locked'; cursor = 0; syncInput();
+        if (tries <= 0) { tries = 3; newCode(); }
+      }, reduce ? 300 : 1300);
+    }
+  }
+  function openSequence() {
+    for (let i = 0; i < 6; i++) setTimeout(() => { TUM[i].flash = 1.2; snd.set(); }, i * 90);
+    snd.chime();
+    phase = 'opening';
+    for (let j = 0; j < 4; j++) setTimeout(() => snd.bolt(j), 620 + j * 120);
+    setTimeout(() => { boltRT = 1; }, 600);
+    setTimeout(() => tween(_w, 'v', _w.v + Math.PI * 2.2, 1100, easeIO), 1200);
+    setTimeout(() => { snd.creak(); laserFade(0); tween(_d, 'v', 1.5, 1700, easeBack, () => { snd.thud(); }); }, 2200);
+    setTimeout(() => {
+      phase = 'open';
+      $('panel').classList.add('on'); $('panel').setAttribute('aria-hidden', 'false');
+      $('lock').tabIndex = 0; $('lock').focus({ preventScroll: true });
+      status('Vault open. Signed in as Maya Okafor.', 'good');
+      $('fillWrap').hidden = true; $('resend').parentNode.hidden = true;
+    }, reduce ? 1200 : 3300);
+  }
+  // proxies so tween can drive closure variables
+  const _w = { get v() { return wheelA; }, set v(x) { wheelA = x; } };
+  const _d = { get v() { return doorB; }, set v(x) { doorB = x; } };
+  const _l = { get v() { return laserOn; }, set v(x) { laserOn = x; } };
+  function laserFade(to) { tween(_l, 'v', to, 700, p => p); }
+  function lock() {
+    if (phase !== 'open') return;
+    phase = 'closing';
+    $('panel').classList.remove('on'); $('panel').setAttribute('aria-hidden', 'true'); $('lock').tabIndex = -1;
+    snd.creak();
+    tween(_d, 'v', 0, 1300, easeIO, () => {
+      snd.thud(); shake = .5;
+      boltRT = 0; for (let j = 0; j < 4; j++) setTimeout(() => snd.bolt(j), j * 110);
+      tween(_w, 'v', Math.round(wheelA / (Math.PI * 2)) * Math.PI * 2 - Math.PI * 2, 900, easeIO);
+      laserFade(1);
+      for (let i = 0; i < 6; i++) { digits[i] = null; const t = TUM[i]; const to = Math.ceil(t.a / (Math.PI * 2) - .001) * Math.PI * 2 + 0; setTimeout(() => { t.anim = reduce ? null : { from: t.a, to: to + Math.PI * 2, p: 0, dur: .8 }; if (reduce) t.a = to; }, 300 + i * 60); }
+      setTimeout(() => {
+        phase = 'locked'; cursor = 0; tries = 3; syncInput(); $('resend').parentNode.hidden = false;
+        status('Signed out and locked. Sign in again with a new code.');
+        newCode(); input.focus({ preventScroll: true });
+      }, 1100);
+    });
+  }
+  $('lock').addEventListener('click', lock);
+
+  function fmt(c) { return c.slice(0, 3) + ' ' + c.slice(3); }
+  function newCode(first) {
+    if (!first) { let c = ''; for (let i = 0; i < 6; i++) c += Math.floor(Math.random() * 10); if (c === secret) c = c.slice(1) + c[0]; secret = c; }
+    $('smsCode').textContent = fmt(secret); $('fillCode').textContent = fmt(secret);
+    const sms = $('sms'); sms.classList.add('off');
+    setTimeout(() => { sms.classList.remove('off'); snd.sms(); }, first ? 700 : 250);
+    $('fillWrap').hidden = false;
+    if (mobile()) { clearTimeout(sms._t); sms._t = setTimeout(() => sms.classList.add('off'), 6000); }
+    if (!first) { tries = 3; }
+  }
+  $('resend').addEventListener('click', () => {
+    if (phase !== 'locked') return;
+    clearFrom(0); for (let i = 0; i < 6; i++) spinTo(i, 0, 0);
+    cursor = 0; syncInput(); tries = 3;
+    newCode(); status('New code sent to •••• 0172. The old one no longer works.'); say('New code sent');
+  });
+  $('fill').addEventListener('click', () => { if (phase === 'locked') { clearFrom(0); fillAll(secret); } });
+  $('mute').addEventListener('click', () => { muted = !muted; $('mute').setAttribute('aria-pressed', String(muted)); $('mute').setAttribute('aria-label', muted ? 'Unmute vault sounds' : 'Mute vault sounds'); $('mw').style.display = muted ? 'none' : ''; $('mx').style.display = muted ? '' : 'none'; });
+
+  /* ---------------- pointer on tumblers ---------------- */
+  let drag = null;
+  function hitTumbler(x, y) {
+    for (let i = 0; i < 6; i++) { const h = tumHit[i]; if (h && x >= h.x0 - 6 && x <= h.x1 + 6 && y >= h.y0 - 30 && y <= h.y1 + 30) return i; }
+    return -1;
+  }
+  cv.addEventListener('mousedown', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    if (document.activeElement === input || phase !== 'locked') return;
+    if (/^[0-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !(document.activeElement && document.activeElement.tagName === 'BUTTON' && false)) {
+      e.preventDefault(); input.focus({ preventScroll: true }); A(); setDigit(Math.min(cursor, 5), +e.key);
+    }
+  });
+  cv.addEventListener('pointerdown', e => {
+    A();
+    const i = phase === 'locked' ? hitTumbler(e.clientX, e.clientY) : -1;
+    if (i < 0) { drag = { i: -1, x: e.clientX, y: e.clientY, moved: 0 }; return; }
+    const t = TUM[i]; t.drag = true; t.anim = null; t.v = 0;
+    drag = { i, y: e.clientY, x: e.clientX, lastY: e.clientY, lastT: performance.now(), moved: 0, v: 0 };
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => {
+    mx = (e.clientX / W - .5) * 2; my = (e.clientY / H - .5) * 2;
+    if (!drag) return;
+    drag.moved = Math.max(drag.moved, Math.hypot(e.clientX - drag.x, e.clientY - drag.y));
+    if (drag.i < 0) return;
+    const t = TUM[drag.i], now = performance.now();
+    const dy = e.clientY - drag.lastY;
+    const k = 1 / (TR * S);
+    t.a += dy * k;
+    const dtt = Math.max(1, now - drag.lastT) / 1000;
+    drag.v = drag.v * .6 + (dy * k / dtt) * .4;
+    drag.lastY = e.clientY; drag.lastT = now;
+  });
+  function endDrag(e) {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.i < 0) { if (d.moved < 8) input.focus({ preventScroll: true }); return; }
+    const t = TUM[d.i]; t.drag = false;
+    if (d.moved < 6) { // tap: select this tumbler
+      cursor = d.i; t.v = 0; input.focus({ preventScroll: true }); say(`Tumbler ${d.i + 1} selected. Type a digit.`);
+      return;
+    }
+    t.v = reduce ? 0 : Math.max(-40, Math.min(40, d.v));
+    t.pendingSet = true; hideHint();
+  }
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  addEventListener('pointermove', e => { mx = (e.clientX / W - .5) * 2; my = (e.clientY / H - .5) * 2; });
+  function commitDrag(i) {
+    if (phase !== 'locked') return;
+    const d = ((Math.round(TUM[i].a / STEP) % 10) + 10) % 10;
+    digits[i] = d; TUM[i].flash = 1; snd.set();
+    if (cursor === i) { cursor = i + 1; while (cursor < 6 && digits[cursor] !== null) cursor++; }
+    syncInput(); say(`Digit ${i + 1}: ${d}`);
+    if (digits.every(x => x !== null)) setTimeout(check, 500);
+  }
+  cv.addEventListener('wheel', e => {
+    if (phase !== 'locked') return;
+    const i = hitTumbler(e.clientX, e.clientY); if (i < 0) return;
+    e.preventDefault();
+    const t = TUM[i]; t.anim = null;
+    const to = (Math.round(t.a / STEP) + (e.deltaY > 0 ? 1 : -1)) * STEP;
+    t.anim = { from: t.a, to, p: 0, dur: .14, done: () => commitDrag(i) };
+    hideHint();
+  }, { passive: false });
+  let hintGone = false;
+  function hideHint() { if (!hintGone) { hintGone = true; $('hint').classList.add('gone'); } }
+
+  /* ---------------- layout ---------------- */
+  const mobile = () => W < 700;
+  function resize() {
+    W = innerWidth; H = innerHeight; dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = H * dpr;
+    if (mobile()) { S = Math.min(W * .94 / 660, H * .5 / 660); CX = W / 2; CY = H * .5; }
+    else { S = Math.min(H * .78 / 660, W * .5 / 660); CX = W * .5; CY = H * .5 + 6; }
+    buildBg();
+    const hint = $('hint');
+    if (mobile()) { hint.style.left = (CX - 160) + 'px'; hint.style.width = '320px'; hint.style.top = (CY + 330 * S + 2) + 'px'; hint.style.textAlign = 'center'; hint.innerHTML = 'Type the code · or drag a tumbler'; }
+    else { hint.style.width = '220px'; hint.style.left = Math.max(20, CX - 340 * S - 250) + 'px'; hint.style.top = (CY + 4 * S - 22) + 'px'; hint.style.textAlign = 'right'; hint.innerHTML = 'Type the code<br>or drag a tumbler <svg width="34" height="12" viewBox="0 0 34 12" style="vertical-align:middle"><polygon points="0,4 24,4 24,0 34,6 24,12 24,8 0,8" fill="#56e0c2"/></svg>'; }
+    const panel = $('panel');
+    panel.style.left = Math.max(16, CX - 155 + (mobile() ? 0 : 30 * S)) + 'px'; panel.style.top = (mobile() ? CY + 20 : Math.max(60, CY - 150 * S - 70)) + 'px';
+    input.style.left = (CX - 100) + 'px'; input.style.top = (CY - 20) + 'px';
+    const rg = $('ring'); rg.style.position = 'absolute';
+    render(performance.now());
+  }
+  addEventListener('resize', resize);
+  resize();
+  // keep the canvas glyphs crisp once the face loads
+  if (document.fonts) document.fonts.ready.then(() => render(performance.now()));
+  newCode(true);
+  status('3 tries before we send a new code');
+  kick();
+  window.__vault = { fillAll, setDigit, secret: () => secret, digits };
+})();
+</script>
+</body>
+</html>

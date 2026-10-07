@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Origami Billing Toggle</title>
+<meta name="description" content="A monthly/annual billing toggle as a sheet of origami paper: white side monthly, patterned chiyogami side annual.">
+<script type="application/json" id="component-meta">
+{"name":"Origami Billing Toggle","reimagines":"Segmented toggle (monthly / annual)","category":"Toggles & Switches","description":"The price is a sheet of origami paper: plain washi on one side for monthly, patterned chiyogami on the other for annual. Drag the corner to peek at the yearly price with a true flat fold, or fold it all the way to switch; a seal stamps the saving.","hint":"Drag the paper's corner across, or tap it to fold"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--washi:#efe7d6;--paper:#fbf8f1;--sumi:#1f1d1b;--indigo:#26365c;--shu:#c8402f;--gold:#c8a04a;--muted:#7a7266}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--washi)}
+body{font-family:"Zen Kaku Gothic New","Hiragino Sans",sans-serif;color:var(--sumi);-webkit-font-smoothing:antialiased}
+.fibers{position:fixed;inset:0;pointer-events:none;opacity:.9}
+.stage{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"copy mat" "buy mat";align-content:center;align-items:center;column-gap:72px;row-gap:0;padding:0 max(56px,8vw);max-width:1240px;margin:0 auto}
+.copy{max-width:440px;position:relative;grid-area:copy;align-self:end}
+.buy{grid-area:buy;align-self:start}
+.mat{grid-area:mat}
+.brand{display:flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted)}
+.brand i{width:10px;height:10px;background:var(--shu);display:block}
+h1{font-family:"Shippori Mincho",serif;font-weight:600;font-size:46px;line-height:1.12;margin:22px 0 14px;letter-spacing:.01em}
+.lede{font-size:15px;line-height:1.8;color:#4a453e;margin:0 0 22px}
+.feat{list-style:none;margin:0 0 26px;padding:0;font-size:14.5px;line-height:1.5}
+.feat li{display:grid;grid-template-columns:18px 1fr;gap:8px;padding:7px 0;border-top:1px solid rgba(31,29,27,.12)}
+.feat li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--sumi);margin-top:7px}
+.feat li.extra{color:var(--shu);transition:opacity .5s, transform .5s}
+.feat li.extra::before{background:var(--shu)}
+.feat li.extra.hide{opacity:0;transform:translateX(-6px)}
+.seg{display:flex;gap:26px;align-items:baseline;margin:0 0 18px;font-size:14px}
+.seg button{font:inherit;background:none;border:0;padding:4px 0;color:var(--muted);cursor:pointer;position:relative;letter-spacing:.06em}
+.seg button .jp{font-family:"Shippori Mincho",serif;font-size:18px;margin-right:6px;color:inherit}
+.seg button[aria-pressed="true"]{color:var(--sumi)}
+.seg button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;background:var(--shu);border-radius:2px}
+.seg button:focus-visible{outline:2px solid var(--indigo);outline-offset:4px}
+.cta{display:inline-flex;align-items:center;gap:14px;background:var(--sumi);color:var(--paper);border:0;padding:15px 22px 15px 18px;font:500 15px "Zen Kaku Gothic New",sans-serif;letter-spacing:.04em;cursor:pointer;position:relative}
+.cta .hk{width:26px;height:26px;background:var(--shu);color:#fbe9df;font-family:"Shippori Mincho",serif;font-weight:800;font-size:15px;display:grid;place-items:center;transform:rotate(-4deg)}
+.cta:focus-visible{outline:2px solid var(--shu);outline-offset:4px}
+.fine{font-size:12px;color:var(--muted);margin-top:12px;letter-spacing:.04em}
+.vert{position:absolute;left:-46px;top:6px;writing-mode:vertical-rl;font-family:"Shippori Mincho",serif;font-size:15px;letter-spacing:.5em;color:var(--muted)}
+.vert b{color:var(--shu);font-weight:600}
+/* the paper */
+.mat{position:relative;padding:34px}
+.mat::before{content:"";position:absolute;inset:0;background:#e6dcc7;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05)}
+.sheet{position:relative;width:var(--S);height:var(--S);touch-action:none;cursor:grab;outline:none}
+.sheet:active{cursor:grabbing}
+.sheet:focus-visible::after{content:"";position:absolute;inset:-10px;border:1.5px dashed var(--shu)}
+.base,.flapwrap,.flap,.face{position:absolute;left:0;top:0;width:var(--S);height:var(--S)}
+.base{background:var(--paper);box-shadow:0 1px 1px rgba(0,0,0,.08),0 10px 24px -10px rgba(60,40,10,.35)}
+.basefx{position:absolute;inset:0;pointer-events:none}
+.flapwrap{filter:drop-shadow(-3px 6px 7px rgba(50,30,10,.28));pointer-events:none}
+.flap{transform-origin:0 0}
+.back{position:absolute;left:0;top:0;width:var(--S);height:var(--S);transform-origin:0 0;transform:matrix(0,-1,-1,0,var(--Sp),var(--Sp))}
+.front-content{position:absolute;inset:0;padding:calc(var(--S) * .09);display:flex;flex-direction:column}
+.front-content .lab{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+.front-content .price{font-family:"Shippori Mincho",serif;font-weight:600;font-size:calc(var(--S) * .27);line-height:1;margin-top:auto;letter-spacing:-.02em}
+.front-content .price sup{font-size:.36em;vertical-align:.95em;margin-right:4px;font-weight:400}
+.front-content .per{font-size:14px;color:#4a453e;margin-top:8px}
+.front-content .note{font-size:12px;color:var(--muted);margin-top:auto;letter-spacing:.03em;max-width:62%}
+.front-content .vj{position:absolute;right:calc(var(--S) * .08);top:calc(var(--S) * .09);writing-mode:vertical-rl;font-family:"Shippori Mincho",serif;font-size:calc(var(--S) * .062);letter-spacing:.35em;color:var(--sumi)}
+.front-content .dot{position:absolute;right:calc(var(--S) * .086);top:calc(var(--S) * .43);width:12px;height:12px;border-radius:50%;background:var(--shu)}
+.dogear{position:absolute;right:0;bottom:0;width:0;height:0;pointer-events:none}
+.cart{position:absolute;border-radius:50%;background:var(--paper);display:grid;place-items:center;text-align:center;box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--shu)}
+.cart .in{display:flex;flex-direction:column;align-items:center}
+.cart .k{font-family:"Shippori Mincho",serif;font-size:calc(var(--S) * .05);letter-spacing:.3em;color:var(--shu);margin-bottom:2px}
+.cart .p{font-family:"Shippori Mincho",serif;font-weight:600;font-size:calc(var(--S) * .14);line-height:1}
+.cart .p sup{font-size:.36em;vertical-align:.95em;margin-right:2px;font-weight:400}
+.cart .u{font-size:calc(var(--S) * .032);color:#4a453e;margin-top:4px;letter-spacing:.04em}
+.seal{position:absolute;width:calc(var(--S) * .15);height:calc(var(--S) * .15);background:var(--shu);color:#fbe9df;display:grid;place-items:center;font-family:"Shippori Mincho",serif;font-weight:800;font-size:calc(var(--S) * .085);transform:rotate(-8deg) scale(0);opacity:0;mix-blend-mode:multiply;border-radius:3px}
+.seal.on{animation:stamp .45s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes stamp{0%{transform:rotate(-8deg) scale(1.8);opacity:0}60%{opacity:.95}100%{transform:rotate(-8deg) scale(1);opacity:.92}}
+.hint{position:absolute;right:0;bottom:-30px;font-size:12px;letter-spacing:.14em;color:var(--muted);display:flex;gap:8px;align-items:center;transition:opacity .6s}
+.hint::before{content:"";width:22px;height:1px;background:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:820px){
+  .stage{grid-template-columns:minmax(0,1fr);grid-template-areas:"copy" "mat" "buy";row-gap:12px;padding:18px 20px 16px;align-content:start;justify-items:center;overflow:auto}
+  .copy{max-width:100%;width:100%}
+  h1{font-size:28px;margin:12px 0 6px}
+  .lede,.feat,.vert{display:none}
+  .seg{margin:4px 0 0}
+  .mat{padding:20px;margin-top:6px}
+  .buy{width:100%;display:flex;flex-direction:column;align-items:center;margin-top:22px}
+  .fine{text-align:center}
+  .hint{bottom:-24px}
+}
+
+</style>
+</head>
+<body>
+<svg class="fibers" id="fibers" aria-hidden="true"></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="seigaiha" width="48" height="24" patternUnits="userSpaceOnUse">
+      <rect width="48" height="24" fill="#26365c"/>
+      <g fill="none" stroke-width="2.2">
+        <g id="wave"><circle cx="24" cy="24" r="22" fill="#26365c" stroke="#e9e1cf"/><circle cx="24" cy="24" r="16" stroke="#c8a04a"/><circle cx="24" cy="24" r="10" stroke="#e9e1cf"/><circle cx="24" cy="24" r="4" stroke="#c8402f" fill="#c8402f"/></g>
+        <use href="#wave" x="-24" y="-12"/><use href="#wave" x="24" y="-12"/>
+        <use href="#wave" x="0" y="0"/>
+        <use href="#wave" x="-24" y="12"/><use href="#wave" x="24" y="12"/>
+      </g>
+    </pattern>
+    <filter id="washiTex"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="3" seed="9"/><feColorMatrix values="0 0 0 0 .6  0 0 0 0 .55  0 0 0 0 .45  0 0 0 .18 0"/></filter>
+  </defs>
+</svg>
+<main class="stage">
+  <section class="copy">
+    <div class="vert" aria-hidden="true">月払い・<b>年払い</b></div>
+    <div class="brand"><i aria-hidden="true"></i>Kumo · writing studio</div>
+    <h1>One quiet place to write. Pay the way that suits you.</h1>
+    <p class="lede">Kumo Studio keeps drafts, notes and research side by side, synced to every device. Fold the price over to see what a year costs.</p>
+    <ul class="feat">
+      <li>Unlimited drafts and version history</li>
+      <li>Sync across phone, tablet and desktop</li>
+      <li>Export to EPUB, PDF and Word</li>
+      <li class="extra hide" id="extra">Two months free, plus priority support</li>
+    </ul>
+    <div class="seg" role="group" aria-label="Billing period">
+      <button type="button" id="bM" aria-pressed="true"><span class="jp" aria-hidden="true">月</span>Monthly</button>
+      <button type="button" id="bY" aria-pressed="false"><span class="jp" aria-hidden="true">年</span>Annual</button>
+    </div>
+  </section>
+  <div class="mat">
+    <div class="sheet" id="sheet" role="switch" aria-checked="false" tabindex="0" aria-label="Annual billing — fold the paper to switch" aria-describedby="fine">
+      <div class="base" id="base">
+        <svg class="basefx" width="100%" height="100%" aria-hidden="true"><rect width="100%" height="100%" filter="url(#washiTex)"/></svg>
+        <div class="front-content">
+          <div class="lab">Billed monthly</div>
+          <div class="vj" aria-hidden="true">月払い</div><div class="dot" aria-hidden="true"></div>
+          <div class="price"><sup>$</sup>12</div>
+          <div class="per">per month, per writer</div>
+          <div class="note">Drag the corner to peek at the yearly price</div>
+        </div>
+        <div class="crease-sh" id="creaseSh" style="position:absolute;pointer-events:none"></div>
+      </div>
+      <div class="flapwrap" id="flapwrap">
+        <div class="flap" id="flap">
+          <div class="back" id="back">
+            <svg width="100%" height="100%" aria-hidden="true" style="position:absolute;inset:0"><rect width="100%" height="100%" fill="url(#seigaiha)"/><rect width="100%" height="100%" filter="url(#washiTex)" opacity=".8"/></svg>
+            <div class="cart" id="cart"><div class="in"><div class="k">年払い</div><div class="p"><sup>$</sup>120</div><div class="u">a year · $10 a month</div></div></div>
+            <div class="seal" id="seal" aria-hidden="true">得</div>
+          </div>
+          <div class="crease-hi" id="creaseHi" style="position:absolute;pointer-events:none"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hint" id="hint">drag the corner</div>
+  </div>
+  <section class="buy">
+    <button class="cta" id="cta" type="button"><span class="hk" aria-hidden="true">雲</span><span id="ctaTxt">Start Studio · $12 billed monthly</span></button>
+    <div class="fine" id="fine">Cancel any time. Prices in USD, tax added at checkout.</div>
+  </section>
+</main>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const sheet = $('sheet'), base = $('base'), flap = $('flap'), flapwrap = $('flapwrap'), back = $('back');
+const cart = $('cart'), seal = $('seal'), creaseHi = $('creaseHi'), creaseSh = $('creaseSh');
+const bM = $('bM'), bY = $('bY'), ctaTxt = $('ctaTxt'), fine = $('fine'), extra = $('extra'), hint = $('hint'), live = $('live');
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* ---------- washi fibres across the backdrop ---------- */
+(function fibres(){
+  const svg = $('fibers'), W = innerWidth, H = innerHeight; svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let d = ''; const n = Math.round(W * H / 2600);
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * W, y = Math.random() * H, a = Math.random() * Math.PI * 2, L = 8 + Math.random() * 34;
+    const cx = x + Math.cos(a + .6) * L * .5, cy = y + Math.sin(a + .6) * L * .5;
+    d += `M${x.toFixed(1)} ${y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${(x + Math.cos(a) * L).toFixed(1)} ${(y + Math.sin(a) * L).toFixed(1)} `;
+  }
+  svg.innerHTML = `<rect width="100%" height="100%" filter="url(#washiTex)" opacity=".7"/><path d="${d}" fill="none" stroke="#fffaf0" stroke-width=".8" opacity=".75"/><path d="${d.split('M').slice(0, 200).join('M')}" fill="none" stroke="#b9ab90" stroke-width=".5" opacity=".35" transform="translate(3 5)"/>`;
+})();
+
+/* ---------- audio: paper rustle + seal thock ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .15; master.connect(ac.destination); } catch (e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function rustle(dur, gain, f = 3000){
+  if (!ac) return; const t = ac.currentTime, n = Math.floor(ac.sampleRate * dur), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) { const env = Math.sin(Math.PI * i / n); d[i] = (Math.random() * 2 - 1) * env * (Math.random() < .15 ? 1 : .35); }
+  const s = ac.createBufferSource(); s.buffer = b; const fl = ac.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = .8;
+  const g = ac.createGain(); g.gain.value = gain; s.connect(fl); fl.connect(g); g.connect(master); s.start(t);
+}
+function crease(){ rustle(.06, .9, 4200); }
+function thock(){ if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(80, t + .1); g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.0001, t + .14); o.connect(g); g.connect(master); o.start(t); o.stop(t + .15); rustle(.04, .5, 1200); }
+
+/* ---------- geometry ---------- */
+let S = 400;
+let P = {x: 0, y: 0}, V = {x: 0, y: 0}, T = {x: 0, y: 0};
+let annual = false, dragging = null;
+const REST = () => ({x: S * .9, y: S * .9}); // monthly rests with a small dog-ear
+function size(){
+  const mob = innerWidth <= 820;
+  S = mob ? Math.min(innerWidth - 80, Math.round(innerHeight * .44), 330) : Math.min(420, Math.round(innerHeight * .56));
+  document.documentElement.style.setProperty('--S', S + 'px');
+  document.documentElement.style.setProperty('--Sp', String(S));
+  // cartouche sits in the inscribed circle of the top-left triangle (final folded position)
+  const r = S * (2 - Math.SQRT2) / 2, cr = r * .8;
+  Object.assign(cart.style, {width: cr * 2 + 'px', height: cr * 2 + 'px', left: (r - cr) + 'px', top: (r - cr) + 'px'});
+  Object.assign(seal.style, {left: (S * .5) + 'px', top: (S * .07) + 'px'});
+  T = annual ? {x: 0, y: 0} : REST();
+  if (!dragging) { P = {...T}; }
+  render();
+}
+
+// split the square by the fold line (perpendicular bisector of BR and P)
+function clipPoly(poly, M, n, keepPositive){
+  const out = [], side = q => ((q.x - M.x) * n.x + (q.y - M.y) * n.y) * (keepPositive ? 1 : -1);
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], sa = side(a), sb = side(b);
+    if (sa >= 0) out.push(a);
+    if ((sa >= 0) !== (sb >= 0)) { const t = sa / (sa - sb); out.push({x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t}); }
+  }
+  return out;
+}
+const polyCss = pts => pts.length < 3 ? 'polygon(0 0,0 0,0 0)' : `polygon(${pts.map(p => `${p.x.toFixed(2)}px ${p.y.toFixed(2)}px`).join(',')})`;
+function render(){
+  const BR = {x: S, y: S};
+  const dx = BR.x - P.x, dy = BR.y - P.y, L = Math.hypot(dx, dy);
+  const sq = [{x: 0, y: 0}, {x: S, y: 0}, {x: S, y: S}, {x: 0, y: S}];
+  if (L < .5) {
+    base.style.clipPath = 'none'; flap.style.clipPath = 'polygon(0 0,0 0,0 0)'; flapwrap.style.opacity = 0;
+    creaseSh.style.opacity = 0; return;
+  }
+  flapwrap.style.opacity = 1;
+  const n = {x: dx / L, y: dy / L}, M = {x: (BR.x + P.x) / 2, y: (BR.y + P.y) / 2};
+  const keep = clipPoly(sq, M, n, false), fl = clipPoly(sq, M, n, true);
+  base.style.clipPath = polyCss(keep);
+  flap.style.clipPath = polyCss(fl);
+  // reflection across the fold line (direction d = perpendicular to n)
+  const d = {x: -n.y, y: n.x};
+  const a = 2 * d.x * d.x - 1, b = 2 * d.x * d.y, c = b, e = 2 * d.y * d.y - 1;
+  const tx = M.x - (a * M.x + c * M.y), ty = M.y - (b * M.x + e * M.y);
+  flap.style.transform = `matrix(${a},${b},${c},${e},${tx},${ty})`;
+  // fold amount drives the shading (0 = flat, 1 = fully folded)
+  const k = clamp(L / (S * Math.SQRT2), 0, 1);
+  const ang = Math.atan2(d.y, d.x) * 180 / Math.PI;
+  // highlight band on the flap, along the crease (in paper coordinates, before reflection)
+  const bw = 26 + 30 * (1 - k);
+  Object.assign(creaseHi.style, {
+    left: (M.x - S * 1.5) + 'px', top: (M.y) + 'px', width: S * 3 + 'px', height: bw + 'px',
+    transformOrigin: `${S * 1.5}px 0`, transform: `rotate(${ang}deg)`,
+    background: `linear-gradient(180deg, rgba(255,255,255,${.18 + .2 * (1 - k)}), rgba(255,255,255,0) 60%), linear-gradient(0deg, rgba(0,0,0,${.12 * (1 - k)}), rgba(0,0,0,0) 70%)`
+  });
+  // the base side darkens near the crease where the flap shadows it
+  Object.assign(creaseSh.style, {
+    left: (M.x - S * 1.5) + 'px', top: (M.y - 40) + 'px', width: S * 3 + 'px', height: '40px', opacity: 1,
+    transformOrigin: `${S * 1.5}px 40px`, transform: `rotate(${ang}deg)`,
+    background: `linear-gradient(0deg, rgba(40,25,10,${.22 * (1 - k * .6)}), rgba(40,25,10,0))`
+  });
+  flapwrap.style.filter = `drop-shadow(${(-n.x * 4 * (1 - k * .5)).toFixed(1)}px ${(-n.y * 4 * (1 - k * .5) + 3).toFixed(1)}px ${(4 + 8 * (1 - k)).toFixed(1)}px rgba(50,30,10,${.18 + .2 * (1 - k)}))`;
+}
+
+/* ---------- state ---------- */
+let sealT = 0;
+function setAnnual(v, announce = true){
+  if (v === annual) return;
+  annual = v; T = annual ? {x: 0, y: 0} : REST();
+  sheet.setAttribute('aria-checked', String(annual));
+  bM.setAttribute('aria-pressed', String(!annual)); bY.setAttribute('aria-pressed', String(annual));
+  ctaTxt.textContent = annual ? 'Start Studio · $120 billed yearly' : 'Start Studio · $12 billed monthly';
+  fine.textContent = annual ? 'You save $24 a year. Cancel any time. Prices in USD.' : 'Cancel any time. Prices in USD, tax added at checkout.';
+  extra.classList.toggle('hide', !annual);
+  seal.classList.remove('on'); clearTimeout(sealT);
+  if (annual) sealT = setTimeout(() => { seal.classList.add('on'); setTimeout(thock, 120); }, reduced ? 0 : 520);
+  if (announce) live.textContent = annual ? 'Annual billing: $120 a year, two months free.' : 'Monthly billing: $12 a month.';
+  hint.style.opacity = 0;
+}
+function foldTo(v){
+  audio();
+  const was = annual;
+  setAnnual(v);
+  if (reduced) { P = {...T}; V = {x: 0, y: 0}; render(); return; }
+  if (was !== v) {
+    // kick the corner so it travels in an arc (lifted off the paper)
+    const dir = v ? -1 : 1, perp = {x: 1, y: -1};
+    V.x += dir * S * 1.6 + perp.x * S * 1.4 * dir; V.y += dir * S * 1.6 + perp.y * S * 1.4 * dir;
+    rustle(.32, .6);
+  }
+}
+
+/* ---------- input ---------- */
+function local(e){ const r = sheet.getBoundingClientRect(); return {x: (e.clientX - r.left) * (S / r.width), y: (e.clientY - r.top) * (S / r.height)}; }
+sheet.addEventListener('pointerdown', e => {
+  audio();
+  const p = local(e);
+  dragging = {id: e.pointerId, start: p, P0: {...P}, moved: false, last: p, lt: performance.now(), vel: {x: 0, y: 0}};
+  try { sheet.setPointerCapture(e.pointerId); } catch (_) {}
+});
+sheet.addEventListener('pointermove', e => {
+  if (!dragging || e.pointerId !== dragging.id) return;
+  const p = local(e), now = performance.now();
+  const dx = p.x - dragging.start.x, dy = p.y - dragging.start.y;
+  if (!dragging.moved && Math.hypot(dx, dy) > 6) { dragging.moved = true; crease(); }
+  if (!dragging.moved) return;
+  const dt = Math.max(8, now - dragging.lt);
+  dragging.vel = {x: (p.x - dragging.last.x) / dt * 1000, y: (p.y - dragging.last.y) / dt * 1000};
+  dragging.last = p; dragging.lt = now;
+  P = {x: clamp(dragging.P0.x + dx, 0, S), y: clamp(dragging.P0.y + dy, 0, S)};
+  // keep the corner inside the reachable diamond (can't fold past the far corner)
+  if (P.x + P.y < 0) { P.x = 0; P.y = 0; }
+  V = {x: 0, y: 0};
+  if (Math.random() < .08) rustle(.05, .25, 2600 + Math.random() * 2000);
+  render();
+});
+const end = e => {
+  if (!dragging || e.pointerId !== dragging.id) return;
+  if (!dragging.moved) { foldTo(!annual); }
+  else {
+    // progress along the diagonal + flick
+    const prog = clamp(1 - (P.x + P.y) / (2 * S), 0, 1);
+    const flick = -(dragging.vel.x + dragging.vel.y) / 2;
+    const want = prog > .5 || flick > 900 ? (flick < -900 ? false : true) : false;
+    const was = annual; setAnnual(want);
+    V = {x: dragging.vel.x * .3, y: dragging.vel.y * .3};
+    if (want !== was) crease();
+  }
+  dragging = null;
+};
+sheet.addEventListener('pointerup', end);
+sheet.addEventListener('pointercancel', e => { if (dragging) { dragging = null; T = annual ? {x: 0, y: 0} : REST(); } });
+sheet.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); foldTo(!annual); }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); foldTo(true); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); foldTo(false); }
+});
+bM.addEventListener('click', () => foldTo(false));
+bY.addEventListener('click', () => foldTo(true));
+$('cta').addEventListener('click', () => { live.textContent = annual ? 'Checkout: Kumo Studio, $120 a year.' : 'Checkout: Kumo Studio, $12 a month.'; });
+
+/* ---------- loop: the free corner springs to its target ---------- */
+let last = performance.now(), raf = 0;
+function frame(now){
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  if (!dragging) {
+    const k = 120, c = 17;
+    V.x += ((T.x - P.x) * k - V.x * c) * dt; V.y += ((T.y - P.y) * k - V.y * c) * dt;
+    P.x += V.x * dt; P.y += V.y * dt;
+    P.x = clamp(P.x, -S * .02, S * 1.02); P.y = clamp(P.y, -S * .02, S * 1.02);
+    if (Math.abs(T.x - P.x) + Math.abs(T.y - P.y) < .05 && Math.abs(V.x) + Math.abs(V.y) < .5) { P = {...T}; V = {x: 0, y: 0}; }
+    render();
+  }
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else { last = performance.now(); raf = requestAnimationFrame(frame); } });
+let rt = 0; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(size, 100); });
+size();
+// the dog-ear flutters once on load to invite the peek
+if (!reduced) { P = {x: S, y: S}; V = {x: -S * 1.2, y: -S * 1.2}; }
+raf = requestAnimationFrame(frame);
+window.__origami = {fold: v => foldTo(v), peek(f){ dragging = null; P = {x: S * (1 - f), y: S * (1 - f)}; V = {x: 0, y: 0}; T = {x: S * (1 - f), y: S * (1 - f)}; render(); }};
+})();
+</script>
+</body>
+</html>

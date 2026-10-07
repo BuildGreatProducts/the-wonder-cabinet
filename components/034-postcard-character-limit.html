@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postcard Message</title>
+<meta name="description" content="A character-limited message field written on the back of a vintage linen travel postcard: near the limit your handwriting cramps, and anything over it creeps sideways up the margin in red.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Lobster&family=Alfa+Slab+One&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Postcard Message","reimagines":"Character-limited textarea","category":"Text & Data Entry","description":"A 180-character message written on the back of a faded linen travel postcard. Instead of a counter turning red, your handwriting cramps as space runs out, and anything past the limit creeps sideways up the margin in red pencil until you trim it. The stamp and address are the hard edge.","hint":"Write your message; watch the handwriting squeeze near the limit"}
+</script>
+<style>
+  :root{
+    --cream:#f1e6cc;
+    --paper:#f5ecd6;
+    --ink:#2c3b62;
+    --litho-red:#c0504d;
+    --teal:#4f9a9a;
+    --sky:#a9cfc8;
+    --mustard:#e6b24f;
+    --coral:#e0805f;
+    --pine:#3f6a52;
+    --navy:#2f4858;
+    --faded:#8b7d63;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#d9cba8;color:var(--navy);font-family:"Alfa Slab One",Rockwell,serif}
+  .stage{position:fixed;inset:0;overflow:hidden}
+  svg.scene{position:absolute;inset:0;width:100%;height:100%}
+  .linen{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.8;
+    background-image:repeating-linear-gradient(0deg,rgba(80,60,30,.18) 0 1px,transparent 1px 2.5px),repeating-linear-gradient(90deg,rgba(80,60,30,.15) 0 1px,transparent 1px 2.5px),repeating-linear-gradient(0deg,rgba(255,250,235,.12) 0 6px,transparent 6px 13px)}
+  .fade{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,rgba(245,236,214,0) 40%,rgba(196,170,120,.38) 100%)}
+  .brand{position:absolute;left:20px;top:16px;font-size:11px;letter-spacing:.16em;color:#f5ecd6;text-transform:uppercase;z-index:4;background:#2f4858;padding:7px 34px 6px 14px;clip-path:polygon(0 0,100% 0,calc(100% - 16px) 50%,100% 100%,0 100%)}
+  .brand span{font-family:"Lobster",cursive;letter-spacing:0;text-transform:none;font-size:17px;color:var(--mustard);margin-right:8px}
+  .greet{position:absolute;z-index:2;left:0;right:0;text-align:center;font-family:"Lobster",cursive;color:var(--litho-red);text-shadow:2px 2px 0 #f5ecd6,-1px -1px 0 #f5ecd6,3px 4px 0 rgba(47,72,88,.35);pointer-events:none;transform:rotate(-2deg)}
+  .greet b{font-family:"Alfa Slab One",serif;font-weight:400;color:var(--mustard);letter-spacing:.06em;-webkit-text-stroke:1.5px #2f4858;paint-order:stroke fill;margin-left:.2em}
+
+  .wrap{position:absolute;left:50%;top:50%;z-index:3;perspective:1600px}
+  .card{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.5,.1,.2,1)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:6px;overflow:hidden;
+    box-shadow:0 1px 0 rgba(0,0,0,.06),0 18px 34px -12px rgba(60,40,10,.45),0 4px 10px rgba(60,40,10,.2)}
+  .back{background:var(--paper)}
+  .back::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:repeating-linear-gradient(0deg,rgba(110,85,40,.07) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(110,85,40,.06) 0 1px,transparent 1px 3px),radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.35),transparent 60%),radial-gradient(ellipse at 90% 100%,rgba(180,140,80,.18),transparent 60%)}
+  .front{transform:rotateY(180deg);background:var(--sky)}
+  .front svg{width:100%;height:100%;display:block}
+  .pc-title{position:absolute;left:0;right:0;top:14px;text-align:center;font-size:22px;letter-spacing:.42em;color:var(--litho-red);opacity:.85}
+  .pc-title small{display:block;font-family:"Alfa Slab One",serif;font-size:9px;letter-spacing:.3em;color:var(--faded);margin-top:2px}
+  .divider{position:absolute;width:2px;background:repeating-linear-gradient(180deg,var(--faded) 0 6px,transparent 6px 9px);opacity:.7}
+  .label{position:absolute;font-size:9px;letter-spacing:.24em;color:var(--faded);text-transform:uppercase}
+  .msg{position:absolute;overflow:hidden;cursor:text;touch-action:manipulation}
+  .msg .text{font-family:"Caveat","Bradley Hand","Segoe Print",cursive;font-weight:500;color:var(--ink);white-space:pre-wrap;word-wrap:break-word;font-size:8px;line-height:1}
+  .msg .text span{position:relative}
+  .msg .text .sel{background:rgba(230,178,79,.45)}
+  .msg .placeholder{position:absolute;left:0;top:6px;font-family:"Caveat",cursive;font-size:34px;color:rgba(44,59,98,.32);pointer-events:none}
+  .caret{border-left:2px solid var(--litho-red);margin-right:-2px;animation:blink 1.05s steps(2,end) infinite}
+  .caret.hide{border-left-color:transparent;animation:none}
+  @keyframes blink{50%{border-left-color:transparent}}
+  .margin{position:absolute;transform-origin:0 0;transform:rotate(-90deg);font-family:"Caveat",cursive;font-weight:600;color:var(--litho-red);white-space:pre-wrap;line-height:1;overflow:hidden;cursor:text}
+  .margin .over{text-decoration:underline wavy rgba(192,80,77,.7);text-decoration-thickness:1px;text-underline-offset:3px}
+  .margin .sel{background:rgba(230,178,79,.45)}
+  .tally{position:absolute;font-family:"Caveat",cursive;font-size:22px;color:#8a8170;transition:color .3s}
+  .tally.near{color:#9a6b2a}
+  .tally.over{color:var(--litho-red)}
+  .addr{position:absolute;font-family:"Caveat",cursive;font-size:30px;line-height:1.5;color:var(--ink)}
+  .addr i{display:block;border-bottom:1.5px solid rgba(139,125,99,.6);height:45px;padding-top:2px;font-style:normal;white-space:nowrap}
+  .stampbox{position:absolute}
+  .stampbox svg{display:block;width:100%;height:100%;overflow:visible}
+  .postmark{opacity:0}
+  textarea#ta{position:absolute;opacity:0;font-size:16px;border:0;padding:0;resize:none;pointer-events:none;color:transparent;background:transparent;caret-color:transparent}
+  .controls{position:absolute;z-index:4;display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .send{font-family:"Alfa Slab One",serif;font-size:16px;letter-spacing:.08em;color:#fbf1dc;border:0;cursor:pointer;padding:14px 26px 13px;background:var(--litho-red);
+    clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%);transition:transform .15s, filter .2s}
+  .send:hover{transform:translateY(-2px)}
+  .send:active{transform:translateY(1px)}
+  .send[disabled]{background:#b6a586;color:#efe4cb;cursor:not-allowed;transform:none}
+  .send:focus-visible{outline:none;filter:drop-shadow(0 0 0 #2f4848) drop-shadow(0 0 3px #2f4858)}
+  .ghost{font-family:"Lobster",cursive;font-size:20px;color:var(--navy);background:none;border:0;cursor:pointer;padding:8px 6px;text-decoration:underline;text-decoration-color:rgba(47,72,88,.4);text-underline-offset:4px}
+  .ghost:focus-visible{outline:2px dashed var(--navy);outline-offset:4px}
+  .hint{position:absolute;z-index:4;font-family:"Caveat",cursive;font-size:24px;color:#5d4d33;transform:rotate(-3deg);transition:opacity .6s;pointer-events:none;text-align:center;line-height:1.05}
+  .hint.gone{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .msg:focus-within{outline:none}
+  .card.focus .back{box-shadow:0 0 0 3px rgba(47,72,88,.55),0 18px 34px -12px rgba(60,40,10,.45)}
+  @media (prefers-reduced-motion: reduce){ .card{transition:none} .caret{animation:none} }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <svg class="scene" id="scene" aria-hidden="true"></svg>
+  <div class="linen"></div>
+  <div class="fade"></div>
+  <div class="brand"><span>Wish You Were Here</span>printed &amp; posted from your trip</div>
+  <div class="greet" id="greet" aria-hidden="true">Greetings from <b>LAKE TAHOE</b></div>
+  <div class="hint" id="hint">Write as much as you like…<br>the card will tell you when it’s full</div>
+
+  <div class="wrap" id="wrap">
+    <div class="card" id="card">
+      <div class="face back" id="back">
+        <div class="pc-title">POST CARD<small>LINEN FINISH · CURT &amp; SONS LITHO, CHICAGO</small></div>
+        <div class="label" id="lblL">This space for writing messages</div>
+        <div class="label" id="lblR">This space for address only</div>
+        <div class="divider" id="div"></div>
+        <div class="msg" id="msg">
+          <div class="placeholder" id="ph">Dear Rosa,</div>
+          <div class="text" id="text"></div>
+        </div>
+        <div class="margin" id="margin" aria-hidden="true"></div>
+        <div class="tally" id="tally" aria-hidden="true">0 of 180</div>
+        <div class="stampbox" id="stampbox">
+          <svg viewBox="0 0 120 140" aria-hidden="true">
+            <defs>
+              <clipPath id="perf"><path id="perfPath"/></clipPath>
+            </defs>
+            <g clip-path="url(#perf)">
+              <rect x="0" y="0" width="120" height="140" fill="#f7efdc"/>
+              <rect x="10" y="10" width="100" height="120" fill="#a9cfc8"/>
+              <circle cx="82" cy="40" r="13" fill="#e6b24f"/>
+              <path d="M10 92 L36 58 L52 76 L70 50 L110 96 V130 H10Z" fill="#6f86a8"/>
+              <path d="M10 104 Q60 96 110 106 V130 H10Z" fill="#4f9a9a"/>
+              <path d="M22 116 l7 -22 l7 22z M34 118 l6 -16 l6 16z M84 118 l7 -24 l7 24z" fill="#3f6a52"/>
+              <text x="60" y="27" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="11" fill="#2f4858" letter-spacing="1">USA</text>
+              <text x="60" y="126" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="10" fill="#f7efdc" letter-spacing="1.5">FOREVER</text>
+              <rect x="10" y="10" width="100" height="120" fill="none" stroke="#2f4858" stroke-width="1.5"/>
+            </g>
+            <g class="postmark" id="postmark"><g transform="translate(22 62) scale(1.45) translate(-22 -62)">
+              <circle cx="22" cy="62" r="30" fill="none" stroke="#2b2f45" stroke-width="2.6" opacity=".82"/>
+              <circle cx="22" cy="62" r="21" fill="none" stroke="#2b2f45" stroke-width="1.6" opacity=".82"/>
+              <text font-family="Alfa Slab One, serif" font-size="6.5" fill="#2b2f45" opacity=".85"><textPath href="#pmArc" startOffset="0">LAKE TAHOE · CALIF ·</textPath></text>
+              <path id="pmArc" d="M -4 62 A 26 26 0 1 1 48 62" fill="none"/>
+              <text x="22" y="60" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="7" fill="#2b2f45" opacity=".85">OCT 7</text>
+              <text x="22" y="69" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="7" fill="#2b2f45" opacity=".85">2026</text>
+              <path d="M54 44 q10 -6 20 0 t20 0 t20 0 t20 0 M54 56 q10 -6 20 0 t20 0 t20 0 t20 0 M54 68 q10 -6 20 0 t20 0 t20 0 t20 0 M54 80 q10 -6 20 0 t20 0 t20 0 t20 0" fill="none" stroke="#2b2f45" stroke-width="2.4" opacity=".78"/>
+            </g></g>
+          </svg>
+        </div>
+        <div class="addr" id="addr" aria-label="Addressed to Rosa Delgado, 14 Calle Olmo, Santa Fe, New Mexico 87501">
+          <i>Rosa Delgado</i><i>14 Calle Olmo</i><i>Santa Fe, N. Mex.</i><i>87501</i>
+        </div>
+        <textarea id="ta" aria-label="Postcard message, 180 characters" aria-describedby="srCount" spellcheck="true"></textarea>
+      </div>
+      <div class="face front" id="front" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div class="controls" id="controls">
+    <button class="send" id="send" type="button" disabled>Send this postcard</button>
+    <button class="ghost" id="again" type="button" hidden>Write another</button>
+  </div>
+  <div class="sr" id="srCount" aria-live="polite"></div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const LIMIT = 180;
+  const ta = $('ta'), textEl = $('text'), marginEl = $('margin'), msg = $('msg'), card = $('card');
+  let W = 0, H = 0, CW = 0, CH = 0, portrait = false, globalScale = 1, BASE = 34;
+  let sent = false;
+
+  /* ---------- seeded jitter per character index ---------- */
+  const jit = []; for (let i = 0; i < 2000; i++) { const x = Math.sin(i * 12.9898 + 4.1) * 43758.5453; jit.push(x - Math.floor(x)); }
+
+  /* ---------- squeeze curve ---------- */
+  function squeeze(i) {
+    const start = LIMIT * .56;
+    if (i < start) return { q: 1, ls: 0, lh: 1.18 };
+    const t = Math.min(1, (i - start) / (LIMIT - start));
+    const e = Math.pow(t, 1.25);
+    return { q: 1 - .44 * e, ls: -.07 * e, lh: 1.18 - .26 * e };
+  }
+
+  /* ---------- render ---------- */
+  function esc(c) { return c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c; }
+  function render() {
+    const v = ta.value;
+    const s0 = ta.selectionStart, s1 = ta.selectionEnd, focused = document.activeElement === ta;
+    $('ph').style.display = v.length ? 'none' : '';
+    const inLen = Math.min(v.length, LIMIT);
+    for (let pass = 0; pass < 4; pass++) {
+      let html = '';
+      for (let i = 0; i <= inLen; i++) {
+        if (i === s0 && focused && s0 <= LIMIT && s0 === s1) html += `<span class="caret" style="font-size:${(BASE * globalScale * squeeze(i).q).toFixed(1)}px;line-height:${squeeze(i).lh}"></span>`;
+        if (i === inLen) break;
+        const c = v[i], z = squeeze(i);
+        const fs = BASE * globalScale * z.q * (.96 + jit[i] * .08);
+        const top = (jit[i + 7] - .5) * 2.2 * z.q;
+        const sel = i >= s0 && i < s1 ? ' class="sel"' : '';
+        html += `<span${sel} style="font-size:${fs.toFixed(1)}px;letter-spacing:${z.ls.toFixed(3)}em;line-height:${z.lh.toFixed(2)};top:${top.toFixed(1)}px">${esc(c)}</span>`;
+      }
+      textEl.innerHTML = html;
+      if (textEl.scrollHeight <= msg.clientHeight + 1 || globalScale < .5) break;
+      globalScale *= Math.max(.8, (msg.clientHeight / textEl.scrollHeight) * .99);
+    }
+    // over-limit text creeps up the margin
+    let mh = '';
+    if (v.length > LIMIT) {
+      for (let i = LIMIT; i <= v.length; i++) {
+        if (i === s0 && focused && s0 === s1) mh += `<span class="caret"></span>`;
+        if (i === v.length) break;
+        const sel = i >= s0 && i < s1 ? ' sel' : '';
+        mh += `<span class="over${sel}">${esc(v[i] === '\n' ? ' ' : v[i])}</span>`;
+      }
+    } else if (focused && s0 === s1 && s0 > LIMIT) mh = '<span class="caret"></span>';
+    marginEl.innerHTML = mh;
+    // shrink margin writing if it gets long
+    const over = Math.max(0, v.length - LIMIT);
+    const mLen = parseFloat(marginEl.style.width) || 300;
+    marginEl.style.fontSize = Math.max(11, Math.min(26, mLen / (Math.max(1, over) * .46))) + 'px';
+    // tally
+    const left = LIMIT - v.length;
+    const tally = $('tally');
+    tally.textContent = left >= 0 ? `${v.length} of ${LIMIT}` : `${-left} over — trim to send`;
+    tally.className = 'tally' + (left < 0 ? ' over' : left <= 30 ? ' near' : '');
+    const send = $('send');
+    if (!sent) {
+      send.disabled = !(v.trim().length && left >= 0);
+      send.textContent = left < 0 ? `Trim ${-left} character${-left === 1 ? '' : 's'} to send` : v.trim().length ? 'Send this postcard' : 'Write a message to send';
+    }
+  }
+  let lastAnnounce = '';
+  function announce() {
+    const left = LIMIT - ta.value.length;
+    let t = '';
+    if (left < 0) t = `${-left} characters over the limit`;
+    else if (left === 0) t = 'Card is full';
+    else if (left <= 20) t = `${left} characters left`;
+    else if (left <= 60 && left % 10 === 0) t = `${left} characters left`;
+    if (t && t !== lastAnnounce) { lastAnnounce = t; $('srCount').textContent = t; }
+  }
+
+  /* ---------- input plumbing ---------- */
+  let hintGone = false;
+  ta.addEventListener('input', () => { render(); announce(); if (!hintGone && ta.value.length > 3) { hintGone = true; $('hint').classList.add('gone'); } });
+  ['keyup', 'select', 'focus', 'blur', 'click'].forEach(ev => ta.addEventListener(ev, () => { card.classList.toggle('focus', document.activeElement === ta); render(); }));
+  document.addEventListener('selectionchange', () => { if (document.activeElement === ta) render(); });
+  // map pointer on the handwriting to a caret index
+  function indexAt(x, y) {
+    const spans = [...textEl.children].filter(s => !s.classList.contains('caret'));
+    const mspans = [...marginEl.children].filter(s => !s.classList.contains('caret'));
+    let best = ta.value.length, bd = 1e9;
+    const test = (list, offset) => list.forEach((s, k) => {
+      const r = s.getBoundingClientRect(); if (!r.width && !r.height) return;
+      const cy = r.top + r.height / 2, cx = r.left + r.width / 2;
+      const dy = Math.max(0, Math.abs(y - cy) - r.height / 2), dx = Math.max(0, Math.abs(x - cx) - r.width / 2);
+      const d = dy * 3 + dx;
+      if (d < bd) { bd = d; best = offset + k + (x > cx ? 1 : 0); }
+    });
+    test(spans, 0); test(mspans, LIMIT);
+    return Math.min(best, ta.value.length);
+  }
+  let dragSel = null;
+  function down(e) {
+    if (sent) return;
+    e.preventDefault();
+    const i = indexAt(e.clientX, e.clientY);
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(i, i);
+    dragSel = { anchor: i };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (er) {}
+    render();
+  }
+  function move(e) {
+    if (!dragSel) return;
+    const i = indexAt(e.clientX, e.clientY);
+    ta.setSelectionRange(Math.min(i, dragSel.anchor), Math.max(i, dragSel.anchor));
+    render();
+  }
+  function up() { dragSel = null; }
+  msg.addEventListener('click', () => { if (!sent && document.activeElement !== ta) ta.focus({ preventScroll: true }); });
+  [msg, marginEl].forEach(el => { el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); });
+
+  /* ---------- front of the card (large-letter linen art) ---------- */
+  function sceneSVG(w, h, idp, big) {
+    const hz = h * .62;
+    let s = `<defs>
+      <linearGradient id="${idp}sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb7b4"/><stop offset=".55" stop-color="#d9d6b4"/><stop offset="1" stop-color="#f0c98d"/></linearGradient>
+      <linearGradient id="${idp}lake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f9a9a"/><stop offset="1" stop-color="#2f6f7a"/></linearGradient>
+      <filter id="${idp}grain"><feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .15  0 0 0 .22 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+    </defs>
+    <rect width="${w}" height="${h}" fill="url(#${idp}sky)"/>
+    <circle cx="${w * .74}" cy="${hz - h * .12}" r="${h * .1}" fill="#f2c063" opacity=".9"/>
+    <path d="M0 ${hz} L${w * .12} ${hz - h * .2} L${w * .2} ${hz - h * .12} L${w * .34} ${hz - h * .3} L${w * .48} ${hz - h * .1} L${w * .6} ${hz - h * .22} L${w * .78} ${hz - h * .06} L${w * .9} ${hz - h * .16} L${w} ${hz - h * .08} V${hz} Z" fill="#7b8fb0"/>
+    <path d="M${w * .3} ${hz - h * .26} L${w * .34} ${hz - h * .3} L${w * .38} ${hz - h * .25} L${w * .36} ${hz - h * .24}Z" fill="#f4efe1"/>
+    <path d="M0 ${hz} L${w * .08} ${hz - h * .08} L${w * .22} ${hz - h * .02} L${w * .4} ${hz - h * .12} L${w * .56} ${hz - h * .03} L${w * .7} ${hz - h * .1} L${w} ${hz - h * .02} V${hz}Z" fill="#5f7d8c"/>
+    <rect y="${hz}" width="${w}" height="${h - hz}" fill="url(#${idp}lake)"/>
+    <path d="M${w * .58} ${hz + 6} h${w * .3} M${w * .62} ${hz + 18} h${w * .22} M${w * .66} ${hz + 30} h${w * .14}" stroke="#f2c063" stroke-width="3" opacity=".6"/>`;
+    // pines
+    const pine = (x, y, sc) => `<path d="M${x} ${y - 90 * sc} L${x + 22 * sc} ${y - 40 * sc} L${x + 12 * sc} ${y - 40 * sc} L${x + 30 * sc} ${y} L${x - 30 * sc} ${y} L${x - 12 * sc} ${y - 40 * sc} L${x - 22 * sc} ${y - 40 * sc}Z" fill="#2f5a45"/><rect x="${x - 3 * sc}" y="${y}" width="${6 * sc}" height="${12 * sc}" fill="#5a3e2b"/>`;
+    const sc = h / 520;
+    s += `<path d="M0 ${h} V${h * .86} Q${w * .2} ${h * .8} ${w * .32} ${h * .9} T${w * .55} ${h} Z" fill="#3f6a52"/>`;
+    s += pine(w * .06, h * .9, sc * 1.6) + pine(w * .14, h * .93, sc * 1.25) + pine(w * .24, h * .95, sc * 1.05) + pine(w * .92, h * .9, sc * 1.4) + pine(w * .84, h * .95, sc * 1.0);
+    s += `<path d="M${w} ${h} V${h * .85} Q${w * .86} ${h * .82} ${w * .78} ${h * .94} L${w * .74} ${h}Z" fill="#3f6a52"/>`;
+    // canoe
+    s += `<path d="M${w * .44} ${hz + h * .14} q${w * .06} ${h * .03} ${w * .12} 0 q-${w * .06} ${h * .045} -${w * .12} 0z" fill="#c0504d"/><path d="M${w * .5} ${hz + h * .13} v-${h * .05}" stroke="#2f4858" stroke-width="2"/>`;
+    s += `<rect width="${w}" height="${h}" filter="url(#${idp}grain)" opacity=".7"/>`;
+    return s;
+  }
+  function frontSVG(w, h) {
+    // large-letter postcard: scene shows through block letters
+    let s = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+    s += sceneSVG(w, h, 'f', false);
+    s += `<rect width="${w}" height="${h}" fill="#f5ecd6" opacity=".25"/>`;
+    const fs = Math.min(w * .16, h * .32);
+    s += `<defs><linearGradient id="fpat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2c063"/><stop offset=".55" stop-color="#e0805f"/><stop offset="1" stop-color="#c0504d"/></linearGradient>
+      <pattern id="fray" patternUnits="userSpaceOnUse" width="14" height="14" patternTransform="rotate(-20)"><rect width="14" height="14" fill="url(#fpat)"/><rect width="5" height="14" fill="#f5ecd6" opacity=".18"/></pattern></defs>`;
+    s += `<text x="${w * .08}" y="${h * .2}" font-family="Lobster, cursive" font-size="${fs * .42}" fill="#c0504d" stroke="#f5ecd6" stroke-width="3" paint-order="stroke" transform="rotate(-6 ${w * .08} ${h * .2})">Greetings from</text>`;
+    s += `<text x="${w / 2 + 6}" y="${h * .58 + 6}" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="${fs}" fill="#2f4858" letter-spacing="2">TAHOE</text><text x="${w / 2 + 12}" y="${h * .58 + 12}" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="${fs}" fill="#2f4858" opacity=".35" letter-spacing="2">TAHOE</text>`;
+    s += `<text x="${w / 2}" y="${h * .58}" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="${fs}" fill="url(#fray)" stroke="#f5ecd6" stroke-width="5" paint-order="stroke" letter-spacing="2">TAHOE</text>`;
+    s += `<text x="${w * .92}" y="${h * .9}" text-anchor="end" font-family="Lobster, cursive" font-size="${fs * .3}" fill="#f5ecd6">Lake</text>`;
+    s += `<rect x="6" y="6" width="${w - 12}" height="${h - 12}" fill="none" stroke="#f5ecd6" stroke-width="10"/>`;
+    s += `</svg>`;
+    return s;
+  }
+
+  /* ---------- layout ---------- */
+  function perfPath(w, h, r, step) {
+    let d = `M ${r} 0 `;
+    const n = Math.round((w - 2 * r) / step);
+    for (let i = 0; i < n; i++) { const x = r + i * step + step / 2; d += `L ${x - r} 0 A ${r} ${r} 0 0 0 ${x + r} 0 `; }
+    d += `L ${w} 0 L ${w} ${h} L 0 ${h} Z`;
+    // simple: scallop only top & bottom edges + sides
+    let p = '';
+    const cols = Math.round(w / step), rows = Math.round(h / step);
+    const sx = w / cols, sy = h / rows;
+    p += `M 0 0 `;
+    for (let i = 0; i < cols; i++) p += `L ${i * sx + sx / 2 - r} 0 A ${r} ${r} 0 0 0 ${i * sx + sx / 2 + r} 0 `;
+    p += `L ${w} 0 `;
+    for (let j = 0; j < rows; j++) p += `L ${w} ${j * sy + sy / 2 - r} A ${r} ${r} 0 0 0 ${w} ${j * sy + sy / 2 + r} `;
+    p += `L ${w} ${h} `;
+    for (let i = cols - 1; i >= 0; i--) p += `L ${i * sx + sx / 2 + r} ${h} A ${r} ${r} 0 0 0 ${i * sx + sx / 2 - r} ${h} `;
+    p += `L 0 ${h} `;
+    for (let j = rows - 1; j >= 0; j--) p += `L 0 ${j * sy + sy / 2 + r} A ${r} ${r} 0 0 0 0 ${j * sy + sy / 2 - r} `;
+    return p + 'Z';
+  }
+  $('perfPath').setAttribute('d', perfPath(120, 140, 4, 12));
+
+  function place(el, x, y, w, h) { el.style.left = x + 'px'; el.style.top = y + 'px'; if (w != null) el.style.width = w + 'px'; if (h != null) el.style.height = h + 'px'; }
+  function layout() {
+    W = innerWidth; H = innerHeight; portrait = W < 700;
+    const wrap = $('wrap');
+    if (portrait) { CW = Math.min(W - 24, 420); CH = Math.min(H - 150, CW * 1.62); }
+    else { CW = Math.min(W * .66, (H - 230) * 1.55, 860); CH = CW / 1.55; }
+    wrap.style.width = CW + 'px'; wrap.style.height = CH + 'px';
+    const top = portrait ? 14 : Math.max(24, (H - CH) / 2 - 6);
+    wrap.style.transform = `translate(-50%,0) rotate(${portrait ? 0 : -1.2}deg)`; wrap.style.top = top + 'px';
+    // scene behind (large letters at top)
+    const sc = $('scene'); sc.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    sc.innerHTML = sceneSVG(W, H, 's', true);
+    // back layout
+    const pad = portrait ? 18 : CW * .04;
+    const titleH = portrait ? 58 : 66;
+    if (!portrait) {
+      const divX = CW * .57;
+      place($('div'), divX, titleH + 8, null, CH - titleH - 30); $('div').style.width = '2px'; $('div').style.height = (CH - titleH - 30) + 'px';
+      place($('lblL'), pad + 26, titleH); place($('lblR'), divX + 22, titleH);
+      place(msg, pad + 30, titleH + 22, divX - pad - 48, CH - titleH - 74);
+      place(marginEl, pad - 4, CH - 30, CH - titleH - 50, 34);
+      const sb = $('stampbox'); const sw = CW * .12; place(sb, CW - pad - sw, titleH + 14, sw, sw * 140 / 120);
+      place($('addr'), divX + 30, CH * .47, CW - divX - pad - 30); $('addr').style.fontSize = Math.max(22, CW * .034) + 'px';
+      [...$('addr').children].forEach(i => i.style.height = Math.max(34, CW * .052) + 'px');
+      place($('tally'), pad + 30, CH - 40); $('tally').style.right = 'auto';
+      BASE = Math.max(26, CW * .052);
+    } else {
+      const divY = CH * .64;
+      $('div').style.width = (CW - 2 * pad) + 'px'; $('div').style.height = '2px'; $('div').style.background = 'repeating-linear-gradient(90deg,#8b7d63 0 6px,transparent 6px 9px)';
+      place($('div'), pad, divY);
+      place($('lblL'), pad + 22, titleH + 4); place($('lblR'), pad, divY + 10);
+      place(msg, pad + 24, titleH + 22, CW - pad * 2 - 24, divY - titleH - 52);
+      place(marginEl, pad - 8, divY - 14, divY - titleH - 30, 28);
+      const sb = $('stampbox'); const sw = CW * .2; place(sb, CW - pad - sw, divY + 16, sw, sw * 140 / 120);
+      place($('addr'), pad, divY + 24, CW - pad * 2 - sw - 10); $('addr').style.fontSize = '21px';
+      [...$('addr').children].forEach(i => i.style.height = '31px');
+      place($('tally'), pad + 24, divY - 34);
+      BASE = 29;
+    }
+    $('ph').style.fontSize = BASE + 'px';
+    place(ta, parseFloat(msg.style.left), parseFloat(msg.style.top), parseFloat(msg.style.width), 40);
+    $('front').innerHTML = frontSVG(CW, CH);
+    // controls & hint
+    const ctr = $('controls');
+    const cardBottom = top + CH;
+    if (portrait) { ctr.style.left = '12px'; ctr.style.right = '12px'; ctr.style.top = (Math.min(H - 70, cardBottom + 18)) + 'px'; ctr.style.transform = ''; }
+    else { ctr.style.left = '50%'; ctr.style.right = 'auto'; ctr.style.transform = 'translateX(-50%)'; ctr.style.top = (cardBottom + 26) + 'px'; }
+    const gr = $('greet');
+    if (portrait) gr.style.display = 'none'; else { gr.style.display = ''; const gs = Math.min(46, Math.max(22, top * .5)); gr.style.fontSize = gs + 'px'; gr.style.top = Math.max(4, top - gs * 1.55) + 'px'; if (top < 48) gr.style.display = 'none'; }
+    $('stage').querySelector('.brand').style.display = portrait ? 'none' : '';
+    const hint = $('hint');
+    if (portrait) hint.style.display = 'none';
+    else { hint.style.display = ''; hint.style.left = Math.max(10, (W - CW) / 2 - 250) + 'px'; hint.style.top = (top + CH * .32) + 'px'; hint.style.width = '230px'; if ((W - CW) / 2 < 250) hint.style.display = 'none'; }
+    globalScale = 1;
+    render();
+  }
+
+  /* ---------- sending ---------- */
+  let ac = null;
+  function thunk() {
+    try {
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime, g = ac.createGain(); g.gain.value = .0001; g.connect(ac.destination);
+      const o = ac.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(55, t + .12);
+      g.gain.setValueAtTime(.18, t); g.gain.exponentialRampToValueAtTime(.0005, t + .16); o.connect(g); o.start(t); o.stop(t + .2);
+      const b = ac.createBuffer(1, ac.sampleRate * .05, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1200; const g2 = ac.createGain(); g2.gain.value = .12; s.connect(f).connect(g2).connect(ac.destination); s.start(t);
+    } catch (e) {}
+  }
+  $('send').addEventListener('click', () => {
+    if (sent || ta.value.length > LIMIT || !ta.value.trim()) return;
+    sent = true; ta.blur(); render();
+    const send = $('send'); send.disabled = true; send.textContent = 'Postmarking…';
+    const pm = $('postmark');
+    thunk();
+    if (!reduce) pm.animate([{ opacity: 0, transform: 'translate(10px,-14px) scale(1.4)' }, { opacity: 1, transform: 'translate(0,0) scale(1)' }], { duration: 160, easing: 'cubic-bezier(.6,0,1,1)', fill: 'forwards' });
+    else pm.style.opacity = 1;
+    pm.style.opacity = 1;
+    if (!reduce) $('wrap').animate([{ transform: $('wrap').style.transform }, { transform: $('wrap').style.transform + ' translateY(4px)' }, { transform: $('wrap').style.transform }], { duration: 180, delay: 140 });
+    setTimeout(() => { card.style.transform = 'rotateY(180deg)'; }, reduce ? 200 : 900);
+    setTimeout(() => {
+      send.textContent = 'Posted · arrives in 3–5 days';
+      $('again').hidden = false;
+      $('srCount').textContent = 'Postcard sent to Rosa Delgado. It prints tomorrow and arrives in 3 to 5 days.';
+    }, reduce ? 400 : 1900);
+  });
+  $('again').addEventListener('click', () => {
+    sent = false; card.style.transform = ''; $('postmark').getAnimations().forEach(a => a.cancel()); $('postmark').style.opacity = 0;
+    ta.value = ''; $('again').hidden = true; lastAnnounce = '';
+    setTimeout(() => { ta.focus({ preventScroll: true }); render(); }, reduce ? 0 : 700);
+    render();
+  });
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('send').click(); } });
+
+  addEventListener('resize', layout);
+  layout();
+  if (document.fonts) document.fonts.ready.then(layout);
+  // a message already under way
+  ta.value = 'Dear Rosa, the lake is impossibly blue and the pines smell like your kitchen at Christmas. Rented a red canoe, ';
+  render();
+  window.__pc = { set: v => { ta.value = v; ta.dispatchEvent(new Event('input')); } };
+})();
+</script>
+</body>
+</html>

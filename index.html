@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Wonder Cabinet</title>
+<meta name="description" content="A working collection of 100 interface components, each reimagined in its own visual language. Browse ten rooms and step inside any piece to use it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --stone:#e9e7e1;
+  --stone-ink:#1d1b18;
+  --stone-dim:#6c6760;
+  --label:#f7f6f2;
+  --label-ink:#1d1b18;
+  --brass:#b8955a;
+  --display:"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --sans:"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --wall:#2a2a2a;
+  --gutter:clamp(16px, 4vw, 56px);
+  --noise:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--stone);color:var(--stone-ink);font-family:var(--sans);overflow-x:hidden}
+button,input{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ───────── Foyer ───────── */
+.foyer{position:relative;padding:clamp(28px,6vw,84px) var(--gutter) clamp(36px,6vw,72px);display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(28px,5vw,80px);align-items:end;isolation:isolate}
+.foyer::before{content:"";position:absolute;inset:0;background-image:var(--noise);opacity:.18;mix-blend-mode:multiply;z-index:-1;pointer-events:none}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone-dim);margin:0 0 22px;display:flex;gap:14px;flex-wrap:wrap}
+.eyebrow span+span::before{content:"·";margin-right:14px}
+h1{font-family:var(--display);font-weight:500;font-size:clamp(64px,11vw,176px);line-height:.84;letter-spacing:-.035em;margin:0 0 28px;font-variation-settings:"opsz" 96}
+h1 em{font-style:italic;font-weight:400;display:block;padding-left:.42em}
+.lede{font-size:clamp(17px,1.5vw,20px);line-height:1.5;max-width:34em;margin:0 0 30px;color:#3a3631}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search{position:relative;flex:1 1 240px;max-width:360px}
+.search input{width:100%;height:46px;border:1.5px solid var(--stone-ink);background:transparent;border-radius:999px;padding:0 18px 0 42px;font-size:15px}
+.search input::placeholder{color:#7d776f}
+.search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);pointer-events:none}
+.btn{height:46px;padding:0 20px;border-radius:999px;border:1.5px solid var(--stone-ink);background:var(--stone-ink);color:var(--stone);cursor:pointer;font-weight:600;font-size:15px;display:inline-flex;align-items:center;gap:9px;white-space:nowrap;transition:transform .15s}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;color:inherit}
+
+/* floor plan */
+.plan{margin:0;justify-self:end;width:100%;max-width:560px}
+.plan svg{width:100%;height:auto;display:block;overflow:visible}
+.plan figcaption{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--stone-dim);margin-top:12px;display:flex;justify-content:space-between;gap:12px}
+.room-shape{cursor:pointer}
+.room-shape rect{transition:filter .2s, transform .25s}
+.room-shape:hover rect.fill,.room-shape:focus-visible rect.fill{filter:brightness(1.35)}
+.room-shape:focus-visible{outline:none}
+.room-shape:focus-visible rect.fill{stroke:var(--brass);stroke-width:3}
+.room-shape.dim{opacity:.28}
+.room-shape text{pointer-events:none}
+
+/* ───────── Sticky bar ───────── */
+.bar{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px var(--gutter);background:var(--bar-bg,var(--stone-ink));color:#f3f1ec;transform:translateY(-100%);transition:transform .35s cubic-bezier(.2,.8,.2,1), background-color .6s;height:64px;box-shadow:0 8px 24px -12px rgba(0,0,0,.5)}
+.bar.on{transform:none}
+.bar:not(.on){visibility:hidden;transition:transform .35s, visibility 0s .35s}
+.bar-title{font-family:var(--display);font-size:22px;font-weight:600;white-space:nowrap;letter-spacing:-.01em}
+.bar-room{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bar-rooms{display:flex;gap:4px;margin-left:auto}
+.bar-rooms button{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:transparent;cursor:pointer;font-family:var(--display);font-weight:700;font-size:15px;line-height:1;padding:0}
+.bar-rooms button[aria-current="true"]{background:#f3f1ec;color:var(--bar-bg,#111);border-color:#f3f1ec}
+.bar-rooms button.dim{opacity:.3}
+.bar .btn{height:36px;font-size:14px;padding:0 14px;background:#f3f1ec;color:#141414;border-color:#f3f1ec}
+.bar-search{display:none}
+
+/* ───────── Rooms ───────── */
+.room{--wall:#333;position:relative;overflow:clip;background:var(--wall);color:#f3f1ec;padding:clamp(96px,10vw,128px) var(--gutter) clamp(48px,7vw,96px);isolation:isolate;scroll-margin-top:0}
+.room::before{content:"";position:absolute;inset:0;background-image:var(--noise);opacity:.22;mix-blend-mode:overlay;z-index:-1;pointer-events:none}
+.room::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22px;background:linear-gradient(#0000,rgba(0,0,0,.28));z-index:-1;pointer-events:none}
+.room[hidden]{display:none}
+.room-sign{display:grid;grid-template-columns:auto 1fr;column-gap:clamp(16px,2.4vw,32px);align-content:center;align-items:end;padding:22px 0;border-top:1px solid rgba(255,255,255,.22);border-bottom:1px solid rgba(255,255,255,.22);align-self:center;margin-bottom:24px}
+.room-letter{font-family:var(--display);font-size:clamp(96px,11vw,176px);line-height:.72;font-weight:400;font-style:italic;letter-spacing:-.04em;opacity:.95}
+.room-name{font-family:var(--display);font-size:clamp(32px,3.4vw,54px);line-height:.95;margin:0 0 12px;font-weight:500;letter-spacing:-.02em}
+.room-desc{margin:0 0 14px;font-size:16px;opacity:.8;max-width:28em;line-height:1.45}
+.room-count{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;white-space:nowrap;margin:0}
+/* the room's wall text takes the first two cells, so 2 + 10 pieces fill 2, 3 or 4 columns exactly */
+.hang{display:grid;grid-template-columns:1fr;gap:clamp(44px,4.5vw,64px) clamp(24px,3vw,44px)}
+@media (min-width:700px){.hang{grid-template-columns:repeat(2,minmax(0,1fr))}.hang .room-sign{grid-column:span 2}}
+@media (min-width:1100px){.hang{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1800px){.hang{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+/* a framed piece */
+.piece{position:relative;margin:0}
+.piece[hidden]{display:none}
+.frame{position:relative;display:block;text-decoration:none;padding:clamp(8px,1vw,12px);background:linear-gradient(145deg,#191612,#2b2620 45%,#120f0c);border-radius:2px;box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 22px 40px -18px rgba(0,0,0,.65),0 6px 12px -6px rgba(0,0,0,.5);transition:transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s}
+.frame::before{/* wall wash from the picture light */content:"";position:absolute;left:50%;top:-110px;width:110%;height:190px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(255,236,200,.2),rgba(255,236,200,.07) 55%,rgba(255,236,200,0));pointer-events:none;z-index:-1;opacity:.75;transition:opacity .35s}
+.lamp{position:absolute;left:50%;top:-20px;width:34%;height:7px;transform:translateX(-50%);border-radius:4px;background:linear-gradient(#d9bd86,#8a6a35);box-shadow:0 2px 3px rgba(0,0,0,.4)}
+.lamp::before{content:"";position:absolute;left:50%;top:-10px;width:4px;height:12px;background:#7b5f30;transform:translateX(-50%)}
+.mat{position:relative;aspect-ratio:16/10;overflow:hidden;background:#0d0c0b;box-shadow:0 0 0 1px rgba(0,0,0,.6) inset}
+.mat img,.mat iframe{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0;display:block}
+.mat iframe{width:1280px;height:800px;transform-origin:0 0;pointer-events:none;background:#fff}
+.mat .ph{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-style:italic;font-size:42px;color:rgba(255,255,255,.18)}
+.mat .live-tag{position:absolute;right:8px;bottom:8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:rgba(0,0,0,.66);color:#fff;padding:3px 7px;border-radius:2px;opacity:0;transition:opacity .3s}
+.piece.live .live-tag{opacity:1}
+.frame:hover,.frame:focus-visible{transform:translateY(-4px)}
+.frame:hover::before,.frame:focus-visible::before{opacity:1}
+.frame:focus-visible{outline:2px solid #f3f1ec;outline-offset:5px}
+
+/* museum wall label */
+.label{margin-top:18px;display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.label-num{font-family:var(--mono);font-size:12px;opacity:.65;grid-row:span 3;padding-top:3px;letter-spacing:.02em}
+.label h3{margin:0;font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:-.01em;line-height:1.15}
+.label h3 a{text-decoration:none}
+.label-medium{margin:0;font-size:13.5px;font-style:italic;opacity:.85;font-family:var(--display)}
+.label-reim{margin:0;font-size:13px;opacity:.62;line-height:1.4}
+.label-reim b{font-weight:500;opacity:1}
+
+.empty{padding:120px var(--gutter);text-align:center;font-family:var(--display);font-size:28px;background:var(--stone-ink);color:#f3f1ec}
+.empty small{display:block;font-family:var(--sans);font-size:15px;opacity:.7;margin-top:12px}
+
+/* exit */
+.exit{padding:72px var(--gutter) 64px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:end;font-size:14px;color:var(--stone-dim)}
+.exit strong{display:block;font-family:var(--display);font-size:32px;color:var(--stone-ink);font-weight:500;margin-bottom:6px}
+
+/* ───────── Viewer ───────── */
+.viewer{position:fixed;inset:0;z-index:50;display:grid;grid-template-columns:minmax(0,1fr) 340px;background:#0b0a09;color:#f3f1ec;opacity:0;pointer-events:none;transition:opacity .3s}
+.viewer.open{opacity:1;pointer-events:auto}
+.v-stage{position:relative;min-width:0;min-height:0;background:#000}
+.v-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
+.v-loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--display);font-style:italic;font-size:22px;color:#777;pointer-events:none}
+.v-side{position:relative;background:var(--wall);padding:28px 26px 22px;display:flex;flex-direction:column;gap:18px;overflow:auto;transition:background-color .5s;isolation:isolate}
+.v-side::before{content:"";position:absolute;inset:0;background-image:var(--noise);opacity:.2;mix-blend-mode:overlay;z-index:-1;pointer-events:none}
+.v-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.v-room{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.15);display:grid;place-items:center;cursor:pointer;flex:none;transition:background .2s}
+.icon-btn:hover{background:rgba(255,255,255,.14)}
+.v-card{background:var(--label);color:var(--label-ink);padding:20px 20px 18px;box-shadow:0 10px 24px -12px rgba(0,0,0,.6)}
+.v-num{font-family:var(--mono);font-size:12px;color:#6d675f;margin:0 0 8px}
+.v-card h2{font-family:var(--display);font-size:30px;line-height:1.02;margin:0 0 10px;font-weight:600;letter-spacing:-.015em}
+.v-medium{margin:0 0 14px;font-family:var(--display);font-style:italic;font-size:15px;color:#4c463f}
+.v-desc{margin:0 0 14px;font-size:14.5px;line-height:1.5}
+.v-dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;border-top:1px solid #dcd8cf;padding-top:12px}
+.v-dl dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#7a746b;padding-top:2px}
+.v-dl dd{margin:0}
+.v-hint{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.45;background:rgba(0,0,0,.22);padding:12px 14px;border-left:3px solid var(--brass)}
+.v-nav{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.v-nav button,.v-nav a{height:44px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:600;text-decoration:none}
+.v-nav button:hover,.v-nav a:hover{background:rgba(255,255,255,.12)}
+.v-nav .wide{grid-column:span 2}
+.v-keys{font-family:var(--mono);font-size:11px;opacity:.55;text-align:center;margin:0}
+.v-keys kbd{font-family:inherit;border:1px solid rgba(255,255,255,.35);border-radius:3px;padding:0 4px}
+
+@media (max-width: 980px){
+  .foyer{grid-template-columns:1fr}
+  .plan{justify-self:stretch;max-width:none}
+  .viewer{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+  .v-side{padding:12px 14px calc(12px + env(safe-area-inset-bottom));gap:10px;max-height:46dvh}
+  .v-top{position:absolute;top:14px;right:14px;z-index:1}
+  .v-room{display:none}
+  .v-card{padding:10px 14px;margin-right:52px}
+  .v-num{margin-bottom:2px;font-size:11px}
+  .v-card h2{font-size:20px;margin-bottom:0}
+  .v-desc,.v-dl,.v-keys,.v-medium{display:none}
+  .v-hint{font-size:13px;padding:8px 10px}
+  .v-nav{grid-template-columns:repeat(3,1fr)}
+  .v-nav .wide{grid-column:auto}
+  .v-nav button,.v-nav a{height:40px;font-size:13px}
+  .v-nav .txt{display:none}
+}
+@media (max-width: 720px){
+  .bar-title{font-size:18px}
+  .bar-room{display:none}
+  .bar-rooms{gap:2px;overflow-x:auto;scrollbar-width:none}
+  .bar-rooms button{width:26px;height:26px;font-size:13px;flex:none}
+  .bar .btn .txt{display:none}
+}
+@media (max-width: 460px){
+  .bar-rooms{display:none}
+  .bar .btn{margin-left:auto}
+}
+@media (prefers-reduced-motion: reduce){
+  .frame,.bar,.viewer{transition:none}
+}
+</style>
+</head>
+<body>
+
+<header class="foyer" id="top">
+  <div>
+    <p class="eyebrow"><span id="eb-count">100 pieces</span><span>10 rooms</span><span>Every piece works</span></p>
+    <h1>The Wonder <em>Cabinet</em></h1>
+    <p class="lede">A working collection of everyday interface components — buttons, toggles, sliders, toasts, date pickers — each rebuilt as something you’d want to touch twice, and each rendered in its own visual language, from risograph to ukiyo-e to claymation. Step inside any frame to use it.</p>
+    <div class="tools">
+      <label class="search">
+        <span class="sr">Search the collection</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.3 10.3 15 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Search: slider, watercolour, paper…" autocomplete="off">
+      </label>
+      <button class="btn" id="surprise" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5" cy="5" r="1.3" fill="currentColor"/><circle cx="11" cy="11" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/></svg>
+        Surprise me
+      </button>
+    </div>
+  </div>
+  <figure class="plan">
+    <svg id="plan" viewBox="0 0 420 276" role="group" aria-label="Floor plan of the ten rooms"></svg>
+    <figcaption><span>Floor plan · select a room</span><span>Route runs clockwise from A</span></figcaption>
+  </figure>
+</header>
+
+<nav class="bar" id="bar" aria-label="Rooms">
+  <a class="bar-title" href="#top" style="text-decoration:none">The Wonder Cabinet</a>
+  <span class="bar-room" id="bar-room"></span>
+  <div class="bar-rooms" id="bar-rooms"></div>
+  <button class="btn" type="button" id="surprise2"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="5" cy="5" r="1.3" fill="currentColor"/><circle cx="11" cy="11" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/></svg><span class="txt">Surprise me</span></button>
+</nav>
+
+<main id="rooms"></main>
+<div class="empty" id="empty" hidden></div>
+
+<footer class="exit">
+  <div><strong>Exit through the gift shop.</strong>There isn’t one. Every piece is a single self-contained HTML file in <code>components/</code>.</div>
+  <a href="#top">Back to the floor plan ↑</a>
+</footer>
+
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="v-title" aria-hidden="true">
+  <div class="v-stage">
+    <div class="v-loading" id="v-loading">Opening the case…</div>
+    <iframe id="v-frame" title="Component" allow="clipboard-write; autoplay"></iframe>
+  </div>
+  <aside class="v-side" id="v-side">
+    <div class="v-top">
+      <span class="v-room" id="v-room"></span>
+      <button class="icon-btn" id="v-close" type="button" aria-label="Close and return to the room">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 1l12 12M13 1 1 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="v-card">
+      <p class="v-num" id="v-num"></p>
+      <h2 id="v-title"></h2>
+      <p class="v-medium" id="v-medium"></p>
+      <p class="v-desc" id="v-desc"></p>
+      <dl class="v-dl">
+        <dt>Reimagines</dt><dd id="v-reim"></dd>
+        <dt>Room</dt><dd id="v-cat"></dd>
+      </dl>
+    </div>
+    <p class="v-hint" id="v-hint"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style="flex:none;margin-top:2px"><path d="M5.5 8.5V3a1.25 1.25 0 0 1 2.5 0v4.5V2.25a1.25 1.25 0 0 1 2.5 0V8V3.5a1.25 1.25 0 0 1 2.5 0V10c0 2.8-2 5-4.8 5-1.7 0-2.8-.7-3.8-2L2.3 10.2a1.2 1.2 0 0 1 1.8-1.6L5.5 10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg><span id="v-hint-text"></span></p>
+    <div class="v-nav">
+      <button type="button" id="v-prev" aria-label="Previous piece"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2 4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="txt">Previous</span></button>
+      <button type="button" id="v-next" aria-label="Next piece"><span class="txt">Next</span><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="m5 2 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <a class="wide" id="v-open" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M8 1h5v5M13 1 6.5 7.5M11 9v4H1V3h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="txt">Open on its own</span></a>
+    </div>
+    <p class="v-keys"><kbd>←</kbd> <kbd>→</kbd> move between pieces · <kbd>Esc</kbd> back to the room</p>
+  </aside>
+</div>
+
+<script id="manifest">
+/*MANIFEST:START*/
+window.CABINET = [{"n":1,"slug":"rubber-stamp-approve","room":"A","category":"Buttons & Actions","name":"Rubber Stamp Approve","reimagines":"Approve / reject buttons","description":"Approve and return are two rubber stamps on a risograph-printed desk. Ink them on a two-colour pad (hold longer for richer ink) and thump them onto each expense report; a faint impression asks you to re-ink, a good one files the report and brings the next.","hint":"Pick up a stamp, press it on the ink pad, then press it on the report","medium":"Risograph print — 2 spot inks (fluoro pink + teal), misregistration, grain, overprint","mediumShort":"Risograph print","thumb":"thumbs/001-rubber-stamp-approve.jpg?v=1791379251"},
+{"n":2,"slug":"matchstick-deploy","room":"A","category":"Buttons & Actions","name":"Matchstick Deploy","reimagines":"Primary \"Deploy to production\" button","description":"Deploying to production takes a fast, committed strike of a match across the striker — slow drags only scuff it. Touch the flame to the fuse and it burns through build, migrate and canary to light the 'live' seal; pinch the spark to halt mid-way. Friction as a safety mechanism, printed like a 1960s matchbox label.","hint":"Drag the match fast across the striker strip, then touch the flame to the fuse","medium":"Vintage Eastern-European matchbox label lithography — flat bold shapes, limited inks, ornate type","mediumShort":"Vintage Eastern-European matchbox label lithography","thumb":"thumbs/002-matchstick-deploy.jpg?v=1791376870"},
+{"n":3,"slug":"ink-bleed-delete","room":"A","category":"Buttons & Actions","name":"Ink Bleed Delete","reimagines":"Hold-to-confirm destructive button","description":"Holding 'Delete project' bleeds blue-black ink through wet cotton paper; let go and it is drawn back out. Hold to the end and the project card's own ink lifts off into the water in sinking, curling plumes — a real fluid simulation, lit like a macro photograph — with ten seconds to undo.","hint":"Press and hold Delete project; let go early to cancel","medium":"Macro photography of wet ink blooming in water — photoreal fluid, paper fibres","mediumShort":"Macro photography of wet ink blooming in water","thumb":"thumbs/003-ink-bleed-delete.jpg?v=1791377238"},
+{"n":4,"slug":"pneumatic-tube-send","room":"A","category":"Buttons & Actions","name":"Pneumatic Tube Send","reimagines":"Chat send button","description":"Sending a chat message rolls it into a brass canister that is sucked through the glass tubes of an isometric cutaway office — past the post room, sales and engineering — to land on Mara's desk with a thunk and a delivery receipt. Her reply comes back down the same tube.","hint":"Type a message and press Send (or Enter)","medium":"Isometric cutaway illustration — a building cross-section with brass tubes, tiny office workers","mediumShort":"Isometric cutaway illustration","thumb":"thumbs/004-pneumatic-tube-send.jpg?v=1791376867"},
+{"n":5,"slug":"floppy-disk-save","room":"A","category":"Buttons & Actions","name":"Floppy Disk Save","reimagines":"Save button + unsaved-changes state","description":"A 1-bit System 7 document editor where unsaved changes leave a floppy disk sticking half out of an external drive. Click or push the disk in (or press ⌘/Ctrl+S): it slides home, the shutter opens, the drive whirrs and blinks, and a pencilled timestamp is added to the disk's label — which doubles as a version history.","hint":"Type to make changes, then push the disk into the drive or press Cmd/Ctrl+S","medium":"1-bit dithered classic Macintosh / System 7 — Atkinson dithering, pixel fonts, black and white only","mediumShort":"1-bit dithered classic Macintosh / System 7","thumb":"thumbs/005-floppy-disk-save.jpg?v=1791376864"},
+{"n":6,"slug":"photocopier-copy","room":"A","category":"Buttons & Actions","name":"Photocopier Copy","reimagines":"Copy-to-clipboard button","description":"A code snippet lies on the glass of a photocopier in a cut-and-paste punk zine. Hitting COPY flashes the green scan light under the page and feeds a grainy, slightly crooked duplicate into the output tray, ticks the counter — and really copies the code to your clipboard. Lighter/darker changes how the copies come out.","hint":"Pick a language tab, then smash the green COPY button","medium":"Photocopy punk zine — toner grain, high contrast, cut-and-paste collage, ransom letters","mediumShort":"Photocopy punk zine","thumb":"thumbs/006-photocopier-copy.jpg?v=1791376867"},
+{"n":7,"slug":"gumball-add-to-cart","room":"A","category":"Buttons & Actions","name":"Gumball Add to Cart","reimagines":"Quantity stepper + add to cart","description":"The quantity stepper is the crank of a cherry-red, chrome-trimmed gumball machine painted like a 1950s diner ad. Each full clockwise turn ratchets one gumball down the chute into the tray (your quantity); the globe shows real stock; flick a gumball back up to put it back; then bag the lot into your cart.","hint":"Turn the crank clockwise — one gumball per turn. Flick one back up to remove it","medium":"1950s diner advertising illustration — chrome, cherry red, painted retro ad art","mediumShort":"1950s diner advertising illustration","thumb":"thumbs/007-gumball-add-to-cart.jpg?v=1791376871"},
+{"n":8,"slug":"paper-plane-share","room":"A","category":"Buttons & Actions","name":"Paper Plane Share","reimagines":"Share button / share sheet","description":"Pressing Share makes the article page fold itself into a dart in real 3D — corners to the centre, edges again, keel, wings — lit like a white-paper studio set. Flick the plane toward one of the paper friends on the horizon (or the mailbox to copy the link) and it banks along an arc and lands at their feet.","hint":"Press Share, then flick the plane toward a friend","medium":"True 3D papercraft — CSS 3D folding white paper with soft studio lighting and real shadows","mediumShort":"True 3D papercraft","thumb":"thumbs/008-paper-plane-share.jpg?v=1791377234"},
+{"n":9,"slug":"domino-publish","room":"A","category":"Buttons & Actions","name":"Domino Publish","reimagines":"Publish button with a multi-step pipeline","description":"Publishing tips the first of a row of Bauhaus dominoes. Each later domino is a pipeline step — build, test, optimise, deploy — that trembles under the weight while its job runs and only falls when the job completes, with real rigid-body toppling. A flaky test leaves its domino standing; nudge it to retry.","hint":"Press Publish; if a domino refuses to fall, nudge it to retry","medium":"Bauhaus poster — primary colours, circles/squares/triangles, bold geometric type","mediumShort":"Bauhaus poster","thumb":"thumbs/009-domino-publish.jpg?v=1791376874"},
+{"n":10,"slug":"heart-balloon-like","room":"A","category":"Buttons & Actions","name":"Heart Balloon Like","reimagines":"Like button","description":"Painted in grainy picture-book gouache: press and hold the heart to blow up a heart-shaped balloon — the longer you hold, the bigger the love (like, love, adore). Let go and it floats up on its string to join the bunch tied to the post. Keep blowing past the wobble and it pops into confetti: a super-like. Tap your balloon to untie it.","hint":"Press and hold the heart to blow up a balloon, then let go","medium":"Children's picture-book gouache — grainy brushwork, soft shapes, hand-lettering","mediumShort":"Children's picture-book gouache","thumb":"thumbs/010-heart-balloon-like.jpg?v=1791376873"},
+{"n":11,"slug":"pull-chain-theme","room":"B","category":"Toggles & Switches","name":"Pull-Chain Theme","reimagines":"Dark-mode toggle","description":"The reading app lives inside a Hopper-style painted room. Tug the pendant lamp's beaded chain and the light switches: warm lamplight floods out from the bulb, or the room falls into moonlit blue. Swing the lamp and its pool of light slides across the page.","hint":"Pull the lamp's chain down and let go","medium":"Edward Hopper-esque painterly interior — warm light, long shadows, painted brushwork","mediumShort":"Edward Hopper-esque painterly interior","thumb":"thumbs/011-pull-chain-theme.jpg?v=1791376877"},
+{"n":12,"slug":"mercury-tilt-switch","room":"B","category":"Toggles & Switches","name":"Mercury Tilt Switch","reimagines":"Toggle switch","description":"Each setting on this precise, Rams-inspired climate controller is a glass capsule with a bead of liquid metal. Toggle it and the capsule tips; the bead rolls, wobbles, sometimes sheds a droplet, and closes the contacts to light a tiny filament. The load meter answers.","hint":"Tap a capsule, or drag it to tilt","medium":"Dieter Rams / Braun instrument realism — precise industrial product rendering, glass & liquid metal","mediumShort":"Dieter Rams / Braun instrument realism","thumb":"thumbs/012-mercury-tilt-switch.jpg?v=1791376875"},
+{"n":13,"slug":"breaker-panel-permissions","room":"B","category":"Toggles & Switches","name":"Breaker Panel Permissions","reimagines":"Toggle group with dependencies","description":"App permissions drawn as an architect's pencil sketch of a fuse box. Flip a breaker and anything that depends on it trips to the halfway position with a clack, traced by a red marker arrow. Highlighter shows what is live, so the dependency graph is visible instead of hidden in fine print.","hint":"Flip a breaker; switch off Network and watch Sync and Backups trip","medium":"Architect's pencil sketch with marker accents — graphite lines, construction lines, hand annotations","mediumShort":"Architect's pencil sketch with marker accents","thumb":"thumbs/013-breaker-panel-permissions.jpg?v=1791376878"},
+{"n":14,"slug":"door-hanger-status","room":"B","category":"Toggles & Switches","name":"Door Hanger Status","reimagines":"Presence / status selector","description":"Your chat presence is a mid-century motel door hanger swinging from a brass knob. Flip it to Do not disturb and a sleeping owl takes over; turn the little clock hand to say when you'll be back. The team register beside the door updates as it settles.","hint":"Tap or spin the hanger; drag the clock hand to set your return","medium":"1960s Palm Springs hotel ephemera — mid-century modern print (Charley Harper-like geometry)","mediumShort":"1960s Palm Springs hotel ephemera","thumb":"thumbs/014-door-hanger-status.jpg?v=1791376878"},
+{"n":15,"slug":"origami-billing-toggle","room":"B","category":"Toggles & Switches","name":"Origami Billing Toggle","reimagines":"Segmented toggle (monthly / annual)","description":"The price is a sheet of origami paper: plain washi on one side for monthly, patterned chiyogami on the other for annual. Drag the corner to peek at the yearly price with a true flat fold, or fold it all the way to switch; a seal stamps the saving.","hint":"Drag the paper's corner across, or tap it to fold","medium":"Japanese washi / chiyogami origami — patterned paper, minimal Japanese typographic layout","mediumShort":"Japanese washi / chiyogami origami","thumb":"thumbs/015-origami-billing-toggle.jpg?v=1791376881"},
+{"n":16,"slug":"venetian-blind-privacy","room":"B","category":"Toggles & Switches","name":"Venetian Blind Privacy","reimagines":"Privacy / hide-sensitive-data toggle","description":"A bank statement lies on a detective's desk, lit only by a streetlamp through venetian blinds. Twist the wand and the hard diagonal bands of light narrow, ripple down the ladder and let the darkness swallow the digits. Privacy is literally the absence of light; fully drawn leaves only slivers.","hint":"Drag across the blind wand to twist it, or press Draw the blinds","medium":"Film noir — black & white, hard slat shadows, detective-office drama, film grain","mediumShort":"Film noir","thumb":"thumbs/016-venetian-blind-privacy.jpg?v=1791377235"},
+{"n":17,"slug":"mechanical-keycap-toolbar","room":"B","category":"Toggles & Switches","name":"Mechanical Keycap Toolbar","reimagines":"Toggle button group / formatting toolbar","description":"Bold, italic, underline, strike and code live on a studio-lit macro pad of sculpted PBT keycaps. Each press has real travel and a buckling-spring clack; active styles latch halfway down with a glowing LED, and the keys follow your cursor through the text and your keyboard shortcuts.","hint":"Select some text, then press a key (or use Ctrl/⌘ + B, I, U)","medium":"Hyperreal 3D product render — retro beige/orange IBM-era keycaps with studio lighting","mediumShort":"Hyperreal 3D product render","thumb":"thumbs/017-mechanical-keycap-toolbar.jpg?v=1791376882"},
+{"n":18,"slug":"dormouse-do-not-disturb","room":"B","category":"Toggles & Switches","name":"Dormouse Do Not Disturb","reimagines":"Notifications on/off toggle","description":"Do Not Disturb as a storybook page in ink and watercolour. Switch it on and Hazel the dormouse curls up and dreams; new notices bounce softly off her dream bubble and wait in a basket. Switch it off and she wakes, stretches, tips the basket, and the queued notices tumble into your list.","hint":"Flip the acorn switch, or poke the dormouse","medium":"Beatrix Potter-style watercolour storybook illustration — ink line + soft washes","mediumShort":"Beatrix Potter-style watercolour storybook illustration","thumb":"thumbs/018-dormouse-do-not-disturb.jpg?v=1791376882"},
+{"n":19,"slug":"guarded-production-switch","room":"B","category":"Toggles & Switches","name":"Guarded Production Switch","reimagines":"Dangerous toggle (staging / production)","description":"Switching a service to production is a three-step ritual on an Apollo-era console: turn the master-arm key, lift the red guard, throw the bat toggle. Annunciators light, the DSKY readout flips from STG to PRD and the teleprinter logs who did it. Drop the guard and it slams the switch back to staging.","hint":"Turn the key to ARM, lift the red guard, then flip the switch up","medium":"1970s NASA / Apollo mission control panel — engineering labels, retro aerospace","mediumShort":"1970s NASA / Apollo mission control panel","thumb":"thumbs/019-guarded-production-switch.jpg?v=1791379249"},
+{"n":20,"slug":"hourglass-pause","room":"B","category":"Toggles & Switches","name":"Hourglass Pause","reimagines":"Play / pause toggle","description":"A focus timer in 16-bit pixel art where the hourglass is the control. Every grain is simulated: lay the glass on its side and the sand slumps and stops (paused); stand it up and the trickle resumes; flip it and the sand really does change bulbs, so the clock tells the truth.","hint":"Drag the hourglass to tip it on its side; flip it when the sand runs out","medium":"16-bit pixel art — limited palette, pixel-perfect sand particles","mediumShort":"16-bit pixel art","thumb":"thumbs/020-hourglass-pause.jpg?v=1791376884"},
+{"n":21,"slug":"chladni-frequency-slider","room":"C","category":"Sliders, Knobs & Dials","name":"Chladni Frequency Slider","reimagines":"Slider","description":"Choose a focus tone on an engraved acoustics plate. As the vernier slides along the scale, sand on a bowed brass plate dances and settles into real Chladni figures at each resonance, so you can see (and hear) the frequency you pick.","hint":"Draw the vernier along the scale; the sand gathers where the plate is still","medium":"19th-century scientific engraving — physics textbook plate, cross-hatching, sepia","mediumShort":"19th-century scientific engraving","thumb":"thumbs/021-chladni-frequency-slider.jpg?v=1791376888"},
+{"n":22,"slug":"measuring-tape-height","room":"C","category":"Sliders, Knobs & Dials","name":"Measuring Tape Height","reimagines":"Numeric slider / height input","description":"Log a child's height on a comic-book growth chart by pulling a real tape measure up the doorframe. Lock it to keep the reading and pencil a new mark on the frame; let go unlocked and the tape whips back with a SNAP.","hint":"Drag the tape case up to the top of Maya's head, then hit the red lock (or press L)","medium":"Comic book — Ben-Day dots, bold ink outlines, onomatopoeia (SNAP!), panels","mediumShort":"Comic book","thumb":"thumbs/022-measuring-tape-height.jpg?v=1791376888"},
+{"n":23,"slug":"chili-spice-slider","room":"C","category":"Sliders, Knobs & Dials","name":"Chili Spice Slider","reimagines":"Rating slider","description":"Choose how hot your tacos are by sliding a frijol across a lotería tabla. The card's pepper ripens from green to red, the air shimmers, it sweats and steams, and at Inferno the card's own title catches fire (horchata included).","hint":"Slide the bean along the tabla to pick your heat","medium":"Mexican lotería card / papel picado folk art","mediumShort":"Mexican lotería card / papel picado folk art","thumb":"thumbs/023-chili-spice-slider.jpg?v=1791376888"},
+{"n":24,"slug":"rubber-band-range","room":"C","category":"Sliders, Knobs & Dials","name":"Rubber Band Range","reimagines":"Range slider (min/max)","description":"Filter holiday rentals by nightly price with two pegs and a real rubber band over a Memphis-pattern histogram. The band thins and pales as it stretches, pegs fling and overshoot with spring physics, plucking it twangs, and the bars inside your range stand up and put on hats.","hint":"Drag or flick a peg; pluck the band","medium":"Memphis design — squiggles, terrazzo, pastel + black, 1980s","mediumShort":"Memphis design","thumb":"thumbs/024-rubber-band-range.jpg?v=1791376895"},
+{"n":25,"slug":"frost-fire-thermostat","room":"C","category":"Sliders, Knobs & Dials","name":"Frost Fire Thermostat","reimagines":"Circular knob","description":"Set the living-room temperature on a big detented dial, viewed entirely through an infrared camera. Cold settings grow real frost dendrites on the window and dial glass; warm settings wake the stove's embers and send heat plumes up the wall. A spot meter reads the temperature of anything you point at (try the cat).","hint":"Turn the dial ring; point anywhere to read its temperature","medium":"Thermal / infrared camera imagery — heat palette, frost and fire seen through a thermal lens","mediumShort":"Thermal / infrared camera imagery","thumb":"thumbs/025-frost-fire-thermostat.jpg?v=1791376893"},
+{"n":26,"slug":"harp-string-stepper","room":"C","category":"Sliders, Knobs & Dials","name":"Harp String Stepper","reimagines":"Stepped slider","description":"Book a table by strumming a gilded Art Nouveau harp. Strings catch under your finger, slip and ring with real plucked-string synthesis; the last string you pluck sets the party size and the table below lays itself for that many guests.","hint":"Strum across the strings; the last one you pluck sets the party size","medium":"Art Nouveau (Mucha) — ornamental whiplash curves, gold leaf, decorative borders","mediumShort":"Art Nouveau (Mucha)","thumb":"thumbs/026-harp-string-stepper.jpg?v=1791376895"},
+{"n":27,"slug":"balance-scale-allocator","room":"C","category":"Sliders, Knobs & Dials","name":"Balance Scale Allocator","reimagines":"Split slider / allocation","description":"Divide the month's purse between Saved and Spent on an illuminated manuscript page. Gold coins move between the pans of a gilded balance; the beam tilts with damped physics, the pans swing on their chains, and sealing the ledger stamps it in red wax.","hint":"Drag a coin to the other pan, or tap it to send it across","medium":"Medieval illuminated manuscript — vellum, gold leaf, marginalia, blackletter","mediumShort":"Medieval illuminated manuscript","thumb":"thumbs/027-balance-scale-allocator.jpg?v=1791376892"},
+{"n":28,"slug":"pour-to-measure","room":"C","category":"Sliders, Knobs & Dials","name":"Pour to Measure","reimagines":"Quantity slider","description":"Log a glass of water by actually pouring it. A stop-motion plasticine jug tilts under your hand, a gooey stream fills a measuring glass with a sloshing surface, and whatever you pour is the amount that gets logged (overfill it and it puddles on the table).","hint":"Drag the jug to tilt it and pour; let go to stop","medium":"Claymation / plasticine — soft 3D, fingerprints, stop-motion jitter","mediumShort":"Claymation / plasticine","thumb":"thumbs/028-pour-to-measure.jpg?v=1791376895"},
+{"n":29,"slug":"candle-sleep-timer","room":"C","category":"Sliders, Knobs & Dials","name":"Candle Sleep Timer","reimagines":"Timer duration input","description":"Set a sleep timer for rain sounds by drawing a candle taller or shorter in a candlelit oil painting. The flame flickers and lights the whole scene, the candle melts and drips as time passes, and when time is up it snuffs out in a curl of smoke as the rain fades to silence.","hint":"Drag the candle taller or shorter to set the minutes, then let go","medium":"Chiaroscuro oil painting (Georges de La Tour candlelight)","mediumShort":"Chiaroscuro oil painting (Georges de La Tour candlelight)","thumb":"thumbs/029-candle-sleep-timer.jpg?v=1791376897"},
+{"n":30,"slug":"radio-tuner-dial","room":"C","category":"Sliders, Knobs & Dials","name":"Radio Tuner Dial","reimagines":"Selection knob","description":"Pick tonight's podcast or playlist by spinning a red-wedge tuning knob on a constructivist radio poster. The knob has weight and momentum, the needle sweeps a diagonal dial band, static and heterodyne whistles fill the gaps, and the Shukhov tower blasts out waves when you lock onto a station.","hint":"Spin the knob (or drag the needle) until the static clears","medium":"Soviet constructivist poster (Rodchenko) — red/black/cream diagonals, radio propaganda type","mediumShort":"Soviet constructivist poster (Rodchenko)","thumb":"thumbs/030-radio-tuner-dial.jpg?v=1791376899"},
+{"n":31,"slug":"typewriter-field","room":"D","category":"Text & Data Entry","name":"Typewriter Field","reimagines":"Text input","description":"A newsroom headline field drawn as a ligne claire comic panel. Every keystroke swings a typebar and leaves an imperfect inked letter, the carriage slides, the bell rings five spaces before the margin and backspace lifts the letter off with correction tape. It is a real text input underneath, so mobile keyboards, paste and screen readers all work.","hint":"Click the sheet and type. Enter returns the carriage","medium":"Ligne claire comic (Hergé-style) — clean uniform ink lines, flat colour","mediumShort":"Ligne claire comic (Hergé-style)","thumb":"thumbs/031-typewriter-field.jpg?v=1791376898"},
+{"n":32,"slug":"vault-tumbler-otp","room":"D","category":"Text & Data Entry","name":"Vault Tumbler Code","reimagines":"OTP / PIN input","description":"A six-digit sign-in code entered on the tumblers of a flat-shaded, low-poly bank vault. Type, paste or drag each ten-sided wheel; the right code retracts the bolts, spins the wheel and swings the door open onto your account, while a wrong one spins every tumbler back to zero.","hint":"Type the texted code, or drag a tumbler up or down","medium":"Low-poly faceted 3D — flat-shaded polygons, heist-movie vault","mediumShort":"Low-poly faceted 3D","thumb":"thumbs/032-vault-tumbler-otp.jpg?v=1791376899"},
+{"n":33,"slug":"rotary-dial-phone","room":"D","category":"Text & Data Entry","name":"Rotary Dial Phone","reimagines":"Phone number input","description":"A checkout phone field dialled on a 1970s supergraphic telephone. Drag a hole round to the finger stop and release: the wheel returns at governor speed and each pulse counts the digit up in the field. Typing on the keyboard spins the dial too, and the hook switch hangs up to clear.","hint":"Put a finger in a hole, swing it to the stop, let go","medium":"1970s supergraphics — orange/brown/mustard bold stripes and curves","mediumShort":"1970s supergraphics","thumb":"thumbs/033-rotary-dial-phone.jpg?v=1791376900"},
+{"n":34,"slug":"postcard-character-limit","room":"D","category":"Text & Data Entry","name":"Postcard Message","reimagines":"Character-limited textarea","description":"A 180-character message written on the back of a faded linen travel postcard. Instead of a counter turning red, your handwriting cramps as space runs out, and anything past the limit creeps sideways up the margin in red pencil until you trim it. The stamp and address are the hard edge.","hint":"Write your message; watch the handwriting squeeze near the limit","medium":"Vintage linen travel postcard — lithographic, linen texture, faded colour","mediumShort":"Vintage linen travel postcard","thumb":"thumbs/034-postcard-character-limit.jpg?v=1791376902"},
+{"n":35,"slug":"envelope-email-field","room":"D","category":"Text & Data Entry","name":"Envelope Email Field","reimagines":"Email input with validation","description":"A newsletter sign-up drawn in the language of postage-stamp engraving: guilloché, fine hatching and perforations. A valid address folds the letter into an envelope, which is sealed, stamped and postmarked; an invalid one is thumped with a Return to Sender handstamp that ticks the exact reason, and likely typos get a forwarding label you can accept.","hint":"Write your email on the letter, then seal and send","medium":"Philately / postal engraving — guilloché, perforations, postmarks","mediumShort":"Philately / postal engraving","thumb":"thumbs/035-envelope-email-field.jpg?v=1791376904"},
+{"n":36,"slug":"password-garden","room":"D","category":"Text & Data Entry","name":"Password Garden","reimagines":"Password strength meter","description":"A password field whose strength is drawn as a living specimen on a hand-coloured botanical plate. Length grows the stem, digits unfurl leaves, symbols set buds and mixed case opens flowers; a common password brings weeds and a slow, determined snail. The plate's lettered key tells you exactly what to add.","hint":"Type a password and watch the specimen grow","medium":"Scientific botanical plate — watercolour and fine ink, Latin labels","mediumShort":"Scientific botanical plate","thumb":"thumbs/036-password-garden.jpg?v=1791376904"},
+{"n":37,"slug":"mad-libs-signup","room":"D","category":"Text & Data Entry","name":"Mad Libs Signup","reimagines":"Multi-field form","description":"A four-field sign-up written as a single sentence on a Swiss International Style poster grid. Each blank grows with your words and offers typographic typeahead you accept with Tab; when the sentence is complete it typesets itself into a red and black membership poster.","hint":"Fill in the blanks; Tab accepts a suggestion","medium":"Swiss International Typographic Style poster — strict grid, big grotesk type, red/black","mediumShort":"Swiss International Typographic Style poster","thumb":"thumbs/037-mad-libs-signup.jpg?v=1791376904"},
+{"n":38,"slug":"fridge-magnet-tags","room":"D","category":"Text & Data Entry","name":"Fridge Magnet Tags","reimagines":"Tag input","description":"Tags for a recipe, typed into a toy letter tray, fly up as glossy moulded-plastic magnet letters and clack onto the fridge door. Drag a word to rearrange it; drag it off the door and it drops, bouncing and clattering across the floor, with a moment to put it back.","hint":"Type a tag and press Enter; drag a word off the door to remove it","medium":"Glossy plastic toy 3D — saturated moulded plastic letters with specular highlights","mediumShort":"Glossy plastic toy 3D","thumb":"thumbs/038-fridge-magnet-tags.jpg?v=1791376906"},
+{"n":39,"slug":"abacus-number-input","room":"D","category":"Text & Data Entry","name":"Abacus Number Input","reimagines":"Number input","description":"A restock quantity set on a soroban rendered as wood marquetry: every bead, rod and border is an inlaid veneer with its own grain. Push beads to the bar, tap to flick them, type a number and watch them slide into place, or sweep along the bar to clear the whole thing like a real abacus.","hint":"Push beads to the bar, or type a number; sweep along the bar to clear","medium":"Wood marquetry / inlay — different wood grains, veneer patterns","mediumShort":"Wood marquetry / inlay","thumb":"thumbs/039-abacus-number-input.jpg?v=1791376911"},
+{"n":40,"slug":"fountain-pen-signature","room":"D","category":"Text & Data Entry","name":"Fountain Pen Signature","reimagines":"Signature pad","description":"Sign a lease on laid paper beneath an engraved Victorian letterhead. The pointed nib swells on downstrokes and thins on the way up, ink pools when you pause and feathers into the fibres, and it dries over a few seconds from glossy blue to matte black. Rock the blotter across it to dry it at once (it keeps a mirror-image impression), or tear off the slip to start again.","hint":"Sign on the slip; rock the blotter to dry; tear the slip to start again","medium":"Victorian legal copperplate — engraved letterhead, laid paper, ornamental rules","mediumShort":"Victorian legal copperplate","thumb":"thumbs/040-fountain-pen-signature.jpg?v=1791376908"},
+{"n":41,"slug":"paint-mixing-color-picker","room":"E","category":"Pickers & Selection","name":"Paint Mixing Colour Picker","reimagines":"Colour picker","description":"Instead of a hue wheel, you mix your colour like a painter: dab process pigments onto a wooden palette and swirl them with a palette knife, leaving real impasto ridges. Kubelka–Munk subtractive mixing means cyan and yellow genuinely make green, and the swatch shows the recipe, the hex and how evenly it's mixed.","hint":"Tap a paint, dab it on the palette, then swirl with the knife","medium":"Impasto oil paint — thick textured strokes, palette knife ridges","mediumShort":"Impasto oil paint","thumb":"thumbs/041-paint-mixing-color-picker.jpg?v=1791377232"},
+{"n":42,"slug":"constellation-interest-picker","room":"E","category":"Pickers & Selection","name":"Constellation Interest Picker","reimagines":"Multi-select chips","description":"Onboarding interests as stars on a Hevelius-style atlas plate, gold on deep blue. Each pick engraves a line into your personal constellation, an allegorical figure is etched around it and the cartouche gives it a Latin name — so choosing topics feels like charting the sky rather than ticking pills.","hint":"Choose three or more stars to chart your constellation","medium":"Antique celestial atlas (Hevelius) — gold on deep blue, engraved constellation figures","mediumShort":"Antique celestial atlas (Hevelius)","thumb":"thumbs/042-constellation-interest-picker.jpg?v=1791376910"},
+{"n":43,"slug":"rolodex-contact-select","room":"E","category":"Pickers & Selection","name":"Rolodex Contact Select","reimagines":"Select / dropdown","description":"A dropdown becomes a rolodex on a symmetrical, pastel grand-hotel concierge desk. Flick the cards with real momentum and detent clicks, type a letter to spin straight to it, and pull a card out to choose — the desk bell rings and the brass plaque updates.","hint":"Flick the cards, type a letter to jump, press the front card to choose","medium":"Wes Anderson symmetrical pastel set — centred compositions, pastel palette, Futura-like type","mediumShort":"Wes Anderson symmetrical pastel set","thumb":"thumbs/043-rolodex-contact-select.jpg?v=1791376913"},
+{"n":44,"slug":"sun-arc-time-picker","room":"E","category":"Pickers & Selection","name":"Sun Arc Time Picker","reimagines":"Time picker","description":"Book a photo walk by dragging the sun along its arc over a flat, grainy gouache seascape. The sky, sea glitter, long shadows, lighthouse beam and stars all follow the time, which snaps to quarter hours and names the light (blue hour, golden hour) — so you pick a time by how it will feel, not by scrolling digits.","hint":"Drag the sun (or the moon) along its arc","medium":"Grainy flat gouache landscape illustration (Tom Haugomat-like)","mediumShort":"Grainy flat gouache landscape illustration (Tom Haugomat-like)","thumb":"thumbs/044-sun-arc-time-picker.jpg?v=1791376913"},
+{"n":45,"slug":"moon-phase-date-picker","room":"E","category":"Pickers & Selection","name":"Moon Phase Date Picker","reimagines":"Date picker","description":"Planning a night hike, each day of the calendar is a cyanotype sun-print of that night's real moon phase (computed with Meeus' lunar terms). Spin the big moon to scrub through nights; the chosen date prints as a negative and the details develop like a blueprint in the wash.","hint":"Pick a night, or spin the big moon to scrub through the month","medium":"Cyanotype print — Prussian blue sun print, white silhouettes","mediumShort":"Cyanotype print","thumb":"thumbs/045-moon-phase-date-picker.jpg?v=1791376914"},
+{"n":46,"slug":"car-radio-preset-buttons","room":"E","category":"Pickers & Selection","name":"Car Radio Preset Buttons","reimagines":"Radio button group","description":"Shipping speed chosen on the chrome preset buttons of a 1960s dashboard radio — the origin of the term. Push one and it mechanically latches while the others spring back up, the needle sweeps through real static to its station, the ribbon speedometer shows how fast it'll arrive and the odometer rolls your total.","hint":"Push a chrome preset to choose your delivery speed","medium":"1960s American car dashboard — chrome and enamel realism","mediumShort":"1960s American car dashboard","thumb":"thumbs/046-car-radio-preset-buttons.jpg?v=1791376915"},
+{"n":47,"slug":"morphing-mood-face","room":"E","category":"Pickers & Selection","name":"Morphing Mood Face","reimagines":"Emoji / Likert rating","description":"Instead of five emoji, one 1930s rubber-hose cartoon morphs continuously as you drag it: pie-cut eyes, brows, mouth, arms and bounce tempo all follow your mood, the film tint shifts from blue to rose, and the extremes bring a rain cloud or a popping hat — with a slide whistle tracking every inch.","hint":"Drag the fellow up to cheer him, down to sink him","medium":"1930s rubber-hose cartoon — pie-cut eyes, film grain, bouncy squash-and-stretch","mediumShort":"1930s rubber-hose cartoon","thumb":"thumbs/047-morphing-mood-face.jpg?v=1791376917"},
+{"n":48,"slug":"sieve-shake-filter","room":"E","category":"Pickers & Selection","name":"Sieve Shake Filter","reimagines":"Filter controls (max price)","description":"Products are painted-paper cut-outs sized by price, sitting in a woven sieve. Set the mesh to your budget and the holes literally widen; shake the sieve and everything that fits drops into the results bowl with real physics, while pricier pieces stay behind — Matisse colour, honest filtering.","hint":"Set the mesh to your budget, then shake the sieve","medium":"Matisse cut-outs — bold cut-paper shapes, gouache-painted paper","mediumShort":"Matisse cut-outs","thumb":"thumbs/048-sieve-shake-filter.jpg?v=1791376918"},
+{"n":49,"slug":"bookshelf-sort","room":"E","category":"Pickers & Selection","name":"Bookshelf Sort","reimagines":"Sort control / dropdown","description":"A reading log's sort menu becomes an inked, cross-hatched shelf. Pick title, author, year, pages or colour and each book lifts, travels and thunks down in its new place — the librarian-correct way (\"The\" is ignored), with a cartoon caption for every order and a cat who resents the disturbance.","hint":"Circle a sort order and watch the books reshelve themselves","medium":"New Yorker-style ink cross-hatch illustration","mediumShort":"New Yorker-style ink cross-hatch illustration","thumb":"thumbs/049-bookshelf-sort.jpg?v=1791376918"},
+{"n":50,"slug":"type-case-font-picker","room":"E","category":"Pickers & Selection","name":"Type Case Font Picker","reimagines":"Font picker / dropdown","description":"Each typeface is a drawer in a letterpress cabinet. Slide one out and its compartments are full of mirrored metal sorts in that face; pull the press lever and the sorts fly to the forme, the platen thunks down and the business card comes out debossed with a slightly different ink impression every time — earlier proofs pile up so you can compare.","hint":"Pull out a drawer, then pull the press lever","medium":"Letterpress realism — wood/metal type, ink impression, deboss","mediumShort":"Letterpress realism","thumb":"thumbs/050-type-case-font-picker.jpg?v=1791377237"},
+{"n":51,"slug":"toaster-notifications","room":"F","category":"Feedback & Status","name":"Toaster Notifications","reimagines":"Toast notifications","description":"Notifications pop out of a cute sticker toaster as slices of toast with the message on them. Browning is severity (pale = info, burnt = error), rising steam is the auto-dismiss timer, and you dismiss a slice by flicking it away or nibbling it in four bites.","hint":"Pull the toaster's lever for a test toast, flick a slice to dismiss it, tap it to take a bite","medium":"Kawaii sticker illustration — thick outlines, cute faces, pastel","mediumShort":"Kawaii sticker illustration","thumb":"thumbs/051-toaster-notifications.jpg?v=1791376921"},
+{"n":52,"slug":"blueprint-skeleton","room":"F","category":"Feedback & Status","name":"Blueprint Skeleton","reimagines":"Skeleton loader","description":"While a listing loads, the card is drafted as a blueprint: construction lines, lettering guidelines and dimension callouts hold the exact layout. As each request returns, a technical pen inks that section in real material hatching; failed requests get a redline revision cloud you can tap to retry.","hint":"Watch the sheet get drafted, then Redraft, switch the network to Flaky, or tap a revision cloud to retry","medium":"Blueprint / technical drawing — cyan paper, white linework, dimensioning","mediumShort":"Blueprint / technical drawing","thumb":"thumbs/052-blueprint-skeleton.jpg?v=1791376927"},
+{"n":53,"slug":"evaporation-upload","room":"F","category":"Feedback & Status","name":"Evaporation Upload","reimagines":"Upload progress","description":"Every file is a puddle of watercolour pigment that dries from its edges inward as it uploads, leaving a tide-mark stain while its vapour blooms into a cloud that grows with everything you have stored. If a connection drops, the cloud darkens and rains the file back into its puddle so you can try again.","hint":"Watch the puddles evaporate, tap a rained-on puddle to retry, or spill another file","medium":"Wet-on-wet watercolour — blooms, granulation, paper texture","mediumShort":"Wet-on-wet watercolour","thumb":"thumbs/053-evaporation-upload.jpg?v=1791376922"},
+{"n":54,"slug":"layer-print-download","room":"F","category":"Feedback & Status","name":"Layer Print Download","reimagines":"Download progress bar","description":"A product-render 3D printer prints the model you are downloading, one layer per slice of received bytes, with the nozzle tracing the live layer. A dropped connection parks the head and resumes from the exact layer, and finished downloads are lifted off the bed onto a plinth you can open.","hint":"Drag to orbit the printer; pause, resume or download another model","medium":"Clean real-time 3D product visualisation (WebGL or CSS 3D)","mediumShort":"Clean real-time 3D product visualisation (WebGL or CSS 3D)","thumb":"thumbs/054-layer-print-download.jpg?v=1791376925"},
+{"n":55,"slug":"spirograph-spinner","room":"F","category":"Feedback & Status","name":"Spirograph Spinner","reimagines":"Indeterminate loading spinner","description":"While homework is being checked, a ballpoint-sketched Spirograph wheel rolls around its ring and a four-colour pen traces a pattern that never quite repeats, clicking to a new ink as each stage finishes. When the check fails the pen runs dry, and you scribble to get the ink flowing before trying again.","hint":"Drag the wheel to spin it yourself, tap the pen to click a new colour","medium":"Ballpoint pen on paper — kids' Spirograph craft, sketched","mediumShort":"Ballpoint pen on paper","thumb":"thumbs/055-spirograph-spinner.jpg?v=1791376925"},
+{"n":56,"slug":"bubble-wrap-wait","room":"F","category":"Feedback & Status","name":"Bubble Wrap Wait","reimagines":"Long-running task / loading screen","description":"A big photo export unrolls a sheet of iridescent, thin-film bubble wrap: the roll shrinks as progress advances and every new row is yours to squash and pop, with real pops and holographic sparkles. If a file can't be read the roll stops and asks what to do; when it's done the last of the sheet lies flat beside a chrome download button.","hint":"Press and hold a bubble to pop it, or drag across the sheet to pop a row","medium":"Y2K iridescent / holographic chrome","mediumShort":"Y2K iridescent / holographic chrome","thumb":"thumbs/056-bubble-wrap-wait.jpg?v=1791377549"},
+{"n":57,"slug":"birds-on-a-wire-typing","room":"F","category":"Feedback & Status","name":"Birds on a Wire","reimagines":"Typing indicator","description":"The three typing dots become three sparrows on a sagging telegraph wire in a Hiroshige-style woodblock print. They hop in sequence while your friend types, fluff up and settle when she stops, and lift her message up into the conversation when it arrives, then glide back to the wire.","hint":"Reply to Hana, or tap a sparrow to make it hop","medium":"Ukiyo-e woodblock print (Hiroshige) — flat colour, bokashi gradients, wood grain","mediumShort":"Ukiyo-e woodblock print (Hiroshige)","thumb":"thumbs/057-birds-on-a-wire-typing.jpg?v=1791376927"},
+{"n":58,"slug":"summit-stepper","room":"F","category":"Feedback & Status","name":"Summit Stepper","reimagines":"Step / progress indicator","description":"Onboarding as a climb up a WPA-style screen-printed mountain. Each step is a named camp on the switchback trail; finishing a step plants a flag and walks the climber up to the next camp while the altimeter counts and the sun rises behind the peak. Completed camps can be revisited by tapping them.","hint":"Fill in each camp's form to climb, or tap a planted flag to go back","medium":"WPA national park screen-print poster","mediumShort":"WPA national park screen-print poster","thumb":"thumbs/058-summit-stepper.jpg?v=1791376938"},
+{"n":59,"slug":"mailbox-inbox-badge","room":"F","category":"Feedback & Status","name":"Mailbox Inbox Badge","reimagines":"Notification badge","description":"A felt-and-thread rural mailbox stands in for the unread badge: its flag swings up with the count stitched on it when new mail arrives, and the envelopes visibly pile up inside. Pull the door open and the letters slide out as the message list; read them all and the flag drops.","hint":"Pull the mailbox door open to read your mail","medium":"Stitched felt / textile stop-motion","mediumShort":"Stitched felt / textile stop-motion","thumb":"thumbs/059-mailbox-inbox-badge.jpg?v=1791376930"},
+{"n":60,"slug":"jelly-validation","room":"F","category":"Feedback & Status","name":"Jelly Validation","reimagines":"Form validation errors","description":"Every field is a slab of translucent gummy with real soft-body springs. Invalid fields go soft and raspberry, wobble and won't settle, and the error drips out beneath them; fix the value and the jelly sets firm and turns lime. Poke any field to jiggle it, and the gummy bear mascot reacts to the state of the form.","hint":"Fix the wobbly fields until they set firm, and poke any jelly to jiggle it","medium":"Gummy-candy 3D — translucent jelly, subsurface glow","mediumShort":"Gummy-candy 3D","thumb":"thumbs/060-jelly-validation.jpg?v=1791376932"},
+{"n":61,"slug":"breadcrumb-trail-birds","room":"G","category":"Navigation & Wayfinding","name":"Breadcrumb Trail Birds","reimagines":"Breadcrumbs","description":"A field guide whose breadcrumb trail is literal: Gretel drops a crumb on the forest path for every page you open, and jumping back sends silhouette birds swooping down to peck up the crumbs past that point. Drawn as a Lotte Reiniger cut-paper shadow play.","hint":"Follow a signpost to go deeper, then tap an earlier crumb to head back","medium":"Lotte Reiniger cut-paper silhouette fairytale","mediumShort":"Lotte Reiniger cut-paper silhouette fairytale","thumb":"thumbs/061-breadcrumb-trail-birds.jpg?v=1791376932"},
+{"n":62,"slug":"bellows-accordion","room":"G","category":"Navigation & Wayfinding","name":"Bellows Accordion","reimagines":"Accordion / FAQ disclosure","description":"Each answer unfolds on real pleated bellows, and the air you move plays it: pull fast for a full musette chord, pump the handle to play, close it for a wheeze. The cabaret's accordionist on the poster breathes in time.","hint":"Tap a question, or drag its handle down and pump it to play","medium":"1920s Art Deco Parisian cabaret poster","mediumShort":"1920s Art Deco Parisian cabaret poster","thumb":"thumbs/062-bellows-accordion.jpg?v=1791376935"},
+{"n":63,"slug":"notebook-index-tabs","room":"G","category":"Navigation & Wayfinding","name":"Notebook Index Tabs","reimagines":"Tabs","description":"Each tab is a strip of washi tape stuck to the edge of a bullet journal. Pick one and the pages riffle over with a real 3D bend — the further the section, the more pages fly — and the tabs you pass travel to the other side of the book.","hint":"Tap a washi-tape tab, or use the arrow keys","medium":"Bullet journal — ballpoint doodles, washi tape, dot grid","mediumShort":"Bullet journal","thumb":"thumbs/063-notebook-index-tabs.jpg?v=1791376938"},
+{"n":64,"slug":"transit-map-sitemap","room":"G","category":"Navigation & Wayfinding","name":"Transit Map Sitemap","reimagines":"Sitemap / mega menu","description":"The whole app as a 1970s transit diagram: each section is a coloured line, each page a station, shared pages are interchanges. Pick a destination and a train rides the shortest route there, changing lines where it must, before the platform sign announces your page.","hint":"Hover a line to trace it; choose any station to ride there","medium":"Vignelli / Beck transit diagram — precise lines, Helvetica-like signage","mediumShort":"Vignelli / Beck transit diagram","thumb":"thumbs/064-transit-map-sitemap.jpg?v=1791376937"},
+{"n":65,"slug":"matryoshka-folders","room":"G","category":"Navigation & Wayfinding","name":"Matryoshka Folders","reimagines":"Folder hierarchy / file browser","description":"Every folder is a hand-painted nesting doll, sized by how much it holds. Open one and it splits at the waist, its contents hopping out onto the shelf; the folders you've opened stand in a row by size as your breadcrumb, and choosing one nests the smaller dolls back inside.","hint":"Tap a doll to open it; tap a doll in the row above to go back","medium":"Russian Khokhloma folk painting — red, gold, black","mediumShort":"Russian Khokhloma folk painting","thumb":"thumbs/065-matryoshka-folders.jpg?v=1791376939"},
+{"n":66,"slug":"page-curl-pagination","room":"G","category":"Navigation & Wayfinding","name":"Page Curl Pagination","reimagines":"Pagination","description":"Results are set in a leather-bound, gilt-edged book. Grab any page corner and the paper folds along a true crease that follows your finger, showing the next page on its back; thumb-index notches riffle to a decade, and a silk ribbon remembers the page you marked.","hint":"Drag a page corner to turn it, or press the arrow keys","medium":"Antique leather-bound gilded book realism","mediumShort":"Antique leather-bound gilded book realism","thumb":"thumbs/066-page-curl-pagination.jpg?v=1791376945"},
+{"n":67,"slug":"radial-flick-menu","room":"G","category":"Navigation & Wayfinding","name":"Radial Flick Menu","reimagines":"Context menu","description":"Press and hold anywhere on the wall and a stencil ring of commands is sprayed under your finger; flick toward one to choose. Once you know the directions, flick without waiting — the menu never appears, and your gesture is left on the wall in dripping spray paint.","hint":"Hold on a piece, then flick toward a command. Flick fast to skip the menu","medium":"Stencil graffiti / street art — spray paint, drips, stencils","mediumShort":"Stencil graffiti / street art","thumb":"thumbs/067-radial-flick-menu.jpg?v=1791376944"},
+{"n":68,"slug":"ferris-wheel-carousel","room":"G","category":"Navigation & Wayfinding","name":"Ferris Wheel Carousel","reimagines":"Carousel","description":"Each slide rides a gondola on a pier-end Ferris wheel printed like a Victorian showbill. Fling the wheel and it spins with real momentum, the cars swinging on their pins; when it brakes, the car at the boarding platform becomes the featured attraction on the bill beside it.","hint":"Spin the wheel, tap a gondola, or use the arrow keys","medium":"Victorian carnival / circus poster — ornate showbill lettering","mediumShort":"Victorian carnival / circus poster","thumb":"thumbs/068-ferris-wheel-carousel.jpg?v=1791376941"},
+{"n":69,"slug":"sushi-conveyor-feed","room":"G","category":"Navigation & Wayfinding","name":"Sushi Conveyor Feed","reimagines":"Infinite feed / product list","description":"The feed is a looping kaiten belt painted like 1960s Japanese enamel signage. The kitchen keeps it stocked forever, plate colour is the price tier, and ordering is as physical as it gets: pluck a plate off the belt and drop it on your tray, or put it back.","hint":"Drag a plate onto your tray, or tap one to read about it","medium":"Showa-era Japanese signage and packaging — bold retro graphics","mediumShort":"Showa-era Japanese signage and packaging","thumb":"thumbs/069-sushi-conveyor-feed.jpg?v=1791376943"},
+{"n":70,"slug":"lighthouse-search","room":"G","category":"Navigation & Wayfinding","name":"Lighthouse Search","reimagines":"Command palette / search","description":"Every page and action of the app lies at anchor on an engraved sea chart, lit only by the lighthouse. Its golden beam sweeps the water and warms each ship it touches; type and it narrows and steadies onto the best match while the rest stay in darkness. Press Enter and that ship sails into harbour and the command runs.","hint":"Type where you want to go; arrow keys swing the beam, Enter sets sail","medium":"Antique nautical sea chart — compass roses, engraved coastlines","mediumShort":"Antique nautical sea chart","thumb":"thumbs/070-lighthouse-search.jpg?v=1791377238"},
+{"n":71,"slug":"theater-curtain-modal","room":"H","category":"Overlays & Reveals","name":"Toy Theatre Modal","reimagines":"Modal dialog","description":"The booking review opens as a performance in a penny-plain, twopence-coloured paper theatre. The lamp dims, engraved curtains gather and tie back, a limelight swings onto its mark and the playbill slides on from the wings on a tin slide. Close it and the tiebacks let go so the curtain drops. Focus, Escape and the inert backdrop all work like a proper modal.","hint":"Pick your seats, then press Review booking to raise the curtain","medium":"Victorian toy paper theatre (Pollock's)","mediumShort":"Victorian toy paper theatre (Pollock's)","thumb":"thumbs/071-theater-curtain-modal.jpg?v=1791376947"},
+{"n":72,"slug":"cookie-jar-consent","room":"H","category":"Overlays & Reveals","name":"Cookie Jar Consent","reimagines":"Cookie consent banner","description":"A crayon-drawn consent sheet where every cookie category is a physical cookie. Optional ones start on the plate (privacy first), the essential one is baked into the bottom of the jar, and you drop the others in to allow them. Cookies tumble, clink on the glass and leave crumbs; screwing the lid on saves your choice.","hint":"Drag cookies into the jar to allow them, then put the lid on","medium":"Children's crayon drawing","mediumShort":"Children's crayon drawing","thumb":"thumbs/072-cookie-jar-consent.jpg?v=1791376947"},
+{"n":73,"slug":"peephole-link-preview","room":"H","category":"Overlays & Reveals","name":"Peephole Link Preview","reimagines":"Link hover preview","description":"Hover or focus a link and a brass door viewer swings its cover aside to show a fisheye, cross-processed lomo snapshot of where the link goes. Slide along the link to look around the room; click to step through the door. Every photo is generated live, with grain, vignette and light leaks.","hint":"Hover a link to peek through the door; slide along it to look around","medium":"Lomography film photography — vignette, light leaks, grain","mediumShort":"Lomography film photography","thumb":"thumbs/073-peephole-link-preview.jpg?v=1791376949"},
+{"n":74,"slug":"pop-up-book-popover","room":"H","category":"Overlays & Reveals","name":"Pop-up Book Popover","reimagines":"Popover / info tooltip","description":"The trail guide is an offset-printed pop-up book on uncoated paper: the peak, forest and signpost already stand off the left page, and every info marker is a printed PULL tab. Pull one and a little paper spread rises from the gutter, its layers standing on real parallel folds and flexing as they settle. Drag the page back down to fold it shut; Escape works too.","hint":"Pull a red tab to pop up more about the walk","medium":"Children's pop-up book — printed colourful paper mechanisms","mediumShort":"Children's pop-up book","thumb":"thumbs/074-pop-up-book-popover.jpg?v=1791377239"},
+{"n":75,"slug":"fogged-glass-spoiler","room":"H","category":"Overlays & Reveals","name":"Fogged Glass Spoiler","reimagines":"Spoiler / content-warning reveal","description":"A watch-party chat seen against a rainy night window. Theo's spoiler sits behind condensation: wipe it with a finger (it squeaks), drips run down from the cleared patches, and the glass breathes itself foggy again over a few seconds, so a peek stays a peek.","hint":"Wipe the fogged glass with your finger to read the spoiler","medium":"Cinematic rainy window — night city bokeh behind condensation","mediumShort":"Cinematic rainy window","thumb":"thumbs/075-fogged-glass-spoiler.jpg?v=1791376949"},
+{"n":76,"slug":"polaroid-lazy-load","room":"H","category":"Overlays & Reveals","name":"Instant Photo Lazy Load","reimagines":"Lazy-loaded images","description":"Instead of grey placeholders and a fade-in, every image in this 1970s holiday album is shot, ejected and developed. The camera prints photos in the order they scroll into view, they fly to their spot in the album and slowly bloom from murky green to warm colour. Hover, hold or press Space to warm a print and it develops faster.","hint":"Scroll the album; hover a print to warm it up","medium":"1970s instant photography — warm generative photo scenes","mediumShort":"1970s instant photography","thumb":"thumbs/076-polaroid-lazy-load.jpg?v=1791376951"},
+{"n":77,"slug":"sticker-peel-coupon","room":"H","category":"Overlays & Reveals","name":"Sticker Peel Coupon","reimagines":"Coupon / promo-code reveal","description":"The discount code is printed on the backing under a holographic vinyl sticker in a sticker-bombed checkout. Pick at any edge to peel: the flap reflects along a real fold line with its own shadow and shiny backside. Let go early and it sticks back; peel past halfway and it comes off in your hand, ready to slap anywhere on the page.","hint":"Pick at the sticker's edge and peel it back","medium":"Sticker-bomb vinyl — holographic and die-cut stickers","mediumShort":"Sticker-bomb vinyl","thumb":"thumbs/077-sticker-peel-coupon.jpg?v=1791376951"},
+{"n":78,"slug":"zipper-pocket-drawer","room":"H","category":"Overlays & Reveals","name":"Zipper Pocket Drawer","reimagines":"Drawer / expanding panel","description":"A bike courier's settings live in a zipped denim pocket. Drag the leather pull and the brass teeth separate along a real lens-shaped opening, ticking lining showing inside, with a zzzip that tracks your speed. Open it far enough and the settings tag rises out; zip it shut and they tuck away. Keyboard users get a proper slider.","hint":"Drag the leather pull along the zip to open the pocket","medium":"Denim / workwear textile — stitching, rivets, selvedge","mediumShort":"Denim / workwear textile","thumb":"thumbs/078-zipper-pocket-drawer.jpg?v=1791376952"},
+{"n":79,"slug":"xray-inspector-lens","room":"H","category":"Overlays & Reveals","name":"X-ray Inspector Lens","reimagines":"Inspector / dev-tools tooltip","description":"Dev tools as radiology. A heavy loupe follows your pointer over a working clinic booking screen and shows what's under the skin on blue X-ray film: soft tissue (layout boxes and ghosted text), contrast (padding, content and margin densities with measurements) or bone (the markup skeleton). Expose a film to pin a radiology-style report of any element.","hint":"Move the loupe over the page; scroll or press [ ] to change the kV","medium":"Medical X-ray film over a clean interface","mediumShort":"Medical X-ray film over a clean interface","thumb":"thumbs/079-xray-inspector-lens.jpg?v=1791376953"},
+{"n":80,"slug":"slide-projector-lightbox","room":"H","category":"Overlays & Reveals","name":"Slide Projector Lightbox","reimagines":"Lightbox / image viewer","description":"Nana's slide box, being digitised, with the show already running: a dusty tungsten beam throws a Kodachrome slide onto the pull-down screen. Step through with the arrow keys and the carousel click-clacks, each new slide landing a little soft until you turn the focus knob. Esc or Lights on brings the room back up so you can pick any slide off the light table.","hint":"Turn the focus knob, press Next, or switch the lights on to pick another slide","medium":"1960s Kodachrome home slides — dark room, projector beam","mediumShort":"1960s Kodachrome home slides","thumb":"thumbs/080-slide-projector-lightbox.jpg?v=1791377242"},
+{"n":81,"slug":"knitted-activity-heatmap","room":"I","category":"Data & Visualization","name":"Knitted Activity Heatmap","reimagines":"Contribution heatmap","description":"A year of contributions knitted into a colourwork scarf: every day is a real stitch dyed from oatmeal to aubergine by activity, and the scarf grows a row each week. Pull the yarn ball to unravel back to any date and the knitted-in totals recount as of that day.","hint":"Hover a stitch to read the day; drag the yarn ball to unravel back through the year","medium":"Knitted textile — stitches, yarn fuzz","mediumShort":"Knitted textile","thumb":"thumbs/081-knitted-activity-heatmap.jpg?v=1791376954"},
+{"n":82,"slug":"draw-your-guess-chart","room":"I","category":"Data & Visualization","name":"Draw Your Guess Chart","reimagines":"Line chart","description":"A line chart drawn in felt-tip marker on graph paper that hides the recent past: you sketch your guess with a squeaky marker, then the real line inks itself in, the gap gets highlighter-shaded and you're scored against the team. Three charts, each with a surprise.","hint":"Draw your guess of the rest of the line, then press Show me how it went","medium":"Felt-tip marker on graph paper — sketched","mediumShort":"Felt-tip marker on graph paper","thumb":"thumbs/082-draw-your-guess-chart.jpg?v=1791376955"},
+{"n":83,"slug":"slice-the-pie-chart","room":"I","category":"Data & Visualization","name":"Slice the Pie Chart","reimagines":"Pie chart","description":"A monthly budget printed as a 1950s cookbook recipe: each category is a fruit filling in a lattice pie whose slices are exactly proportional. Trace the dotted lines with the knife to cut the pie, then pull a slice onto the plate to read its ingredients.","hint":"Trace a dotted line with the knife to cut, then pull a slice out","medium":"Mid-century cookbook illustration","mediumShort":"Mid-century cookbook illustration","thumb":"thumbs/083-slice-the-pie-chart.jpg?v=1791376956"},
+{"n":84,"slug":"marble-jar-storage","room":"I","category":"Data & Visualization","name":"Marble Jar Storage","reimagines":"Storage usage meter","description":"Your disk as a glass jar of marbles, one per 2 GB, poured in by file type so the layers read like a stacked bar against an etched scale. Pick a type and the marbles you could free float up through the pile and roll into a dish, so you see the jar's new level before you commit.","hint":"Choose a file type to see what you could free","medium":"Glass realism — refractive marbles in a glass jar","mediumShort":"Glass realism","thumb":"thumbs/084-marble-jar-storage.jpg?v=1791376959"},
+{"n":85,"slug":"calder-mobile-org-chart","room":"I","category":"Data & Visualization","name":"Calder Mobile Org Chart","reimagines":"Tree / hierarchy chart","description":"The company hangs as a Calder mobile in a white gallery: each team is a painted sheet-metal shape whose area is its headcount, and each arm hangs from the true centre of mass of everything below it. Drop a new hire on a team and the arm tips, sways, and then the pivot slides to its new balance point.","hint":"Drag a new hire onto a team, or click a shape to see who is on it","medium":"Calder modernist — primary colours, black wire, white gallery","mediumShort":"Calder modernist","thumb":"thumbs/085-calder-mobile-org-chart.jpg?v=1791377242"},
+{"n":86,"slug":"horse-race-leaderboard","room":"I","category":"Data & Visualization","name":"Horse Race Leaderboard","reimagines":"Leaderboard","description":"The quarter's sales race as a Muybridge motion study: every rep is a galloping silhouette whose nose sits exactly on their revenue against a backdrop ruled in thousands of dollars, the standings card reorders as deals close, and the last day is caught by a battery of twelve cameras as a photo-finish plate.","hint":"Press Run the quarter, or drag along the contact strip to scrub through the weeks","medium":"Eadweard Muybridge motion study — sepia photographic sequences","mediumShort":"Eadweard Muybridge motion study","thumb":"thumbs/086-horse-race-leaderboard.jpg?v=1791377242"},
+{"n":87,"slug":"river-timeline","room":"I","category":"Data & Visualization","name":"River Timeline","reimagines":"Timeline","description":"Project history as an ink-wash handscroll read right to left: the river widens with every person on the team, each tributary is a team joining, boats moored along it are milestones, and unrolling the scroll carries you downstream through the year. The rollers grow and shrink with how much of the story is still rolled up.","hint":"Drag the scroll, or use the arrow keys, to travel downstream; hover the river or a boat for details","medium":"Chinese shan shui handscroll — ink landscape unrolling horizontally","mediumShort":"Chinese shan shui handscroll","thumb":"thumbs/087-river-timeline.jpg?v=1791376962"},
+{"n":88,"slug":"snow-globe-weather","room":"I","category":"Data & Visualization","name":"Snow Globe Weather","reimagines":"Weather widget","description":"Current weather as a tilt-shift photo of a model town inside a snow globe: the miniature's sky, roofs, streets and tiny umbrellas show the conditions, the brass plaque and standing cards carry the numbers. Shake the globe to refresh; the flakes swirl and settle into the new reading.","hint":"Drag the globe side to side to shake it and refresh; turn the knobs to change city","medium":"Tilt-shift miniature diorama","mediumShort":"Tilt-shift miniature diorama","thumb":"thumbs/088-snow-globe-weather.jpg?v=1791376962"},
+{"n":89,"slug":"tree-ring-history","room":"I","category":"Data & Visualization","name":"Tree Ring History","reimagines":"Radial chart / yearly summary","description":"A project's history as a three-block linocut of a tree slice: each ring's width is that year's commits, incidents are carved as scars, and hovering a ring overprints it in red. Drive an increment borer into the trunk and it pulls out a core sample, laying the sixteen years out flat as a bar chart you can read.","hint":"Hover a ring for its year; drag the borer into the bark to take a core sample","medium":"Woodcut / linocut print","mediumShort":"Woodcut / linocut print","thumb":"thumbs/089-tree-ring-history.jpg?v=1791376964"},
+{"n":90,"slug":"xylophone-bar-chart","room":"I","category":"Data & Visualization","name":"Xylophone Bar Chart","reimagines":"Bar chart","description":"A year of library borrowing as a painted wooden xylophone: every key is a bar whose height is that month's books, and its pitch rises with the number, so the chart can be heard as well as seen. Sweep the mallet across at any height and only the months above that line ring out.","hint":"Drag the mallet across the keys, or press Play the year; sweep higher to hear only the busier months","medium":"Montessori wooden toy — primary painted wood","mediumShort":"Montessori wooden toy","thumb":"thumbs/090-xylophone-bar-chart.jpg?v=1791376968"},
+{"n":91,"slug":"cassette-tape-undo","room":"J","category":"Novel Interactions","name":"Cassette Tape Undo","reimagines":"Undo / redo history","description":"Every stroke you draw is recorded onto a clear cassette in a translucent 1998-style deck. Turn a reel to scrub back and forth through your history — the drawing replays stroke by stroke — and draw again to record over the future.","hint":"Draw on the screen, then turn a reel to rewind","medium":"Translucent 90s tech — clear plastic, Bondi-blue iMac G3 era","mediumShort":"Translucent 90s tech","thumb":"thumbs/091-cassette-tape-undo.jpg?v=1791376966"},
+{"n":92,"slug":"crumpled-paper-trash","room":"J","category":"Novel Interactions","name":"Crumpled Paper Trash","reimagines":"Delete / restore","description":"Hold a note and it crumples under your finger — a real cloth-style simulation of paper folding into a ball — then it is tossed into a felt bin on the floor. Pull a ball back out and it unfolds onto the desk, keeping the creases as an honest trace of having been deleted.","hint":"Hold a note to crumple it into the bin; drag a paper ball out of the bin to restore it","medium":"Real 3D paper physics in a minimal Scandinavian office","mediumShort":"Real 3D paper physics in a minimal Scandinavian office","thumb":"thumbs/092-crumpled-paper-trash.jpg?v=1791376966"},
+{"n":93,"slug":"detective-string-board","room":"J","category":"Novel Interactions","name":"Detective String Board","reimagines":"Linking / relationship editor","description":"Relationships between pieces of evidence are red string tied between push pins on a cork board. Strings sag with verlet rope physics, pinned photos swing when you tug them, and cutting a string lets it drop and reel back — a linking editor you can feel.","hint":"Drag from one pin to another to tie string; click a string to cut it","medium":"True-crime evidence board realism — cork, polaroids, red string","mediumShort":"True-crime evidence board realism","thumb":"thumbs/093-detective-string-board.jpg?v=1791376968"},
+{"n":94,"slug":"knock-rhythm-unlock","room":"J","category":"Novel Interactions","name":"Knock Rhythm Unlock","reimagines":"Unlock / authentication","description":"Sign in by knocking a secret rhythm on an engraved door. Each knock is engraved onto the staff as you play, the phrase is matched at any tempo, and a correct knock turns into a little melody as the bolt slides back.","hint":"Knock the secret rhythm on the door (or press Space)","medium":"Engraved music notation — staff paper, score","mediumShort":"Engraved music notation","thumb":"thumbs/094-knock-rhythm-unlock.jpg?v=1791376972"},
+{"n":95,"slug":"sigil-gesture-commands","room":"J","category":"Novel Interactions","name":"Sigil Gesture Commands","reimagines":"Keyboard shortcuts / commands","description":"Instead of memorising shortcuts, you draw sigils in chalk. A $1 unistroke recogniser reads your tick, circle, Z, caret, cross or loop; a magic circle snaps your scrawl into a clean sigil and burns the command into the task list. Every sigil also has a key, so the board teaches you its own shortcuts.","hint":"Draw a sigil anywhere on the board — a tick marks the selected task done","medium":"Chalk on blackboard — magic circle sigils","mediumShort":"Chalk on blackboard","thumb":"thumbs/095-sigil-gesture-commands.jpg?v=1791376969"},
+{"n":96,"slug":"etch-shake-canvas","room":"J","category":"Novel Interactions","name":"Etch Shake Canvas","reimagines":"Drawing canvas + clear","description":"Reply with a sketch drawn on a glossy red toy: turn the two knobs (or hold the arrow keys — diagonals included) to scrape lines through aluminium powder, then grab the frame and shake it to clear. Each shake recoats the screen a little more, unevenly, the way the real toy does.","hint":"Turn the knobs to draw; grab the red frame and shake it to clear","medium":"Etch A Sketch toy realism — red frame, aluminium powder","mediumShort":"Etch A Sketch toy realism","thumb":"thumbs/096-etch-shake-canvas.jpg?v=1791376972"},
+{"n":97,"slug":"timezone-ring-scheduler","room":"J","category":"Novel Interactions","name":"Timezone Ring Scheduler","reimagines":"Meeting scheduler","description":"An antique brass astrolabe whose rings are your teammates' cities — polished where they work, hatched where they sleep. Turn the rings under the alidade's slit to find the hour that suits everyone, with detents every quarter hour and a 'find the overlap' that spins it there for you.","hint":"Turn the rings until the slit lines up with everyone's working hours","medium":"Antique brass astrolabe — engraved scientific instrument","mediumShort":"Antique brass astrolabe","thumb":"thumbs/097-timezone-ring-scheduler.jpg?v=1791376972"},
+{"n":98,"slug":"clothesline-clipboard","room":"J","category":"Novel Interactions","name":"Clothesline Clipboard","reimagines":"Clipboard history","description":"Everything you copy is pegged up as a linen tea towel on a washing line across a sunlit majolica wall. The line sags as it fills, the sea breeze sways the cloths, and pulling one down copies it again — flick one upwards and the wind takes it.","hint":"Copy a line from the recipe; pull a cloth down to copy it again, flick it up to let it go","medium":"Amalfi majolica tile and Mediterranean sunlight","mediumShort":"Amalfi majolica tile and Mediterranean sunlight","thumb":"thumbs/098-clothesline-clipboard.jpg?v=1791376974"},
+{"n":99,"slug":"fishing-line-refresh","room":"J","category":"Novel Interactions","name":"Fishing Line Refresh","reimagines":"Pull to refresh","description":"Pull the harbour board down and the bamboo rod bends; let go past the mark and it casts into an ink-wash sea. A bite, a reel, and the catch is printed gyotaku-style onto the rice paper as your new posts. When there is nothing new you land an old sandal.","hint":"Pull the board down and let go to cast for new posts","medium":"Gyotaku fish print — ink-printed fish on rice paper","mediumShort":"Gyotaku fish print","thumb":"thumbs/099-fishing-line-refresh.jpg?v=1791376977"},
+{"n":100,"slug":"dandelion-focus-mode","room":"J","category":"Novel Interactions","name":"Dandelion Focus Mode","reimagines":"Focus / zen mode","description":"A writing app photographed in soft macro light. Press and hold to blow on the dandelion: the seeds lift off, and every badge, sidebar and notification around your draft turns to seed and drifts out of frame until only the page is in focus. A gust brings everything back.","hint":"Press and hold the dandelion to blow the distractions away","medium":"Dreamy soft-focus macro photography — pastel light, generative particles","mediumShort":"Dreamy soft-focus macro photography","thumb":"thumbs/100-dandelion-focus-mode.jpg?v=1791376976"}];
+/*MANIFEST:END*/
+</script>
+<script>
+(() => {
+  const ROOMS = {
+    A:{name:"Buttons & Actions", plan:["Buttons","& Actions"], wall:"#5b2324", desc:"Pressing, striking, stamping, launching. Actions that carry weight."},
+    B:{name:"Toggles & Switches", plan:["Toggles","& Switches"], wall:"#22402f", desc:"On, off, and everything it should feel like to get there."},
+    C:{name:"Sliders, Knobs & Dials", plan:["Sliders, Knobs","& Dials"], wall:"#1f3150", desc:"Continuous values you can pull, pour, pluck and turn."},
+    D:{name:"Text & Data Entry", plan:["Text","& Data Entry"], wall:"#41264a", desc:"Typing, dialling, writing and signing, with the tools that used to do it."},
+    E:{name:"Pickers & Selection", plan:["Pickers","& Selection"], wall:"#6a4a1d", desc:"Choosing colours, dates, fonts, moods and the order of things."},
+    F:{name:"Feedback & Status", plan:["Feedback","& Status"], wall:"#1f4a4f", desc:"Waiting, loading, and being told what happened."},
+    G:{name:"Navigation & Wayfinding", plan:["Navigation","& Wayfinding"], wall:"#454a1f", desc:"Getting from here to there, and finding the way back."},
+    H:{name:"Overlays & Reveals", plan:["Overlays","& Reveals"], wall:"#1c1e30", desc:"Things that part, peel, unzip and appear on top."},
+    I:{name:"Data & Visualization", plan:["Data","& Visualization"], wall:"#3d4651", desc:"Numbers you can knit, slice, weigh and play — without losing the numbers."},
+    J:{name:"Novel Interactions", plan:["Novel","Interactions"], wall:"#1a1918", desc:"Patterns that don’t have a name yet."}
+  };
+  const LETTERS = Object.keys(ROOMS);
+  const items = (window.CABINET || []).slice().sort((a,b)=>a.n-b.n);
+  const pad = n => String(n).padStart(3,"0");
+  const file = it => `components/${pad(it.n)}-${it.slug}.html`;
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canHover = matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  document.getElementById("eb-count").textContent = `${items.length} pieces`;
+
+  /* ── build rooms ── */
+  const main = document.getElementById("rooms");
+  const byRoom = {};
+  items.forEach(it => (byRoom[it.room] ||= []).push(it));
+  LETTERS.forEach(L => {
+    const list = byRoom[L] || [];
+    if (!list.length) return;
+    const r = ROOMS[L];
+    const sec = document.createElement("section");
+    sec.className = "room"; sec.id = "room-" + L; sec.dataset.room = L;
+    sec.style.setProperty("--wall", r.wall);
+    sec.setAttribute("aria-labelledby", "rn-" + L);
+    sec.innerHTML = `
+      <div class="hang">
+      <div class="room-sign">
+        <div class="room-letter" aria-hidden="true">${L}</div>
+        <div><h2 class="room-name" id="rn-${L}">${esc(r.name)}</h2><p class="room-desc">${esc(r.desc)}</p><p class="room-count"><span class="rc">${list.length}</span> pieces · Room ${L}</p></div>
+      </div>${list.map(it => `
+        <figure class="piece" data-n="${it.n}" id="p-${pad(it.n)}">
+          <a class="frame" href="${file(it)}" data-n="${it.n}" aria-label="Open No. ${pad(it.n)}, ${esc(it.name)}">
+            <span class="lamp" aria-hidden="true"></span>
+            <div class="mat">${it.thumb ? `<img src="${esc(it.thumb)}" alt="" loading="lazy" decoding="async">` : `<span class="ph">${pad(it.n)}</span>`}<span class="live-tag">Live</span></div>
+          </a>
+          <figcaption class="label">
+            <span class="label-num">${pad(it.n)}</span>
+            <h3>${esc(it.name)}</h3>
+            <p class="label-medium">${esc(it.mediumShort)}</p>
+            <p class="label-reim">Reimagines <b>${esc(it.reimagines)}</b></p>
+          </figcaption>
+        </figure>`).join("")}
+      </div>`;
+    main.appendChild(sec);
+  });
+
+  /* ── live frames: thumbnails if present, otherwise lazy live iframes ── */
+  const scaleIframe = (mat, ifr) => { ifr.style.transform = `scale(${mat.clientWidth / 1280})`; };
+  const mats = [...document.querySelectorAll(".piece")].map(p => ({p, mat:p.querySelector(".mat"), it: items.find(i => i.n == p.dataset.n)}));
+  const ro = new ResizeObserver(es => es.forEach(e => { const f = e.target.querySelector("iframe"); if (f) scaleIframe(e.target, f); }));
+  function mountLive(m){
+    if (m.mat.querySelector("iframe")) return;
+    const f = document.createElement("iframe");
+    f.src = file(m.it); f.loading = "lazy"; f.tabIndex = -1; f.title = ""; f.setAttribute("aria-hidden","true");
+    m.mat.appendChild(f); scaleIframe(m.mat, f); ro.observe(m.mat);
+    m.p.classList.add("live");
+  }
+  function unmountLive(m){
+    const f = m.mat.querySelector("iframe"); if (!f) return;
+    f.remove(); ro.unobserve(m.mat); m.p.classList.remove("live");
+  }
+  // pieces without a thumbnail: live iframe while near the viewport
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    const m = mats.find(x => x.p === e.target);
+    if (!m || m.it.thumb) return;
+    e.isIntersecting ? mountLive(m) : unmountLive(m);
+  }), {rootMargin: "200px 0px"});
+  mats.forEach(m => io.observe(m.p));
+  // pieces with a thumbnail: wake into a live preview on a lingering hover
+  if (canHover && !reduce) mats.forEach(m => {
+    if (!m.it.thumb) return;
+    let t;
+    m.p.addEventListener("pointerenter", () => { t = setTimeout(() => mountLive(m), 650); });
+    m.p.addEventListener("pointerleave", () => { clearTimeout(t); unmountLive(m); });
+  });
+
+  /* ── floor plan ── */
+  const plan = document.getElementById("plan");
+  const W = 105, H = 92, layout = { A:[0,0], B:[1,0], C:[2,0], D:[3,0], E:[3,1], F:[3,2], G:[2,2], H:[1,2], I:[0,2], J:[0,1] };
+  let svg = `<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#1d1b18" stroke-width="1" opacity=".18"/></pattern></defs>`;
+  svg += `<rect x="${W}" y="${H}" width="${W*2}" height="${H}" fill="url(#hatch)" />`;
+  svg += `<text x="${W*2}" y="${H*1.5 - 6}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.5" fill="#6c6760">FOYER</text>`;
+  svg += `<g aria-hidden="true"><circle cx="${W*2}" cy="${H*1.5 + 12}" r="4" fill="#b8955a"/><circle cx="${W*2}" cy="${H*1.5 + 12}" r="9" fill="none" stroke="#b8955a" opacity=".5"><animate attributeName="r" values="4;12;4" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0;.6" dur="2.4s" repeatCount="indefinite"/></circle></g>`;
+  svg += `<text x="${W*2}" y="${H*1.5 + 34}" text-anchor="middle" font-family="Bodoni Moda, serif" font-style="italic" font-size="11" fill="#6c6760">you are here</text>`;
+  LETTERS.forEach(L => {
+    const [cx, cy] = layout[L], x = cx*W, y = cy*H, r = ROOMS[L], n = (byRoom[L]||[]).length;
+    svg += `<g class="room-shape" data-room="${L}" tabindex="0" role="button" aria-label="Go to room ${L}, ${esc(r.name)}">
+      <rect class="fill" x="${x+2}" y="${y+2}" width="${W-4}" height="${H-4}" fill="${r.wall}" />
+      <text x="${x+12}" y="${y+40}" font-family="Bodoni Moda, serif" font-style="italic" font-size="34" fill="#f3f1ec">${L}</text>
+      <text x="${x+12}" y="${y+H-28}" font-family="Schibsted Grotesk, sans-serif" font-weight="600" font-size="10.5" fill="#f3f1ec">${esc(r.plan[0])}</text>
+      <text x="${x+12}" y="${y+H-14}" font-family="Schibsted Grotesk, sans-serif" font-size="10.5" fill="#f3f1ec" opacity=".75">${esc(r.plan[1])}</text>
+      <text x="${x+W-12}" y="${y+22}" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#f3f1ec" opacity=".6" class="pc">${n}</text>
+    </g>`;
+  });
+  // wall lines with doorways along the clockwise route
+  svg += `<rect x="0.75" y="0.75" width="${W*4-1.5}" height="${H*3-1.5}" fill="none" stroke="#1d1b18" stroke-width="1.5"/>`;
+  const door = (x1,y1,x2,y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e9e7e1" stroke-width="5"/>`;
+  [[W,H*.35,W,H*.65],[W*2,H*.35,W*2,H*.65],[W*3,H*.35,W*3,H*.65],[W*3.35,H,W*3.65,H],[W*3.35,H*2,W*3.65,H*2],[W*3,H*2.35,W*3,H*2.65],[W*2,H*2.35,W*2,H*2.65],[W,H*2.35,W,H*2.65],[W*.35,H*2,W*.65,H*2],[W*.35,H,W*.65,H],[W*1.85,H*2,W*2.15,H*2]].forEach(d => svg += door(...d));
+  plan.innerHTML = svg;
+  plan.querySelectorAll(".room-shape").forEach(g => {
+    const go = () => document.getElementById("room-" + g.dataset.room)?.scrollIntoView({behavior: reduce ? "auto" : "smooth"});
+    g.addEventListener("click", go);
+    g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  });
+
+  /* ── sticky bar ── */
+  const bar = document.getElementById("bar"), barRoom = document.getElementById("bar-room"), barRooms = document.getElementById("bar-rooms");
+  barRooms.innerHTML = LETTERS.map(L => `<button type="button" data-room="${L}" aria-label="Room ${L}, ${esc(ROOMS[L].name)}" title="${esc(ROOMS[L].name)}">${L}</button>`).join("");
+  barRooms.addEventListener("click", e => { const b = e.target.closest("button"); if (b) document.getElementById("room-" + b.dataset.room)?.scrollIntoView({behavior: reduce ? "auto" : "smooth"}); });
+  const foyer = document.getElementById("top");
+  let current = null;
+  function onScroll(){
+    bar.classList.toggle("on", foyer.getBoundingClientRect().bottom < 0);
+    let cur = null;
+    document.querySelectorAll(".room:not([hidden])").forEach(s => { if (s.getBoundingClientRect().top < 120) cur = s.dataset.room; });
+    if (cur !== current) {
+      current = cur;
+      bar.style.setProperty("--bar-bg", cur ? ROOMS[cur].wall : "#1d1b18");
+      barRoom.textContent = cur ? `Room ${cur} · ${ROOMS[cur].name}` : "";
+      barRooms.querySelectorAll("button").forEach(b => b.setAttribute("aria-current", b.dataset.room === cur));
+    }
+  }
+  addEventListener("scroll", onScroll, {passive:true}); onScroll();
+
+  /* ── search ── */
+  const q = document.getElementById("q"), empty = document.getElementById("empty");
+  const hay = it => [it.name, it.reimagines, it.medium, it.category, it.description, it.slug, pad(it.n)].join(" ").toLowerCase();
+  function filter(){
+    const terms = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let total = 0;
+    document.querySelectorAll(".room").forEach(sec => {
+      let c = 0;
+      sec.querySelectorAll(".piece").forEach(p => {
+        const it = items.find(i => i.n == p.dataset.n);
+        const ok = terms.every(t => hay(it).includes(t));
+        p.hidden = !ok; if (ok) c++;
+      });
+      sec.hidden = c === 0; sec.querySelector(".rc").textContent = c;
+      total += c;
+      const L = sec.dataset.room;
+      plan.querySelector(`.room-shape[data-room="${L}"]`)?.classList.toggle("dim", c === 0);
+      plan.querySelector(`.room-shape[data-room="${L}"] .pc`).textContent = c;
+      barRooms.querySelector(`[data-room="${L}"]`)?.classList.toggle("dim", c === 0);
+    });
+    empty.hidden = total > 0;
+    if (!total) empty.innerHTML = `Nothing in the collection matches “${esc(q.value.trim())}”.<small>Try a component (slider, toggle), a material (paper, ink, brass) or a style (watercolour, pixel).</small>`;
+    onScroll();
+  }
+  q.addEventListener("input", filter);
+
+  /* ── viewer ── */
+  const viewer = document.getElementById("viewer"), vf = document.getElementById("v-frame"), vload = document.getElementById("v-loading");
+  const $ = id => document.getElementById(id);
+  let idx = -1, lastFocus = null;
+  const visible = () => items.filter(it => !document.getElementById("p-" + pad(it.n))?.hidden);
+  function show(i){
+    const list = items;
+    idx = (i + list.length) % list.length;
+    const it = list[idx], r = ROOMS[it.room];
+    viewer.style.setProperty("--wall", r.wall);
+    $("v-side").style.setProperty("--wall", r.wall);
+    $("v-room").textContent = `Room ${it.room} · ${r.name}`;
+    $("v-num").textContent = `No. ${pad(it.n)} of ${list.length}`;
+    $("v-title").textContent = it.name;
+    $("v-medium").textContent = it.medium;
+    $("v-desc").textContent = it.description;
+    $("v-reim").textContent = it.reimagines;
+    $("v-cat").textContent = `${it.room} — ${r.name}`;
+    $("v-hint-text").textContent = it.hint || "Explore it with your pointer, touch or keyboard.";
+    $("v-open").href = file(it);
+    vload.style.display = "grid";
+    vf.title = it.name;
+    vf.src = file(it);
+    history.replaceState(null, "", "#" + pad(it.n));
+    document.title = `${it.name} · The Wonder Cabinet`;
+  }
+  vf.addEventListener("load", () => { vload.style.display = "none"; });
+  function open(n){
+    lastFocus = document.activeElement;
+    show(items.findIndex(it => it.n == n));
+    viewer.classList.add("open"); viewer.setAttribute("aria-hidden","false");
+    document.body.style.overflow = "hidden";
+    setTimeout(() => $("v-close").focus(), 30);
+  }
+  function close(){
+    viewer.classList.remove("open"); viewer.setAttribute("aria-hidden","true");
+    document.body.style.overflow = "";
+    const it = items[idx];
+    setTimeout(() => { vf.src = "about:blank"; }, 300);
+    history.replaceState(null, "", location.pathname + location.search);
+    document.title = "The Wonder Cabinet";
+    const target = it && document.querySelector(`.frame[data-n="${it.n}"]`);
+    if (target) { target.scrollIntoView({block:"center", behavior:"auto"}); target.focus({preventScroll:true}); }
+    else lastFocus?.focus?.();
+  }
+  main.addEventListener("click", e => {
+    const a = e.target.closest(".frame");
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault(); open(+a.dataset.n);
+  });
+  $("v-close").addEventListener("click", close);
+  $("v-prev").addEventListener("click", () => show(idx - 1));
+  $("v-next").addEventListener("click", () => show(idx + 1));
+  addEventListener("keydown", e => {
+    if (!viewer.classList.contains("open")) {
+      if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+      return;
+    }
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowLeft") show(idx - 1);
+    else if (e.key === "ArrowRight") show(idx + 1);
+    else if (e.key === "Tab") { // keep focus inside the viewer
+      const f = [...viewer.querySelectorAll("button, a[href], iframe")];
+      const i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length-1].focus(); }
+      else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+    }
+  });
+  const surprise = () => { const v = visible(); const pool = v.length ? v : items; open(pool[Math.floor(Math.random()*pool.length)].n); };
+  $("surprise").addEventListener("click", surprise);
+  $("surprise2").addEventListener("click", surprise);
+
+  // deep link: index.html#042
+  const m = location.hash.match(/^#(\d{1,3})$/);
+  if (m && items.some(it => it.n == +m[1])) open(+m[1]);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knitted Activity Heatmap</title>
+<meta name="description" content="A year of code contributions knitted into a colourwork scarf: each day is a stitch dyed by activity, and pulling the yarn ball unravels the year back to any date.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Knitted Activity Heatmap","reimagines":"Contribution heatmap","category":"Data & Visualization","description":"A year of contributions knitted into a colourwork scarf: every day is a real stitch dyed from oatmeal to aubergine by activity, and the scarf grows a row each week. Pull the yarn ball to unravel back to any date and the knitted-in totals recount as of that day.","hint":"Hover a stitch to read the day; drag the yarn ball to unravel back through the year"}
+</script>
+<style>
+  :root{
+    --slate:#323c49; --oat:#efe3c9; --madder:#a8333a; --aub:#55203f; --saff:#e5a94e;
+    --thread:#f3e7cf;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#2b343f;overflow:hidden}
+  body{font-family:Fraunces, Georgia, serif;color:var(--thread);-webkit-font-smoothing:antialiased}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .scarf-focus{position:absolute;pointer-events:none;border-radius:6px;outline:none}
+  .scarf-focus:focus-visible{outline:2px dashed var(--saff);outline-offset:6px}
+  .ball-ctl{position:absolute;border-radius:50%;cursor:grab;touch-action:none;outline:none}
+  .ball-ctl:active{cursor:grabbing}
+  .ball-ctl:focus-visible{outline:2px dashed var(--saff);outline-offset:5px}
+  .reknit{position:absolute;background:transparent;border:0;border-radius:24px;cursor:pointer;color:transparent;outline:none}
+  .reknit:focus-visible{outline:2px dashed var(--saff);outline-offset:3px}
+  /* woven garment label */
+  .tag,.hint{position:absolute;pointer-events:none;color:#5b1d2c;
+    background:
+      repeating-linear-gradient(45deg, rgba(120,90,60,.10) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,.35) 0 1px, transparent 1px 3px),
+      linear-gradient(#f6ecd6,#eadbb9);
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 8px 18px rgba(8,12,18,.45), 0 2px 3px rgba(8,12,18,.35);
+    border-radius:2px;
+  }
+  .tag::before,.hint::before{content:"";position:absolute;inset:4px;border:1.5px dashed rgba(168,51,58,.55);border-radius:1px;pointer-events:none}
+  .tag{padding:12px 16px 12px;min-width:196px;max-width:250px;transform-origin:50% 0;transition:opacity .14s, transform .18s cubic-bezier(.3,1.6,.5,1)}
+  .tag[hidden]{display:block;opacity:0;transform:translateY(-4px) rotate(-1.5deg) scale(.96)}
+  .tag .d{font:700 12px/1.2 Fraunces,Georgia,serif;letter-spacing:.08em;text-transform:uppercase;color:#7a4b39}
+  .tag .n{font:900 30px/1.05 Fraunces,Georgia,serif;margin:4px 0 2px;color:#55203f}
+  .tag .n small{font-size:14px;font-weight:700;color:#7a4b39}
+  .tag .b{font:500 13px/1.45 Fraunces,Georgia,serif;color:#5d3b2f}
+  .tag .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:6px;box-shadow:0 0 0 1.5px rgba(0,0,0,.25) inset}
+  .hint{padding:9px 14px 9px;font:700 13.5px/1.3 Fraunces,Georgia,serif;max-width:300px;transform:rotate(-1.2deg);transition:opacity .6s}
+  .hint.gone{opacity:0}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="cv" aria-hidden="true"></canvas>
+  <div id="scarfFocus" class="scarf-focus" tabindex="0" role="application" aria-roledescription="knitted contribution calendar" aria-label="Contribution calendar for 2026, one stitch per day. Arrow keys move between days." aria-describedby="summary"></div>
+  <div id="ballCtl" class="ball-ctl" tabindex="0" role="slider" aria-label="Unravel the scarf back to a date" aria-valuemin="0" aria-valuemax="279" aria-valuenow="279" aria-valuetext="Through Wednesday 7 October 2026"></div>
+  <button id="reknit" class="reknit" type="button">Cast on again</button>
+  <div id="tag" class="tag" role="tooltip" hidden></div>
+  <p id="hint" class="hint">Hover a stitch to read the day. Pull the yarn ball to unravel back through the year.</p>
+  <p id="summary" class="sr"></p>
+  <p id="live" class="sr" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ---------------- data: Maya Okafor, 2026 ---------------- */
+const Y0 = new Date(2026,0,1);
+const JAN1 = Y0.getDay();                 // Thursday
+const TODAY = 279;                        // Wed 7 Oct 2026 (0-based day of year)
+const NDAYS = 365;
+const weekOf = i => Math.floor((i + JAN1) / 7);
+const dowOf = i => (i + JAN1) % 7;
+const NW = weekOf(NDAYS - 1) + 1;        // 53 rows
+const dateOf = i => new Date(2026,0,1+i);
+const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const fmtShort = i => { const d=dateOf(i); return DOW[d.getDay()].slice(0,3)+' '+d.getDate()+' '+MON[d.getMonth()]; };
+const fmtLong = i => { const d=dateOf(i); return DOW[d.getDay()]+' '+d.getDate()+' '+MONL[d.getMonth()]+' 2026'; };
+
+const R = mulberry32(8127);
+const data = [];
+for (let i=0;i<NDAYS;i++){
+  if (i>TODAY){ data.push(null); continue; }
+  const d = dateOf(i), dow = d.getDay(), wkend = dow===0||dow===6;
+  let base = wkend ? 1.6 : 7.5;
+  base *= 0.82 + 0.28*Math.sin(i/23 + 1);
+  if (i>=60 && i<=81) base *= 2.4;              // Atlas 3.0 launch crunch, Mar 2–23
+  if (i>=124 && i<=128) base *= 1.7;             // hack week, early May
+  if (i>=200 && i<=213) base = 0;                // holiday, Jul 20 – Aug 2
+  if (i>=244 && i<=262) base *= 1.35;            // September push
+  let c = 0;
+  if (base>0){
+    if (wkend && R()<0.6) c = 0;
+    else if (!wkend && R()<0.045) c = 0;
+    else c = Math.max(wkend?1:0, Math.round(base*(0.3 + R()*1.7)));
+  }
+  if (i===206) c = 2; // couldn't resist on holiday
+  const prs = Math.round(c*0.16*(0.6+R()*0.8));
+  const rev = Math.round(c*0.15*(0.6+R()*0.8));
+  const iss = c>3 && R()<0.4 ? 1 : 0;
+  const com = Math.max(0, c - prs - rev - iss);
+  data.push({c:com+prs+rev+iss, com, prs, rev, iss});
+}
+const lvlOf = c => c===0?0 : c<=3?1 : c<=7?2 : c<=12?3 : 4;
+const LEVEL_TXT = ['0','1–3','4–7','8–12','13+'];
+
+function statsThrough(t){
+  let total=0, best=-1, bestI=0, run=0, longest=0;
+  for (let i=0;i<=t;i++){ const c=data[i].c; total+=c; if(c>best){best=c;bestI=i;} if(c>0){run++; if(run>longest) longest=run;} else run=0; }
+  let cur=0; for (let i=t;i>=0 && data[i].c>0;i--) cur++;
+  return {total, best:Math.max(0,best), bestI, longest, cur};
+}
+const monthTotals = t => { const m=new Array(12).fill(0); for(let i=0;i<=t;i++) m[dateOf(i).getMonth()]+=data[i].c; return m; };
+
+/* ---------------- yarn ---------------- */
+const YARN = {
+  oat:   {base:'#e7d8bb', light:'#fbf1dd', dark:'#b9a37f', deep:'#7d6a4e'},
+  saff:  {base:'#e2a548', light:'#f7cf83', dark:'#ad7423', deep:'#704611'},
+  terra: {base:'#cd6639', light:'#ee9566', dark:'#97401f', deep:'#5f2711'},
+  madder:{base:'#a52f38', light:'#d05a5c', dark:'#711b24', deep:'#470d15'},
+  aub:   {base:'#5a2243', light:'#874066', dark:'#3b112a', deep:'#21071a'},
+  slate: {base:'#3a4553', light:'#566478', dark:'#26303b', deep:'#151b22'},
+  moss:  {base:'#5f6f45', light:'#869a63', dark:'#3f4b2c', deep:'#242b18'},
+};
+const LV = ['oat','saff','terra','madder','aub'];
+
+/* ---------------- tiny bitmap fonts for knitted-in lettering ---------------- */
+const F57 = {
+ A:['.###.','#...#','#...#','#####','#...#','#...#','#...#'], F:['#####','#....','#....','####.','#....','#....','#....'],
+ K:['#...#','#..#.','#.#..','##...','#.#..','#..#.','#...#'], M:['#...#','##.##','#.#.#','#.#.#','#...#','#...#','#...#'],
+ O:['.###.','#...#','#...#','#...#','#...#','#...#','.###.'], R:['####.','#...#','#...#','####.','#.#..','#..#.','#...#'],
+ Y:['#...#','#...#','.#.#.','..#..','..#..','..#..','..#..'], ' ':['..','..','..','..','..','..','..'],
+ '2':['.###.','#...#','....#','...#.','..#..','.#...','#####'], '0':['.###.','#...#','#..##','#.#.#','##..#','#...#','.###.'],
+ '6':['..##.','.#...','#....','####.','#...#','#...#','.###.'], '·':['.','.','.','#','.','.','.'],
+};
+const F35 = {
+ '0':['###','#.#','#.#','#.#','###'], '1':['.#.','##.','.#.','.#.','###'], '2':['###','..#','###','#..','###'],
+ '3':['###','..#','.##','..#','###'], '4':['#.#','#.#','###','..#','..#'], '5':['###','#..','###','..#','###'],
+ '6':['###','#..','###','#.#','###'], '7':['###','..#','..#','.#.','.#.'], '8':['###','#.#','###','#.#','###'],
+ '9':['###','#.#','###','..#','###'], ',':['.','.','.','#','#'],
+};
+function bitmap(font, txt){
+  const rows = font['0'] ? font['0'].length : 7;
+  const out = Array.from({length:rows}, () => []);
+  [...txt].forEach((ch, k) => {
+    const g = font[ch] || font[' '] || font[','];
+    for (let r=0;r<rows;r++){ for (const p of g[r]) out[r].push(p==='#'); if (k<txt.length-1) out[r].push(false); }
+  });
+  return out; // rows x cols booleans
+}
+
+/* ---------------- stitch sprites ---------------- */
+let DPR = 1;
+const spriteCache = new Map();
+function sprite(col, al, ac, dir, v){
+  al = Math.round(al*2)/2; ac = Math.round(ac*2)/2;
+  const key = col+'|'+al+'|'+ac+'|'+dir+'|'+v+'|'+DPR;
+  let s = spriteCache.get(key); if (s) return s;
+  const horiz = dir==='left';
+  const cw = (horiz ? al*1.75 : ac*1.45) + 6, ch = (horiz ? ac*1.45 : al*1.75) + 6;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(cw*DPR); c.height = Math.ceil(ch*DPR);
+  const g = c.getContext('2d');
+  g.scale(DPR,DPR); g.translate(cw/2, ch/2);
+  if (dir==='down') g.transform(0,-1,1,0,0,0);
+  else if (dir==='up') g.transform(0,1,1,0,0,0);
+  paintV(g, al, ac, YARN[col], 977*v + al*13 + ac*7 + col.length*31);
+  s = {c, w:cw, h:ch}; spriteCache.set(key, s); return s;
+}
+function paintV(g, al, ac, Y, seed){
+  const r = mulberry32(seed|0);
+  const a = al*0.5, b = ac*0.5;
+  for (const sgn of [-1,1]){
+    const tu = -a*0.92 + (r()-0.5)*al*0.1, tv = sgn*ac*0.04;
+    const eu = a*0.98 + (r()-0.5)*al*0.1, ev = sgn*(b*0.94 + (r()-0.5)*ac*0.07);
+    const mu=(tu+eu)/2, mv=(tv+ev)/2, ang=Math.atan2(ev-tv, eu-tu), len=Math.hypot(eu-tu, ev-tv);
+    g.save(); g.translate(mu,mv); g.rotate(ang);
+    const rx = len*0.6, ry = Math.max(1.1, ac*0.235);
+    // soft halo (fibre fuzz)
+    g.fillStyle = Y.light; g.globalAlpha = 0.16;
+    g.beginPath(); g.ellipse(0,0,rx+1.4,ry+1.3,0,0,Math.PI*2); g.fill(); g.globalAlpha = 1;
+    const gr = g.createLinearGradient(0,-ry,0,ry);
+    gr.addColorStop(0, Y.deep); gr.addColorStop(0.22, Y.dark); gr.addColorStop(0.45, Y.light);
+    gr.addColorStop(0.7, Y.base); gr.addColorStop(1, Y.deep);
+    g.fillStyle = gr; g.beginPath(); g.ellipse(0,0,rx,ry,0,0,Math.PI*2); g.fill();
+    // ply twist
+    g.save(); g.clip();
+    const step = Math.max(1.6, ry*0.62), n = Math.ceil(rx/step)+1;
+    g.lineWidth = Math.max(0.45, ry*0.16);
+    for (let i=-n;i<=n;i++){
+      const x = i*step;
+      g.strokeStyle='rgba(20,8,4,.20)'; g.beginPath(); g.moveTo(x-ry*0.7,-ry); g.lineTo(x+ry*0.7,ry); g.stroke();
+      g.strokeStyle='rgba(255,250,235,.16)'; g.beginPath(); g.moveTo(x-ry*0.7+step*0.35,-ry); g.lineTo(x+ry*0.7+step*0.35,ry); g.stroke();
+    }
+    g.restore();
+    // stray hairs
+    g.strokeStyle = Y.light; g.lineWidth = 0.5; g.globalAlpha = 0.45;
+    for (let i=0;i<7;i++){
+      const x=(r()*2-1)*rx*0.85, side=r()<0.5?-1:1, yy=side*ry*0.85;
+      g.beginPath(); g.moveTo(x,yy); g.quadraticCurveTo(x+(r()-0.5)*3, yy+side*1.5, x+(r()-0.5)*4, yy+side*(1.4+r()*2.4)); g.stroke();
+    }
+    g.globalAlpha = 1; g.restore();
+  }
+}
+function drawSprite(g, s, x, y){ g.drawImage(s.c, x - s.w/2, y - s.h/2, s.w, s.h); }
+
+/* ---------------- layout ---------------- */
+let W=0, H=0, L=null;
+const bg = document.createElement('canvas'), bgx = bg.getContext('2d');      // background + fixed knitting
+const lay = document.createElement('canvas'), layx = lay.getContext('2d');   // scarf + live numbers
+let fontsReady = false;
+
+function computeLayout(){
+  const vert = W < 760;
+  const o = {vert};
+  if (!vert){
+    const M = Math.max(28, (W-1240)/2 + 28);
+    o.band = {x:M, y:Math.max(26, Math.min(60, (H-800)/2 + 50)), gw:8, gh:6.6};
+    const left = M + 48 + 60;
+    const right = 112;
+    o.al = Math.min(20, (W - left - right)/NW);
+    o.ac = Math.min(26, o.al*1.32);
+    o.sx0 = left; o.sy0 = o.band.y + 13*6.6 + 128;
+    o.dir = 'left';
+    o.scarfW = NW*o.al; o.scarfH = 7*o.ac;
+    const by = o.sy0 + o.scarfH + 100;
+    const swGw = Math.min(6.6, (W - 2*M - 380) / (4*21 + 3*4)), swGh = swGw*0.86;
+    o.swatches = [0,1,2,3].map(k => ({x: M + k*(21*swGw + 4*swGw), y: by, gw:swGw, gh:swGh, cols:21, rows:9}));
+    const lastSw = o.swatches[3];
+    const lx = lastSw.x + 21*swGw + 44;
+    o.legend = {x: lx, y: by + 4, dx: Math.min(56, (W - M - lx - 10)/5), dy:0, r: 15};
+    o.ballR = 30;
+    o.btn = {x: lx + 18, y: by + 96};
+    o.hint = {x: W - M - 310, y: o.band.y + 14, w: 310};
+    o.dayLabelX = M + 34;
+  } else {
+    const M = 14;
+    o.band = {x:M, y:14, gw: Math.min(6.4, (W-2*M)/67), gh: 0};
+    o.band.gh = o.band.gw*0.86;
+    o.ac = Math.min(29, (W*0.56)/7);
+    const top = o.band.y + 13*o.band.gh + 150;
+    o.al = Math.min(13.5, (H - top - 22)/NW);
+    o.sx0 = M + 30; o.sy0 = top;
+    o.dir = 'up';
+    o.scarfW = 7*o.ac; o.scarfH = NW*o.al;
+    const cx = o.sx0 + o.scarfW + 26;
+    const swGw = Math.min(4.6, (W - cx - M)/21), swGh = swGw*0.88;
+    o.swatches = [0,1,2,3].map(k => ({x: cx, y: top - 22 + k*(9*swGh + 50), gw:swGw, gh:swGh, cols:21, rows:9}));
+    const ly = o.swatches[3].y + 9*swGh + 64;
+    o.legend = {x: cx + 12, y: ly, dx: 0, dy: 30, r: 10};
+    o.ballR = 24;
+    o.btn = {x: cx + 4, y: H - 34};
+    o.hint = {x: M, y: o.band.y + 13*o.band.gh + 46, w: W - 2*M};
+  }
+  o.weekCenter = (w,d) => o.vert ? [o.sx0 + (d+0.5)*o.ac, o.sy0 + (w+0.5)*o.al] : [o.sx0 + (w+0.5)*o.al, o.sy0 + (d+0.5)*o.ac];
+  o.edgeOf = (w) => o.vert ? o.sy0 + (w+1)*o.al : o.sx0 + (w+1)*o.al; // live-edge line after week w
+  const [ex] = o.vert ? [0] : [o.edgeOf(weekOf(TODAY))];
+  o.ballRest = o.vert
+    ? {x: o.sx0 + o.scarfW + 44, y: Math.min(H - 110, o.edgeOf(weekOf(TODAY)) + 46)}
+    : {x: ex + 74, y: o.sy0 + o.scarfH + 32};
+  o.maxPull = o.vert ? 300 : Math.min(470, W*0.42);
+  return o;
+}
+
+/* ---------------- state ---------------- */
+let t = reduce ? TODAY : -1;      // last knitted day (inclusive)
+let tf = t;                       // float progress during animation
+let mode = reduce ? 'idle' : 'intro'; // intro | idle | drag | reknit
+let ball = {x:0,y:0,vx:0,vy:0,rot:0};
+let cursor = -1;                  // focused / hovered day
+let hoverFromPointer = false;
+let staticDirty = true, layerDirty = true;
+let hintGone = false;
+let needsDraw = true;
+const tassels = [];
+
+function resize(){
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  for (const c of [cv,bg,lay]){ c.width = Math.round(W*DPR); c.height = Math.round(H*DPR); }
+  L = computeLayout();
+  ball.x = L.ballRest.x; ball.y = L.ballRest.y;
+  if (mode==='drag' || t<TODAY && mode==='idle'){ ball.x = L.ballRest.x + 60; }
+  tassels.length = 0;
+  for (let k=0;k<7;k++) tassels.push({a:0, v:0});
+  placeDom();
+  staticDirty = layerDirty = true; needsDraw = true;
+}
+
+function placeDom(){
+  const f = $('scarfFocus');
+  const sx = L.vert ? L.sx0 : L.sx0, sy = L.sy0;
+  Object.assign(f.style, {left:sx+'px', top:sy+'px', width:L.scarfW+'px', height:L.scarfH+'px'});
+  const h = $('hint');
+  Object.assign(h.style, {left:L.hint.x+'px', top:L.hint.y+'px', maxWidth:L.hint.w+'px'});
+  if (L.vert){ h.style.fontSize='12.5px'; h.style.transform='rotate(-.6deg)'; }
+  const b = $('reknit');
+  Object.assign(b.style, {left:(L.btn.x-24)+'px', top:(L.btn.y-24)+'px', width:(L.vert?150:210)+'px', height:'48px'});
+  placeBall();
+}
+function placeBall(){
+  const e = $('ballCtl'), r = L.ballR + 8;
+  Object.assign(e.style, {left:(ball.x-r)+'px', top:(ball.y-r)+'px', width:2*r+'px', height:2*r+'px'});
+}
+
+/* ---------------- background: garter-stitch blanket ---------------- */
+function paintBackground(){
+  const g = bgx; g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,bg.width,bg.height);
+  // garter tile in device px
+  const gw = 17*DPR, gh = 8*DPR, cols = 10, rows = 8;
+  const tile = document.createElement('canvas'); tile.width = Math.round(gw*cols); tile.height = Math.round(gh*rows);
+  const tg = tile.getContext('2d'); const rr = mulberry32(5);
+  tg.fillStyle = '#1d242d'; tg.fillRect(0,0,tile.width,tile.height);
+  for (let r=0;r<rows;r++) for (let c=-1;c<=cols;c++){
+    const x = c*gw + (r%2 ? gw/2 : 0) + gw/2, y = r*gh + gh/2;
+    const k = 0.9 + rr()*0.2;
+    const gr = tg.createLinearGradient(0,y-gh*0.55,0,y+gh*0.55);
+    gr.addColorStop(0, shade('#586579',k)); gr.addColorStop(0.45, shade('#3d4858',k)); gr.addColorStop(1, '#1e252e');
+    tg.fillStyle = gr; tg.beginPath(); tg.ellipse(x, y, gw*0.56, gh*0.58, (rr()-0.5)*0.12, 0, Math.PI*2); tg.fill();
+    tg.strokeStyle='rgba(255,255,255,.07)'; tg.lineWidth=DPR*0.7; tg.beginPath(); tg.ellipse(x, y-gh*0.08, gw*0.4, gh*0.3, 0, Math.PI*1.1, Math.PI*1.9); tg.stroke();
+  }
+  g.fillStyle = g.createPattern(tile,'repeat'); g.fillRect(0,0,bg.width,bg.height);
+  // pooled lamp light + vignette
+  const v = g.createRadialGradient(bg.width*0.45, bg.height*0.35, 0, bg.width*0.5, bg.height*0.45, Math.max(bg.width,bg.height)*0.75);
+  v.addColorStop(0,'rgba(255,214,160,.10)'); v.addColorStop(0.6,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(5,8,12,.55)');
+  g.fillStyle = v; g.fillRect(0,0,bg.width,bg.height);
+  g.setTransform(DPR,0,0,DPR,0,0);
+  // name band, knitted-in
+  const txt = 'MAYA OKAFOR';
+  const bm = bitmap(F57, txt);
+  const B = L.band, bcols = bm[0].length + 4, brows = 13;
+  const peerie = (r,c) => { // two-colour border rows
+    if (r===0 || r===brows-1) return 'madder';
+    if (r===1 || r===brows-2) return (c%4===1) ? 'saff' : (c%4===3 ? 'madder':'oat');
+    return null;
+  };
+  knitPanel(g, B.x, B.y, B.gw, B.gh, bcols, brows, 'down', (r,c) => {
+    const p = peerie(r,c); if (p) return p;
+    const tr = r - 3, tc = c - 2;
+    if (tr>=0 && tr<7 && tc>=0 && tc<bm[0].length && bm[tr][tc]) return 'aub';
+    return 'oat';
+  });
+  B.w = bcols*B.gw; B.h = brows*B.gh;
+}
+function shade(hex,k){ const n=parseInt(hex.slice(1),16); const f=v=>Math.max(0,Math.min(255,Math.round(v*k))); return 'rgb('+f(n>>16)+','+f(n>>8&255)+','+f(n&255)+')'; }
+
+function knitPanel(g, x, y, gw, gh, cols, rows, dir, colorAt){
+  g.save();
+  g.shadowColor='rgba(6,9,14,.55)'; g.shadowBlur=16; g.shadowOffsetY=7;
+  g.fillStyle = '#2a1d16'; roundRect(g, x-1, y-1, cols*gw+2, rows*gh+2, Math.min(gw,gh)*0.7); g.fill();
+  g.restore();
+  for (let r=0;r<rows;r++) for (let c=0;c<cols;c++){
+    const col = colorAt(r,c);
+    drawSprite(g, sprite(col, gh, gw, dir, (r*7+c*3)%4), x + (c+0.5)*gw, y + (r+0.5)*gh);
+  }
+}
+function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+
+/* ---------------- embroidered text ---------------- */
+const patCache = {};
+function threadPat(g, col, dark){
+  const k = col+dark+DPR; if (patCache[k]) return patCache[k];
+  const c = document.createElement('canvas'); c.width = c.height = 3*DPR; const t = c.getContext('2d');
+  t.fillStyle = col; t.fillRect(0,0,c.width,c.height);
+  t.strokeStyle = dark; t.lineWidth = DPR*0.8; t.beginPath(); t.moveTo(0,c.height); t.lineTo(c.width,0); t.stroke();
+  const p = g.createPattern(c,'repeat'); p.setTransform(new DOMMatrix().scale(1/DPR)); patCache[k] = p; return p;
+}
+function embroider(g, txt, x, y, size, weight, col, opts={}){
+  g.save();
+  g.font = `${weight} ${size}px Fraunces, Georgia, serif`;
+  g.textAlign = opts.align || 'left'; g.textBaseline = opts.base || 'alphabetic';
+  if (opts.ls) g.letterSpacing = opts.ls + 'px';
+  g.fillStyle = 'rgba(8,10,14,.6)'; g.fillText(txt, x+0.7, y+1.3);
+  g.fillStyle = size >= 15 ? threadPat(g, col, opts.dark || 'rgba(0,0,0,.18)') : col;
+  g.fillText(txt, x, y);
+  g.restore();
+}
+
+/* ---------------- scarf layer ---------------- */
+function paintLayer(){
+  const g = layx; g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,lay.width,lay.height); g.setTransform(DPR,0,0,DPR,0,0);
+  const tt = Math.max(-1, t);
+  const S = tt>=0 ? statsThrough(tt) : {total:0,best:0,bestI:0,longest:0,cur:0};
+  const B = L.band;
+  // subtitle (embroidered)
+  const subY = B.y + 13*B.gh + (L.vert ? 22 : 30);
+  embroider(g, 'contributions to lantern-labs/atlas', B.x + 2, subY, L.vert?14:18, 700, '#f1e3c5');
+  const thr = tt>=0 ? 'knitted through ' + fmtShort(tt) + (tt===TODAY ? ' (today)' : '') : 'casting on…';
+  embroider(g, thr, B.x + 2, subY + (L.vert?18:24), L.vert?12:14, 500, tt===TODAY ? '#cbbfa5' : '#f0b860');
+
+  // knitting chart under the unknitted part
+  paintChart(g, tt);
+  // scarf body
+  const wkT = tt>=0 ? weekOf(tt) : -1;
+  g.save();
+  g.shadowColor='rgba(5,8,12,.6)'; g.shadowBlur=18; g.shadowOffsetY=8;
+  g.fillStyle='#24180f'; g.beginPath();
+  // cast-on edge + full weeks + partial week
+  const castOn = 1.0;
+  if (L.vert){
+    g.rect(L.sx0, L.sy0 - castOn*L.al*0.7, L.scarfW, castOn*L.al*0.7 + Math.max(0,wkT)*L.al);
+    if (wkT>=0){ const d=dowOf(tt); g.rect(L.sx0, L.sy0 + wkT*L.al, (d+1)*L.ac, L.al); }
+  } else {
+    g.rect(L.sx0 - castOn*L.al*0.7, L.sy0, castOn*L.al*0.7 + Math.max(0,wkT)*L.al, L.scarfH);
+    if (wkT>=0){ const d=dowOf(tt); g.rect(L.sx0 + wkT*L.al, L.sy0, L.al, (d+1)*L.ac); }
+  }
+  g.fill(); g.restore();
+  // long-tail cast-on: a braided edge
+  castOnEdge(g);
+  // pre-Jan days in the first row carry no data: plain purl texture
+  for (let d=0; d<JAN1; d++){ const [cx,cy]=L.weekCenter(0,d); purl(g,cx,cy,d+3); purl(g, L.vert?cx:cx-L.al*0.25, L.vert?cy-L.al*0.25:cy, d+5); }
+  for (let i=0;i<=tt;i++){
+    const w = weekOf(i), d = dowOf(i), [cx,cy] = L.weekCenter(w,d);
+    const s = sprite(LV[lvlOf(data[i].c)], L.al, L.ac, L.dir, (i*7919)%5);
+    const j = mulberry32(i+11)();
+    drawSprite(g, s, cx + (j-0.5)*0.8, cy + (j*7%1-0.5)*0.8);
+  }
+  // month labels with totals
+  const mt = monthTotals(Math.max(0,tt));
+  for (let m=0;m<12;m++){
+    const first = Math.round((new Date(2026,m,1) - Y0)/864e5);
+    const w = weekOf(first);
+    const done = first <= tt;
+    if (L.vert){
+      const y = L.sy0 + (w+0.5)*L.al + 4;
+      embroider(g, MON[m], L.sx0 - 6, y, 10.5, 700, done ? '#f1e3c5' : 'rgba(241,227,197,.38)', {align:'right'});
+    } else {
+      const x = L.sx0 + w*L.al + 1;
+      embroider(g, MON[m], x, L.sy0 - 30, 13, 700, done ? '#f1e3c5' : 'rgba(241,227,197,.35)');
+      if (done) embroider(g, String(mt[m]), x, L.sy0 - 13, 11.5, 500, '#e9b46a');
+    }
+  }
+  // day labels
+  const dl = ['S','M','T','W','T','F','S'];
+  if (L.vert){
+    if (tt < NDAYS-8){
+      g.save(); g.fillStyle='rgba(70,72,86,.8)'; g.font='700 15px Caveat, cursive'; g.textAlign='center';
+      for (let d=0;d<7;d++){ const x=L.sx0+(d+0.5)*L.ac; g.fillText(dl[d], x, L.sy0 + NW*L.al - 4); }
+      g.restore();
+    }
+  } else {
+    const nm = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    for (let d=1;d<7;d+=2){ const y=L.sy0+(d+0.5)*L.ac+4; embroider(g, nm[d], L.dayLabelX, y, 12, 700, '#f1e3c5', {align:'right'}); }
+  }
+  // swatches with knitted-in numbers
+  const vals = [S.total.toLocaleString('en-GB'), String(S.best), String(S.longest), String(S.cur)];
+  const swCols = ['oat','oat','oat','oat'];
+  const ink = ['aub','madder','terra','moss'];
+  const caps = L.vert
+    ? [['contributions','so far'], ['busiest day', tt>=0 ? fmtShort(S.bestI) : '—'], ['longest streak','days'], ['current streak','days']]
+    : [['contributions','in 2026 so far'], ['on the busiest day', tt>=0 ? fmtLong(S.bestI) : '—'], ['days, longest streak','without a gap'], ['days, current streak', tt>=0 ? 'ending '+fmtShort(tt) : '']];
+  L.swatches.forEach((sw,k) => {
+    const bm = bitmap(F35, vals[k]);
+    const tc = bm[0].length, off = Math.floor((sw.cols - tc)/2);
+    knitPanel(g, sw.x, sw.y, sw.gw, sw.gh, sw.cols, sw.rows, 'down', (r,c) => {
+      if (r===0 || r===sw.rows-1) return ink[k];
+      const tr = r-2, tcc = c-off;
+      if (tr>=0 && tr<5 && tcc>=0 && tcc<tc && bm[tr][tcc]) return ink[k];
+      return swCols[k];
+    });
+    const cy = sw.y + sw.rows*sw.gh + (L.vert ? 15 : 22);
+    embroider(g, caps[k][0], sw.x + 1, cy, L.vert?11.5:14, 700, '#f1e3c5');
+    if (caps[k][1]) embroider(g, caps[k][1], sw.x + 1, cy + (L.vert?14:18), L.vert?10.5:12.5, 500, '#d9c9a8');
+  });
+  // legend: little skeins
+  const lg = L.legend;
+  embroider(g, L.vert ? 'stitches per day' : 'Contributions per day', lg.x - (L.vert?12:0), lg.y - (L.vert?14:10), L.vert?11:13, 700, '#f1e3c5');
+  for (let k=0;k<5;k++){
+    const x = lg.x + k*lg.dx + lg.r, y = lg.y + k*lg.dy + lg.r + 10;
+    drawBall(g, x, y, lg.r, k*1.3, YARN[LV[k]], false);
+    if (L.vert) embroider(g, LEVEL_TXT[k], x + lg.r + 8, y + 4, 11, 700, '#f1e3c5');
+    else embroider(g, LEVEL_TXT[k], x, y + lg.r + 18, 12, 700, '#f1e3c5', {align:'center'});
+  }
+  // sewing-button control
+  const bx = L.btn.x, by = L.btn.y;
+  drawSewButton(g, bx, by, L.vert ? 15 : 18);
+  const lab = tt < TODAY ? (L.vert ? 'Knit to today' : 'Knit back to today') : 'Cast on again';
+  embroider(g, lab, bx + (L.vert?20:30), by + 5, L.vert ? 12.5 : 16, 700, '#f6e8cc');
+  $('reknit').textContent = tt < TODAY ? 'Knit the scarf back up to today' : 'Cast on again and replay the year';
+  // summary + aria
+  $('summary').textContent = `Maya Okafor made ${S.total.toLocaleString('en-GB')} contributions to lantern-labs/atlas in 2026 through ${tt>=0?fmtLong(tt):'the start of the year'}. Busiest day ${tt>=0?fmtLong(S.bestI):'none'} with ${S.best}. Longest streak ${S.longest} days, current streak ${S.cur} days.`;
+}
+
+function paintChart(g, tt){
+  // pencil knitting chart for the rows still to be knitted
+  const from = tt+1;
+  if (from > NDAYS-1) return;
+  const wk0 = weekOf(Math.max(0,from));
+  g.save();
+  let x,y,w,h;
+  if (L.vert){ x=L.sx0-2; y=L.sy0 + wk0*L.al - 2; w=L.scarfW+4; h=(NW-wk0)*L.al+4; }
+  else { x=L.sx0 + wk0*L.al - 2; y=L.sy0-2; w=(NW-wk0)*L.al+4; h=L.scarfH+4; }
+  g.shadowColor='rgba(0,0,0,.35)'; g.shadowBlur=10; g.shadowOffsetY=4;
+  g.fillStyle='#ece4d2'; g.fillRect(x,y,w,h); g.shadowColor='transparent';
+  g.strokeStyle='rgba(90,100,120,.28)'; g.lineWidth=0.7; g.beginPath();
+  if (L.vert){
+    for (let d=0; d<=7; d++){ g.moveTo(L.sx0+d*L.ac, y); g.lineTo(L.sx0+d*L.ac, y+h); }
+    for (let k=wk0; k<=NW; k++){ g.moveTo(x, L.sy0+k*L.al); g.lineTo(x+w, L.sy0+k*L.al); }
+  } else {
+    for (let d=0; d<=7; d++){ g.moveTo(x, L.sy0+d*L.ac); g.lineTo(x+w, L.sy0+d*L.ac); }
+    for (let k=wk0; k<=NW; k++){ g.moveTo(L.sx0+k*L.al, y); g.lineTo(L.sx0+k*L.al, y+h); }
+  }
+  g.stroke();
+  // shade cells that are already knitted (the partial week) so the grid reads correctly
+  g.fillStyle='rgba(60,70,90,.07)';
+  for (let k=wk0; k<NW; k+=2){ if (L.vert) g.fillRect(x, L.sy0+k*L.al, w, L.al); else g.fillRect(L.sx0+k*L.al, y, L.al, h); }
+  const weeksLeft = NW - 1 - weekOf(Math.max(0,tt));
+  g.fillStyle='rgba(70,72,86,.75)'; g.font = `600 ${L.vert?15:19}px Caveat, cursive`;
+  g.textAlign='center';
+  if (L.vert){
+    if (h > 60){ g.save(); g.translate(x+w/2, y+h/2); g.fillText(weeksLeft+' rows to go', 0, 4); g.restore(); }
+  } else if (w > 90){
+    g.fillText(weeksLeft + ' rows to go', x+w/2, y+h/2 - 4);
+    g.font = `500 ${15}px Caveat, cursive`; g.fillText('one row a week', x+w/2, y+h/2 + 15);
+  }
+  g.restore();
+}
+
+function castOnEdge(g){
+  const n = 7*3, Y = YARN.oat;
+  for (let k=0;k<n;k++){
+    const f = (k+0.5)/n;
+    const x = L.vert ? L.sx0 + f*L.scarfW : L.sx0 - L.al*0.42;
+    const y = L.vert ? L.sy0 - L.al*0.42 : L.sy0 + f*L.scarfH;
+    g.save(); g.translate(x,y); g.rotate(L.vert ? 0.75 : 0.75 + Math.PI/2);
+    const len = (L.vert ? L.scarfW : L.scarfH)/n*0.95, th = L.vert ? 3 : 3.6;
+    const gr = g.createLinearGradient(0,-th,0,th); gr.addColorStop(0,Y.light); gr.addColorStop(0.6,Y.base); gr.addColorStop(1,Y.deep);
+    g.fillStyle = gr; g.beginPath(); g.ellipse(0,0,len*0.75,th,0,0,Math.PI*2); g.fill();
+    g.restore();
+  }
+}
+function purl(g, x, y, seed){
+  const r = mulberry32(seed*31+7);
+  const w = (L.vert ? L.ac : L.al)*0.42, h = (L.vert ? L.al : L.ac)*0.2;
+  const Y = YARN.slate;
+  g.save(); g.translate(x,y); if (!L.vert) g.rotate(Math.PI/2);
+  const gr = g.createLinearGradient(0,-h,0,h); gr.addColorStop(0,Y.light); gr.addColorStop(0.6,Y.base); gr.addColorStop(1,Y.deep);
+  g.fillStyle = gr; g.beginPath(); g.ellipse((r()-0.5)*2, 0, w, h, (r()-0.5)*0.2, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
+/* ---------------- props ---------------- */
+function drawBall(g, x, y, r, rot, Y, shadow=true){
+  g.save();
+  if (shadow){ const sg = g.createRadialGradient(x+r*0.15, y+r*0.9, 0, x+r*0.15, y+r*0.9, r*1.05); sg.addColorStop(0,'rgba(5,8,12,.5)'); sg.addColorStop(1,'rgba(5,8,12,0)'); g.fillStyle=sg; g.save(); g.translate(x+r*0.15, y+r*0.9); g.scale(1,0.3); g.beginPath(); g.arc(0,0,r*1.05,0,Math.PI*2); g.restore(); g.fill(); }
+  else { g.fillStyle='rgba(5,8,12,.35)'; g.beginPath(); g.ellipse(x+1, y+r*0.9, r*0.85, r*0.22, 0, 0, Math.PI*2); g.fill(); }
+  const gr = g.createRadialGradient(x - r*0.35, y - r*0.4, r*0.1, x, y, r*1.05);
+  gr.addColorStop(0, Y.light); gr.addColorStop(0.5, Y.base); gr.addColorStop(1, Y.deep);
+  g.fillStyle = gr; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+  g.clip();
+  const sets = [[rot, 0.0], [rot*0.6+1.9, 0.4], [-rot*0.8+3.6, 0.8]];
+  for (const [a, ph] of sets){
+    for (let i=0;i<10;i++){
+      const rx = r*(0.12 + i*0.1 + ph*0.04);
+      g.strokeStyle = i%2 ? 'rgba(255,248,230,.22)' : 'rgba(30,10,5,.22)';
+      g.lineWidth = Math.max(0.8, r*0.06);
+      g.beginPath(); g.ellipse(x, y, rx, r*1.04, a, 0, Math.PI*2); g.stroke();
+    }
+  }
+  const sh = g.createRadialGradient(x - r*0.4, y - r*0.45, 0, x, y, r);
+  sh.addColorStop(0,'rgba(255,250,235,.25)'); sh.addColorStop(0.5,'rgba(255,250,235,0)'); sh.addColorStop(1,'rgba(0,0,0,.3)');
+  g.fillStyle = sh; g.fillRect(x-r,y-r,2*r,2*r);
+  g.restore();
+}
+function drawSewButton(g, x, y, r){
+  g.save();
+  g.shadowColor='rgba(0,0,0,.5)'; g.shadowBlur=8; g.shadowOffsetY=3;
+  const gr = g.createRadialGradient(x-r*0.3,y-r*0.35,r*0.1,x,y,r);
+  gr.addColorStop(0,'#d9a46a'); gr.addColorStop(0.7,'#9c6234'); gr.addColorStop(1,'#5e3518');
+  g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); g.shadowColor='transparent';
+  g.strokeStyle='rgba(60,30,10,.6)'; g.lineWidth=1.2; g.beginPath(); g.arc(x,y,r*0.74,0,Math.PI*2); g.stroke();
+  g.strokeStyle='rgba(255,220,170,.35)'; g.beginPath(); g.arc(x,y,r*0.78,Math.PI*1.1,Math.PI*1.7); g.stroke();
+  const hs = r*0.26;
+  const holes = [[-hs,-hs],[hs,-hs],[-hs,hs],[hs,hs]];
+  g.strokeStyle='#a52f38'; g.lineWidth=r*0.16; g.lineCap='round';
+  g.beginPath(); g.moveTo(x-hs,y-hs); g.lineTo(x+hs,y+hs); g.moveTo(x+hs,y-hs); g.lineTo(x-hs,y+hs); g.stroke();
+  for (const [dx,dy] of holes){ g.fillStyle='#3b210e'; g.beginPath(); g.arc(x+dx,y+dy,r*0.1,0,Math.PI*2); g.fill(); }
+  g.restore();
+}
+function drawNeedle(g, x1, y1, x2, y2, w){
+  g.save();
+  const ang = Math.atan2(y2-y1, x2-x1), len = Math.hypot(x2-x1,y2-y1);
+  g.translate(x1,y1); g.rotate(ang);
+  g.shadowColor='rgba(0,0,0,.45)'; g.shadowBlur=6; g.shadowOffsetY=4;
+  const gr = g.createLinearGradient(0,-w/2,0,w/2);
+  gr.addColorStop(0,'#f0d3a1'); gr.addColorStop(0.45,'#cf9f62'); gr.addColorStop(1,'#7d5124');
+  g.fillStyle = gr;
+  g.beginPath(); g.moveTo(0,0); g.lineTo(w*2.2,-w/2); g.lineTo(len,-w/2); g.lineTo(len,w/2); g.lineTo(w*2.2,w/2); g.closePath(); g.fill();
+  g.shadowColor='transparent';
+  // grain
+  g.strokeStyle='rgba(110,70,30,.25)'; g.lineWidth=0.6;
+  for (let k=0;k<3;k++){ g.beginPath(); g.moveTo(w*3, -w*0.25 + k*w*0.22); g.lineTo(len-4, -w*0.2 + k*w*0.22); g.stroke(); }
+  // knob
+  const kg = g.createRadialGradient(len-1, -w*0.3, 1, len+2, 0, w*1.3);
+  kg.addColorStop(0,'#e06b5d'); kg.addColorStop(1,'#7a1f27');
+  g.fillStyle = kg; g.beginPath(); g.arc(len+w*0.6, 0, w*1.05, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
+/* ---------------- dynamic frame ---------------- */
+function liveEdge(){ // working point and needle line, for day tt
+  const tt = Math.max(-1, Math.floor(tf));
+  const wk = tt>=0 ? weekOf(tt) : 0, d = tt>=0 ? dowOf(tt) : -1;
+  const lead = tt>=0 && d<6 ? wk : wk+ (tt>=0?1:0);
+  const e = L.edgeOf(tt>=0 ? wk : -1);
+  const [cx,cy] = tt>=0 ? L.weekCenter(wk, d) : L.weekCenter(0,0);
+  return {e, cx, cy, wk, d, tt, lead};
+}
+
+function frame(){
+  if (document.hidden){ requestAnimationFrame(frame); return; }
+  const now = performance.now(); const rawDt = (now - (frame.last||now))/1000; const dt = Math.min(0.05, rawDt); frame.last = now;
+  // progress animations
+  if (mode==='intro' || mode==='reknit'){
+    const speed = mode==='intro' ? 150 : 130;
+    const prev = Math.floor(tf);
+    tf = Math.min(TODAY, tf + Math.min(0.25, rawDt)*speed*(mode==='reknit' ? 1 + (TODAY - tf)/120 : 1));
+    const nt = Math.floor(tf);
+    if (nt !== t){
+      if (mode==='reknit' && weekOf(Math.max(0,nt)) !== weekOf(Math.max(0,prev))) tick(0.05);
+      t = nt; layerDirty = true;
+    }
+    ball.rot += dt*9;
+    if (tf >= TODAY){ t = TODAY; tf = TODAY; mode='idle'; layerDirty = true; if (!reduce) tassels.forEach((T,k)=>{ T.v += (k%2?1:-1)*(0.9+k*0.08); }); if (AC) tick(0.08, 900); announce('Knitted through today, '+fmtLong(TODAY)+'. '+statsThrough(TODAY).total.toLocaleString('en-GB')+' contributions.'); }
+  }
+  if (mode !== 'drag'){
+    if (t >= TODAY || mode==='reknit' || mode==='intro'){
+      // ball rolls home
+      const k = 60, c = 13;
+      const ax = (L.ballRest.x - ball.x)*k - ball.vx*c, ay = (L.ballRest.y - ball.y)*k - ball.vy*c;
+      ball.vx += ax*dt; ball.vy += ay*dt; ball.x += ball.vx*dt; ball.y += ball.vy*dt;
+      ball.rot += ball.vx*dt/L.ballR;
+    }
+  }
+  if (staticDirty){ paintBackground(); staticDirty = false; needsDraw = true; }
+  const animating = mode==='intro' || mode==='reknit';
+  if (layerDirty && (!animating || now - (frame.lastPaint||0) > 70 || t>=TODAY)){ paintLayer(); layerDirty = false; frame.lastPaint = now; needsDraw = true; }
+  const moving = animating || mode==='drag' || Math.abs(ball.vx)+Math.abs(ball.vy) > 0.5 || Math.hypot(ball.x-L.ballRest.x, ball.y-L.ballRest.y) > 0.5 && t>=TODAY
+    || tassels.some(T => Math.abs(T.v) > 0.002 || Math.abs(T.a) > 0.002);
+  if (!moving && !needsDraw){ requestAnimationFrame(frame); return; }
+  needsDraw = false;
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.drawImage(bg,0,0); ctx.drawImage(lay,0,0);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawTassels(dt);
+  const E = liveEdge();
+  // needles: holding needle along live edge, working needle crossing at the stitch
+  const nw = L.vert ? 6 : 7;
+  if (L.vert){
+    const y = E.tt>=0 ? E.e - L.al*0.15 : L.sy0;
+    drawNeedle(ctx, L.sx0 - 26, y + 2, L.sx0 + L.scarfW + 30, y - 4, nw);
+    const [cx,cy] = [E.cx + L.ac*0.5, (E.tt>=0 ? E.e : L.sy0) + 2];
+    drawNeedle(ctx, cx + 10, cy - 26 + Math.sin(performance.now()/180)*(mode==='idle'?0:2), cx + 64, cy + 30, nw*0.9);
+  } else {
+    const x = E.tt>=0 ? E.e - L.al*0.15 : L.sx0;
+    drawNeedle(ctx, x + 2, L.sy0 - 30, x - 4, L.sy0 + L.scarfH + 34, nw);
+    const cy = E.cy + L.ac*0.5, x2 = (E.tt>=0 ? E.e : L.sx0);
+    drawNeedle(ctx, x2 - 26 + Math.sin(performance.now()/180)*(mode==='idle'?0:2), cy - 8, x2 + 40, cy + 64, nw*0.9);
+  }
+  // live loops on the holding needle
+  for (let d=0; d<7; d++){
+    const i = E.tt>=0 ? (E.wk*7 + d - JAN1) : -1;
+    const col = (i>=0 && i<=E.tt) ? LV[lvlOf(data[i].c)] : 'oat';
+    const Y = YARN[col];
+    ctx.strokeStyle = Y.base; ctx.lineWidth = L.vert ? 3 : 3.4;
+    ctx.beginPath();
+    if (L.vert){ const x = L.sx0 + (d+0.5)*L.ac, y = (E.tt>=0?E.e:L.sy0) - L.al*0.15; ctx.ellipse(x, y, L.ac*0.22, 4.2, 0, Math.PI*0.05, Math.PI*0.95, true); }
+    else { const y = L.sy0 + (d+0.5)*L.ac, x = (E.tt>=0?E.e:L.sx0) - L.al*0.15; ctx.ellipse(x, y, 4.6, L.ac*0.22, 0, -Math.PI*0.45, Math.PI*0.45, true); }
+    ctx.stroke();
+  }
+  // yarn to the ball
+  drawYarn(E);
+  drawBall(ctx, ball.x, ball.y, L.ballR, ball.rot, YARN.oat, true);
+  placeBall();
+  // stitch marker on cursor day
+  if (cursor>=0 && cursor<=t){
+    const [cx,cy] = L.weekCenter(weekOf(cursor), dowOf(cursor));
+    ctx.save();
+    ctx.lineWidth = 2.6; ctx.strokeStyle = '#1f8a7a';
+    ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=4; ctx.shadowOffsetY=2;
+    ctx.beginPath(); ctx.ellipse(cx, cy, (L.vert?L.ac:L.al)*0.58, (L.vert?L.al:L.ac)*0.58, 0, 0.25, Math.PI*2-0.25); ctx.stroke();
+    ctx.shadowColor='transparent'; ctx.strokeStyle='rgba(200,255,240,.6)'; ctx.lineWidth=0.9;
+    ctx.beginPath(); ctx.ellipse(cx, cy, (L.vert?L.ac:L.al)*0.58, (L.vert?L.al:L.ac)*0.58, 0, Math.PI*1.1, Math.PI*1.5); ctx.stroke();
+    ctx.restore();
+  }
+  requestAnimationFrame(frame);
+}
+
+function drawYarn(E){
+  const sx = L.vert ? E.cx + L.ac*0.25 : (E.tt>=0 ? E.e : L.sx0) + 2;
+  const sy = L.vert ? (E.tt>=0 ? E.e : L.sy0) + 3 : E.cy + L.ac*0.3;
+  const ex = ball.x - L.ballR*0.55, ey = ball.y - L.ballR*0.5;
+  const unr = TODAY - Math.max(0,t);
+  const dist = Math.hypot(ex-sx, ey-sy);
+  const sag = Math.max(10, 70 - dist*0.08);
+  const mx = (sx+ex)/2, my = Math.max(sy,ey) + sag;
+  const kink = Math.min(4.2, unr*0.03) * (mode==='reknit' ? 0.4 : 1);
+  ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
+  const pts = [];
+  const N = 70;
+  for (let k=0;k<=N;k++){
+    const u = k/N, a=(1-u)*(1-u), b=2*u*(1-u), c=u*u;
+    let x = a*sx + b*mx + c*ex, y = a*sy + b*my + c*ey;
+    if (kink>0){ const ph = u*dist/5.5; x += Math.sin(ph*2.1)*kink*Math.sin(u*Math.PI); y += Math.cos(ph*1.7)*kink*Math.sin(u*Math.PI); }
+    pts.push([x,y]);
+  }
+  for (const [w,c] of [[4.2,'rgba(5,8,12,.35)'],[3.2,YARN.oat.dark],[1.6,YARN.oat.light]]){
+    ctx.strokeStyle=c; ctx.lineWidth=w; ctx.beginPath();
+    pts.forEach(([x,y],k)=> k? ctx.lineTo(x + (w>4?1:0), y + (w>4?2:0)) : ctx.moveTo(x,y)); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawTassels(dt){
+  const cols = ['oat','saff','terra','madder','aub'];
+  for (let k=0;k<7;k++){
+    const T = tassels[k];
+    if (!reduce){ T.v += (-40*T.a - 2.6*T.v)*dt; T.a += T.v*dt; }
+    let ax, ay, dx, dy;
+    if (L.vert){ ax = L.sx0 + (k+0.5)*L.ac; ay = L.sy0 - L.al*0.75; dx = 0; dy = -1; }
+    else { ax = L.sx0 - L.al*0.75; ay = L.sy0 + (k+0.5)*L.ac; dx = -1; dy = 0; }
+    const len = L.vert ? 30 : 50;
+    ctx.save(); ctx.lineCap='round';
+    for (let s=0;s<5;s++){
+      const Y = YARN[cols[(k+s)%5]];
+      const off = (s-2)*(L.vert?1.6:2.2);
+      const sw = T.a*(1 + s*0.08);
+      const bx = ax + (L.vert ? off*0.5 : 0), by = ay + (L.vert ? 0 : off*0.5);
+      const tx = ax + dx*len + (L.vert ? off*1.6 + sw*len : 0) + (L.vert?0: -Math.abs(sw)*4);
+      const ty = ay + dy*len + (L.vert ? -Math.abs(sw)*4 : off*1.6 + sw*len);
+      const cx = ax + dx*len*0.5 + (L.vert ? off + sw*len*0.3 : 0), cy = ay + dy*len*0.5 + (L.vert ? 0 : off + sw*len*0.3);
+      ctx.strokeStyle='rgba(5,8,12,.35)'; ctx.lineWidth=3.4; ctx.beginPath(); ctx.moveTo(bx+1,by+2); ctx.quadraticCurveTo(cx+1,cy+2,tx+1,ty+2); ctx.stroke();
+      ctx.strokeStyle=Y.dark; ctx.lineWidth=2.6; ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(cx,cy,tx,ty); ctx.stroke();
+      ctx.strokeStyle=Y.light; ctx.globalAlpha=0.55; ctx.lineWidth=0.9; ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(cx,cy,tx,ty); ctx.stroke(); ctx.globalAlpha=1;
+    }
+    // wrap knot
+    const kx = ax + dx*9, ky = ay + dy*9;
+    ctx.fillStyle = YARN.madder.base; ctx.beginPath();
+    if (L.vert) ctx.ellipse(kx, ky, 5, 3, 0, 0, Math.PI*2); else ctx.ellipse(kx, ky, 3, 5.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ---------------- sound: wooden needle clicks ---------------- */
+let AC = null, master = null;
+function audio(){
+  if (AC) { if (AC.state==='suspended') AC.resume(); return; }
+  try { AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.16; master.connect(AC.destination); } catch(e){ AC = null; }
+}
+function tick(vol=0.06, freq=2600){
+  if (!AC) return;
+  const t0 = AC.currentTime, len = 0.04;
+  const buf = AC.createBuffer(1, Math.ceil(AC.sampleRate*len), AC.sampleRate), d = buf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, 6);
+  const src = AC.createBufferSource(); src.buffer = buf;
+  const bp = AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = freq*(0.9+Math.random()*0.2); bp.Q.value = 6;
+  const g = AC.createGain(); g.gain.value = vol;
+  src.connect(bp); bp.connect(g); g.connect(master); src.start(t0);
+}
+
+/* ---------------- interaction ---------------- */
+function dayAt(x,y){
+  let w,d;
+  if (L.vert){ d = Math.floor((x-L.sx0)/L.ac); w = Math.floor((y-L.sy0)/L.al); }
+  else { w = Math.floor((x-L.sx0)/L.al); d = Math.floor((y-L.sy0)/L.ac); }
+  if (d<0||d>6||w<0||w>=NW) return -1;
+  const i = w*7 + d - JAN1;
+  return (i>=0 && i<=t) ? i : -1;
+}
+function showTag(i){
+  needsDraw = true;
+  const tag = $('tag');
+  if (i<0){ tag.hidden = true; return; }
+  const D = data[i], col = YARN[LV[lvlOf(D.c)]].base;
+  const parts = [];
+  if (D.com) parts.push(D.com + (D.com===1?' commit':' commits'));
+  if (D.prs) parts.push(D.prs + (D.prs===1?' pull request':' pull requests'));
+  if (D.rev) parts.push(D.rev + (D.rev===1?' review':' reviews'));
+  if (D.iss) parts.push(D.iss + ' issue opened');
+  tag.innerHTML = `<div class="d">${fmtLong(i)}</div><div class="n">${D.c} <small>${D.c===1?'contribution':'contributions'}</small></div><div class="b"><span class="sw" style="background:${col}"></span>${parts.length? parts.join(' · ') : 'No contributions — a rest day'}</div>`;
+  tag.hidden = false;
+  const [cx,cy] = L.weekCenter(weekOf(i), dowOf(i));
+  const r = tag.getBoundingClientRect();
+  let x = cx + 18, y = cy + 18;
+  if (x + r.width > W - 8) x = cx - r.width - 18;
+  if (y + r.height > H - 8) y = cy - r.height - 18;
+  x = Math.max(8, x); y = Math.max(8, y);
+  tag.style.left = x+'px'; tag.style.top = y+'px';
+}
+function describe(i){ const D=data[i]; return `${fmtLong(i)}: ${D.c} ${D.c===1?'contribution':'contributions'}. ${D.com} commits, ${D.prs} pull requests, ${D.rev} reviews.`; }
+function announce(s){ $('live').textContent = s; }
+function dismissHint(){ if (!hintGone){ hintGone = true; $('hint').classList.add('gone'); } }
+
+cv.addEventListener('pointermove', e => {
+  if (mode==='drag') return;
+  const i = dayAt(e.clientX, e.clientY);
+  // stir the fringe
+  if (Math.abs(e.movementX)+Math.abs(e.movementY) > 0){
+    tassels.forEach((T,k) => {
+      const ax = L.vert ? L.sx0 + (k+0.5)*L.ac : L.sx0 - 30, ay = L.vert ? L.sy0 - 20 : L.sy0 + (k+0.5)*L.ac;
+      const d = Math.hypot(e.clientX-ax, e.clientY-ay);
+      if (d < 60) T.v += (L.vert ? e.movementX : e.movementY) * 0.02 * (1 - d/60);
+    });
+  }
+  if (i !== cursor){ cursor = i; hoverFromPointer = true; showTag(i); if (i>=0) dismissHintSoon(); }
+});
+let hintTimer = 0;
+function dismissHintSoon(){ if (!hintTimer) hintTimer = setTimeout(dismissHint, 2600); }
+cv.addEventListener('pointerleave', () => { if (hoverFromPointer){ cursor=-1; showTag(-1); } });
+cv.addEventListener('pointerdown', e => {
+  audio();
+  const i = dayAt(e.clientX, e.clientY);
+  cursor = i; showTag(i); if (i>=0) announce(describe(i));
+});
+
+const ballEl = $('ballCtl');
+let drag = null;
+ballEl.addEventListener('pointerdown', e => {
+  audio(); e.preventDefault();
+  try { ballEl.setPointerCapture(e.pointerId); } catch(_){}
+  drag = {ox: e.clientX - ball.x, oy: e.clientY - ball.y, lastWeek: weekOf(Math.max(0,t))};
+  if (mode==='intro' || mode==='reknit'){ tf = t; }
+  mode = 'drag'; dismissHint(); showTag(-1); cursor = -1;
+});
+ballEl.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const nx = Math.max(L.ballR, Math.min(W - L.ballR, e.clientX - drag.ox));
+  const ny = Math.max(L.ballR, Math.min(H - L.ballR, e.clientY - drag.oy));
+  ball.rot += (nx - ball.x)/L.ballR;
+  ball.x = nx; ball.y = ny; ball.vx = ball.vy = 0;
+  const dist = Math.hypot(ball.x - L.ballRest.x, ball.y - L.ballRest.y);
+  const nt = Math.max(0, Math.min(TODAY, Math.round(TODAY - (dist/L.maxPull)*TODAY)));
+  if (nt !== t){
+    const wk = weekOf(nt);
+    if (wk !== drag.lastWeek){ tick(0.07, nt < t ? 1500 : 2600); drag.lastWeek = wk; }
+    t = nt; tf = nt; layerDirty = true; needsDraw = true; updateSlider();
+  }
+});
+const endDrag = () => {
+  if (!drag) return; drag = null;
+  if (t >= TODAY - 2){ t = TODAY; tf = TODAY; mode = 'idle'; layerDirty = true; }
+  else { mode = 'idle'; announce('Unravelled to '+fmtLong(t)+'. '+statsThrough(t).total.toLocaleString('en-GB')+' contributions by then.'); }
+  updateSlider();
+};
+ballEl.addEventListener('pointerup', endDrag);
+ballEl.addEventListener('pointercancel', endDrag);
+ballEl.addEventListener('keydown', e => {
+  let nt = t;
+  if (e.key==='ArrowLeft'||e.key==='ArrowDown') nt = t-1;
+  else if (e.key==='ArrowRight'||e.key==='ArrowUp') nt = t+1;
+  else if (e.key==='PageDown') nt = t-7; else if (e.key==='PageUp') nt = t+7;
+  else if (e.key==='Home') nt = 0; else if (e.key==='End') nt = TODAY;
+  else return;
+  e.preventDefault(); audio(); dismissHint();
+  nt = Math.max(0, Math.min(TODAY, nt));
+  if (nt !== t){
+    if (mode==='intro'||mode==='reknit') mode='idle';
+    if (weekOf(nt)!==weekOf(t)) tick(0.06, nt<t?1500:2600);
+    t = nt; tf = nt; layerDirty = true;
+    const frac = (TODAY - t)/TODAY;
+    ball.x = L.ballRest.x + frac*L.maxPull*(L.vert? 0.15 : 0.55); ball.y = L.ballRest.y + frac*L.maxPull*(L.vert? -0.95 : 0.25);
+    ball.x = Math.min(W - L.ballR, ball.x); ball.y = Math.max(L.ballR, Math.min(H-L.ballR, ball.y));
+    ball.rot -= 0.3; updateSlider();
+  }
+});
+function updateSlider(){
+  needsDraw = true;
+  ballEl.setAttribute('aria-valuenow', String(Math.max(0,t)));
+  ballEl.setAttribute('aria-valuetext', 'Through '+fmtLong(Math.max(0,t))+', '+statsThrough(Math.max(0,t)).total+' contributions');
+}
+
+$('reknit').addEventListener('click', () => {
+  audio(); dismissHint();
+  if (t >= TODAY){ // cast on again
+    t = -1; tf = -1; mode = reduce ? 'idle' : 'reknit';
+    if (reduce){ t = TODAY; tf = TODAY; }
+  } else {
+    tf = t; mode = reduce ? 'idle' : 'reknit';
+    if (reduce){ t = TODAY; tf = TODAY; ball.x = L.ballRest.x; ball.y = L.ballRest.y; }
+  }
+  layerDirty = true; updateSlider();
+});
+
+const sf = $('scarfFocus');
+sf.addEventListener('focus', () => { if (cursor<0) cursor = Math.max(0,t); showTag(cursor); announce(describe(cursor)); hoverFromPointer=false; });
+sf.addEventListener('blur', () => { showTag(-1); cursor = -1; });
+sf.addEventListener('keydown', e => {
+  const map = L.vert ? {ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7} : {ArrowUp:-1,ArrowDown:1,ArrowLeft:-7,ArrowRight:7};
+  let d = map[e.key];
+  if (e.key==='Home') d = -cursor; if (e.key==='End') d = t - cursor;
+  if (d===undefined) return;
+  e.preventDefault(); audio(); dismissHint();
+  cursor = Math.max(0, Math.min(t, (cursor<0?t:cursor) + d));
+  showTag(cursor); announce(describe(cursor)); tick(0.03, 3200);
+});
+
+addEventListener('resize', () => { resize(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fontsReady = true; staticDirty = layerDirty = true; needsDraw = true; });
+resize(); updateSlider();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

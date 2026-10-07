@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snow Globe Weather</title>
+<meta name="description" content="A weather widget photographed as a tilt-shift miniature: a model town inside a snow globe shows the current conditions; shake the globe to refresh, and the weather settles into the new reading.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Snow Globe Weather","reimagines":"Weather widget","category":"Data & Visualization","description":"Current weather as a tilt-shift photo of a model town inside a snow globe: the miniature's sky, roofs, streets and tiny umbrellas show the conditions, the brass plaque and standing cards carry the numbers. Shake the globe to refresh; the flakes swirl and settle into the new reading.","hint":"Drag the globe side to side to shake it and refresh; turn the knobs to change city"}
+</script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#2a2421}
+  body{font-family:Nunito, "Avenir Next", sans-serif}
+  .stage{position:relative;width:100vw;height:100dvh;overflow:hidden}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .hot{position:absolute;border:0;padding:0;background:transparent;cursor:pointer;outline:none;color:transparent;font-size:0;overflow:hidden}
+  .hot:focus-visible{outline:3px solid #ffd76a;outline-offset:4px}
+  #globeHit{border-radius:50%;cursor:grab;touch-action:none}
+  #globeHit:active{cursor:grabbing}
+  .knob{border-radius:50%}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="cv" aria-hidden="true"></canvas>
+  <button class="hot" id="globeHit" type="button" aria-describedby="reading">Shake the snow globe to refresh the weather</button>
+  <button class="hot knob" id="prev" type="button" aria-label="Previous city"></button>
+  <button class="hot knob" id="next" type="button" aria-label="Next city"></button>
+  <div class="sr" id="reading"></div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.getElementById(s);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const TAU = Math.PI*2;
+
+/* ---------------- weather data: scripted observations per city, Wed 7 Oct 2026 ---------------- */
+const CITIES = [
+  { name:'Oslo', country:'Norway', tz:'CEST', pal:{walls:['#c8402f','#e8b13a','#f1ead8','#3f6f8a','#d8723a','#7c3b2a'], roofs:['#3b3330','#5a3a2c','#2f3e45'], tree:'pine', ground:'#5f7d4a'},
+    obs:[
+      {t:'14:02', kind:'rain', cond:'Light rain', temp:6, feels:3, wind:18, dir:'NW', pop:80, hum:91, hi:8, lo:1,
+       hours:[[15,'rain',5,80],[16,'sleet',4,85],[17,'sleet',3,90],[18,'snow',2,85],[19,'snow',1,70],[20,'cloud',1,30]]},
+      {t:'14:24', kind:'sleet', cond:'Sleet', temp:3, feels:-1, wind:24, dir:'N', pop:90, hum:94, hi:8, lo:0,
+       hours:[[15,'sleet',3,90],[16,'snow',2,85],[17,'snow',1,85],[18,'snow',1,75],[19,'cloud',0,40],[20,'clear',0,10]]},
+      {t:'14:51', kind:'snow', cond:'Snow showers', temp:1, feels:-4, wind:22, dir:'N', pop:85, hum:96, hi:8, lo:-1,
+       hours:[[15,'snow',1,85],[16,'snow',1,80],[17,'snow',0,70],[18,'cloud',0,40],[19,'clear',-1,10],[20,'clear',-1,5]]},
+      {t:'15:18', kind:'clear', cond:'Clearing, fresh snow', temp:1, feels:-2, wind:11, dir:'NE', pop:15, hum:82, hi:8, lo:-2,
+       hours:[[16,'clear',0,10],[17,'clear',0,5],[18,'clear',-1,5],[19,'clear',-1,0],[20,'clear',-2,0],[21,'clear',-2,0]]},
+    ],
+    days:[['Thu','snow',2,-3,70],['Fri','clear',4,-2,5],['Sat','cloud',6,1,20],['Sun','rain',8,3,75]] },
+  { name:'Lisbon', country:'Portugal', tz:'WEST', pal:{walls:['#f2d38a','#e88a6a','#8fc1d4','#f4efe2','#e9b4c0','#c9d68f'], roofs:['#c4562f','#b0472a','#cf6a3c'], tree:'round', ground:'#9a8f63', tram:true},
+    obs:[
+      {t:'13:58', kind:'clear', cond:'Sunny', temp:24, feels:24, wind:14, dir:'NW', pop:0, hum:48, hi:26, lo:16,
+       hours:[[14,'clear',25,0],[15,'clear',25,0],[16,'clear',24,0],[17,'cloud',23,5],[18,'cloud',21,5],[19,'clear',19,0]]},
+      {t:'14:20', kind:'clear', cond:'Sunny and breezy', temp:25, feels:25, wind:22, dir:'N', pop:0, hum:44, hi:26, lo:16,
+       hours:[[15,'clear',25,0],[16,'clear',24,0],[17,'cloud',23,5],[18,'cloud',21,5],[19,'clear',19,0],[20,'clear',18,0]]},
+      {t:'14:47', kind:'cloud', cond:'High cloud', temp:23, feels:23, wind:19, dir:'N', pop:5, hum:52, hi:25, lo:16,
+       hours:[[15,'cloud',23,5],[16,'cloud',22,5],[17,'cloud',22,10],[18,'clear',20,0],[19,'clear',19,0],[20,'clear',18,0]]},
+    ],
+    days:[['Thu','clear',25,15,0],['Fri','cloud',22,16,10],['Sat','rain',19,15,60],['Sun','cloud',21,14,20]] },
+  { name:'Reykjavík', country:'Iceland', tz:'GMT', pal:{walls:['#d23c32','#2f6fa6','#f0c440','#e9e5dc','#5c9a7c','#8e3f6e'], roofs:['#2c2c2e','#a2342a','#3b5f7a'], tree:'pine', ground:'#7b8a5a', spire:true},
+    obs:[
+      {t:'12:05', kind:'rain', cond:'Showers, gusty', temp:5, feels:0, wind:38, dir:'SW', pop:70, hum:88, hi:6, lo:2,
+       hours:[[13,'rain',5,70],[14,'rain',5,60],[15,'cloud',4,40],[16,'rain',4,65],[17,'rain',3,70],[18,'cloud',3,40]]},
+      {t:'12:31', kind:'cloud', cond:'Overcast, gusty', temp:4, feels:-1, wind:41, dir:'SW', pop:40, hum:85, hi:6, lo:2,
+       hours:[[13,'cloud',4,40],[14,'rain',4,60],[15,'rain',4,70],[16,'rain',3,70],[17,'cloud',3,40],[18,'cloud',3,30]]},
+    ],
+    days:[['Thu','rain',6,2,80],['Fri','cloud',5,1,30],['Sat','snow',2,-1,55],['Sun','clear',3,-3,10]] },
+];
+let ci = 0, oi = 0;
+const cur = () => CITIES[ci].obs[oi];
+
+/* ---------------- layout ---------------- */
+let W=0,H=0,DPR=1, mob=false, L={};
+const scene = document.createElement('canvas'), sctx = scene.getContext('2d');
+const small = document.createElement('canvas'), smx = small.getContext('2d');
+const sharp = document.createElement('canvas'), shx = sharp.getContext('2d');
+function layout(){
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height; mob = W < 760;
+  DPR = Math.min(1.5, devicePixelRatio||1);
+  for (const c of [cv, scene, sharp]){ c.width = Math.round(W*DPR); c.height = Math.round(H*DPR); }
+  small.width = Math.max(1, Math.round(W/7)); small.height = Math.max(1, Math.round(H/7));
+  if (!mob){
+    const R = Math.min(205, H*0.255);
+    L = {R, gx: Math.min(W*0.36, W/2 - 170), gy: Math.max(R + 40, H*0.4)};
+    const cx = L.gx + R*1.25 + 40, cw = Math.min(118, (W - 30 - cx)/4 - 14);
+    L.cards = {x: cx, y: L.gy + R*0.62, w: cw, h: cw*1.28, gap: 14, cols: 4};
+    L.hours = {x: cx, y: L.gy - R*0.05, w: (4*(cw + 14) - 14 - 5*8)/6, h: 74, gap: 8};
+  } else {
+    const R = Math.min(140, W*0.36);
+    L = {R, gx: W/2, gy: R + 46};
+    L.hours = {x: 12, y: L.gy + R*1.72 + 16, w: (W - 24 - 5*6)/6, h: 62, gap: 6};
+    L.cards = {x: 12, y: L.hours.y + 62 + 22, w: (W - 24 - 3*10)/4, h: 112, gap: 10, cols: 4};
+  }
+  L.table = L.gy + L.R*(mob ? 1.05 : 1.0);
+  L.ground = L.gy + L.R*0.36;
+  L.baseTop = L.gy + L.R*0.78; L.baseBot = L.gy + L.R*1.68;
+  L.focus = mob ? [L.gy + L.R*0.05, L.cards.y + L.cards.h + 50] : [L.gy - L.R*0.15, L.baseBot];
+  const gh = $('globeHit'), R = L.R;
+  Object.assign(gh.style, {left:(L.gx - R)+'px', top:(L.gy - R)+'px', width:2*R+'px', height:2*R+'px'});
+  const kr = Math.max(20, R*0.11), ky = L.baseTop + (L.baseBot - L.baseTop)*0.53;
+  Object.assign($('prev').style, {left:(L.gx - R*0.97 - kr)+'px', top:(ky - kr)+'px', width:2*kr+'px', height:2*kr+'px'});
+  Object.assign($('next').style, {left:(L.gx + R*0.97 - kr)+'px', top:(ky - kr)+'px', width:2*kr+'px', height:2*kr+'px'});
+  buildTown(); resetParticles(true);
+}
+
+/* ---------------- the model town ---------------- */
+let town = [];
+function buildTown(){
+  const C = CITIES[ci], r = mulberry32(31 + ci*7), R = L.R;
+  town = [];
+  // houses on two rows either side of the street (world: x across, z toward viewer, y up; units of R)
+  const rows = [{z:-0.26, n:5}, {z:0.26, n:4}];
+  rows.forEach((row, ri) => {
+    for (let i=0;i<row.n;i++){
+      const span = ri === 0 ? 1.34 : 1.2, x = -span/2 + (i + 0.5)*span/row.n + (r()-0.5)*0.04;
+      const w = span/row.n*(0.74 + r()*0.16), d = 0.15 + r()*0.05, h = 0.13 + r()*0.13 + (ri===0 ? 0.06 : 0);
+      town.push({type:'house', x, z: row.z + (r()-0.5)*0.03, w, d, h, rh: 0.05 + r()*0.05, wall: C.pal.walls[Math.floor(r()*C.pal.walls.length)], roof: C.pal.roofs[Math.floor(r()*C.pal.roofs.length)], win: Math.floor(1 + r()*3)});
+    }
+  });
+  if (C.pal.spire){ town.push({type:'spire', x:0.12, z:-0.42, w:0.14, d:0.1, h:0.5}); }
+  for (let i=0;i<9;i++){ const x = -0.72 + r()*1.44, z = r() < 0.5 ? -0.44 + r()*0.06 : 0.44 + r()*0.04; if (Math.hypot(x/0.84, z/0.52) < 1) town.push({type:'tree', x, z, h: 0.13 + r()*0.08, kind: C.pal.tree}); }
+  town.sort((a,b) => a.z - b.z);
+  movers = [];
+  for (let i=0;i<6;i++) movers.push({type:'person', x:-0.6 + r()*1.2, z: (i%2 ? 0.11 : -0.11) + (r()-0.5)*0.02, v:(r()<0.5?-1:1)*(0.02 + r()*0.02), c:['#2a6fd1','#e2402f','#f2c230','#2d2d2d','#e9e2d0','#4fa36b'][i]});
+  movers.push({type: C.pal.tram ? 'tram' : 'car', x:-0.7, z:0.0, v:0.09, c: C.pal.tram ? '#f2c230' : '#d23a2f'});
+  if (!C.pal.tram) movers.push({type:'car', x:0.5, z:0.03, v:-0.07, c:'#2f6fa6'});
+}
+let movers = [];
+const P = (x, y, z) => { // oblique cabinet projection inside the globe
+  const R = L.R; return [L.gx + shake.x + (x + z*0.2)*R, L.ground + shake.y + z*0.56*R - y*R*0.95];
+};
+function shade(hex, k){ const n = parseInt(hex.slice(1),16); const f = v => Math.max(0, Math.min(255, Math.round(k > 1 ? v + (255-v)*(k-1) : v*k))); return `rgb(${f(n>>16)},${f(n>>8&255)},${f(n&255)})`; }
+function poly(g, pts, fill){ g.beginPath(); pts.forEach(([x,y],i)=> i?g.lineTo(x,y):g.moveTo(x,y)); g.closePath(); g.fillStyle = fill; g.fill(); }
+
+/* ---------------- weather state (eased) ---------------- */
+const WX = {snowCover:0, wet:0, sun:0, gloom:0, precip:'rain'};
+function targetWx(o){
+  return {
+    sun: o.kind==='clear' ? 1 : o.kind==='cloud' ? 0.35 : 0.08,
+    gloom: o.kind==='rain' ? 0.55 : o.kind==='sleet' ? 0.65 : o.kind==='snow' ? 0.45 : o.kind==='cloud' ? 0.3 : 0,
+    wet: (o.kind==='rain' || o.kind==='sleet') ? 1 : 0,
+    snowTarget: o.kind==='snow' ? 1 : (o.kind==='clear' && CITIES[ci].name==='Oslo' && oi >= 2) ? 0.85 : o.kind==='sleet' ? 0.25 : 0,
+  };
+}
+
+/* ---------------- particles: the water inside the globe ---------------- */
+let parts = [];
+function kindFor(o){ return o.kind==='rain' ? 'rain' : o.kind==='sleet' ? (Math.random()<0.5?'rain':'snow') : o.kind==='snow' ? 'snow' : 'glitter'; }
+function resetParticles(settled){
+  parts = [];
+  const n = reduce ? 90 : (mob ? 170 : 260);
+  for (let i=0;i<n;i++) parts.push(spawn(settled));
+}
+function spawn(settled){
+  const o = cur(), k = kindFor(o), R = L.R;
+  const a = Math.random()*TAU, d = Math.sqrt(Math.random())*R*0.9;
+  const p = {k, x: Math.cos(a)*d, y: Math.sin(a)*d*0.9 - R*0.1, vx:0, vy:0, s: k==='glitter' ? 1.2 + Math.random()*1.6 : k==='snow' ? 1.2 + Math.random()*1.8 : 0.9, rest:false, hue: Math.random()};
+  if (settled && k==='glitter'){ p.x = (Math.random()-0.5)*R*1.5; p.y = groundYLocal(p.x) - Math.random()*2; p.rest = true; }
+  if (k !== 'glitter'){ p.y = -R*0.9 + Math.random()*R*1.2; p.x = (Math.random()-0.5)*R*1.6; }
+  return p;
+}
+function groundYLocal(x){ const R = L.R, rx = R*0.88; const u = Math.min(1, Math.abs(x)/rx); return (L.ground - L.gy) + R*0.3*Math.sqrt(1 - u*u) - 2; }
+const shake = {x:0, y:0, vx:0, vy:0, ax:0, ay:0, energy:0, held:false};
+let swirl = 0;
+function stepParticles(dt){
+  const R = L.R, o = cur();
+  const gK = {rain: 900, snow: 38, glitter: 55};
+  for (const p of parts){
+    if (p.rest && swirl < 0.05 && Math.hypot(shake.ax, shake.ay) < 400) continue;
+    p.rest = false;
+    // inertial force from the globe's acceleration + a decaying vortex
+    p.vx += (-shake.ax*0.9 + (-p.y)*swirl*2.2)*dt;
+    p.vy += (-shake.ay*0.9 + (p.x)*swirl*2.2 + gK[p.k]*(1 - Math.min(0.9, swirl*0.6)))*dt;
+    const drag = p.k==='rain' ? 0.6 : 2.4;
+    p.vx *= Math.exp(-drag*dt); p.vy *= Math.exp(-drag*dt);
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    // glass wall
+    const d = Math.hypot(p.x, p.y);
+    if (d > R*0.93){ const k = R*0.93/d; p.x *= k; p.y *= k; const nx = p.x/d, ny = p.y/d, dot = p.vx*nx + p.vy*ny; if (dot > 0){ p.vx -= 1.6*dot*nx; p.vy -= 1.6*dot*ny; } }
+    // the ground: precipitation is reborn at the top; glitter comes to rest
+    const gy = groundYLocal(p.x);
+    if (p.y > gy && Math.abs(p.x) < R*0.88){
+      if (p.k==='glitter'){ p.y = gy; p.vx = p.vy = 0; if (swirl < 0.05) p.rest = true; }
+      else { const np = spawn(false); np.y = -R*0.85 + Math.random()*R*0.2; Object.assign(p, np); if (p.k==='snow') WX.snowCover = Math.min(WX.snowTarget ?? 1, WX.snowCover + 0.0015); }
+    } else if (p.y > R*0.6){ const np = spawn(false); Object.assign(p, np); }
+  }
+  swirl *= Math.exp(-dt*0.9);
+}
+
+/* ---------------- drawing ---------------- */
+function drawRoom(g){
+  // warm interior: wallpaper up top, a wooden table below (both fall out of focus)
+  const wall = g.createLinearGradient(0,0,0,L.table);
+  wall.addColorStop(0, '#3c5560'); wall.addColorStop(1, '#6d7f73');
+  g.fillStyle = wall; g.fillRect(0,0,W,L.table);
+  g.fillStyle = 'rgba(255,240,200,.07)';
+  for (let x = 0; x < W; x += 46){ g.fillRect(x, 0, 18, L.table); }
+  // window light pool
+  const wl = g.createRadialGradient(W*0.78, H*0.1, 0, W*0.78, H*0.1, W*0.6);
+  wl.addColorStop(0, `rgba(255,236,190,${0.35 + 0.25*WX.sun})`); wl.addColorStop(1, 'rgba(255,236,190,0)');
+  g.fillStyle = wl; g.fillRect(0,0,W,L.table);
+  // table
+  const tb = g.createLinearGradient(0, L.table, 0, H);
+  tb.addColorStop(0, '#8a5634'); tb.addColorStop(0.3, '#a8693d'); tb.addColorStop(1, '#5c351e');
+  g.fillStyle = tb; g.fillRect(0, L.table, W, H - L.table);
+  const r = mulberry32(3);
+  g.strokeStyle = 'rgba(60,30,12,.25)'; g.lineWidth = 1;
+  for (let k=0;k<30;k++){ const y = L.table + r()*(H - L.table); g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(W*0.3, y + (r()-0.5)*14, W*0.7, y + (r()-0.5)*14, W, y + (r()-0.5)*10); g.stroke(); }
+  g.fillStyle = 'rgba(255,230,190,.12)'; g.fillRect(0, L.table, W, 2);
+}
+function drawGlobeInterior(g){
+  const R = L.R, cx = L.gx + shake.x, cy = L.gy + shake.y;
+  g.save(); g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.clip();
+  // sky inside the globe
+  const sky = g.createLinearGradient(0, cy - R, 0, cy + R*0.4);
+  const clear = [[96,170,230],[190,226,245]], grey = [[120,130,142],[200,205,210]];
+  const k = WX.gloom;
+  const mixc = (a, b) => `rgb(${a.map((v,i)=>Math.round(v*(1-k) + b[i]*k)).join(',')})`;
+  sky.addColorStop(0, mixc(clear[0], grey[0])); sky.addColorStop(1, mixc(clear[1], grey[1]));
+  g.fillStyle = sky; g.fillRect(cx - R, cy - R, 2*R, 2*R);
+  // sun
+  if (WX.sun > 0.05){ const sx = cx + R*0.42, sy = cy - R*0.42; const sg = g.createRadialGradient(sx, sy, 0, sx, sy, R*0.5); sg.addColorStop(0, `rgba(255,248,210,${0.95*WX.sun})`); sg.addColorStop(0.12, `rgba(255,236,160,${0.8*WX.sun})`); sg.addColorStop(1, 'rgba(255,236,160,0)'); g.fillStyle = sg; g.fillRect(cx - R, cy - R, 2*R, 2*R); }
+  // painted backdrop hills (a curved card behind the town, as in a model)
+  g.fillStyle = shade('#6b8f6a', 1 - WX.gloom*0.25);
+  g.beginPath(); g.moveTo(cx - R, L.ground + shake.y - R*0.05);
+  for (let i=0;i<=20;i++){ const u = i/20; g.lineTo(cx - R + u*2*R, L.ground + shake.y - R*(0.12 + 0.12*Math.sin(u*7 + ci) + 0.06*Math.sin(u*17))); }
+  g.lineTo(cx + R, cy + R); g.lineTo(cx - R, cy + R); g.closePath(); g.fill();
+  if (WX.snowCover > 0.05){ g.fillStyle = `rgba(250,252,255,${WX.snowCover*0.7})`; g.fill(); }
+  // ground disc
+  const pl = g.createLinearGradient(cx - R, 0, cx + R, 0); pl.addColorStop(0, '#2a120a'); pl.addColorStop(0.45, '#8c3f22'); pl.addColorStop(1, '#1d0c06');
+  g.fillStyle = pl; g.fillRect(cx - R*0.88, L.ground + shake.y, R*1.76, cy + R - L.ground);
+  const gpts = []; for (let i=0;i<=48;i++){ const a = i/48*TAU; gpts.push([cx + Math.cos(a)*R*0.88, L.ground + shake.y + Math.sin(a)*R*0.3]); }
+  const C = CITIES[ci];
+  poly(g, gpts, shade(C.pal.ground, 1 - WX.gloom*0.2));
+  if (WX.snowCover > 0.02) poly(g, gpts, `rgba(248,250,253,${Math.min(0.95, WX.snowCover)})`);
+  // street
+  const st = [P(-0.86, 0, -0.08), P(0.86, 0, -0.08), P(0.82, 0, 0.09), P(-0.86, 0, 0.09)];
+  poly(g, st, WX.wet > 0.5 ? '#4b4e55' : shade('#8a8378', 1 - WX.gloom*0.2));
+  if (WX.snowCover > 0.1) poly(g, st, `rgba(235,238,242,${WX.snowCover*0.6})`);
+  if (WX.wet > 0.05){ // reflections on the wet street
+    g.fillStyle = `rgba(255,240,200,${0.18*WX.wet})`;
+    for (let i=0;i<9;i++){ const [x, y] = P(-0.7 + i*0.17, 0, 0.0 + (i%2)*0.04); g.fillRect(x, y, R*0.02, R*0.04); }
+  }
+  if (C.pal.tram){ g.strokeStyle = 'rgba(60,55,50,.6)'; g.lineWidth = 1; for (const z of [0.0, 0.035]){ const a = P(-0.82,0,z), b = P(0.82,0,z); g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke(); } }
+  // objects back to front, with movers interleaved
+  const all = town.concat(movers).sort((a,b) => a.z - b.z);
+  for (const o of all) drawObject(g, o);
+  // falling or resting particles
+  for (const p of parts){
+    const x = cx + p.x, y = cy + p.y;
+    if (p.k === 'rain'){ g.strokeStyle = 'rgba(210,225,240,.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x - p.vx*0.02, y - Math.max(4, p.vy*0.018)); g.stroke(); }
+    else if (p.k === 'snow'){ g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(x, y, p.s, 0, TAU); g.fill(); }
+    else { const tw = 0.6 + 0.4*Math.sin(performance.now()/180 + p.hue*30); g.fillStyle = `hsla(${40 + p.hue*30}, 90%, ${70 + tw*25}%, ${0.75 + tw*0.25})`; g.fillRect(x - p.s/2, y - p.s/2, p.s, p.s); }
+  }
+  // gloom/haze over the whole miniature
+  if (WX.gloom > 0.05){ g.fillStyle = `rgba(150,160,175,${WX.gloom*0.22})`; g.fillRect(cx - R, cy - R, 2*R, 2*R); }
+  g.restore();
+}
+function drawObject(g, o){
+  const R = L.R;
+  if (o.type === 'house'){
+    const x0 = o.x - o.w/2, x1 = o.x + o.w/2, z0 = o.z - o.d/2, z1 = o.z + o.d/2, h = o.h;
+    const light = 1 + WX.sun*0.12 - WX.gloom*0.25;
+    // left side, front, roof
+    poly(g, [P(x0,0,z0), P(x0,0,z1), P(x0,h,z1), P(x0,h+o.rh,o.z), P(x0,h,z0)], shade(o.wall, 0.78*light));
+    poly(g, [P(x0,0,z1), P(x1,0,z1), P(x1,h,z1), P(x0,h,z1)], shade(o.wall, light));
+    poly(g, [P(x0,h,z1), P(x1,h,z1), P(x1,h+o.rh,o.z), P(x0,h+o.rh,o.z)], shade(o.roof, light*1.05));
+    poly(g, [P(x0,h+o.rh,o.z), P(x1,h+o.rh,o.z), P(x1 - 0.004,h + 0.006,z0), P(x0, h + 0.006, z0)], shade(o.roof, 0.7*light));
+    if (WX.snowCover > 0.05){ g.globalAlpha = Math.min(1, WX.snowCover*1.2);
+      poly(g, [P(x0 - 0.005,h + 0.004,z1 + 0.006), P(x1 + 0.005,h + 0.004,z1 + 0.006), P(x1,h+o.rh+0.006,o.z), P(x0,h+o.rh+0.006,o.z)], '#f7f9fc'); g.globalAlpha = 1; }
+    // windows: lit when the sky is dark
+    const lit = WX.gloom > 0.25;
+    for (let i=0;i<o.win;i++){
+      const u = (i + 0.5)/o.win, wx = x0 + u*o.w;
+      const p = P(wx - 0.012, h*0.62, z1), q = P(wx + 0.012, h*0.36, z1);
+      g.fillStyle = lit ? '#ffd889' : 'rgba(40,55,70,.75)'; g.fillRect(p[0], p[1], q[0]-p[0], q[1]-p[1]);
+    }
+    const dp = P(o.x - 0.01, 0.06, z1), dq = P(o.x + 0.012, 0, z1);
+    g.fillStyle = shade(o.roof, 0.8); g.fillRect(dp[0], dp[1], dq[0]-dp[0], dq[1]-dp[1]);
+    // contact shadow, longer in sunshine
+    if (WX.sun > 0.3){ g.fillStyle = `rgba(20,30,20,${0.18*WX.sun})`; poly(g, [P(x1,0,z1), P(x1 + h*0.6,0,z1), P(x1 + h*0.6,0,z0), P(x1,0,z0)], `rgba(20,30,20,${0.18*WX.sun})`); }
+  } else if (o.type === 'spire'){
+    const x0 = o.x - o.w/2, x1 = o.x + o.w/2, z1 = o.z + o.d/2, h = o.h;
+    for (let s=0;s<4;s++){ const hh = h*(0.35 + s*0.15), ww = o.w*(1 - s*0.18); poly(g, [P(o.x - ww/2,0,z1), P(o.x + ww/2,0,z1), P(o.x + ww/2,hh,z1), P(o.x - ww/2,hh,z1)], shade('#d9d4c8', 1 - s*0.05 - WX.gloom*0.2)); }
+    poly(g, [P(o.x - o.w*0.2, h*0.8, z1), P(o.x + o.w*0.2, h*0.8, z1), P(o.x, h*1.15, z1)], shade('#5d5d62', 1 - WX.gloom*0.2));
+  } else if (o.type === 'tree'){
+    const [bx, by] = P(o.x, 0, o.z), top = P(o.x, o.h, o.z);
+    g.fillStyle = '#5a3d22'; g.fillRect(bx - 1, by - o.h*R*0.25, 2, o.h*R*0.25);
+    if (o.kind === 'pine'){ poly(g, [[bx - o.h*R*0.28, by - o.h*R*0.2], [bx + o.h*R*0.28, by - o.h*R*0.2], [top[0], top[1]]], shade('#2f5a3a', 1 - WX.gloom*0.25));
+      if (WX.snowCover > 0.05){ g.globalAlpha = WX.snowCover; poly(g, [[bx - o.h*R*0.14, by - o.h*R*0.62], [bx + o.h*R*0.14, by - o.h*R*0.62], [top[0], top[1]]], '#f6f8fb'); g.globalAlpha = 1; } }
+    else { g.fillStyle = shade('#4f8a3a', 1 + WX.sun*0.1 - WX.gloom*0.25); g.beginPath(); g.arc(bx, by - o.h*R*0.6, o.h*R*0.32, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,200,.25)'; g.beginPath(); g.arc(bx - o.h*R*0.1, by - o.h*R*0.7, o.h*R*0.12, 0, TAU); g.fill(); }
+  } else if (o.type === 'person'){
+    const [x, y] = P(o.x, 0, o.z), s = R*0.012;
+    g.fillStyle = o.c; g.fillRect(x - s*0.6, y - s*3.2, s*1.2, s*2.4);
+    g.fillStyle = '#f0c8a0'; g.beginPath(); g.arc(x, y - s*3.8, s*0.6, 0, TAU); g.fill();
+    g.fillStyle = '#222'; g.fillRect(x - s*0.5, y - s*0.9, s*0.4, s*0.9); g.fillRect(x + s*0.1, y - s*0.9, s*0.4, s*0.9);
+    if (WX.wet > 0.5 || (WX.snowTarget > 0.5 && WX.gloom > 0.3)){ g.fillStyle = o.c === '#2d2d2d' ? '#d23a2f' : '#2d2d2d'; g.beginPath(); g.arc(x, y - s*4.4, s*2.2, Math.PI, TAU); g.fill(); g.fillRect(x - 0.4, y - s*4.4, 0.8, s*1.6); }
+  } else if (o.type === 'car' || o.type === 'tram'){
+    const len = o.type === 'tram' ? 0.2 : 0.09, h = o.type === 'tram' ? 0.075 : 0.035;
+    const x0 = o.x - len/2, x1 = o.x + len/2, z0 = o.z - 0.025, z1 = o.z + 0.025;
+    poly(g, [P(x0,0.01,z1), P(x1,0.01,z1), P(x1,h,z1), P(x0,h,z1)], o.c);
+    poly(g, [P(x0,h,z1), P(x1,h,z1), P(x1,h,z0), P(x0,h,z0)], shade(o.c, 1.2));
+    g.fillStyle = WX.gloom > 0.25 ? '#ffe9a8' : 'rgba(40,60,80,.8)';
+    for (let k=0;k<(o.type==='tram'?4:2);k++){ const p = P(x0 + len*(0.12 + k*(o.type==='tram'?0.21:0.4)), h*0.85, z1), q = P(x0 + len*(0.28 + k*(o.type==='tram'?0.21:0.4)), h*0.5, z1); g.fillRect(p[0], p[1], q[0]-p[0], q[1]-p[1]); }
+    g.fillStyle = '#1b1b1b'; for (const wx of [x0 + len*0.2, x1 - len*0.2]){ const [a, b] = P(wx, 0.008, z1); g.beginPath(); g.arc(a, b, R*0.009, 0, TAU); g.fill(); }
+    if (WX.snowCover > 0.2){ poly(g, [P(x0,h+0.003,z1), P(x1,h+0.003,z1), P(x1,h+0.003,z0), P(x0,h+0.003,z0)], `rgba(248,250,253,${WX.snowCover})`); }
+  }
+}
+function drawGlassShadow(g){
+  const R = L.R;
+  const sg = g.createRadialGradient(L.gx + R*0.3, L.baseBot, 0, L.gx + R*0.3, L.baseBot, R*1.6);
+  sg.addColorStop(0, 'rgba(25,12,5,.55)'); sg.addColorStop(1, 'rgba(25,12,5,0)');
+  g.save(); g.translate(L.gx + R*0.3, L.baseBot); g.scale(1, 0.16); g.translate(-(L.gx + R*0.3), -L.baseBot); g.fillStyle = sg; g.beginPath(); g.arc(L.gx + R*0.3, L.baseBot, R*1.6, 0, TAU); g.fill(); g.restore();
+}
+function drawGlass(g){
+  const R = L.R, cx = L.gx + shake.x, cy = L.gy + shake.y;
+  // thick glass: darker rim, refracted light at the edge
+  const rim = g.createRadialGradient(cx, cy, R*0.78, cx, cy, R);
+  rim.addColorStop(0, 'rgba(255,255,255,0)'); rim.addColorStop(0.75, 'rgba(210,235,245,.12)'); rim.addColorStop(0.93, 'rgba(40,60,70,.32)'); rim.addColorStop(1, 'rgba(255,255,255,.55)');
+  g.fillStyle = rim; g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.fill();
+  // window reflection (soft-box), and a sharp specular
+  g.save(); g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.clip();
+  g.fillStyle = 'rgba(255,255,255,.16)';
+  g.beginPath(); g.ellipse(cx - R*0.45, cy - R*0.45, R*0.28, R*0.5, 0.7, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.12)'; g.beginPath(); g.ellipse(cx + R*0.55, cy + R*0.05, R*0.06, R*0.38, -0.2, 0, TAU); g.fill();
+  g.restore();
+  g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.ellipse(cx - R*0.52, cy - R*0.55, R*0.07, R*0.03, -0.75, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, R - 1, Math.PI*1.05, Math.PI*1.6); g.stroke();
+}
+function drawBase(g){
+  const R = L.R, cx = L.gx, top = L.baseTop, bot = L.baseBot;
+  const wTop = R*0.86, wBot = R*1.08;
+  // lacquered wood base, turned profile
+  const bg = g.createLinearGradient(cx - wBot, 0, cx + wBot, 0);
+  bg.addColorStop(0, '#2a120a'); bg.addColorStop(0.3, '#6b2c17'); bg.addColorStop(0.45, '#a24c2a'); bg.addColorStop(0.6, '#6b2c17'); bg.addColorStop(1, '#1d0c06');
+  g.fillStyle = bg;
+  g.beginPath(); g.moveTo(cx - wTop, top); g.lineTo(cx + wTop, top); g.quadraticCurveTo(cx + wBot*1.02, (top + bot)/2, cx + wBot, bot - R*0.06); g.ellipse(cx, bot - R*0.06, wBot, R*0.08, 0, 0, Math.PI); g.quadraticCurveTo(cx - wBot*1.02, (top + bot)/2, cx - wTop, top); g.fill();
+  g.fillStyle = 'rgba(255,220,180,.18)'; g.beginPath(); g.ellipse(cx, top, wTop, R*0.07, 0, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(255,200,150,.3)'; g.lineWidth = 1; g.beginPath(); g.ellipse(cx, top + R*0.1, wTop*1.04, R*0.06, 0, 0, Math.PI); g.stroke();
+  // brass knobs (city selectors)
+  const ky = top + (bot - top)*0.53;
+  for (const [dx, dir] of [[-R*0.97, -1],[R*0.97, 1]]){
+    const kx = cx + dx, kr = Math.max(14, R*0.09);
+    const kg = g.createRadialGradient(kx - kr*0.3, ky - kr*0.3, 0, kx, ky, kr);
+    kg.addColorStop(0, '#fff2c0'); kg.addColorStop(0.4, '#d9a840'); kg.addColorStop(1, '#6e4a12');
+    g.fillStyle = kg; g.beginPath(); g.arc(kx, ky, kr, 0, TAU); g.fill();
+    g.fillStyle = '#3b2706'; g.beginPath(); g.moveTo(kx + dir*kr*0.45, ky); g.lineTo(kx - dir*kr*0.25, ky - kr*0.35); g.lineTo(kx - dir*kr*0.25, ky + kr*0.35); g.closePath(); g.fill();
+  }
+  // brass plaque, engraved
+  const pw = R*1.56, ph = (bot - top)*0.6, px = cx - pw/2, py = top + (bot - top)*0.17;
+  const pg = g.createLinearGradient(px, py, px, py + ph);
+  pg.addColorStop(0, '#f6dc8e'); pg.addColorStop(0.5, '#d4a94a'); pg.addColorStop(1, '#a87a22');
+  g.fillStyle = pg; g.beginPath(); g.roundRect ? g.roundRect(px, py, pw, ph, 4) : g.rect(px, py, pw, ph); g.fill();
+  g.strokeStyle = 'rgba(90,60,10,.7)'; g.lineWidth = 1.2; g.strokeRect(px + 4, py + 4, pw - 8, ph - 8);
+  g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(px + 6, py + 2, pw - 12, 1.2);
+  for (const [sx, sy] of [[px + 9, py + 9],[px + pw - 9, py + 9],[px + 9, py + ph - 9],[px + pw - 9, py + ph - 9]]){ g.fillStyle = '#8a6418'; g.beginPath(); g.arc(sx, sy, 2, 0, TAU); g.fill(); }
+  const o = cur(), C = CITIES[ci];
+  const eng = (txt, x, y, size, weight, align='center', font='Cinzel', maxW) => {
+    g.font = `${weight} ${size}px ${font}, Georgia, serif`; g.textAlign = align; g.textBaseline = 'alphabetic';
+    g.fillStyle = 'rgba(255,245,210,.6)'; g.fillText(txt, x, y + 1, maxW);
+    g.fillStyle = '#3a2706'; g.fillText(txt, x, y, maxW);
+  };
+  const big = Math.round(ph*0.42), mid = Math.max(11, Math.round(ph*0.135)), sm = Math.max(10, Math.round(ph*0.1));
+  const lx = px + pw*0.07, rx = px + pw*0.93;
+  eng(C.name.toUpperCase(), lx, py + ph*0.25, mid*1.15, 700, 'left');
+  eng(refreshing ? 'Checking the sky…' : o.cond, lx, py + ph*0.43, mid*0.95, 500, 'left');
+  eng(`${o.temp}°`, rx, py + ph*0.5, Math.round(ph*0.38), 700, 'right');
+  g.strokeStyle = 'rgba(90,60,10,.45)'; g.lineWidth = 1; g.beginPath(); g.moveTo(lx, py + ph*0.57); g.lineTo(rx, py + ph*0.57); g.stroke();
+  eng(`Feels ${o.feels}°   High ${o.hi}°   Low ${o.lo}°`, lx, py + ph*0.71, sm, 500, 'left', 'Cinzel', rx - lx);
+  eng(`Wind ${o.wind} km/h ${o.dir}   Precip ${o.pop}%   Humidity ${o.hum}%`, lx, py + ph*0.85, sm, 500, 'left', 'Cinzel', rx - lx);
+  // gilt lettering on the wood, below the plaque
+  g.font = `600 ${Math.max(10, sm*0.95)}px Nunito, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(240,200,120,.9)';
+  g.fillText(refreshing ? 'Checking the sky…' : `Updated ${o.t} ${C.tz} · Wednesday 7 October`, cx, py + ph + (bot - py - ph)*0.62);
+}
+function icon(g, k, x, y, s){
+  g.save(); g.translate(x, y);
+  const cloud = (dx, dy, sc, col) => { g.fillStyle = col; g.beginPath(); g.arc(dx - s*0.22*sc, dy, s*0.2*sc, 0, TAU); g.arc(dx + s*0.05*sc, dy - s*0.1*sc, s*0.26*sc, 0, TAU); g.arc(dx + s*0.3*sc, dy + s*0.02*sc, s*0.18*sc, 0, TAU); g.fill(); g.fillRect(dx - s*0.4*sc, dy, s*0.85*sc, s*0.2*sc); };
+  if (k === 'clear'){ g.fillStyle = '#f2b52a'; g.beginPath(); g.arc(0, 0, s*0.26, 0, TAU); g.fill(); g.strokeStyle = '#f2b52a'; g.lineWidth = s*0.07; g.lineCap = 'round'; for (let i=0;i<8;i++){ const a = i/8*TAU; g.beginPath(); g.moveTo(Math.cos(a)*s*0.36, Math.sin(a)*s*0.36); g.lineTo(Math.cos(a)*s*0.48, Math.sin(a)*s*0.48); g.stroke(); } }
+  else if (k === 'cloud'){ g.fillStyle = '#f2b52a'; g.beginPath(); g.arc(s*0.18, -s*0.18, s*0.2, 0, TAU); g.fill(); cloud(0, s*0.05, 1, '#9fb0c0'); }
+  else { cloud(0, -s*0.08, 1, k === 'snow' ? '#b9c6d3' : '#7b8ea3');
+    for (let i=0;i<3;i++){ const x = -s*0.25 + i*s*0.25, y2 = s*0.28;
+      if (k === 'snow'){ g.fillStyle = '#5d8fc8'; g.beginPath(); g.arc(x, y2, s*0.06, 0, TAU); g.fill(); }
+      else if (k === 'sleet' && i === 1){ g.fillStyle = '#5d8fc8'; g.beginPath(); g.arc(x, y2, s*0.06, 0, TAU); g.fill(); }
+      else { g.strokeStyle = '#2f73c4'; g.lineWidth = s*0.06; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y2 - s*0.06); g.lineTo(x - s*0.05, y2 + s*0.08); g.stroke(); } } }
+  g.restore();
+}
+function drawHours(g){
+  const o = cur(), c = L.hours;
+  if (!mob) { g.fillStyle = 'rgba(255,248,230,.75)'; g.font = '800 11px Nunito'; g.textAlign = 'left'; g.fillText('NEXT HOURS', c.x, c.y - 10); }
+  o.hours.forEach(([h, k, tC, pop], i) => {
+    const x = c.x + i*(c.w + c.gap), y = c.y;
+    g.fillStyle = 'rgba(30,15,5,.3)'; g.fillRect(x + 3, y + 4, c.w, c.h);
+    g.fillStyle = '#f7f1e2'; g.beginPath(); g.moveTo(x + 6, y); g.lineTo(x + c.w, y); g.lineTo(x + c.w, y + c.h); g.lineTo(x, y + c.h); g.lineTo(x, y + 6); g.closePath(); g.fill();
+    g.fillStyle = '#9a8c70'; g.beginPath(); g.arc(x + 7, y + 7, 2, 0, TAU); g.fill();
+    g.textAlign = 'center'; g.fillStyle = '#56606a'; g.font = `800 ${Math.round(c.h*0.16)}px Nunito`; g.fillText(`${h}:00`, x + c.w/2, y + c.h*0.27);
+    icon(g, k, x + c.w/2, y + c.h*0.5, c.h*0.36);
+    g.fillStyle = '#26303a'; g.font = `800 ${Math.round(c.h*0.22)}px Nunito`; g.fillText(`${tC}°`, x + c.w/2, y + c.h*0.9);
+  });
+}
+function drawCards(g){
+  const C = CITIES[ci], c = L.cards;
+  if (!mob){ g.fillStyle = 'rgba(255,248,230,.75)'; g.font = '800 11px Nunito'; g.textAlign = 'left'; g.fillText('NEXT DAYS', c.x, c.y - 14); }
+  C.days.forEach(([d, k, hi, lo, pop], i) => {
+    const x = c.x + i*(c.w + c.gap), y = c.y;
+    // a folded card standing on the table: shadow, back leg, face
+    g.fillStyle = 'rgba(30,15,5,.35)'; g.beginPath(); g.moveTo(x + 6, y + c.h); g.lineTo(x + c.w + 18, y + c.h + 10); g.lineTo(x + c.w + 6, y + c.h + 2); g.lineTo(x + 2, y + c.h - 2); g.fill();
+    g.fillStyle = '#e8e0cf'; g.fillRect(x + 4, y - 6, c.w - 2, c.h);
+    const fg = g.createLinearGradient(x, y, x + c.w, y + c.h); fg.addColorStop(0, '#fffdf6'); fg.addColorStop(1, '#efe6d2');
+    g.fillStyle = fg; g.fillRect(x, y, c.w, c.h);
+    g.fillStyle = i === 0 ? '#d9452f' : '#2f6fa6'; g.fillRect(x, y, c.w, Math.max(5, c.h*0.05));
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+    g.fillStyle = '#26303a'; g.font = `800 ${Math.round(c.h*0.12)}px Nunito, sans-serif`; g.fillText(d, x + c.w/2, y + c.h*0.22);
+    icon(g, k, x + c.w/2, y + c.h*0.44, Math.min(c.w, c.h)*0.5);
+    g.fillStyle = '#26303a'; g.font = `800 ${Math.round(c.h*0.13)}px Nunito, sans-serif`; g.fillText(`${hi}°`, x + c.w*0.36, y + c.h*0.78);
+    g.fillStyle = '#6b7783'; g.font = `600 ${Math.round(c.h*0.11)}px Nunito, sans-serif`; g.fillText(`${lo}°`, x + c.w*0.66, y + c.h*0.78);
+    g.fillStyle = '#2f73c4'; g.font = `800 ${Math.round(c.h*0.085)}px Nunito, sans-serif`; g.fillText(`${pop}% precip`, x + c.w/2, y + c.h*0.93);
+  });
+  // a handwritten tag tied to the base: the hint
+  if (!hintGone){
+    const tx = mob ? 14 : L.gx - L.R*1.62, ty = mob ? L.cards.y + L.cards.h + 18 : L.baseTop + L.R*0.12;
+    g.save(); g.translate(tx, ty); g.rotate(mob ? -0.03 : -0.08);
+    g.fillStyle = '#f4ecd6'; g.fillRect(0, 0, mob ? 250 : 150, mob ? 30 : 46);
+    g.fillStyle = '#2b2b2b'; g.font = `800 ${mob?11:12.5}px Nunito`; g.textAlign = 'left';
+    if (mob) g.fillText('Shake the globe to refresh · knobs: city', 10, 19); else { g.fillText('Shake to refresh', 10, 20); g.fillText('Knobs change city', 10, 37); }
+    g.restore();
+  }
+}
+
+/* ---------------- tilt-shift compositing ---------------- */
+let maskGrad = null;
+function composite(){
+  // 1. blurry copy of the whole photograph
+  smx.imageSmoothingEnabled = true; smx.imageSmoothingQuality = 'high';
+  smx.clearRect(0,0,small.width,small.height);
+  smx.drawImage(scene, 0, 0, small.width, small.height);
+  ctx.setTransform(1,0,0,1,0,0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(small, 0, 0, cv.width, cv.height);
+  // 2. the sharp plane, feathered top and bottom
+  shx.setTransform(1,0,0,1,0,0); shx.globalCompositeOperation = 'source-over'; shx.clearRect(0,0,sharp.width,sharp.height);
+  shx.drawImage(scene, 0, 0);
+  shx.globalCompositeOperation = 'destination-in';
+  const [f0, f1] = L.focus, feather = L.R*0.55;
+  const mg = shx.createLinearGradient(0, (f0 - feather)*DPR, 0, (f1 + feather)*DPR);
+  const tot = (f1 - f0) + 2*feather, a = feather/tot, b = (feather + f1 - f0)/tot;
+  mg.addColorStop(0, 'rgba(0,0,0,0)'); mg.addColorStop(a, 'rgba(0,0,0,1)'); mg.addColorStop(b, 'rgba(0,0,0,1)'); mg.addColorStop(1, 'rgba(0,0,0,0)');
+  shx.fillStyle = mg; shx.fillRect(0, 0, sharp.width, sharp.height);
+  shx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(sharp, 0, 0);
+  // 3. the lens: punchy colour, vignette
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const vg = ctx.createRadialGradient(W/2, H*0.5, Math.min(W,H)*0.35, W/2, H*0.5, Math.max(W,H)*0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)');
+  ctx.fillStyle = vg; ctx.fillRect(0,0,W,H);
+}
+
+/* ---------------- shake + refresh ---------------- */
+let refreshing = false, hintGone = false;
+const gh = $('globeHit');
+let drag = null;
+gh.addEventListener('pointerdown', e => {
+  audio(); e.preventDefault(); try{ gh.setPointerCapture(e.pointerId); }catch(_){}
+  drag = {x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, lvx: 0, lvy: 0, t: performance.now()};
+  shake.held = true; shake.energy = 0;
+});
+gh.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const now = performance.now(), dt = Math.max(8, now - drag.t)/1000;
+  const nx = Math.max(-L.R*0.35, Math.min(L.R*0.35, e.clientX - drag.x)), ny = Math.max(-L.R*0.2, Math.min(L.R*0.2, e.clientY - drag.y));
+  const vx = (nx - shake.x)/dt, vy = (ny - shake.y)/dt;
+  shake.ax = (vx - drag.lvx)/dt*0.25; shake.ay = (vy - drag.lvy)/dt*0.25;
+  shake.ax = Math.max(-9000, Math.min(9000, shake.ax)); shake.ay = Math.max(-9000, Math.min(9000, shake.ay));
+  drag.lvx = vx; drag.lvy = vy; drag.t = now;
+  shake.energy += Math.abs(vx)*dt + Math.abs(vy)*dt*0.5;
+  if (Math.abs(vx) > 350) { swirl = Math.min(4, swirl + Math.abs(vx)/2400); slosh(Math.min(1, Math.abs(vx)/2500)); }
+  shake.x = nx; shake.y = ny;
+});
+const endShake = () => {
+  if (!drag) return; drag = null; shake.held = false;
+  if (shake.energy > L.R*1.6) refresh(); else announce('Give it a proper shake to refresh.');
+};
+gh.addEventListener('pointerup', endShake); gh.addEventListener('pointercancel', endShake);
+gh.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); audio(); autoShake(); }
+  if (e.key === 'ArrowLeft'){ e.preventDefault(); setCity(-1); } if (e.key === 'ArrowRight'){ e.preventDefault(); setCity(1); }
+});
+gh.addEventListener('click', e => { if (e.detail === 0) return; });
+function autoShake(){
+  if (reduce){ swirl = 1; refresh(); return; }
+  let k = 0; const it = setInterval(() => { shake.vx += (k%2 ? -1 : 1)*L.R*14; swirl = Math.min(4, swirl + 0.7); slosh(0.6); if (++k > 5){ clearInterval(it); refresh(); } }, 110);
+}
+function refresh(){
+  if (refreshing) return;
+  refreshing = true; hintGone = true; swirl = Math.max(swirl, 2.2);
+  announce('Refreshing the forecast…');
+  setTimeout(() => {
+    const C = CITIES[ci];
+    oi = (oi + 1) % C.obs.length;
+    refreshing = false;
+    const o = cur();
+    // the precipitation inside the globe changes type as it settles
+    for (const p of parts){ if (Math.random() < 0.85){ const k = kindFor(o); if (k !== p.k){ p.k = k; p.s = k==='glitter' ? 1.2 + Math.random()*1.6 : 1.2 + Math.random()*1.8; } } }
+    chime();
+    announceReading(true);
+  }, reduce ? 300 : 1300);
+}
+function setCity(d){
+  audio(); ci = (ci + d + CITIES.length) % CITIES.length; oi = 0;
+  buildTown(); resetParticles(true);
+  const t = targetWx(cur()); WX.snowCover = t.snowTarget; WX.wet = t.wet; WX.sun = t.sun; WX.gloom = t.gloom;
+  clunk(); swirl = 1.2; announceReading(true);
+}
+$('prev').addEventListener('click', () => setCity(-1));
+$('next').addEventListener('click', () => setCity(1));
+function announceReading(say){
+  const o = cur(), C = CITIES[ci];
+  const txt = `${C.name}, ${C.country}. ${o.cond}, ${o.temp} degrees, feels like ${o.feels}. High ${o.hi}, low ${o.lo}. Wind ${o.wind} kilometres per hour from the ${o.dir}. Chance of precipitation ${o.pop} percent. Updated ${o.t}. Next hours: ` + o.hours.map(([h,k,t,p]) => `${h}:00 ${t} degrees`).join(', ') + `. Coming days: ` + C.days.map(([d,k,hi,lo,p]) => `${d} ${hi} and ${lo}, ${p} percent`).join('; ') + '.';
+  $('reading').textContent = txt;
+  if (say) announce(`Updated ${o.t}: ${C.name}, ${o.cond}, ${o.temp} degrees.`);
+}
+function announce(s){ $('live').textContent = s; }
+
+/* ---------------- sound ---------------- */
+let AC = null, master = null, lastSlosh = 0;
+function audio(){ if (AC){ if (AC.state==='suspended') AC.resume(); return; } try{ AC = new (window.AudioContext||window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.15; master.connect(AC.destination);}catch(e){ AC = null; } }
+function slosh(v){
+  if (!AC) return; const now = performance.now(); if (now - lastSlosh < 140) return; lastSlosh = now;
+  const t0 = AC.currentTime, len = 0.35, b = AC.createBuffer(1, Math.ceil(AC.sampleRate*len), AC.sampleRate), d = b.getChannelData(0);
+  for (let i=0;i<d.length;i++){ const u = i/d.length; d[i] = (Math.random()*2-1)*Math.sin(Math.PI*u)*0.8; }
+  const s = AC.createBufferSource(); s.buffer = b; const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(500, t0); f.frequency.linearRampToValueAtTime(1300, t0 + len*0.5); f.frequency.linearRampToValueAtTime(400, t0 + len);
+  const g = AC.createGain(); g.gain.value = 0.5*v; s.connect(f); f.connect(g); g.connect(master); s.start(t0);
+}
+function chime(){ if (!AC) return; const t0 = AC.currentTime; [1568, 2093, 2637].forEach((f,i) => { const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0 + i*0.09); g.gain.exponentialRampToValueAtTime(0.08, t0 + i*0.09 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + i*0.09 + 1.4); o.connect(g); g.connect(master); o.start(t0 + i*0.09); o.stop(t0 + i*0.09 + 1.5); }); }
+function clunk(){ if (!AC) return; const t0 = AC.currentTime; const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(220, t0); o.frequency.exponentialRampToValueAtTime(90, t0 + 0.08); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.15); o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.2); }
+
+/* ---------------- loop ---------------- */
+let last = performance.now();
+function frame(now){
+  if (document.hidden){ last = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  // the globe springs back after being shaken
+  if (!shake.held){ const ax = -shake.x*120 - shake.vx*9, ay = -shake.y*120 - shake.vy*9; shake.vx += ax*dt; shake.vy += ay*dt; shake.x += shake.vx*dt; shake.y += shake.vy*dt; shake.ax = ax*0.4; shake.ay = ay*0.4; }
+  else { shake.ax *= 0.8; shake.ay *= 0.8; }
+  // weather eases toward the latest reading
+  const t = targetWx(cur()), k = Math.min(1, dt*(reduce ? 20 : 0.8));
+  WX.sun += (t.sun - WX.sun)*k; WX.gloom += (t.gloom - WX.gloom)*k; WX.wet += (t.wet - WX.wet)*k; WX.snowTarget = t.snowTarget;
+  if (WX.snowCover > t.snowTarget) WX.snowCover = Math.max(t.snowTarget, WX.snowCover - dt*0.05);
+  else if (cur().kind !== 'snow') WX.snowCover += (t.snowTarget - WX.snowCover)*k*0.5;
+  stepParticles(dt);
+  for (const m of movers){ m.x += m.v*dt*(reduce ? 0 : 1); if (m.x > 0.8) m.x = -0.8; if (m.x < -0.8) m.x = 0.8; }
+  // paint the "photograph"
+  sctx.setTransform(DPR,0,0,DPR,0,0);
+  drawRoom(sctx); drawGlassShadow(sctx); drawGlobeInterior(sctx); drawGlass(sctx); drawBase(sctx); drawHours(sctx); drawCards(sctx);
+  composite();
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', layout);
+layout();
+{ const t = targetWx(cur()); Object.assign(WX, {sun:t.sun, gloom:t.gloom, wet:t.wet, snowCover:t.snowTarget, snowTarget:t.snowTarget}); }
+announceReading(false);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {});
+requestAnimationFrame(frame);
+window.__globe = { shake: autoShake, city: setCity };
+})();
+</script>
+</body>
+</html>

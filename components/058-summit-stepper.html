@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summit Stepper</title>
+<meta name="description" content="A multi-step onboarding drawn as a WPA national park screen-print poster: each step is a camp on the mountain, a climber walks the switchback trail as you advance, flags are planted at completed camps and an altimeter counts the climb.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Gothic&family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Summit Stepper","reimagines":"Step / progress indicator","category":"Feedback & Status","description":"Onboarding as a climb up a WPA-style screen-printed mountain. Each step is a named camp on the switchback trail; finishing a step plants a flag and walks the climber up to the next camp while the altimeter counts and the sun rises behind the peak. Completed camps can be revisited by tapping them.","hint":"Fill in each camp's form to climb, or tap a planted flag to go back"}
+</script>
+<style>
+:root{--cream:#f2e6c9;--paper:#efe0bd;--orange:#d9622b;--rust:#a8401f;--mustard:#e7ad3a;--teal:#1f5c63;--navy:#1b2c3d;--pine:#28473a;--sage:#7d9a83;
+  --disp:"League Gothic","Oswald","Arial Narrow",Impact,sans-serif;--body:"Josefin Sans","Futura","Century Gothic",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:var(--body);color:var(--navy);-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:0;padding:18px;background:var(--paper)}
+.poster{position:relative;min-width:0;min-height:0;background:var(--cream);box-shadow:0 0 0 2px var(--navy)}
+#art{position:absolute;inset:0;width:100%;height:100%;display:block}
+.panel{position:relative;min-height:0;display:flex;flex-direction:column;background:var(--cream);margin-left:18px;box-shadow:0 0 0 2px var(--navy);overflow:hidden}
+.panel-head{background:var(--teal);color:var(--cream);padding:18px 26px 14px;position:relative}
+.panel-head .kick{font:600 12px var(--body);letter-spacing:.22em}
+.panel-head h2{margin:12px 0 0;font:400 44px/0.95 var(--disp);letter-spacing:.02em;text-transform:uppercase}
+.panel-head .alt{position:absolute;right:16px;top:12px;display:flex;align-items:baseline;gap:7px;background:var(--navy);padding:5px 10px 3px}
+.panel-head h2{padding-right:0}
+.panel-head .kick{padding-right:120px}
+.panel-head .alt b{display:block;font:400 22px/1 var(--disp);color:var(--mustard);letter-spacing:.04em}
+.panel-head .alt span{font:600 10px var(--body);letter-spacing:.2em}
+.camps{display:flex;padding:14px 18px 6px;gap:4px;list-style:none;margin:0;border-bottom:2px solid var(--navy)}
+.camps li{flex:1;text-align:center}
+.camps button{width:100%;background:none;border:0;padding:4px 0 6px;cursor:pointer;color:var(--navy);font:700 10px var(--body);letter-spacing:.1em;text-transform:uppercase;opacity:.45}
+.camps button svg{display:block;margin:0 auto 4px;width:30px;height:24px}
+.camps li.done button,.camps li.cur button{opacity:1}
+.camps li.cur button{color:var(--orange)}
+.camps button:disabled{cursor:default}
+.form{flex:1;min-height:0;overflow:auto;padding:20px 26px 10px}
+.form h3{margin:0 0 4px;font:400 30px/1 var(--disp);letter-spacing:.02em;text-transform:uppercase;color:var(--rust)}
+.form p.lead{margin:0 0 18px;font:400 15px/1.45 var(--body)}
+.field{margin-bottom:16px}
+.field label{display:block;font:700 11px var(--body);letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+.field input{width:100%;border:0;border-bottom:3px solid var(--navy);background:transparent;font:600 18px var(--body);color:var(--navy);padding:8px 2px 6px;outline:none}
+.field input:focus{border-bottom-color:var(--orange);background:rgba(231,173,58,.12)}
+.field.err input{border-bottom-color:var(--rust)}
+.field .msg{min-height:18px;font:600 13px var(--body);color:var(--rust);margin-top:5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px 5px;background:var(--navy);color:var(--cream);font:600 13px var(--body)}
+.chip button{background:none;border:0;color:var(--mustard);font:700 15px var(--body);cursor:pointer;padding:0 0 2px;line-height:1}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;padding:12px 14px;border:2px solid var(--navy);background:transparent;cursor:pointer;text-align:left;font:600 15px var(--body);color:var(--navy);width:100%}
+.opt svg{width:34px;height:34px;flex:none}
+.opt small{display:block;font:400 13px var(--body);opacity:.8;margin-top:2px}
+.opt[aria-checked="true"]{background:var(--navy);color:var(--cream)}
+.opt[aria-checked="true"] small{opacity:.85}
+.opt .price{margin-left:auto;font:400 26px var(--disp);letter-spacing:.02em}
+.profile{padding:6px 26px 10px}
+.profile svg{display:block;width:100%;height:74px;overflow:visible}
+.profile .pl{display:flex;justify-content:space-between;font:700 10px var(--body);letter-spacing:.14em;margin-top:6px;opacity:.75}
+.summary{list-style:none;padding:0;margin:0 0 10px}
+.summary li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed rgba(27,44,61,.4);font:600 14px var(--body)}
+.summary li span{font-weight:400;opacity:.8}
+.actions{display:flex;align-items:center;gap:14px;padding:14px 26px 20px;border-top:2px solid var(--navy);background:var(--paper)}
+.btn{white-space:nowrap;border:0;background:var(--orange);color:var(--cream);font:400 23px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;padding:13px 22px 11px;cursor:pointer;box-shadow:4px 4px 0 var(--navy);transition:transform .1s, box-shadow .1s}
+.btn:hover{background:#e46d34}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--navy)}
+.link{white-space:nowrap;background:none;border:0;font:700 13px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--navy);cursor:pointer;padding:8px 4px;text-decoration:underline;text-underline-offset:4px}
+.link[hidden],.btn[hidden]{display:none}
+.spacer{flex:1}
+button:focus-visible,input:focus-visible{outline:3px solid var(--mustard);outline-offset:3px}
+.hint{position:absolute;left:22px;bottom:18px;font:700 12px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--cream);background:var(--navy);padding:7px 12px 5px;transition:opacity .6s;pointer-events:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.camp-hit{cursor:pointer}
+.camp-hit:focus-visible{outline:none}
+.camp-hit:focus-visible .ring{stroke:var(--mustard);stroke-width:4}
+@media (max-width:860px){
+  .stage{grid-template-columns:1fr;grid-template-rows:minmax(0,46fr) minmax(0,54fr);padding:10px;gap:10px}
+  .panel{margin-left:0}
+  .panel-head{padding:12px 16px 10px}
+  .panel-head h2{font-size:32px}
+  .panel-head .alt{right:12px;top:9px}.panel-head .alt b{font-size:19px}
+  .camps{display:none}
+  .form{padding:14px 16px 6px}
+  .form h3{font-size:24px}
+  .form p.lead{font-size:14px;margin-bottom:12px}
+  .actions{padding:10px 16px 12px}
+  .btn{font-size:18px;padding:11px 14px 9px;white-space:normal;max-width:52%}
+  .actions{gap:8px}
+  .link{font-size:11.5px;letter-spacing:.08em}
+  .hint{display:none}
+  .profile{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .btn{transition:none} }
+</style>
+</head>
+<body>
+<main class="stage">
+  <section class="poster" aria-label="Your climb">
+    <svg id="art" viewBox="0 0 1000 800" preserveAspectRatio="xMidYMid slice" role="img" aria-labelledby="artT">
+      <title id="artT">Mountain trail with five camps</title>
+      <defs>
+        <filter id="ink" x="-2%" y="-2%" width="104%" height="104%">
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="speck" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="9"/>
+          <feColorMatrix values="0 0 0 0 .95  0 0 0 0 .9  0 0 0 0 .78  0 0 0 -2.4 1.25"/>
+        </filter>
+        <clipPath id="sunClip"><rect x="0" y="0" width="1000" height="640"/></clipPath>
+      </defs>
+      <g filter="url(#ink)">
+        <!-- sky bands -->
+        <rect width="1000" height="800" fill="#f2e6c9"/>
+        <g id="sky">
+          <rect y="0" width="1000" height="150" fill="#e7ad3a" opacity=".55"/>
+          <rect y="150" width="1000" height="110" fill="#e7ad3a" opacity=".35"/>
+          <rect y="260" width="1000" height="110" fill="#e7ad3a" opacity=".18"/>
+        </g>
+        <!-- sun + rays (rises with progress) -->
+        <g id="sunG" clip-path="url(#sunClip)">
+          <g id="sun" transform="translate(560 420)">
+            <g id="rays" fill="#e7ad3a" opacity=".7"></g>
+            <circle r="92" fill="#d9622b"/>
+            <circle r="92" fill="none" stroke="#f2e6c9" stroke-width="6" opacity=".5"/>
+          </g>
+        </g>
+        <!-- far range -->
+        <path d="M0 470 L90 400 L160 430 L260 340 L330 390 L410 350 L470 380 L540 300 L650 380 L720 340 L820 400 L900 350 L1000 410 V640 H0Z" fill="#7d9a83"/>
+        <path d="M0 470 L90 400 L160 430 L180 440 L120 470 L60 480Z M260 340 L330 390 L300 400 L250 380Z M820 400 L900 350 L1000 410 L960 420 L900 395 L860 420Z" fill="#5f7d6a"/>
+        <!-- main peak -->
+        <path d="M110 640 L300 470 L360 490 L470 330 L520 250 L560 150 L610 240 L660 300 L760 420 L820 400 L1000 560 V640Z" fill="#1f5c63"/>
+        <path d="M560 150 L610 240 L660 300 L760 420 L820 400 L1000 560 V640 L700 640 L640 470 L600 360 L585 260Z" fill="#1b2c3d" opacity=".55"/>
+        <!-- snow -->
+        <path d="M520 250 L560 150 L610 240 L590 262 L572 238 L556 270 L540 246 Z" fill="#f2e6c9"/>
+        <path d="M470 330 L520 250 L540 246 L510 300 L490 296 Z M610 240 L660 300 L636 302 L620 276 Z" fill="#f2e6c9" opacity=".85"/>
+        <!-- face texture strokes -->
+        <path d="M380 520 L470 380 M430 560 L510 410 M640 470 L700 400 M300 560 L360 500" stroke="#174a50" stroke-width="5" opacity=".6"/>
+        <!-- mid forest ridge -->
+        <path id="forestBack" fill="#28473a"/>
+        <!-- meadow / foreground -->
+        <path d="M0 640 Q250 600 500 630 T1000 610 V800 H0Z" fill="#a8401f"/>
+        <path d="M0 690 Q300 650 560 690 T1000 680 V800 H0Z" fill="#d9622b"/>
+        <path id="forestFront" fill="#1b2c3d"/>
+        <!-- lake glints -->
+        <path d="M640 720 h90 M690 735 h60 M600 742 h40" stroke="#f2e6c9" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+      </g>
+      <!-- trail -->
+      <path id="trail" d="M215 668 C 280 640, 330 590, 400 556 C 470 522, 600 520, 640 480 C 670 448, 560 420, 500 396 C 440 372, 450 330, 500 300 C 545 274, 585 250, 566 176" fill="none" stroke="#f2e6c9" stroke-width="4" stroke-dasharray="2 9" stroke-linecap="round"/>
+      <path id="trailDone" fill="none" stroke="#e7ad3a" stroke-width="5" stroke-linecap="round"/>
+      <g id="camps"></g>
+      <g id="climber"></g>
+      <!-- poster lettering -->
+      <g id="lettering" font-family="League Gothic, Oswald, Impact, sans-serif">
+        <text x="500" y="92" font-size="88" fill="#1b2c3d" letter-spacing="6" text-anchor="middle">RIDGELINE</text>
+        <text x="500" y="122" font-size="20" fill="#a8401f" letter-spacing="7" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-weight="700">TEAM PLANNING · EST. 2026</text>
+        <rect x="0" y="752" width="1000" height="48" fill="#1b2c3d"/>
+        <text x="500" y="788" font-size="34" fill="#f2e6c9" text-anchor="middle" letter-spacing="8">CLIMB TO YOUR FIRST PROJECT</text>
+      </g>
+      <rect width="1000" height="800" filter="url(#speck)" opacity=".42" style="mix-blend-mode:screen" pointer-events="none"/>
+    </svg>
+    <div class="hint" id="hint">Tap a planted flag to revisit a camp</div>
+  </section>
+
+  <section class="panel" aria-labelledby="stepTitle">
+    <div class="panel-head">
+      <div class="kick" id="kick">STEP 2 OF 5 · CAMP I</div>
+      <h2 id="stepTitle">Invite your crew</h2>
+      <div class="alt" aria-live="off"><b id="altB">2,400 m</b><span>ALTITUDE</span></div>
+    </div>
+    <ol class="camps" id="campList" aria-label="Onboarding steps"></ol>
+    <form class="form" id="form" novalidate></form>
+    <div class="profile" aria-hidden="true"><svg viewBox="0 0 360 74" preserveAspectRatio="none" id="prof"></svg><div class="pl"><span>2,400 m</span><span>ELEVATION PROFILE</span><span>4,392 m</span></div></div>
+    <div class="actions">
+      <button class="link" id="back" type="button">← Back</button>
+      <div class="spacer"></div>
+      <button class="link" id="skip" type="button">Skip for now</button>
+      <button class="btn" id="next" type="button">Continue</button>
+    </div>
+  </section>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const live = $('#live'); function say(t){ live.textContent = ''; setTimeout(() => live.textContent = t, 40); }
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for(const k in attrs) e.setAttribute(k, attrs[k]); if(parent) parent.appendChild(e); return e; }
+
+/* ---------- forests + rays ---------- */
+(function scenery(){
+  const tree = (x, base, h, w) => `M${x} ${base - h}L${x + w} ${base - h*.45}H${x + w*.55}L${x + w*1.2} ${base}H${x - w*1.2}L${x - w*.55} ${base - h*.45}H${x - w}Z`;
+  let d = 'M0 660 '; let back = '';
+  for(let i=0;i<46;i++){ const x = i*22 + (i%3)*4; const h = 40 + ((i*37) % 26); back += tree(x, 652 + Math.sin(i*.7)*6, h, 11); }
+  $('#forestBack').setAttribute('d', back);
+  let front = ''; [[30,740,110],[75,760,80],[118,748,96],[870,742,120],[920,760,86],[962,750,104],[330,770,60],[365,774,50]].forEach(([x,b,h]) => front += tree(x, b, h, h*.24));
+  $('#forestFront').setAttribute('d', front);
+  const rays = $('#rays'); for(let i=0;i<18;i++){ const a0 = i/18*Math.PI*2, a1 = a0 + Math.PI/36; el('path', { d:`M0 0 L${Math.cos(a0)*700} ${Math.sin(a0)*700} L${Math.cos(a1)*700} ${Math.sin(a1)*700}Z` }, rays); }
+})();
+
+/* ---------- camps on the trail ---------- */
+const trail = $('#trail'), trailDone = $('#trailDone'); const TL = trail.getTotalLength();
+trailDone.setAttribute('d', trail.getAttribute('d')); trailDone.style.strokeDasharray = TL; trailDone.style.strokeDashoffset = TL;
+const CAMP_FR = [0, .26, .49, .73, 1];
+const STEPS = [
+  { key:'base', camp:'Base camp', short:'Base', alt:2400, title:'Name your workspace' },
+  { key:'crew', camp:'Camp I', short:'Camp I', alt:2980, title:'Invite your crew' },
+  { key:'cal', camp:'Camp II', short:'Camp II', alt:3460, title:'Connect your calendar' },
+  { key:'plan', camp:'Camp III', short:'Camp III', alt:3910, title:'Choose your route' },
+  { key:'top', camp:'Summit', short:'Summit', alt:4392, title:'You made the summit' }
+];
+const campG = $('#camps'); const campEls = [];
+STEPS.forEach((s, i) => {
+  const p = trail.getPointAtLength(TL*CAMP_FR[i]);
+  const g = el('g', { class:'camp-hit', transform:`translate(${p.x} ${p.y})`, tabindex:'-1', role:'button', 'aria-label':`${s.camp}, ${s.title}` }, campG);
+  el('circle', { class:'ring', r:22, fill:'transparent', stroke:'transparent' }, g);
+  if(i < 4) el('path', { d:'M-14 0 L0 -18 L14 0Z', fill:'#f2e6c9', stroke:'#1b2c3d', 'stroke-width':3, 'stroke-linejoin':'round' }, g), el('path', { d:'M-3 0 L0 -7 L3 0Z', fill:'#1b2c3d' }, g);
+  const flag = el('g', { class:'flag', opacity:0 }, g);
+  el('line', { x1:0, y1:-18, x2:0, y2:-58, stroke:'#1b2c3d', 'stroke-width':3 }, flag);
+  const cloth = el('path', { d:'M0 -58 L28 -50 L0 -42Z', fill: i === 4 ? '#d9622b' : '#e7ad3a', stroke:'#1b2c3d', 'stroke-width':2, 'stroke-linejoin':'round' }, flag);
+  const right = [true, true, false, true, false][i];
+  const lab = el('g', { transform: `translate(${right ? 24 : -24} ${i === 4 ? -6 : 8})` }, g);
+  const tx = el('text', { 'text-anchor': right ? 'start' : 'end', 'font-family':'League Gothic, Oswald, sans-serif', 'font-size':22, fill:'#f2e6c9', 'letter-spacing':1.5, stroke:'#1b2c3d', 'stroke-width':5, 'paint-order':'stroke' }, lab);
+  tx.textContent = `${s.camp.toUpperCase()} · ${s.alt.toLocaleString('en-US')} M`;
+  campEls.push({ g, flag, cloth, p, raised:0 });
+  g.addEventListener('click', () => { if(i <= maxReached && i !== step) goTo(i, true); });
+  g.addEventListener('keydown', e => { if((e.key === 'Enter' || e.key === ' ') && i <= maxReached){ e.preventDefault(); goTo(i, true); } });
+});
+
+/* ---------- climber ---------- */
+const climber = $('#climber');
+climber.innerHTML = `<g id="cl"><ellipse cx="0" cy="2" rx="12" ry="3" fill="#1b2c3d" opacity=".25"/>
+  <g id="legs" stroke="#1b2c3d" stroke-width="4.5" stroke-linecap="round"><line id="legA" x1="0" y1="-14" x2="-4" y2="0"/><line id="legB" x1="0" y1="-14" x2="4" y2="0"/></g>
+  <g id="body"><rect x="-6" y="-31" width="11" height="18" rx="3" fill="#1b2c3d"/><rect x="-12" y="-31" width="8" height="15" rx="2" fill="#d9622b" stroke="#1b2c3d" stroke-width="2"/><circle cx="0" cy="-36" r="5.5" fill="#f2e6c9" stroke="#1b2c3d" stroke-width="2"/><path d="M-7 -38 H7 L4 -43 H-4Z" fill="#a8401f"/>
+  <g id="arm"><line x1="2" y1="-27" x2="11" y2="-17" stroke="#1b2c3d" stroke-width="3.5" stroke-linecap="round"/><line x1="11" y1="-17" x2="13" y2="2" stroke="#7a5a32" stroke-width="2.5" stroke-linecap="round"/></g></g></g>`;
+const legA = $('#legA'), legB = $('#legB'), armG = $('#arm'), bodyG = $('#body'), clG = $('#cl');
+
+/* ---------- state + forms ---------- */
+let step = 1, maxReached = 1;
+const data = { name:'Northwind Field Team', role:'Team lead', crew:['maya@northwind.co'], cal:'google', plan:'summit' };
+let walk = { fromL: TL*CAMP_FR[1], toL: TL*CAMP_FR[1], t:1, dur:1 }, curL = TL*CAMP_FR[1], doneL = TL*CAMP_FR[0];
+const icons = {
+  google:`<svg viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="5" width="28" height="26" fill="#f2e6c9" stroke="currentColor" stroke-width="2.5"/><rect x="3" y="5" width="28" height="7" fill="#d9622b"/><text x="17" y="27" text-anchor="middle" font-family="League Gothic, sans-serif" font-size="15" fill="#1b2c3d">31</text></svg>`,
+  outlook:`<svg viewBox="0 0 34 34" aria-hidden="true"><rect x="3" y="7" width="28" height="22" fill="#f2e6c9" stroke="currentColor" stroke-width="2.5"/><path d="M3 9 L17 20 L31 9" fill="none" stroke="#1f5c63" stroke-width="2.5"/></svg>`,
+  apple:`<svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="18" r="13" fill="#f2e6c9" stroke="currentColor" stroke-width="2.5"/><path d="M17 18 V9 M17 18 L23 22" stroke="#a8401f" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  trail:`<svg viewBox="0 0 34 34" aria-hidden="true"><path d="M3 30 L14 12 L20 20 L24 15 L31 30Z" fill="#7d9a83" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
+  summit:`<svg viewBox="0 0 34 34" aria-hidden="true"><path d="M2 31 L17 5 L32 31Z" fill="#1f5c63" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M13 12 L17 5 L21 12 L17 14Z" fill="#f2e6c9"/><path d="M17 5 V-2 L24 0 L17 2" fill="#d9622b"/></svg>`
+};
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function renderForm(){
+  const f = $('#form'); const s = STEPS[step];
+  if(step === 0) f.innerHTML = `<h3>Set up base camp</h3><p class="lead">Every expedition needs a name. You can change it later in settings.</p>
+    <div class="field" id="fName"><label for="name">Workspace name</label><input id="name" value="${esc(data.name)}" autocomplete="organization" aria-describedby="nameMsg"><div class="msg" id="nameMsg" role="alert"></div></div>
+    <div class="field"><label>Your role</label><div class="opts" role="radiogroup" aria-label="Your role" style="grid-template-columns:1fr 1fr">${['Team lead','Planner','Field crew','Just looking'].map(r => `<button type="button" class="opt" role="radio" aria-checked="${data.role===r}" data-role="${r}" style="padding:9px 12px">${r}</button>`).join('')}</div></div>`;
+  if(step === 1) f.innerHTML = `<h3>Who’s climbing with you?</h3><p class="lead">Invite the people you plan with. We’ll send them a trail map to join.</p>
+    <div class="field" id="fMail"><label for="mail">Email address</label><input id="mail" type="email" placeholder="name@company.com" aria-describedby="mailMsg"><div class="msg" id="mailMsg" role="alert"></div></div>
+    <div class="chips" id="chips" aria-label="Invited">${data.crew.map((m, i) => `<span class="chip">${esc(m)}<button type="button" data-i="${i}" aria-label="Remove ${esc(m)}">×</button></span>`).join('')}</div>`;
+  if(step === 2) f.innerHTML = `<h3>Bring your calendar</h3><p class="lead">Ridgeline reads busy times so plans never collide. Read-only, always.</p>
+    <div class="opts" role="radiogroup" aria-label="Calendar">${[['google','Google Calendar','maya@northwind.co'],['outlook','Outlook','Microsoft 365'],['apple','Apple Calendar','iCloud']].map(([k,n,sub]) => `<button type="button" class="opt" role="radio" aria-checked="${data.cal===k}" data-cal="${k}">${icons[k]}<span>${n}<small>${sub}</small></span></button>`).join('')}</div>`;
+  if(step === 3) f.innerHTML = `<h3>Pick your route</h3><p class="lead">Start free and upgrade when the crew grows. Billed monthly, cancel any time.</p>
+    <div class="opts" role="radiogroup" aria-label="Plan">${[['trail','Trail','Up to 5 people · 3 projects','Free'],['summit','Summit','Unlimited projects · timelines','$12']].map(([k,n,sub,p]) => `<button type="button" class="opt" role="radio" aria-checked="${data.plan===k}" data-plan="${k}">${icons[k]}<span>${n}<small>${sub}</small></span><span class="price">${p}${k==='summit' ? '<small style="font-family:Josefin Sans,sans-serif;font-size:11px;display:inline"> /person/mo</small>' : ''}</span></button>`).join('')}</div>`;
+  if(step === 4) f.innerHTML = `<h3>4,392 metres. Well climbed.</h3><p class="lead">${esc(data.name)} is ready. Here’s what you packed:</p>
+    <ul class="summary"><li>Workspace <span>${esc(data.name)}</span></li><li>Crew <span>${data.crew.length ? data.crew.length + ' invited' : 'Just you for now'}</span></li><li>Calendar <span>${({google:'Google Calendar',outlook:'Outlook',apple:'Apple Calendar',none:'Not connected'})[data.cal]}</span></li><li>Route <span>${data.plan === 'summit' ? 'Summit · $12/person/mo' : 'Trail · Free'}</span></li></ul>`;
+  bindForm();
+  const sNext = STEPS[step+1];
+  const narrow = innerWidth < 860;
+  $('#next').textContent = step === 4 ? 'Open Ridgeline' : step === 3 ? (narrow ? 'Summit push' : 'Make the summit push') : (narrow ? `On to ${sNext.camp}` : `Continue to ${sNext.camp}`);
+  $('#back').hidden = step === 0; $('#skip').hidden = !(step === 1 || step === 2);
+  $('#kick').textContent = `STEP ${step+1} OF 5 · ${s.camp.toUpperCase()}`; $('#stepTitle').textContent = s.title;
+  renderCampList();
+}
+function bindForm(){
+  const f = $('#form');
+  f.querySelectorAll('[data-role]').forEach(b => b.addEventListener('click', () => { data.role = b.dataset.role; f.querySelectorAll('[data-role]').forEach(x => x.setAttribute('aria-checked', x === b)); }));
+  f.querySelectorAll('[data-cal]').forEach(b => b.addEventListener('click', () => { data.cal = b.dataset.cal; f.querySelectorAll('[data-cal]').forEach(x => x.setAttribute('aria-checked', x === b)); }));
+  f.querySelectorAll('[data-plan]').forEach(b => b.addEventListener('click', () => { data.plan = b.dataset.plan; f.querySelectorAll('[data-plan]').forEach(x => x.setAttribute('aria-checked', x === b)); }));
+  f.querySelectorAll('[role="radiogroup"]').forEach(g => g.addEventListener('keydown', e => { const opts = [...g.querySelectorAll('[role="radio"]')]; let i = opts.indexOf(document.activeElement); if(i < 0) return; if(e.key === 'ArrowDown' || e.key === 'ArrowRight') i = (i+1) % opts.length; else if(e.key === 'ArrowUp' || e.key === 'ArrowLeft') i = (i - 1 + opts.length) % opts.length; else return; e.preventDefault(); opts[i].focus(); opts[i].click(); }));
+  const name = $('#name'); if(name){ name.addEventListener('input', () => { data.name = name.value; $('#fName').classList.remove('err'); $('#nameMsg').textContent = ''; }); name.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); next(); } }); }
+  const mail = $('#mail'); if(mail){ mail.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ','){ e.preventDefault(); addMail(); } }); mail.addEventListener('input', () => { $('#fMail').classList.remove('err'); $('#mailMsg').textContent = ''; }); }
+  f.querySelectorAll('.chip button').forEach(b => b.addEventListener('click', () => { data.crew.splice(+b.dataset.i, 1); renderForm(); const m = $('#mail'); if(m) m.focus(); }));
+}
+function addMail(){ const m = $('#mail'); const v = m.value.trim().replace(/,$/, ''); if(!v) return true;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)){ $('#fMail').classList.add('err'); $('#mailMsg').textContent = 'That address is missing something. Try name@company.com'; shake(); return false; }
+  if(!data.crew.includes(v)) data.crew.push(v); renderForm(); $('#mail').focus(); say(`${v} added to your crew`); return true; }
+function renderCampList(){
+  const ol = $('#campList'); ol.innerHTML = '';
+  STEPS.forEach((s, i) => { const li = document.createElement('li'); li.className = i < step ? 'done' : i === step ? 'cur' : '';
+    const done = i < maxReached || (i === 4 && maxReached === 4);
+    li.innerHTML = `<button type="button" ${i > maxReached ? 'disabled' : ''} ${i === step ? 'aria-current="step"' : ''}><svg viewBox="0 0 30 24" aria-hidden="true"><path d="M2 22 L15 3 L28 22Z" fill="${i === step ? '#d9622b' : i < maxReached ? '#1f5c63' : 'none'}" stroke="#1b2c3d" stroke-width="2.4" stroke-linejoin="round"/>${i < maxReached ? '<path d="M15 3 V-4 L22 -2 L15 0" fill="#e7ad3a" stroke="#1b2c3d" stroke-width="1.5"/>' : ''}</svg>${s.short}<span class="sr-only">${i < step ? ' (completed)' : i === step ? ' (current)' : ''}</span></button>`;
+    li.querySelector('button').addEventListener('click', () => { if(i <= maxReached && i !== step) goTo(i, true); });
+    ol.appendChild(li); });
+  campEls.forEach((c, i) => c.g.setAttribute('tabindex', i <= maxReached && i !== step ? '0' : '-1'));
+}
+
+/* ---------- elevation profile ---------- */
+const prof = $('#prof'); const PX = CAMP_FR.map(f => 8 + f*344), PY = STEPS.map(s => 66 - (s.alt - 2400)/1992*56);
+let pd = `M0 74 L0 ${PY[0] + 2}`; for(let i=0;i<5;i++){ pd += ` L${PX[i]} ${PY[i]}`; if(i < 4){ const mx = (PX[i] + PX[i+1])/2; pd += ` L${mx} ${(PY[i] + PY[i+1])/2 + 6}`; } } pd += ` L360 ${PY[4] + 8} L360 74Z`;
+el('path', { d: pd, fill:'#1f5c63' }, prof);
+const profDone = el('path', { d: pd, fill:'#d9622b' }, prof); const pClip = el('clipPath', { id:'pclip' }, prof); const pRect = el('rect', { x:0, y:0, width:0, height:74 }, pClip); profDone.setAttribute('clip-path', 'url(#pclip)');
+PX.forEach((x, i) => el('path', { d:`M${x - 5} ${PY[i] - 1} L${x} ${PY[i] - 9} L${x + 5} ${PY[i] - 1}Z`, fill:'#f2e6c9', stroke:'#1b2c3d', 'stroke-width':1.5 }, prof));
+const pDot = el('circle', { r:5, fill:'#e7ad3a', stroke:'#1b2c3d', 'stroke-width':2 }, prof);
+
+/* ---------- navigation ---------- */
+function validate(){
+  if(step === 0){ if(!data.name.trim()){ $('#fName').classList.add('err'); $('#nameMsg').textContent = 'Give your workspace a name to set up camp.'; shake(); $('#name').focus(); return false; } }
+  if(step === 1){ const m = $('#mail'); if(m && m.value.trim()) return addMail(); }
+  return true;
+}
+let shakeT = 0; function shake(){ shakeT = 1; say('Please fix the highlighted field before climbing on.'); }
+function next(){
+  if(step === 4){ say(`Opening ${data.name} in Ridgeline`); $('#next').textContent = 'Opening…'; return; }
+  if(!validate()) return;
+  goTo(step + 1);
+}
+function goTo(i, revisit){
+  const from = step; step = i; maxReached = Math.max(maxReached, i);
+  walk = { fromL: curL, toL: TL*CAMP_FR[i], t: 0, dur: RM ? .01 : Math.min(3.2, .9 + Math.abs(CAMP_FR[i] - CAMP_FR[from])*7) };
+  renderForm(); hideHint();
+  const s = STEPS[i];
+  say(i > from ? `${STEPS[from].camp} complete. Climbing to ${s.camp}, ${s.alt.toLocaleString('en-US')} metres.` : `Back at ${s.camp}.`);
+  if(!revisit) { const first = $('#form').querySelector('input, [role="radio"]'); }
+}
+$('#next').addEventListener('click', next);
+$('#back').addEventListener('click', () => { if(step > 0) goTo(step - 1, true); });
+$('#skip').addEventListener('click', () => { if(step === 2) data.cal = 'none'; if(step === 1){ const m = $('#mail'); if(m) m.value = ''; } goTo(step + 1); });
+let hintGone = false; function hideHint(){ if(!hintGone){ hintGone = true; $('#hint').style.opacity = 0; } }
+
+/* ---------- animation ---------- */
+const sunEl = $('#sun'), raysEl = $('#rays'); let simT = 0, last = performance.now(), sunP = .2, altShown = 2400;
+function altAt(L){ const p = trail.getPointAtLength(L); // map trail height to altitude via camp anchors
+  let k = 0; while(k < 3 && L > TL*CAMP_FR[k+1]) k++; const a = TL*CAMP_FR[k], b = TL*CAMP_FR[k+1]; const t = Math.max(0, Math.min(1, (L - a)/(b - a))); return STEPS[k].alt + (STEPS[k+1].alt - STEPS[k].alt)*t; }
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  simT += dt;
+  // walk along the trail
+  let moving = false;
+  if(walk.t < 1){ walk.t = Math.min(1, walk.t + dt/walk.dur); moving = walk.t < 1; const e = walk.t < .5 ? 2*walk.t*walk.t : 1 - Math.pow(-2*walk.t + 2, 2)/2; curL = walk.fromL + (walk.toL - walk.fromL)*e; }
+  const p = trail.getPointAtLength(curL), p2 = trail.getPointAtLength(Math.min(TL, curL + 2)), p0 = trail.getPointAtLength(Math.max(0, curL - 2));
+  const goingUp = walk.toL >= walk.fromL; const dir = (goingUp ? p2.x - p0.x : p0.x - p2.x) >= 0 ? 1 : -1;
+  const atTop = step === 4 && !moving;
+  const gait = moving ? Math.sin(simT*14) : 0;
+  legA.setAttribute('x2', -4 + gait*6); legB.setAttribute('x2', 4 - gait*6);
+  const bob = moving ? Math.abs(Math.sin(simT*14))*2 : Math.sin(simT*2)*.6;
+  armG.setAttribute('transform', atTop ? `rotate(-150 2 -27)` : `rotate(${moving ? gait*14 : 0} 2 -27)`);
+  bodyG.setAttribute('transform', `translate(0 ${-bob})`);
+  clG.setAttribute('transform', `translate(${p.x} ${p.y}) scale(${dir} 1) scale(1.15)`);
+  // completed trail = highest camp reached
+  const targetDone = TL*CAMP_FR[Math.max(step, 0)]; doneL += (Math.min(curL, Math.max(targetDone, doneL)) - doneL)*Math.min(1, dt*6); if(curL < doneL && !moving) doneL = Math.max(TL*CAMP_FR[maxReached] * 0 + curL, doneL);
+  const reach = Math.max(curL, TL*CAMP_FR[maxReached]*(walk.t >= 1 ? 1 : 0));
+  trailDone.style.strokeDashoffset = TL - Math.max(curL, Math.min(reach, TL*CAMP_FR[maxReached]));
+  // flags: raised at every camp below the highest reached (and summit when reached)
+  campEls.forEach((c, i) => { const want = (i < maxReached || (i === 4 && maxReached === 4 && curL > TL*.99)) && !(i === step && moving) ? 1 : 0;
+    const passed = curL >= TL*CAMP_FR[i] - 2;
+    const tgt = want && (passed || i < step) ? 1 : 0; c.raised += (tgt - c.raised)*Math.min(1, dt*(tgt ? 3 : 8));
+    c.flag.setAttribute('opacity', Math.min(1, c.raised*2).toFixed(2)); c.flag.setAttribute('transform', `translate(0 ${(1 - c.raised)*30}) scale(1 ${Math.max(.01, c.raised)})`);
+    const wv = Math.sin(simT*5 + i)*3*c.raised; c.cloth.setAttribute('d', `M0 -58 Q14 ${-58 + wv} 28 ${-50 + wv*.5} Q14 ${-46 - wv*.4} 0 -42Z`); });
+  // sun rises with altitude
+  const alt = altAt(curL); const prog = (alt - 2400)/(4392 - 2400);
+  sunP += (prog - sunP)*Math.min(1, dt*2);
+  sunEl.setAttribute('transform', `translate(560 ${470 - sunP*270})`); raysEl.setAttribute('transform', `rotate(${RM ? 0 : simT*3}) scale(${.75 + sunP*.4})`); raysEl.setAttribute('opacity', (.35 + sunP*.5).toFixed(2));
+  const pf = curL/TL; let seg = 0; while(seg < 3 && pf > CAMP_FR[seg+1]) seg++; const tt = Math.max(0, Math.min(1, (pf - CAMP_FR[seg])/(CAMP_FR[seg+1] - CAMP_FR[seg])));
+  const px = PX[seg] + (PX[seg+1] - PX[seg])*tt, py = PY[seg] + (PY[seg+1] - PY[seg])*tt - (tt < .5 ? tt : 1 - tt)*0; pDot.setAttribute('cx', px); pDot.setAttribute('cy', py - 2); pRect.setAttribute('width', px);
+  altShown += (alt - altShown)*Math.min(1, dt*8); $('#altB').textContent = Math.round(altShown).toLocaleString('en-US') + ' m';
+  // shake the form on validation error
+  if(shakeT > 0){ shakeT = Math.max(0, shakeT - dt*3); $('#form').style.transform = `translateX(${Math.sin(shakeT*30)*8*shakeT}px)`; }
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+curL = TL*CAMP_FR[1]; doneL = curL; renderForm();
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

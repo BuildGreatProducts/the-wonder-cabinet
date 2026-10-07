@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spirograph Spinner</title>
+<meta name="description" content="An indeterminate loading spinner drawn in ballpoint on an exercise book: a sketched Spirograph wheel and four-colour pen trace a never-closing pattern while homework is checked. If the connection drops, the pen runs dry and you scribble to get the ink flowing again.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Gochi+Hand&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Spirograph Spinner","reimagines":"Indeterminate loading spinner","category":"Feedback & Status","description":"While homework is being checked, a ballpoint-sketched Spirograph wheel rolls around its ring and a four-colour pen traces a pattern that never quite repeats, clicking to a new ink as each stage finishes. When the check fails the pen runs dry, and you scribble to get the ink flowing before trying again.","hint":"Drag the wheel to spin it yourself, tap the pen to click a new colour"}
+</script>
+<style>
+:root{--blue:#1f3497;--red:#c4262e;--green:#1d7a43;--black:#232327;--line:#a9c9ec;--margin:#e98a8a;--paper:#fbf9f2;
+  --kid:"Gochi Hand","Comic Sans MS",cursive;--teach:"Caveat","Bradley Hand",cursive}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+body{font-family:var(--kid);color:var(--blue);-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ink{mix-blend-mode:multiply;transform-origin:0 0;transition:transform 1.1s cubic-bezier(.6,0,.2,1), opacity .6s}
+#tools{cursor:grab;touch-action:none}
+#tools.drag{cursor:grabbing}
+#tools:focus-visible{outline:none}
+.top{position:absolute;left:clamp(96px,10vw,140px);top:22px;right:24px;display:flex;align-items:baseline;gap:22px;flex-wrap:wrap}
+.top h1{margin:0;font:400 30px/1 var(--kid);color:var(--blue)}
+.top .who{font:400 19px var(--kid);color:var(--black);opacity:.85}
+.date{margin-left:auto;font:400 18px var(--kid);color:var(--black);opacity:.8}
+.notes{position:absolute;right:max(36px,5vw);top:140px;width:330px}
+.notes h2{margin:0 0 6px;font:700 32px/1 var(--teach);color:var(--black);white-space:nowrap}
+.notes h2 .dots span{display:inline-block;animation:dot 1.2s infinite}
+.notes h2 .dots span:nth-child(2){animation-delay:.2s}.notes h2 .dots span:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,60%,100%{transform:none}30%{transform:translateY(-5px)}}
+.steps{list-style:none;margin:16px 0 0;padding:0}
+.steps li{display:flex;align-items:center;gap:12px;font:400 21px/1.2 var(--kid);color:var(--black);margin:0 0 14px;opacity:.55;transition:opacity .4s}
+.steps li.on,.steps li.done{opacity:1}
+.steps li svg{width:28px;height:28px;flex:none;overflow:visible}
+.steps li .tick{stroke-dasharray:40;stroke-dashoffset:40;transition:stroke-dashoffset .5s ease-out}
+.steps li.done .tick{stroke-dashoffset:0}
+.steps li.fail .cross{stroke-dashoffset:0}
+.steps li .cross{stroke-dasharray:40;stroke-dashoffset:40;transition:stroke-dashoffset .4s}
+.steps li small{display:block;font-size:15px;opacity:.7}
+.sk{position:relative;background:none;border:0;font:400 21px var(--kid);color:var(--blue);padding:10px 20px 8px;cursor:pointer}
+.sk svg.frame{position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);overflow:visible;pointer-events:none}
+.sk:hover{transform:rotate(-1deg)}
+.sk:active{transform:translateY(2px)}
+button:focus-visible,[tabindex]:focus-visible{outline:2px dashed var(--red);outline-offset:6px}
+.actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:18px}
+.wobbly{display:flex;align-items:center;gap:10px;font:400 18px var(--kid);color:var(--black);cursor:pointer;background:none;border:0;padding:4px 0}
+.wobbly svg{width:46px;height:26px;overflow:visible}
+.wobbly .knob{transition:transform .25s}
+.wobbly[aria-checked="true"] .knob{transform:translateX(18px)}
+.wobbly small{display:block;font-size:14px;opacity:.65}
+.results{position:absolute;pointer-events:none;opacity:0;transition:opacity .3s}
+.results.on{opacity:1;pointer-events:auto}
+.w{display:block;clip-path:inset(-20% 100% -20% 0);}
+.results.on .w{animation:write var(--d,.7s) steps(18,end) forwards;animation-delay:var(--at,0s)}
+@keyframes write{to{clip-path:inset(-20% -5% -20% 0)}}
+.score{font:700 86px/1 var(--teach);color:var(--red);position:relative;display:inline-block;padding:4px 26px 0}
+.score svg{position:absolute;inset:-12px -10px -6px -14px;width:calc(100% + 24px);height:calc(100% + 18px);overflow:visible}
+.score svg path{stroke-dasharray:900;stroke-dashoffset:900}
+.results.on .score svg path{animation:circ .9s .9s ease-out forwards}
+@keyframes circ{to{stroke-dashoffset:0}}
+.praise{font:700 34px var(--teach);color:var(--red);margin:4px 0 14px}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:4px 34px;font:400 22px/1.35 var(--kid);color:var(--blue)}
+.answers .ok::after,.answers .no::after{font:700 26px var(--teach);color:var(--red);margin-left:10px}
+.answers .ok::after{content:"✓"}
+.answers .no s{text-decoration-color:var(--red);text-decoration-thickness:2px}
+.answers .no em{font:700 22px var(--teach);color:var(--red);font-style:normal;margin-left:8px}
+.scrib{position:relative;display:none;border:0;touch-action:none;cursor:crosshair;height:130px;margin-top:10px}
+.scrib canvas{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply}
+.scrib.on{display:block}
+.scrib svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.scrib p{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0;text-align:center;font:400 20px/1.25 var(--kid);color:var(--black);opacity:.75;pointer-events:none;padding:0 18px}
+.scrib .flow{position:absolute;left:14px;right:14px;bottom:10px;top:auto;width:auto;height:8px}
+.err{display:none;font:700 28px/1.1 var(--teach);color:var(--red);margin-top:4px}
+.err.on{display:block}
+.err small{display:block;font:400 19px/1.3 var(--kid);color:var(--black);margin-top:6px}
+.mute{position:absolute;right:20px;bottom:18px;background:none;border:0;width:44px;height:40px;cursor:pointer;padding:0}
+.mute svg{width:100%;height:100%;overflow:visible}
+.mute[aria-pressed="true"] .wv{display:none}.mute[aria-pressed="false"] .mx{display:none}
+.hint{position:absolute;font:400 18px var(--kid);color:var(--black);opacity:.7;transition:opacity .6s;pointer-events:none;width:max-content;max-width:220px;line-height:1.2}
+.hint svg{display:block;width:70px;height:40px;overflow:visible;margin-top:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:820px){
+  .top{left:62px;top:14px;gap:4px 14px}
+  .top h1{font-size:23px}
+  .top .who{font-size:16px}
+  .date{display:none}
+  .notes{left:62px;right:16px;width:auto;top:auto;bottom:22px}
+  .notes h2{font-size:28px}
+  .steps{margin-top:8px}
+  .steps li{font-size:18px;margin-bottom:6px}
+  .steps li small{display:none}
+  .actions{margin-top:8px;gap:10px}
+  .sk{font-size:18px;padding:8px 14px 6px}
+  .score{font-size:62px}
+  .praise{font-size:27px;margin-bottom:6px}
+  .answers{font-size:17px;gap:0 18px}
+  .hint{display:none}
+  .notes.failing .steps li:not(.fail){display:none}
+  .scrib{height:96px}
+  .err{font-size:24px}
+  .err small{font-size:15px}
+  .mute{top:10px;right:10px;bottom:auto;width:38px;height:34px}
+}
+@media (prefers-reduced-motion: reduce){ .notes h2 .dots span{animation:none} #ink{transition:none} }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="paper" aria-hidden="true"></canvas>
+  <canvas id="ink" aria-hidden="true"></canvas>
+  <canvas id="tools" tabindex="0" role="img" aria-label="Loading. A Spirograph wheel is drawing a pattern. Drag it or use the arrow keys to spin it, press C to change ink colour."></canvas>
+  <div class="top">
+    <h1>Fractions · week 15</h1>
+    <span class="who">Ada Okafor · Year 4 · Mr Bell’s class</span>
+    <span class="date">Tuesday 14 April 2026</span>
+  </div>
+  <div class="hint" id="hint">drag the wheel to spin it!<svg viewBox="0 0 70 40"><path d="M60 4 C 50 30, 30 34, 6 30 M14 22 L5 30 L16 36" fill="none" stroke="#232327" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+  <section class="notes" id="notes" aria-live="polite">
+    <h2 id="nTitle">Checking your homework<span class="dots"><span>.</span><span>.</span><span>.</span></span></h2>
+    <ol class="steps" id="steps">
+      <li data-s="0"><svg viewBox="0 0 28 28" aria-hidden="true"><path class="box" d="M4 5 L24 4 L25 24 L5 25 Z" fill="none" stroke="#232327" stroke-width="1.6" stroke-linejoin="round"/><path class="tick" d="M7 15 L12 21 L26 1" fill="none" stroke="#c4262e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path class="cross" d="M6 6 L22 22 M22 6 L6 22" fill="none" stroke="#c4262e" stroke-width="2.4" stroke-linecap="round"/></svg><span>Collecting your 3 pages<small>scanned at 08:41</small></span></li>
+      <li data-s="1"><svg viewBox="0 0 28 28" aria-hidden="true"><path class="box" d="M4 4 L25 5 L24 25 L4 24 Z" fill="none" stroke="#232327" stroke-width="1.6" stroke-linejoin="round"/><path class="tick" d="M7 15 L12 21 L26 1" fill="none" stroke="#c4262e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path class="cross" d="M6 6 L22 22 M22 6 L6 22" fill="none" stroke="#c4262e" stroke-width="2.4" stroke-linecap="round"/></svg><span>Reading your handwriting<small>even the wobbly sevens</small></span></li>
+      <li data-s="2"><svg viewBox="0 0 28 28" aria-hidden="true"><path class="box" d="M5 4 L24 5 L25 25 L4 24 Z" fill="none" stroke="#232327" stroke-width="1.6" stroke-linejoin="round"/><path class="tick" d="M7 15 L12 21 L26 1" fill="none" stroke="#c4262e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path class="cross" d="M6 6 L22 22 M22 6 L6 22" fill="none" stroke="#c4262e" stroke-width="2.4" stroke-linecap="round"/></svg><span>Checking 10 answers<small>with Mr Bell’s red pen</small></span></li>
+    </ol>
+  <div class="err" id="err" role="alert"><span id="errTitle">Oh no, the pen ran dry.</span><small id="errSub">We couldn’t reach Brightwater School’s server while reading page 2.</small></div>
+  <div class="scrib" id="scrib" role="button" tabindex="0" aria-label="Scribble area. Scribble here to get the ink flowing and try again, or press Enter.">
+    <canvas id="scribInk" aria-hidden="true"></canvas><svg aria-hidden="true"><path id="scribBox" fill="none" stroke="#232327" stroke-width="1.5" stroke-dasharray="7 6" stroke-linecap="round"/></svg>
+    <p id="scribTxt">Scribble here to get the ink flowing</p>
+    <svg class="flow" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><path d="M1 4 H99" stroke="#232327" stroke-width=".6" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/><path id="flowBar" d="M1 4 H1" stroke="#1f3497" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>
+  </div>
+    <div class="actions" id="actions">
+      <button class="sk" id="again" type="button" hidden>Check another worksheet</button>
+      <button class="sk" id="retry" type="button" hidden>Try again</button>
+      <button class="wobbly" id="wobbly" type="button" role="switch" aria-checked="false"><svg viewBox="0 0 46 26" aria-hidden="true"><path d="M13 3 H33 A10 10 0 0 1 33 23 H13 A10 10 0 0 1 13 3 Z" fill="none" stroke="#232327" stroke-width="1.6"/><g class="knob"><circle cx="13" cy="13" r="7.5" fill="#fbf9f2" stroke="#1f3497" stroke-width="1.8"/><path d="M9 10 L17 16 M10 15 L16 9" stroke="#1f3497" stroke-width="1"/></g></svg><span>Wobbly school Wi-Fi<small>the next check will drop out</small></span></button>
+    </div>
+  </section>
+
+  <section class="results" id="results" aria-label="Marked homework">
+    <div class="score w" style="--at:.1s;--d:.6s"><span>9/10</span><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M70 6 C 96 10, 100 60, 70 92 C 40 104, 2 86, 3 52 C 4 18, 38 2, 78 10" fill="none" stroke="#c4262e" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg></div>
+    <div class="praise w" style="--at:1.4s;--d:.8s">Brilliant work, Ada!</div>
+    <div class="answers" id="answers"></div>
+  </section>
+
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute pen sounds"><svg viewBox="0 0 44 40" aria-hidden="true"><path d="M6 15 L14 15 L24 7 L23 33 L14 25 L6 26 Z" fill="none" stroke="#232327" stroke-width="1.6" stroke-linejoin="round"/><path class="wv" d="M29 14 C 33 18, 33 23, 29 27 M33 10 C 40 17, 40 25, 33 31" fill="none" stroke="#232327" stroke-width="1.6" stroke-linecap="round"/><path class="mx" d="M29 14 L39 26 M39 14 L29 26" stroke="#232327" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const paperC = $('#paper'), inkC = $('#ink'), toolC = $('#tools');
+const pg = paperC.getContext('2d'), ig = inkC.getContext('2d'), tg = toolC.getContext('2d');
+const DPR = Math.min(2, devicePixelRatio || 1);
+let W, H, MOB, CX, CY, R;
+const INKS = [ {n:'blue', c:[31,52,151]}, {n:'red', c:[196,38,46]}, {n:'green', c:[29,122,67]}, {n:'black', c:[35,35,39]} ];
+const live = $('#live'); function say(t){ live.textContent=''; setTimeout(()=>live.textContent=t, 40); }
+
+/* seeded rng for stable sketch jitter */
+function rng(seed){ let s = seed>>>0 || 1; return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s>>>0) % 100000)/100000; }; }
+
+/* ---------- paper ---------- */
+function drawPaper(){
+  paperC.width = W*DPR; paperC.height = H*DPR; pg.setTransform(DPR,0,0,DPR,0,0);
+  pg.fillStyle = '#fbf9f2'; pg.fillRect(0,0,W,H);
+  const r = rng(7);
+  for(let i=0;i<2600;i++){ pg.fillStyle = `rgba(120,110,90,${r()*.05})`; pg.fillRect(r()*W, r()*H, 1+r()*1.5, 1); }
+  const gap = MOB ? 30 : 34, top = MOB ? 84 : 112;
+  pg.strokeStyle = 'rgba(120,170,225,.55)'; pg.lineWidth = 1;
+  for(let y=top; y<H; y+=gap){ pg.beginPath(); pg.moveTo(0, y+.5); pg.lineTo(W, y+.5); pg.stroke(); }
+  const mx = MOB ? 48 : Math.max(80, Math.min(120, W*.085));
+  pg.strokeStyle = 'rgba(229,120,120,.75)'; pg.beginPath(); pg.moveTo(mx+.5,0); pg.lineTo(mx+.5,H); pg.stroke(); pg.beginPath(); pg.moveTo(mx+4.5,0); pg.lineTo(mx+4.5,H); pg.stroke();
+  // punched holes
+  pg.fillStyle = '#ece6d6'; [.18,.5,.82].forEach(f => { pg.beginPath(); pg.arc(MOB?20:30, H*f, MOB?7:9, 0, Math.PI*2); pg.fill(); pg.strokeStyle='rgba(0,0,0,.12)'; pg.stroke(); });
+  const vg = pg.createRadialGradient(W/2, H/2, Math.min(W,H)*.4, W/2, H/2, Math.max(W,H)*.8); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(90,70,30,.08)'); pg.fillStyle = vg; pg.fillRect(0,0,W,H);
+}
+
+/* ---------- ballpoint sketch helpers ---------- */
+function bp(ctx, col, a, w){ ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; }
+function wobblyCircle(ctx, x, y, r, rnd, j, start){ ctx.beginPath(); const n = Math.max(40, r*.6|0), a0 = start ?? rnd()*6.28, over = .12 + rnd()*.15;
+  for(let i=0;i<=n*(1+over);i++){ const a = a0 + i/n*Math.PI*2, rr = r + (rnd()-.5)*j + Math.sin(a*3+a0)*j*.6; const px = x + Math.cos(a)*rr, py = y + Math.sin(a)*rr; i ? ctx.lineTo(px,py) : ctx.moveTo(px,py); } ctx.stroke(); }
+function teethPath(ctx, x, y, r, n, depth, rnd, j, rot){ ctx.beginPath(); for(let i=0;i<=n*2;i++){ const a = (rot||0) + i/(n*2)*Math.PI*2; const rr = r + (i%2 ? depth : 0) + (rnd()-.5)*j; const px = x + Math.cos(a)*rr, py = y + Math.sin(a)*rr; i ? ctx.lineTo(px,py) : ctx.moveTo(px,py); } ctx.closePath(); ctx.stroke(); }
+function hatch(ctx, x0, y0, w, h, ang, step, rnd, col, a){
+  ctx.save(); ctx.translate(x0 + w/2, y0 + h/2); ctx.rotate(ang); bp(ctx, col, a, .9);
+  const L = Math.hypot(w,h)/2; for(let t=-L; t<L; t+=step){ ctx.beginPath(); ctx.moveTo(-L + rnd()*4, t + rnd()*1.5); ctx.lineTo(L - rnd()*4, t + rnd()*1.5 + (rnd()-.5)*2); ctx.stroke(); }
+  ctx.restore();
+}
+const BLUE = INKS[0].c, GREY = [60,62,80];
+
+/* ---------- pre-rendered tool sprites (3 boil frames each) ---------- */
+let ringSpr = [], gearSpr = [], penSpr = [], RT, GT, rG, gearHoles;
+const SETS = [ {ring:96, gear:35, hole:.78}, {ring:105, gear:29, hole:.7}, {ring:96, gear:17, hole:.82}, {ring:105, gear:41, hole:.62} ];
+let setIdx = 0;
+function mkCanvas(w, h){ const c = document.createElement('canvas'); c.width = Math.ceil(w*DPR); c.height = Math.ceil(h*DPR); const x = c.getContext('2d'); x.scale(DPR, DPR); return [c, x]; }
+function buildSprites(){
+  const S = SETS[setIdx % SETS.length]; RT = S.ring; GT = S.gear; rG = R*GT/RT;
+  const band = MOB ? 26 : 34, size = (R + band + 12)*2;
+  ringSpr = []; gearSpr = []; penSpr = [];
+  for(let f=0; f<3; f++){
+    const [c, x] = mkCanvas(size, size); const rnd = rng(11 + f*97); const o = size/2;
+    // ring body: hatched translucent plastic
+    x.save(); x.beginPath(); x.arc(o, o, R + band, 0, Math.PI*2); x.arc(o, o, R + 3, 0, Math.PI*2, true); x.clip('evenodd');
+    hatch(x, 0, 0, size, size, -.7, 6.5, rnd, BLUE, .22); x.restore();
+    bp(x, BLUE, .8, 1.3); wobblyCircle(x, o, o, R + band, rnd, 1.6); bp(x, BLUE, .45, 1); wobblyCircle(x, o, o, R + band - 2.5, rnd, 2.2);
+    bp(x, BLUE, .75, 1.1); teethPath(x, o, o, R, RT, 3.2, rnd, .6);
+    // printed numbers on the ring
+    x.fillStyle = 'rgba(31,52,151,.75)'; x.font = `400 ${MOB?12:14}px "Gochi Hand", cursive`; x.textAlign = 'center';
+    [['96', -2.3], ['SPIROGRAPH', -1.55], [String(RT), .8]].forEach(([t, a], i) => { x.save(); x.translate(o + Math.cos(a)*(R + band*.55), o + Math.sin(a)*(R + band*.55)); x.rotate(a + Math.PI/2); x.fillText(i===0 ? '' : t, 0, 4); x.restore(); });
+    ringSpr.push(c);
+    // gear
+    const gs = (rG + 10)*2; const [gc, gx] = mkCanvas(gs, gs); const go = gs/2; const r2 = rng(301 + f*53);
+    gx.save(); gx.beginPath(); gx.arc(go, go, rG - 2, 0, Math.PI*2); gx.clip(); hatch(gx, 0, 0, gs, gs, .5, 7, r2, BLUE, .16); gx.restore();
+    bp(gx, BLUE, .85, 1.2); teethPath(gx, go, go, rG - 3.2, GT, 3.2, r2, .5);
+    bp(gx, BLUE, .4, .9); wobblyCircle(gx, go, go, rG - 6, r2, 1.6);
+    gearHoles = []; const nh = Math.max(3, Math.min(9, GT/4|0));
+    for(let i=0;i<nh;i++){ const fr = .18 + i/(nh-1)*(S.hole - .18 + .04), a = i*2.39; const hx = go + Math.cos(a)*rG*fr, hy = go + Math.sin(a)*rG*fr; gearHoles.push([Math.cos(a)*rG*fr, Math.sin(a)*rG*fr]);
+      gx.fillStyle = '#fbf9f2'; gx.beginPath(); gx.arc(hx, hy, 3.6, 0, Math.PI*2); gx.fill(); bp(gx, BLUE, .8, 1); wobblyCircle(gx, hx, hy, 3.6, r2, .5); }
+    gx.fillStyle = 'rgba(31,52,151,.8)'; gx.font = `400 ${Math.max(11, rG*.28)}px "Gochi Hand", cursive`; gx.textAlign = 'center'; gx.fillText(String(GT), go, go + rG*.1);
+    gearSpr.push(gc);
+  }
+  // pen sprite per colour per frame: tip at sprite origin offset
+  const PL = MOB ? 150 : 200, PW = MOB ? 15 : 19;
+  for(let ci=0; ci<4; ci++){ penSpr[ci] = [];
+    for(let f=0; f<3; f++){
+      const [c, x] = mkCanvas(PL + 40, PW*3 + 40); const rnd = rng(500 + ci*31 + f*7); const ox = 14, oy = (PW*3 + 40)/2;
+      x.translate(ox, oy);
+      // cone + body (pointing left = tip at 0,0)
+      bp(x, GREY, .9, 1.2);
+      x.beginPath(); x.moveTo(0,0); x.lineTo(16, -PW*.36); x.lineTo(16, PW*.36); x.closePath(); x.stroke();
+      const ink = INKS[ci].c; x.fillStyle = `rgba(${ink[0]},${ink[1]},${ink[2]},.95)`; x.beginPath(); x.arc(1, 0, 2.2, 0, Math.PI*2); x.fill();
+      x.beginPath(); x.moveTo(16, -PW*.5); x.lineTo(PL*.62, -PW*.5 + (rnd()-.5)); x.lineTo(PL*.62, PW*.5); x.lineTo(16, PW*.5); x.closePath(); x.stroke();
+      x.save(); x.beginPath(); x.rect(16, PW*.05, PL*.62-16, PW*.45); x.clip(); hatch(x, 16, 0, PL*.62, PW, .9, 3.5, rnd, GREY, .5); x.restore();
+      // grip ribs
+      bp(x, GREY, .7, 1); for(let i=0;i<6;i++){ const gx = 22 + i*5; x.beginPath(); x.moveTo(gx, -PW*.5); x.lineTo(gx+1, PW*.5); x.stroke(); }
+      // fat four-colour barrel
+      bp(x, GREY, .9, 1.2); x.beginPath(); x.moveTo(PL*.62, -PW*.62); x.lineTo(PL, -PW*.62); x.quadraticCurveTo(PL+8, 0, PL, PW*.62); x.lineTo(PL*.62, PW*.62); x.closePath(); x.stroke();
+      // sliders
+      for(let k=0;k<4;k++){ const sy = -PW*.42 + k*PW*.28; const col = INKS[k].c; const active = k===ci; const sx = PL*.66 + (active ? -10 : 18);
+        x.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${active ? .95 : .7})`; x.fillRect(sx, sy - 2.6, 20, 5.2); bp(x, GREY, .8, .8); x.strokeRect(sx, sy - 2.6, 20, 5.2); }
+      x.save(); x.beginPath(); x.rect(PL*.62, PW*.15, PL*.38, PW*.5); x.clip(); hatch(x, PL*.62, 0, PL*.4, PW, .9, 3.5, rnd, GREY, .45); x.restore();
+      // clip
+      bp(x, GREY, .85, 1.1); x.beginPath(); x.moveTo(PL*.7, -PW*.62); x.lineTo(PL*.92, -PW*.95); x.lineTo(PL*.98, -PW*.62); x.stroke();
+      penSpr[ci].push({ c, ox, oy });
+    }
+  }
+}
+
+/* ---------- spirograph state ---------- */
+let theta = 0, omega = 0, baseOmega = RM ? 1.4 : 3.6, inkIdx = 0, lapsSinceInk = 0, drift = 0, dry = 1, penDown = true, lastPt = null, pressT = 0;
+function penPos(th){
+  const k = SETS[setIdx % SETS.length].hole + Math.sin(drift)*.06; const d = rG*k;
+  const gx = CX + (R - rG)*Math.cos(th), gy = CY + (R - rG)*Math.sin(th); const ph = -(R - rG)/rG*th;
+  return { x: gx + d*Math.cos(ph), y: gy + d*Math.sin(ph), gx, gy, ph };
+}
+function inkStroke(dth){
+  if(!penDown) return;
+  const steps = Math.max(1, Math.ceil(Math.abs(dth)/.012));
+  const col = INKS[inkIdx].c; pressT += Math.abs(dth);
+  const press = .72 + .18*Math.sin(pressT*1.3) + .1*Math.sin(pressT*3.7);
+  ig.setTransform(DPR,0,0,DPR,0,0); ig.globalCompositeOperation = 'multiply'; ig.lineCap = 'round'; ig.lineJoin = 'round';
+  ig.beginPath(); let started = false;
+  for(let i=1;i<=steps;i++){
+    theta += dth/steps; drift += Math.abs(dth/steps)*.004;
+    const p = penPos(theta);
+    if(dry < .999 && Math.random() > dry*1.1){ if(started){ ig.stroke(); ig.beginPath(); started = false; } lastPt = p; continue; }
+    if(!lastPt){ lastPt = p; continue; }
+    if(!started){ ig.moveTo(lastPt.x, lastPt.y); started = true; }
+    ig.lineTo(p.x, p.y); lastPt = p;
+  }
+  ig.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${(.5 + .32*press)*Math.min(1, dry*1.2)})`; ig.lineWidth = (1.05 + .4*press)*(.6 + .4*dry);
+  ig.stroke();
+  if(dry > .9 && Math.random() < .02 && lastPt){ ig.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},.85)`; ig.beginPath(); ig.arc(lastPt.x, lastPt.y, 1.5 + Math.random()*.8, 0, Math.PI*2); ig.fill(); }
+  lapsSinceInk += Math.abs(dth)/(Math.PI*2);
+}
+function nextInk(manual){ inkIdx = (inkIdx + 1) % 4; lapsSinceInk = 0; sfx.click(); if(manual) say(`Clicked to ${INKS[inkIdx].n} ink`); }
+function clearInk(){ ig.setTransform(1,0,0,1,0,0); ig.clearRect(0,0,inkC.width,inkC.height); lastPt = null; }
+
+/* ---------- sound ---------- */
+let actx = null, scratchG = null, muted = false;
+function initAudio(){ try{ if(!actx){ const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return; actx = new AC(); const m = actx.createGain(); m.gain.value = .15; m.connect(actx.destination);
+  const b = actx.createBuffer(1, actx.sampleRate*2, actx.sampleRate), d = b.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*(.6 + .4*Math.sin(i/180));
+  const s = actx.createBufferSource(); s.buffer = b; s.loop = true; const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2600; f.Q.value = .9; scratchG = actx.createGain(); scratchG.gain.value = 0; s.connect(f).connect(scratchG).connect(m); s.start(); sfx.m = m; }
+  if(actx.state==='suspended') actx.resume(); }catch(e){} }
+const sfx = { click(){ if(!actx||muted||actx.state!=='running') return; const t = actx.currentTime; [0,.035].forEach((o,i) => { const os = actx.createOscillator(), g = actx.createGain(); os.type = 'square'; os.frequency.value = i ? 1900 : 2600; g.gain.setValueAtTime(.0001,t+o); g.gain.exponentialRampToValueAtTime(.12,t+o+.002); g.gain.exponentialRampToValueAtTime(.0001,t+o+.03); os.connect(g).connect(sfx.m); os.start(t+o); os.stop(t+o+.04); }); } };
+addEventListener('pointerdown', initAudio, {capture:true}); addEventListener('keydown', initAudio, {capture:true});
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute pen sounds' : 'Mute pen sounds'); });
+
+/* ---------- loading process ---------- */
+const STAGES = [ {t:'Collecting your 3 pages', d:1.9}, {t:'Reading your handwriting', d:2.6}, {t:'Checking 10 answers', d:2.4} ];
+let state = 'load', stage = 0, stageT = 0, failNext = false, failAtStage = -1, runs = 0;
+const stepsEl = [...document.querySelectorAll('#steps li')];
+function startRun(){
+  runs++; state = 'load'; stage = 0; stageT = 0; dry = 1; penDown = true;
+  failAtStage = failNext ? 1 : -1; failNext = false; $('#wobbly').setAttribute('aria-checked', 'false');
+  stepsEl.forEach(li => li.className = ''); stepsEl[0].classList.add('on');
+  $('#nTitle').innerHTML = 'Checking your homework<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+  $('#again').hidden = true; $('#retry').hidden = true; $('#results').classList.remove('on'); $('#err').classList.remove('on'); $('#scrib').classList.remove('on');
+  inkC.style.transition = 'none'; inkC.style.transform = 'none'; inkC.style.opacity = 1; void inkC.offsetWidth; inkC.style.transition = '';
+  if(runs > 1){ setIdx++; buildSprites(); clearInk(); }
+  toolAlpha = 0; toolC.setAttribute('aria-busy','true'); if(!hintGone) $('#hint').style.opacity = '';
+  say('Checking your homework');
+}
+function finishStage(){
+  stepsEl[stage].classList.remove('on'); stepsEl[stage].classList.add('done'); nextInk(); stage++; stageT = 0;
+  if(stage >= STAGES.length){ succeed(); return; }
+  stepsEl[stage].classList.add('on'); say(STAGES[stage].t);
+}
+function succeed(){
+  state = 'done'; toolC.setAttribute('aria-busy','false'); $('#hint').style.opacity = 0;
+  $('#nTitle').textContent = 'All marked!';
+  showResults(); $('#again').hidden = false; skFrames();
+  say('Homework marked. 9 out of 10. Brilliant work, Ada.');
+}
+function fail(){
+  state = 'dry'; dryT = 0; stepsEl[stage].classList.remove('on'); stepsEl[stage].classList.add('fail');
+  $('#nTitle').textContent = 'Something went wrong';
+}
+let dryT = 0;
+function showFailUI(){
+  state = 'failed'; toolC.setAttribute('aria-busy','false');
+  const e = $('#err'), s = $('#scrib');
+  e.classList.add('on'); s.classList.add('on'); $('#retry').hidden = false; $('#notes').classList.add('failing'); skFrames();
+  placeFailUI(); flow = 0; updateFlow();
+  say('The connection dropped while reading page 2. Scribble in the box or press Try again.');
+}
+function placeFailUI(){
+  const s = $('#scrib'); const c = $('#scribInk'); const r = s.getBoundingClientRect(); const w = r.width, h = r.height;
+  c.width = w*DPR; c.height = h*DPR; const x = c.getContext('2d'); x.setTransform(DPR,0,0,DPR,0,0);
+  const rnd = rng(77);
+  $('#scribBox').setAttribute('d', `M${2+rnd()*3} ${3+rnd()*2} L${w-3} ${2+rnd()*3} L${w-2-rnd()*3} ${h-3} L${3} ${h-2-rnd()*3} Z`);
+}
+let flow = 0;
+function updateFlow(){ $('#flowBar').setAttribute('d', `M1 4 H${1 + 98*Math.min(1, flow)}`); }
+function retry(){ if(state !== 'failed') return; $('#scrib').classList.remove('on'); $('#notes').classList.remove('failing'); $('#err').classList.remove('on'); $('#retry').hidden = true;
+  state = 'load'; dry = 1; penDown = true; stepsEl[stage].classList.remove('fail'); stepsEl[stage].classList.add('on'); stageT = 0; failAtStage = -1;
+  $('#nTitle').innerHTML = 'Trying again<span class="dots"><span>.</span><span>.</span><span>.</span></span>'; nextInk(); say('Ink is flowing. Trying again.'); }
+$('#retry').addEventListener('click', retry);
+$('#again').addEventListener('click', startRun);
+$('#wobbly').addEventListener('click', e => { failNext = !failNext; e.currentTarget.setAttribute('aria-checked', failNext); if(failNext && state === 'load' && stage <= 1) failAtStage = 1; });
+
+/* scribble pad */
+const scrib = $('#scrib'); let sDown = null;
+const sLocal = e => { const r = scrib.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+scrib.addEventListener('pointerdown', e => { if(state !== 'failed') return; scrib.setPointerCapture(e.pointerId); sDown = sLocal(e); hideHint(); });
+scrib.addEventListener('pointermove', e => { if(!sDown) return; const q = sLocal(e); const d = Math.hypot(q.x - sDown.x, q.y - sDown.y);
+  const col = INKS[inkIdx].c; const sg = $('#scribInk').getContext('2d'); sg.globalCompositeOperation = 'multiply'; sg.lineCap = 'round';
+  // ink starts faint and scratchy, then flows
+  const a = .12 + .7*Math.min(1, flow); if(Math.random() < .25 + .75*flow){ sg.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`; sg.lineWidth = .8 + .9*flow; sg.beginPath(); sg.moveTo(sDown.x, sDown.y); sg.lineTo(q.x, q.y); sg.stroke(); }
+  sDown = q; flow += d/1100; updateFlow(); if(scratchG && !muted) scratchG.gain.setTargetAtTime(Math.min(.5, d/30), actx.currentTime, .02);
+  if(flow >= 1){ sDown = null; $('#scribTxt').textContent = 'There we go!'; setTimeout(() => { $('#scribTxt').textContent = 'Scribble here to get the ink flowing'; retry(); }, 500); } });
+const sUp = () => { sDown = null; }; scrib.addEventListener('pointerup', sUp); scrib.addEventListener('pointercancel', sUp);
+scrib.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); flow = 1; updateFlow(); retry(); } });
+
+/* ---------- results ---------- */
+const ANS = [['½ + ¼ = ¾', 1], ['⅓ of 12 = 4', 1], ['⅗ > ½', 1], ['2 × ⅜ = ¾', 1], ['1 − ⅝ = ⅜', 1], ['¼ = 25%', 1], ['⅔ − ⅙ = <s>⅓</s>', 0, '½'], ['⁴⁄₁₀ = ⅖', 1], ['¾ of 20 = 15', 1], ['⅞ + ⅛ = 1', 1]];
+$('#answers').innerHTML = ANS.map(([t, ok, fix], i) => `<div class="w ${ok ? 'ok' : 'no'}" style="--at:${2 + i*.22}s;--d:.5s">${i+1}. ${t}${fix ? `<em>${fix}</em>` : ''}</div>`).join('');
+function showResults(){
+  const res = $('#results');
+  // shrink the finished drawing into a corner doodle
+  const tx = MOB ? W - 70 : CX + R*.95, ty = MOB ? 132 : CY - R*.9, k = MOB ? .26 : .3;
+  inkC.style.transform = `translate(${tx - CX*k}px, ${ty - CY*k}px) scale(${k})`;
+  if(MOB){ res.style.left = '62px'; res.style.top = '102px'; res.style.width = (W - 76) + 'px'; }
+  else { res.style.left = (CX - R*1.05) + 'px'; res.style.top = (CY - R*.95) + 'px'; res.style.width = Math.min(560, R*2.1) + 'px'; }
+  res.classList.remove('on'); void res.offsetWidth; res.classList.add('on');
+}
+
+/* ---------- sketched frames for buttons ---------- */
+function skFrames(){
+  document.querySelectorAll('.sk').forEach((b, bi) => { let svg = b.querySelector('svg.frame'); if(!svg){ svg = document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('class','frame'); svg.setAttribute('aria-hidden','true'); b.prepend(svg); }
+    const w = b.offsetWidth + 8, h = b.offsetHeight + 8; if(w < 10) return; const rnd = rng(40 + bi*13); const j = () => (rnd()-.5)*3;
+    const d1 = `M${4+j()} ${5+j()} C ${w*.3} ${3+j()}, ${w*.7} ${5+j()}, ${w-4+j()} ${4+j()} L ${w-3+j()} ${h-4+j()} C ${w*.6} ${h-3+j()}, ${w*.3} ${h-5+j()}, ${5+j()} ${h-4+j()} Z`;
+    const d2 = `M${6+j()} ${4+j()} L ${w-6+j()} ${6+j()} L ${w-5+j()} ${h-6+j()} L ${3+j()} ${h-5+j()} L ${7+j()} ${2+j()}`;
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.innerHTML = `<path d="${d1}" fill="none" stroke="#1f3497" stroke-width="1.5" stroke-linejoin="round"/><path d="${d2}" fill="none" stroke="#1f3497" stroke-width=".9" opacity=".6" stroke-linejoin="round"/>`; });
+}
+
+/* ---------- tools render ---------- */
+let toolAlpha = 0, boil = 0, boilT = 0;
+function drawTools(dt){
+  tg.setTransform(DPR,0,0,DPR,0,0); tg.clearRect(0,0,W,H);
+  const want = state === 'done' ? 0 : 1; toolAlpha += (want - toolAlpha)*Math.min(1, dt*(want ? 4 : 2.5));
+  if(toolAlpha < .01) return;
+  boilT += dt; if(!RM && boilT > .11){ boilT = 0; boil = (boil + 1) % 3; }
+  const lift = (1 - toolAlpha)*40;
+  tg.globalAlpha = toolAlpha;
+  const rs = ringSpr[boil]; const rsz = rs.width/DPR; tg.drawImage(rs, CX - rsz/2, CY - rsz/2 - lift, rsz, rsz);
+  const p = penPos(theta); const gs = gearSpr[boil], gsz = gs.width/DPR;
+  tg.save(); tg.translate(p.gx, p.gy - lift); tg.rotate(p.ph); tg.drawImage(gs, -gsz/2, -gsz/2, gsz, gsz); tg.restore();
+  // pen
+  const sp = penSpr[inkIdx][boil]; tg.save(); tg.translate(p.x, p.y - lift*1.6); tg.rotate(-Math.PI*.78);
+  tg.drawImage(sp.c, -sp.ox, -sp.oy, sp.c.width/DPR, sp.c.height/DPR); tg.restore();
+  tg.globalAlpha = 1;
+}
+
+/* ---------- interaction ---------- */
+let dragging = null, hintGone = false;
+function hideHint(){ if(!hintGone){ hintGone = true; $('#hint').style.opacity = 0; } }
+function angleAt(x, y){ return Math.atan2(y - CY, x - CX); }
+function onPen(x, y){ const p = penPos(theta); const ax = -Math.cos(-Math.PI*.78), ay = -Math.sin(-Math.PI*.78); // pen points up-right
+  const dx = x - p.x, dy = y - p.y; const along = dx*Math.cos(-Math.PI*.78) + dy*Math.sin(-Math.PI*.78); const perp = Math.abs(-dx*Math.sin(-Math.PI*.78) + dy*Math.cos(-Math.PI*.78)); return along > 10 && along < (MOB?150:200) && perp < 16; }
+toolC.addEventListener('pointerdown', e => {
+  if(state === 'done') return;
+  const x = e.clientX, y = e.clientY;
+  if(onPen(x, y)){ nextInk(true); hideHint(); return; }
+  const d = Math.hypot(x - CX, y - CY); if(d > R + 40) return;
+  toolC.setPointerCapture(e.pointerId); toolC.classList.add('drag'); hideHint();
+  dragging = { a: angleAt(x, y), t: performance.now() };
+});
+toolC.addEventListener('pointermove', e => { if(!dragging) return; const a = angleAt(e.clientX, e.clientY); let da = a - dragging.a; da = Math.atan2(Math.sin(da), Math.cos(da)); dragging.a = a; dragging.pending = (dragging.pending || 0) + da; });
+const endDrag = () => { if(!dragging) return; toolC.classList.remove('drag'); dragging = null; };
+toolC.addEventListener('pointerup', endDrag); toolC.addEventListener('pointercancel', endDrag);
+toolC.addEventListener('keydown', e => { if(state === 'done') return; if(e.key==='ArrowRight'||e.key==='ArrowDown'){ e.preventDefault(); kbSpin += .5; } else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){ e.preventDefault(); kbSpin -= .5; } else if(e.key==='c'||e.key==='C'){ nextInk(true); } });
+let kbSpin = 0;
+
+/* ---------- loop ---------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  let dth = 0;
+  if(state === 'load'){
+    stageT += dt;
+    if(failAtStage === stage && stageT > STAGES[stage].d*.55){ fail(); }
+    else if(stageT > STAGES[stage].d) finishStage();
+  }
+  if(state === 'dry'){ dryT += dt; dry = Math.max(0, 1 - dryT/1.6); if(dryT > 1.9){ penDown = false; showFailUI(); } }
+  if(dragging){ dth = dragging.pending || 0; dragging.pending = 0; omega = dth/Math.max(dt,.001); }
+  else if(state === 'load' || state === 'dry'){ const target = state === 'dry' ? baseOmega*Math.max(.15, dry) : baseOmega; omega += (target - omega)*Math.min(1, dt*2.5); dth = omega*dt; }
+  else { omega *= .9; dth = state === 'failed' ? 0 : omega*dt; }
+  if(kbSpin){ const k = kbSpin*Math.min(1, dt*8); dth += k; kbSpin -= k; if(Math.abs(kbSpin) < .001) kbSpin = 0; }
+  if(dth && state !== 'done') inkStroke(dth);
+  if(lapsSinceInk > 2.4 && state === 'load') nextInk();
+  if(scratchG && actx){ const v = state==='failed' ? scratchG.gain.value*.9 : Math.min(.35, Math.abs(dth)/dt*.05*(penDown?dry:0)); scratchG.gain.setTargetAtTime(muted ? 0 : v, actx.currentTime, .05); }
+  drawTools(dt);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- layout ---------- */
+function layout(first){
+  W = innerWidth; H = innerHeight; MOB = W < 820;
+  if(MOB){ R = Math.min(W*.38, (H - 400)*.4, 160); CX = W/2 + 12; CY = 96 + R + 44; }
+  else { R = Math.min(H*.3, (W - 420)*.3, 235); CX = Math.max(R + 150, (W - 380)/2 + 40); CY = H*.55; }
+  drawPaper();
+  if(first){ inkC.width = W*DPR; inkC.height = H*DPR; } else { const old = document.createElement('canvas'); old.width = inkC.width; old.height = inkC.height; old.getContext('2d').drawImage(inkC, 0, 0); inkC.width = W*DPR; inkC.height = H*DPR; }
+  toolC.width = W*DPR; toolC.height = H*DPR;
+  buildSprites(); lastPt = null;
+  const h = $('#hint'); h.style.left = (CX + R*.55) + 'px'; h.style.top = (CY + R + 2) + 'px';
+  if(state === 'failed') placeFailUI();
+  if(MOB) $('#notes').style.bottom = '22px';
+  if(state === 'done') showResults();
+  skFrames();
+}
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { clearInk(); layout(false); }, 150); });
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+const boot = () => { layout(true); startRun(); requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); }); };
+if(document.fonts && document.fonts.ready){ let done = false; document.fonts.ready.then(() => { if(!done){ done = true; boot(); } }); setTimeout(() => { if(!done){ done = true; boot(); } }, 700); } else boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mercury Tilt Switch</title>
+<meta name="description" content="Settings toggles rendered as glass tilt capsules holding a bead of liquid metal, on a Braun-style climate controller.">
+<script type="application/json" id="component-meta">
+{"name":"Mercury Tilt Switch","reimagines":"Toggle switch","category":"Toggles & Switches","description":"Each setting on this precise, Rams-inspired climate controller is a glass capsule with a bead of liquid metal. Toggle it and the capsule tips; the bead rolls, wobbles, sometimes sheds a droplet, and closes the contacts to light a tiny filament. The load meter answers.","hint":"Tap a capsule, or drag it to tilt"}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600&family=Archivo+Narrow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --backdrop-1:#dedbd4; --backdrop-2:#c7c3ba;
+  --body-1:#f3f2ee; --body-2:#e3e1db; --ink:#2f2f2d; --muted:#8a8882; --line:#cfccc5;
+  --slot:#161718; --accent:#e0571f; --green:#5a9a46;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Archivo","Helvetica Neue",Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;
+  background:radial-gradient(120% 90% at 50% 0%, #ebe9e3 0%, var(--backdrop-1) 45%, var(--backdrop-2) 100%)}
+.stage{position:fixed;inset:0;display:grid;place-items:center;padding:20px}
+/* seamless studio floor */
+.stage::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34%;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(70,62,50,.08));pointer-events:none}
+.device{position:relative;width:min(560px,calc(100vw - 24px));border-radius:26px;padding:28px 32px 22px;
+  background:linear-gradient(180deg,var(--body-1) 0%,#eceae5 55%,var(--body-2) 100%);
+  box-shadow:inset 0 1.5px 0 #fff, inset 0 -2px 0 rgba(0,0,0,.06), inset 1px 0 0 rgba(255,255,255,.7),
+    0 1px 1px rgba(0,0,0,.08), 0 10px 20px -6px rgba(40,34,24,.22), 0 46px 70px -28px rgba(40,34,24,.45), 0 80px 120px -50px rgba(40,34,24,.35)}
+.device::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.35;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+.top{display:grid;grid-template-columns:1fr 168px;gap:24px;align-items:stretch;margin-bottom:22px}
+.brand{display:flex;flex-direction:column;justify-content:space-between}
+.brand .mark{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+.brand .mark i{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:inset 0 -1px 1px rgba(0,0,0,.25),0 0 0 2px rgba(0,0,0,.04)}
+.brand .model{font-weight:300;font-size:30px;letter-spacing:-.02em;line-height:1;margin-top:10px}
+.brand .room{font-family:"Archivo Narrow",sans-serif;font-size:12px;color:var(--muted);letter-spacing:.02em;margin-top:6px}
+.grille{height:52px;margin-top:14px;border-radius:4px;
+  background-image:radial-gradient(circle at 50% 45%, #2a2a29 0 1.6px, rgba(0,0,0,.18) 1.9px, transparent 2.4px);
+  background-size:8px 8px;background-position:0 0;opacity:.9}
+.meter{position:relative;height:118px;border-radius:10px;background:#1a1b1c;box-shadow:inset 0 2px 4px rgba(0,0,0,.6),0 1px 0 #fff}
+.rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.colhead{display:grid;grid-template-columns:1fr 184px 40px;gap:18px;font-family:"Archivo Narrow",sans-serif;font-size:10.5px;color:var(--muted);letter-spacing:.06em;padding:0 0 6px}
+.colhead .oo{display:flex;justify-content:space-between;padding:0 14px}
+.colhead .oo i{font-style:normal}
+.colhead .oo i:nth-child(2){opacity:.6}
+.colhead span:last-child{text-align:right}
+.foot .load.peak{color:var(--accent)}
+.foot .load.peak b{color:var(--accent)}
+.row{display:grid;grid-template-columns:1fr 184px 40px;align-items:center;gap:18px;padding:13px 0;border-bottom:1px solid var(--line);position:relative}
+.row:last-child{border-bottom:0}
+.lab{display:flex;flex-direction:column;gap:2px;min-width:0;cursor:pointer}
+.lab .t{font-size:15px;font-weight:500;letter-spacing:-.005em}
+.lab .s{font-family:"Archivo Narrow",sans-serif;font-size:12.5px;color:var(--muted)}
+.cap{position:relative;height:54px;border:0;padding:0;border-radius:27px;cursor:pointer;touch-action:none;
+  background:linear-gradient(180deg,#0f1011,#1d1e20);box-shadow:inset 0 2px 5px rgba(0,0,0,.75),inset 0 -1px 0 rgba(255,255,255,.06),0 1px 0 rgba(255,255,255,.9),0 -1px 0 rgba(0,0,0,.08);-webkit-tap-highlight-color:transparent}
+.cap:focus{outline:none}
+.cap:focus-visible{box-shadow:inset 0 2px 5px rgba(0,0,0,.75),0 0 0 2px var(--body-1),0 0 0 4px var(--accent)}
+.cap .mk{position:absolute;bottom:-15px;font-family:"Archivo Narrow",sans-serif;font-size:9.5px;color:var(--muted);letter-spacing:.04em}
+.cap .mk.l{left:12px}.cap .mk.r{right:12px}
+.lampwin{width:30px;height:30px;border-radius:50%;justify-self:end;background:#141516;box-shadow:inset 0 2px 3px rgba(0,0,0,.8),0 1px 0 #fff}
+.row.disabled .lab{opacity:.55;cursor:not-allowed}
+.row.disabled .cap{cursor:not-allowed}
+.row .err{display:block;font-family:"Archivo Narrow",sans-serif;font-size:12.5px;color:var(--accent);transition:transform .2s}
+.row.shake .err{animation:nudge .45s}
+@keyframes nudge{20%{transform:translateX(-3px)}40%{transform:translateX(3px)}60%{transform:translateX(-2px)}80%{transform:translateX(1px)}}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-family:"Archivo Narrow",sans-serif;font-size:12px;color:var(--muted)}
+.foot .hint{display:flex;align-items:center;gap:8px}
+.foot .hint::before{content:"";width:16px;height:1px;background:var(--muted)}
+.foot b{font-weight:500;color:var(--ink)}
+canvas#cv{position:fixed;inset:0;pointer-events:none;z-index:5}
+.mute{position:absolute;top:22px;right:24px;border:0;background:transparent;font:500 10.5px "Archivo Narrow",sans-serif;color:var(--muted);letter-spacing:.06em;cursor:pointer;padding:4px 6px;border-radius:4px;display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:620px){
+  .stage{padding:12px}
+  .device{padding:20px 18px 16px;border-radius:22px}
+  .top{grid-template-columns:1fr 128px;gap:14px;margin-bottom:14px}
+  .brand .model{font-size:24px}
+  .grille{height:34px;margin-top:10px}
+  .meter{height:92px}
+  .row,.colhead{grid-template-columns:1fr 132px 28px;gap:10px}
+  .row{padding:12px 0}
+  .colhead .oo{padding:0 10px}
+  .lab .t{font-size:14px}
+  .lab .s,.row .err{font-size:11.5px}
+  .cap{height:46px}
+  .lampwin{width:24px;height:24px}
+  .foot{flex-direction:column;align-items:flex-start;gap:4px}
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <section class="device" aria-labelledby="model">
+    <div class="top">
+      <div class="brand">
+        <div>
+          <div class="mark"><i aria-hidden="true"></i>ordo</div>
+          <div class="model" id="model">hc 4 studio climate</div>
+          <div class="room">loft apartment · 3rd floor · north</div>
+        </div>
+        <div class="grille" aria-hidden="true"></div>
+      </div>
+      <div class="meter" id="meter" role="img" aria-label="Load meter"></div>
+    </div>
+    <div class="colhead" aria-hidden="true"><span>circuit</span><span class="oo"><i>off</i><i>tilt</i><i>on</i></span><span>lamp</span></div>
+    <ul class="rows" id="rows">
+      <li class="row" data-kw="1.6"><div class="lab" id="l0"><span class="t">floor heating</span><span class="s">keeps the loft at 21 °C</span></div><button class="cap" role="switch" aria-checked="true" aria-labelledby="l0"></button><span class="lampwin" aria-hidden="true"></span></li>
+      <li class="row" data-kw="0.15"><div class="lab" id="l1"><span class="t">heat-recovery fan</span><span class="s">fresh air, 40 m³ an hour</span></div><button class="cap" role="switch" aria-checked="true" aria-labelledby="l1"></button><span class="lampwin" aria-hidden="true"></span></li>
+      <li class="row" data-kw="0.4"><div class="lab" id="l2"><span class="t">towel rail</span><span class="s">bathroom, from 06:30</span></div><button class="cap" role="switch" aria-checked="false" aria-labelledby="l2"></button><span class="lampwin" aria-hidden="true"></span></li>
+      <li class="row" data-kw="0.06"><div class="lab" id="l3"><span class="t">porch light</span><span class="s">dusk until 23:00</span></div><button class="cap" role="switch" aria-checked="false" aria-labelledby="l3"></button><span class="lampwin" aria-hidden="true"></span></li>
+      <li class="row disabled" data-kw="0.3"><div class="lab" id="l4"><span class="t">humidifier</span><span class="err" id="e4">tank empty — refill to enable</span></div><button class="cap" role="switch" aria-checked="false" aria-disabled="true" aria-labelledby="l4" aria-describedby="e4"></button><span class="lampwin" aria-hidden="true"></span></li>
+    </ul>
+    <div class="foot"><span class="hint" id="hint">tap a capsule, or drag it to tilt</span><span class="load" id="load">drawing <b>1.75 kW</b> · hallway 20.6 °C</span></div>
+  </section>
+</div>
+<canvas id="cv" aria-hidden="true"></canvas>
+<div class="sr" aria-live="polite" id="live"></div>
+<script>
+(() => {
+'use strict';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const meterEl = document.getElementById('meter');
+const live = document.getElementById('live');
+const hint = document.getElementById('hint');
+let W = 0, H = 0, DPR = 1, mobile = false;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+
+/* ---------- audio ---------- */
+let ac = null, master = null;
+function audio(){
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .15; master.connect(ac.destination); } catch(e) { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function tink(v){ // glassy knock of metal on glass end
+  if (!ac || v < .05) return;
+  const t = ac.currentTime;
+  [[2900 + Math.random() * 500, 1], [6100 + Math.random() * 600, .4]].forEach(([f, k]) => {
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(Math.min(.5, v) * k * .5, t); g.gain.exponentialRampToValueAtTime(.0001, t + .09);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + .1);
+  });
+}
+function contact(){
+  if (!ac) return;
+  const n = Math.floor(ac.sampleRate * .03), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+  const s = ac.createBufferSource(); s.buffer = b; const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2500;
+  const g = ac.createGain(); g.gain.value = .35; s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+let rollNode = null, rollGain = null;
+function rollInit(){
+  if (!ac || rollNode) return;
+  const n = ac.sampleRate * 2, b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+  let last = 0; for (let i = 0; i < n; i++) { last = last * .97 + (Math.random() * 2 - 1) * .03; d[i] = last * 6; }
+  rollNode = ac.createBufferSource(); rollNode.buffer = b; rollNode.loop = true;
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700;
+  rollGain = ac.createGain(); rollGain.gain.value = 0;
+  rollNode.connect(f); f.connect(rollGain); rollGain.connect(master); rollNode.start();
+}
+
+/* ---------- capsules ---------- */
+const rows = [...document.querySelectorAll('.row')];
+const caps = rows.map((row, i) => {
+  const btn = row.querySelector('.cap');
+  const on = btn.getAttribute('aria-checked') === 'true';
+  return {
+    i, row, btn, lampEl: row.querySelector('.lampwin'), kw: +row.dataset.kw,
+    disabled: row.classList.contains('disabled'), on,
+    tilt: 0, tv: 0, manual: null,
+    parts: [], drops: [], heat: 0, closed: false, asleep: false, buf: null, bctx: null, img: null,
+    rect: null, lamp: null, spark: 0, label: row.querySelector('.t').textContent
+  };
+});
+let TILT = 5 * Math.PI / 180;
+let geo = {L: 176, ro: 15, ri: 12, pr: 5.8, gap: 4.6};
+
+function setupCap(c){
+  const r = c.btn.getBoundingClientRect(), lr = c.lampEl.getBoundingClientRect();
+  c.rect = {x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height};
+  c.lamp = {x: lr.left + lr.width / 2, y: lr.top + lr.height / 2, r: lr.width / 2};
+  c.L = r.width - 16; c.half = c.L / 2;
+  // offscreen buffer for the liquid metal (local, unrotated)
+  const bw = Math.ceil((c.L + 8) * DPR), bh = Math.ceil((geo.ro * 2 + 6) * DPR);
+  c.buf = document.createElement('canvas'); c.buf.width = bw; c.buf.height = bh;
+  c.bctx = c.buf.getContext('2d'); c.img = c.bctx.createImageData(bw, bh);
+  const side = c.on ? 1 : -1;
+  if (!c.parts.length) {
+    c.tilt = side * TILT;
+    for (let k = 0; k < geo.n; k++) c.parts.push({x: side * (c.half - 14) - side * k * geo.gap, y: geo.ri - geo.pr * 1.22, vx: 0, vy: 0, o: (1.5 - k) * geo.gap * -side});
+    c.parts.forEach(p => { p.o = 0; });
+    const cx = c.parts.reduce((a, p) => a + p.x, 0) / c.parts.length; c.parts.forEach(p => p.o = p.x - cx);
+    c.heat = c.on ? 1 : 0; c.closed = c.on;
+  } else {
+    c.parts.forEach(p => { p.x = clamp(p.x, -c.half + 8, c.half - 8); p.y = Math.min(p.y, geo.ri - geo.pr * 1.22); });
+  }
+  c.asleep = false;
+}
+function layout(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; mobile = W < 620;
+  cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  geo = mobile ? {ro: 14, ri: 11.4, pr: 7, gap: 4.4, n: 3, a0: 11.4, b0: 8.5} : {ro: 16.5, ri: 13.6, pr: 8.4, gap: 5.4, n: 3, a0: 14, b0: 10.2};
+  caps.forEach(setupCap);
+  const m = meterEl.getBoundingClientRect(); meter.rect = {x: m.left, y: m.top, w: m.width, h: m.height};
+}
+
+/* ---------- physics ---------- */
+const GAX = 2600, GPERP = 2400;
+function stepCap(c, h){
+  // capsule tilt: damped spring toward target
+  const target = c.manual !== null ? c.manual : (c.on ? TILT : -TILT);
+  if (reduced) { c.tilt = target; c.tv = 0; }
+  else { c.tv += ((target - c.tilt) * 340 - c.tv * 17) * h; c.tilt += c.tv * h; }
+  const ga = GAX * Math.sin(c.tilt) / Math.sin(TILT) * 1.0, floorY = geo.ri - geo.pr * 1.22;
+  const lim = c.half - 2.5 - (geo.a0 - geo.gap * (geo.n - 1) / 2);
+  let cx = 0, cy = 0; c.parts.forEach(p => { cx += p.x; cy += p.y; }); cx /= c.parts.length; cy /= c.parts.length;
+  let maxImpact = 0, speed = 0;
+  for (const p of c.parts) {
+    let ax = ga * .34, ay = GPERP;                         // gravity components in capsule frame
+    ax += (cx + p.o - p.x) * 1100;                         // surface tension (shape memory)
+    ay += (cy - p.y) * 900;
+    ax -= p.vx * (reduced ? 30 : 3.2); ay -= p.vy * 14;     // viscous damping
+    p.vx += ax * h; p.vy += ay * h;
+    p.x += p.vx * h; p.y += p.vy * h;
+    if (p.x > lim) { if (p.vx > 0) { maxImpact = Math.max(maxImpact, p.vx); p.vx *= -.28; } p.x = lim; }
+    if (p.x < -lim) { if (p.vx < 0) { maxImpact = Math.max(maxImpact, -p.vx); p.vx *= -.28; } p.x = -lim; }
+    if (p.y > floorY) { p.y = floorY; if (p.vy > 0) p.vy *= -.2; }
+    if (p.y < -floorY) { p.y = -floorY; if (p.vy < 0) p.vy *= -.2; }
+    speed = Math.max(speed, Math.abs(p.vx));
+  }
+  // satellite droplets
+  if (maxImpact > 420 && !reduced && c.drops.length < 2 && Math.random() < .8) {
+    const side = Math.sign(c.parts[0].x || 1);
+    c.drops.push({x: side * (lim - 4), y: floorY - 1, vx: -side * maxImpact * .35, vy: -60, r: geo.pr * (.42 + Math.random() * .16), age: 0});
+  }
+  for (let k = c.drops.length - 1; k >= 0; k--) {
+    const d = c.drops[k]; d.age += h;
+    d.vx += ga * .22 * h; d.vy += GPERP * h;
+    const dx = cx - d.x; if (Math.abs(dx) < 40 && d.age > .12) d.vx += Math.sign(dx) * 900 * h; // cohesion pulls it home
+    d.vx *= (1 - 1.6 * h); d.x += d.vx * h; d.y += d.vy * h;
+    const lim2 = c.half - 3 - d.r;
+    if (d.x > lim2) { d.x = lim2; d.vx *= -.3; } if (d.x < -lim2) { d.x = -lim2; d.vx *= -.3; }
+    const fy = geo.ri - d.r * 1.3; if (d.y > fy) { d.y = fy; d.vy *= -.2; }
+    if ((Math.abs(dx) < geo.gap * 2.4 && d.age > .2) || d.age > 3) c.drops.splice(k, 1);
+  }
+  if (maxImpact > 60) tink(maxImpact / 900);
+  // contacts at the right end
+  const lead = Math.max(...c.parts.map(p => p.x)) + (geo.a0 - geo.gap * (geo.n - 1) / 2);
+  const closed = lead > c.half - 3 - 14 && !c.disabled;
+  if (closed && !c.closed) { contact(); c.spark = 1; }
+  c.closed = closed;
+  if (closed) c.heat = Math.min(1, c.heat + h * 6); else c.heat = Math.max(0, c.heat - h * 2.2);
+  c.spark = Math.max(0, c.spark - h * 6);
+  c.speed = speed;
+  const settled = speed < 2 && Math.abs(c.tv) < .002 && !c.drops.length && c.manual === null && (c.heat === 0 || c.heat === 1) && c.spark === 0;
+  c.asleep = settled;
+}
+
+/* ---------- liquid metal rendering (metaballs, env-mapped) ---------- */
+const KEY = (() => { const v = [-.42, -.7, .58], l = Math.hypot(...v); return v.map(x => x / l); })();
+function beadShape(c){
+  let mn = 1e9, mx = -1e9, my = 0;
+  c.parts.forEach(p => { mn = Math.min(mn, p.x); mx = Math.max(mx, p.x); my += p.y; }); my /= c.parts.length;
+  const base = geo.a0 - geo.gap * (geo.n - 1) / 2;
+  const area = Math.PI * geo.a0 * geo.b0 - c.drops.reduce((s, d) => s + Math.PI * d.r * d.r, 0);
+  const a = (mx - mn) / 2 + base;
+  const b = clamp(area / (Math.PI * a), geo.b0 * .62, geo.ri - 1.2);
+  const floorY = geo.ri - geo.pr * 1.22;
+  return {cx: (mx + mn) / 2, a, b, cy: geo.ri - b - .6 + Math.min(0, my - floorY)};
+}
+function shadeEnv(nx, ny, nz){
+  const rx = 2 * nz * nx, ry = 2 * nz * ny, rz = 2 * nz * nz - 1, up = -ry;
+  let v = .035;
+  v += .26 * sstep(.35, 1, rz);                          // the room in front
+  v += .98 * sstep(.34, .72, up) * sstep(-.6, .1, rz);   // overhead softbox
+  v += .14 * sstep(.35, .9, -up);                        // floor bounce
+  v += .7 * Math.exp(-(((rx + .52) / .09) ** 2)) * sstep(-.35, .25, up); // window strip
+  v += .35 * Math.exp(-(((rx - .62) / .07) ** 2)) * sstep(-.1, .5, up);  // fill card
+  const spec = Math.pow(Math.max(0, rx * KEY[0] + ry * KEY[1] + rz * KEY[2]), 90) * 1.8;
+  return v * (.8 + .2 * nz) + spec;
+}
+function renderMetal(c){
+  const bw = c.buf.width, bh = c.buf.height, d = c.img.data, s = DPR, ox = bw / 2, oy = bh / 2;
+  const B = beadShape(c); c.shape = B;
+  const drops = c.drops;
+  let minx = B.cx - B.a, maxx = B.cx + B.a;
+  drops.forEach(q => { minx = Math.min(minx, q.x - q.r); maxx = Math.max(maxx, q.x + q.r); });
+  const x0 = Math.max(0, Math.floor((minx - 2) * s + ox)), x1 = Math.min(bw, Math.ceil((maxx + 2) * s + ox));
+  d.fill(0);
+  const eA = 1 / (s * Math.min(B.a, B.b));
+  for (let py = 0; py < bh; py++) {
+    const ly = (py + .5 - oy) / s;
+    for (let px = x0; px < x1; px++) {
+      const lx = (px + .5 - ox) / s;
+      let best = -1, nx = 0, ny = 0, nz = 0, alpha = 0;
+      const u = (lx - B.cx) / B.a, v = (ly - B.cy) / B.b, r2 = u * u + v * v;
+      if (r2 < 1.05) {
+        const w = Math.sqrt(Math.max(0, 1 - r2));
+        let gx = u / B.a, gy = v / B.b, gz = w / B.b; const gl = Math.hypot(gx, gy, gz) || 1;
+        nx = gx / gl; ny = gy / gl; nz = gz / gl; best = w * B.b; alpha = clamp((1 - Math.sqrt(r2)) / eA, 0, 1);
+      }
+      for (let k = 0; k < drops.length; k++) {
+        const q = drops[k], du = (lx - q.x) / q.r, dv = (ly - q.y) / q.r, dr2 = du * du + dv * dv;
+        if (dr2 >= 1.05) continue;
+        const w = Math.sqrt(Math.max(0, 1 - dr2)), z = w * q.r;
+        const al = clamp((1 - Math.sqrt(dr2)) * q.r * s, 0, 1);
+        if (z > best) { best = z; nx = du; ny = dv; nz = w; }
+        alpha = Math.max(alpha, al);
+      }
+      if (alpha <= 0) continue;
+      const val = shadeEnv(nx, ny, nz);
+      const i = (py * bw + px) * 4, r = 18 + 226 * val, g = 20 + 228 * val, bl = 24 + 232 * val;
+      d[i] = r > 255 ? 255 : r; d[i + 1] = g > 255 ? 255 : g; d[i + 2] = bl > 255 ? 255 : bl; d[i + 3] = alpha * 255;
+    }
+  }
+  c.bctx.putImageData(c.img, 0, 0);
+}
+
+/* ---------- drawing ---------- */
+function roundCap(g, L, r){ g.beginPath(); g.moveTo(-L / 2 + r, -r); g.lineTo(L / 2 - r, -r); g.arc(L / 2 - r, 0, r, -Math.PI / 2, Math.PI / 2); g.lineTo(-L / 2 + r, r); g.arc(-L / 2 + r, 0, r, Math.PI / 2, Math.PI * 1.5); g.closePath(); }
+function drawCap(c){
+  const g = ctx, R = c.rect; if (!R) return;
+  g.save(); g.translate(R.x, R.y); g.rotate(c.tilt);
+  const L = c.L, ro = geo.ro, ri = geo.ri;
+  // glass shadow on slot floor
+  g.save(); g.translate(0, ro * .55); g.scale(1, .35); g.fillStyle = 'rgba(0,0,0,.35)'; roundCap(g, L, ro); g.fill(); g.restore();
+  // tube interior (dark, faint reflection)
+  roundCap(g, L, ro);
+  const tg = g.createLinearGradient(0, -ro, 0, ro);
+  tg.addColorStop(0, 'rgba(70,78,80,.55)'); tg.addColorStop(.22, 'rgba(20,24,26,.4)'); tg.addColorStop(.8, 'rgba(10,12,12,.3)'); tg.addColorStop(1, 'rgba(90,100,100,.45)');
+  g.fillStyle = tg; g.fill();
+  // electrodes (right end)
+  const tip = c.half - 3 - 14;
+  [-4.2, 4.2].forEach(yy => {
+    g.strokeStyle = '#7d7f80'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(L / 2 + 6, yy * 1.4); g.lineTo(L / 2 - 4, yy); g.lineTo(tip, yy); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = .5; g.beginPath(); g.moveTo(L / 2 - 4, yy - .5); g.lineTo(tip, yy - .5); g.stroke();
+  });
+  // liquid metal
+  if (!c.asleep || !c.drawn) { renderMetal(c); c.drawn = true; }
+  if (c.shape) { const sh = c.shape; g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(sh.cx + 1, geo.ri - .8, sh.a * .9, 2.2, 0, 0, 7); g.fill(); }
+  g.drawImage(c.buf, -c.buf.width / DPR / 2, -c.buf.height / DPR / 2, c.buf.width / DPR, c.buf.height / DPR);
+  // spark at contact
+  if (c.spark > 0) {
+    const sg = g.createRadialGradient(tip, 0, 0, tip, 0, 10);
+    sg.addColorStop(0, `rgba(190,225,255,${c.spark})`); sg.addColorStop(1, 'rgba(190,225,255,0)');
+    g.fillStyle = sg; g.beginPath(); g.arc(tip, 0, 10, 0, 7); g.fill();
+  }
+  // glass walls: edge tint and highlights
+  roundCap(g, L, ro); g.lineWidth = 1.6; g.strokeStyle = 'rgba(190,215,205,.35)'; g.stroke();
+  roundCap(g, L - 3, ro - 1.6); g.lineWidth = .8; g.strokeStyle = 'rgba(0,0,0,.45)'; g.stroke();
+  g.lineCap = 'round';
+  g.strokeStyle = 'rgba(255,255,255,.78)'; g.lineWidth = 2.2;
+  g.beginPath(); g.moveTo(-L / 2 + ro * .9, -ro + 3.4); g.lineTo(L / 2 - ro * 1.3, -ro + 3.4); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.28)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(-L / 2 + ro * 1.3, ro - 3); g.lineTo(L / 2 - ro * 1.6, ro - 3); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.4;
+  g.beginPath(); g.arc(-L / 2 + ro, 0, ro - 3, Math.PI * 1.05, Math.PI * 1.45); g.stroke();
+  g.beginPath(); g.arc(L / 2 - ro, 0, ro - 3, -Math.PI * .45, -Math.PI * .1); g.stroke();
+  // disabled: an orange lock tab clamps the tube
+  if (c.disabled) {
+    g.fillStyle = '#e0571f'; g.fillRect(-7, -ro - 3, 14, ro * 2 + 6);
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(-7, -ro - 3, 14, 2);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(-7, ro + 1, 14, 2);
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, 2, 0, 7); g.fill();
+  }
+  g.restore();
+}
+function drawLamp(c){
+  const g = ctx, Lm = c.lamp; if (!Lm) return;
+  const h = c.heat, fl = h > 0 && h < 1 ? 1 : (h === 1 ? .94 + Math.random() * .06 : 1);
+  const k = h * fl;
+  if (k > .01) {
+    const gr = g.createRadialGradient(Lm.x, Lm.y, 0, Lm.x, Lm.y, Lm.r * 2.6);
+    gr.addColorStop(0, `rgba(255,190,90,${.55 * k})`); gr.addColorStop(.4, `rgba(255,140,40,${.18 * k})`); gr.addColorStop(1, 'rgba(255,120,30,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(Lm.x, Lm.y, Lm.r * 2.6, 0, 7); g.fill();
+  }
+  // glass bulb inside the window
+  const br = Lm.r * .62;
+  const bg2 = g.createRadialGradient(Lm.x - br * .3, Lm.y - br * .35, 1, Lm.x, Lm.y, br);
+  bg2.addColorStop(0, `rgba(${80 + 175 * k},${80 + 150 * k},${82 + 90 * k},.9)`); bg2.addColorStop(1, `rgba(${30 + 120 * k},${30 + 70 * k},${30 + 20 * k},.9)`);
+  g.fillStyle = bg2; g.beginPath(); g.arc(Lm.x, Lm.y, br, 0, 7); g.fill();
+  // coiled filament
+  const fw = br * 1.1; g.lineWidth = 1.1;
+  const col = k > .02 ? `rgb(${120 + 135 * Math.min(1, k * 1.4)},${60 + 190 * k * k},${30 + 150 * k * k * k})` : 'rgb(70,66,60)';
+  g.strokeStyle = col; g.beginPath();
+  for (let i = 0; i <= 14; i++) { const t = i / 14, x = Lm.x - fw / 2 + fw * t, y = Lm.y + Math.sin(t * Math.PI * 7) * 1.6 - 1; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.stroke();
+  g.strokeStyle = 'rgba(140,140,140,.7)'; g.lineWidth = .7;
+  g.beginPath(); g.moveTo(Lm.x - fw / 2, Lm.y - 1); g.lineTo(Lm.x - fw / 2.6, Lm.y + br); g.moveTo(Lm.x + fw / 2, Lm.y - 1); g.lineTo(Lm.x + fw / 2.6, Lm.y + br); g.stroke();
+  // window glass reflection
+  g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.ellipse(Lm.x - Lm.r * .3, Lm.y - Lm.r * .42, Lm.r * .38, Lm.r * .18, -.5, 0, 7); g.fill();
+}
+
+/* ---------- load meter ---------- */
+const meter = {rect: null, v: 0, vv: 0};
+function drawMeter(h){
+  const R = meter.rect; if (!R) return;
+  const load = caps.reduce((a, c) => a + c.kw * c.heat, 0);
+  const tgt = clamp(load / 2.5, 0, 1.04);
+  meter.vv += ((tgt - meter.v) * 60 - meter.vv * 7) * h; meter.v += meter.vv * h;
+  const g = ctx, pad = 7, x = R.x + pad, y = R.y + pad, w = R.w - pad * 2, hh = R.h - pad * 2;
+  // dial face (warm cream, backlit)
+  g.save(); g.beginPath(); g.roundRect(x, y, w, hh, 6); g.clip();
+  const fg = g.createLinearGradient(0, y, 0, y + hh); fg.addColorStop(0, '#f1ece0'); fg.addColorStop(1, '#ddd6c6');
+  g.fillStyle = fg; g.fillRect(x, y, w, hh);
+  const cx = x + w / 2, cy = y + hh * 1.1, rad = hh * .8;
+  const a0 = -Math.PI / 2 - .66, a1 = -Math.PI / 2 + .66;
+  g.strokeStyle = '#2f2f2d'; g.lineWidth = 1;
+  g.beginPath(); g.arc(cx, cy, rad, a0, a1); g.stroke();
+  g.strokeStyle = '#e0571f'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, rad - 2, a0 + (a1 - a0) * .8, a1); g.stroke();
+  g.fillStyle = '#2f2f2d'; g.font = `500 ${mobile ? 8 : 9}px "Archivo Narrow", sans-serif`; g.textAlign = 'center';
+  for (let i = 0; i <= 10; i++) {
+    const a = a0 + (a1 - a0) * i / 10, big = i % 2 === 0, r1 = rad + (big ? 7 : 4);
+    g.lineWidth = big ? 1.2 : .7; g.beginPath(); g.moveTo(cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.stroke();
+    if (big) g.fillText((i / 4).toFixed(i % 4 ? 1 : 0), cx + Math.cos(a) * (rad + 14), cy + Math.sin(a) * (rad + 14) + 3);
+  }
+  g.fillStyle = '#8a8882'; g.font = `400 ${mobile ? 8 : 9}px "Archivo Narrow", sans-serif`; g.textAlign = 'left'; g.fillText('load kW', x + 8, y + hh - 8); g.textAlign = 'right'; g.fillText(caps.reduce((a, c) => a + (c.on ? c.kw : 0), 0).toFixed(2), x + w - 8, y + hh - 8);
+  // needle
+  const na = a0 + (a1 - a0) * clamp(meter.v, -0.02, 1.04);
+  g.strokeStyle = '#1b1b1b'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(na) * (rad + 8), cy + Math.sin(na) * (rad + 8)); g.stroke();
+  g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 2; g.beginPath(); g.moveTo(cx + 3, cy + 2); g.lineTo(cx + 3 + Math.cos(na) * (rad + 6), cy + 2 + Math.sin(na) * (rad + 6)); g.stroke();
+  // glass
+  const gl = g.createLinearGradient(x, y, x + w, y + hh); gl.addColorStop(0, 'rgba(255,255,255,.35)'); gl.addColorStop(.4, 'rgba(255,255,255,0)');
+  g.fillStyle = gl; g.fillRect(x, y, w, hh);
+  g.restore();
+  g.fillStyle = '#2f2f2d'; g.font = `500 ${mobile ? 9 : 10}px "Archivo Narrow", sans-serif`; g.textAlign = 'left';
+}
+
+/* ---------- interaction ---------- */
+const loadEl = document.getElementById('load');
+function updateLoad(){
+  const kw = caps.reduce((a, c) => a + (c.on ? c.kw : 0), 0);
+  const peak = kw > 2;
+  loadEl.classList.toggle('peak', peak);
+  loadEl.innerHTML = peak ? `peak load <b>${kw.toFixed(2)} kW</b> · tariff rises above 2 kW` : `drawing <b>${kw.toFixed(2)} kW</b> · hallway 20.6 °C`;
+}
+let anyToggled = false;
+function setOn(c, on, quiet){
+  if (c.disabled) { denied(c); return; }
+  if (c.on === on) return;
+  c.on = on; c.asleep = false; c.btn.setAttribute('aria-checked', String(on));
+  if (!quiet) live.textContent = `${c.label} ${on ? 'on' : 'off'}`;
+  updateLoad();
+  if (!anyToggled) { anyToggled = true; hint.style.transition = 'opacity .8s'; hint.style.opacity = '.0'; }
+}
+function denied(c){
+  c.row.classList.remove('shake'); void c.row.offsetWidth; c.row.classList.add('shake');
+  c.asleep = false; c.parts.forEach(p => p.vx += (Math.random() - .3) * 260);
+  c.tv += .9; live.textContent = 'Humidifier unavailable. The tank is empty — refill it to enable.';
+  tink(.25);
+}
+caps.forEach(c => {
+  let start = null;
+  c.btn.addEventListener('pointerdown', e => {
+    audio(); rollInit();
+    start = {x: e.clientX, base: c.on ? TILT : -TILT, moved: false};
+    try { c.btn.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  c.btn.addEventListener('pointermove', e => {
+    if (!start) return; const dx = e.clientX - start.x;
+    if (Math.abs(dx) > 5) start.moved = true;
+    if (start.moved && !c.disabled) { c.manual = clamp(start.base + dx / 60 * TILT * 2, -TILT * 1.15, TILT * 1.15); c.asleep = false; }
+  });
+  const end = () => {
+    if (!start) return;
+    if (!start.moved) setOn(c, !c.on);
+    else if (!c.disabled) { const on = c.manual > 0; c.manual = null; if (on !== c.on) setOn(c, on); else c.asleep = false; }
+    else denied(c);
+    start = null; c.manual = null;
+  };
+  c.btn.addEventListener('pointerup', end);
+  c.btn.addEventListener('pointercancel', () => { start = null; c.manual = null; });
+  c.btn.addEventListener('click', e => { if (e.detail === 0) { audio(); rollInit(); setOn(c, !c.on); } }); // keyboard activation
+  c.btn.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') { e.preventDefault(); audio(); setOn(c, true); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); audio(); setOn(c, false); }
+  });
+  c.row.querySelector('.lab').addEventListener('click', () => { audio(); rollInit(); setOn(c, !c.on); });
+});
+
+/* ---------- loop ---------- */
+let last = performance.now(), acc = 0, raf = 0;
+function frame(now){
+  const dt = Math.min(.05, (now - last) / 1000); last = now; acc += dt;
+  const hs = 1 / 240;
+  while (acc >= hs) { caps.forEach(c => { if (!c.asleep) stepCap(c, hs); }); acc -= hs; }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+  caps.forEach(c => { drawCap(c); drawLamp(c); });
+  drawMeter(dt);
+  if (rollGain) { const sp = Math.max(...caps.map(c => c.asleep ? 0 : (c.speed || 0))); rollGain.gain.setTargetAtTime(Math.min(.5, sp / 900), ac.currentTime, .03); }
+  raf = requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { cancelAnimationFrame(raf); if (rollGain) rollGain.gain.value = 0; }
+  else { last = performance.now(); raf = requestAnimationFrame(frame); }
+});
+let rt = 0;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 100); });
+layout();
+document.fonts && document.fonts.ready.then(layout);
+raf = requestAnimationFrame(frame);
+window.__mercury = {toggle(i){ setOn(caps[i], !caps[i].on); }, caps};
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fishing Line Refresh</title>
+<meta name="description" content="Pull-to-refresh as a fishing cast on rice paper: pull the harbour board down to bend the rod, let go to cast, and new posts are reeled in and printed gyotaku-style in sumi ink.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;800&family=Yuji+Mai&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Fishing Line Refresh","reimagines":"Pull to refresh","category":"Novel Interactions","description":"Pull the harbour board down and the bamboo rod bends; let go past the mark and it casts into an ink-wash sea. A bite, a reel, and the catch is printed gyotaku-style onto the rice paper as your new posts. When there is nothing new you land an old sandal.","hint":"Pull the board down and let go to cast for new posts"}
+</script>
+<style>
+:root{--paper:#f1eadb;--paper-d:#e4d9c3;--sumi:#1b1915;--sumi-soft:#5d564b;--wash:rgba(27,25,21,.12);--hanko:#c23a2b}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",Georgia,serif;color:var(--sumi);background:var(--paper);-webkit-font-smoothing:antialiased}
+#paperTex{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+.stage{position:fixed;inset:0;display:grid;grid-template-columns:1fr minmax(0,560px) 1fr;gap:40px;padding:0 24px}
+.margin{position:relative;min-width:0}
+.margin.right canvas{position:absolute;right:0;top:50%;transform:translateY(-50%) rotate(-8deg);width:min(420px,100%);height:auto;opacity:.92}
+.vert{position:absolute;writing-mode:vertical-rl;font-family:"Yuji Mai","Shippori Mincho",serif;font-size:22px;letter-spacing:.3em;color:var(--sumi);opacity:.8}
+.seal{display:inline-grid;place-items:center;background:var(--hanko);color:#f6efe2;font-family:"Shippori Mincho",serif;font-weight:800;border-radius:3px;filter:url(#rough);box-shadow:inset 0 0 0 2px rgba(246,239,226,.85), inset 0 0 0 3px var(--hanko)}
+.col{position:relative;display:flex;flex-direction:column;height:100dvh;min-width:0}
+header{padding:30px 6px 10px;display:flex;align-items:flex-end;gap:14px;position:relative;z-index:3}
+header h1{margin:0;font-family:"Shippori Mincho",serif;font-weight:800;font-size:34px;line-height:1.05;letter-spacing:-.005em}
+header .sub{font-size:13.5px;color:var(--sumi-soft);margin-top:6px;letter-spacing:.04em}
+header .seal{width:46px;height:46px;font-size:15px;line-height:1.05;writing-mode:vertical-rl;transform:rotate(-3deg);flex:none;order:-1;margin-bottom:4px}
+.brushRule{height:12px;margin:0 0 0 -6px;position:relative;z-index:3}
+.view{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab;outline:none;user-select:none;-webkit-user-select:none}
+.view.grabbing{cursor:grabbing}
+.view:focus-visible{box-shadow:inset 0 0 0 2px rgba(194,58,43,.6)}
+.sea{position:absolute;left:-6px;right:-6px;top:0;height:200px;pointer-events:none}
+.sea svg{width:100%;height:100%;display:block}
+.seaMsg{position:absolute;left:0;right:0;top:12px;text-align:center;font-size:14px;letter-spacing:.08em;color:var(--sumi-soft);opacity:0;transition:opacity .2s}
+.feed{position:absolute;left:0;right:0;top:0;background:var(--paper);will-change:transform;
+  box-shadow:0 -10px 16px -8px rgba(60,45,25,.25)}
+.feed::before{content:"";position:absolute;inset:0;pointer-events:none;background:inherit;opacity:0}
+.post{position:relative;display:grid;grid-template-columns:118px 1fr;gap:16px;padding:18px 6px 18px;align-items:start}
+.post + .post::before{content:"";position:absolute;left:0;right:0;top:0;height:8px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5 C 80 2, 160 6, 240 3.5 S 360 4, 398 3' stroke='%231b1915' stroke-width='1.6' fill='none' stroke-linecap='round' opacity='.55'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat}
+.post .print{width:118px;height:64px;display:block}
+.post .icon{width:118px;height:64px;display:grid;place-items:center}
+.post .icon svg{width:64px;height:52px}
+.post .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.post .who .seal{width:22px;height:22px;font-size:11px}
+.post .who time{font-weight:400;font-size:12.5px;color:var(--sumi-soft);letter-spacing:.04em}
+.post p{margin:5px 0 0;font-size:16.5px;line-height:1.5}
+.post.fresh .print,.post.fresh .icon{animation:press 1.4s cubic-bezier(.2,.7,.2,1) both}
+.post.fresh .txtwrap{animation:soak 1.2s .35s ease both}
+@keyframes press{0%{opacity:0;filter:blur(6px);transform:scale(1.08)}35%{opacity:.6;filter:blur(2px)}100%{opacity:1;filter:none;transform:none}}
+@keyframes soak{0%{opacity:0;filter:blur(3px)}100%{opacity:1;filter:none}}
+.post.fresh::after{content:"new";position:absolute;right:8px;top:16px;font-size:11px;letter-spacing:.2em;color:var(--hanko);border:1.5px solid var(--hanko);padding:1px 6px;border-radius:2px;transform:rotate(4deg)}
+.end{padding:26px 0 60px;text-align:center;color:var(--sumi-soft);font-size:13px;letter-spacing:.1em}
+#ov{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
+.castBtn{font:inherit;font-size:13.5px;letter-spacing:.04em;color:var(--sumi);background:none;border:0;border-bottom:1.5px solid var(--hanko);padding:0 0 1px;cursor:pointer;margin-left:10px;white-space:nowrap}
+.castBtn:hover{background:rgba(27,25,21,.05)}
+.castBtn:focus-visible{outline:2px solid var(--hanko);outline-offset:2px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,10px);background:var(--sumi);color:var(--paper);padding:9px 18px 10px;font-size:15px;letter-spacing:.04em;opacity:0;transition:opacity .3s, transform .3s;pointer-events:none;z-index:6;border-radius:2px}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.mute{position:fixed;right:14px;top:14px;border:0;background:none;color:var(--sumi-soft);cursor:pointer;padding:4px;z-index:6}
+.mute svg{width:16px;height:16px;display:block}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:980px){
+  .stage{grid-template-columns:minmax(0,1fr);padding:0 14px;gap:0}
+  .margin{display:none}
+  header{padding:18px 2px 8px}
+  header h1{font-size:25px}
+  header .seal{width:38px;height:38px;font-size:13px}
+  .post{grid-template-columns:84px 1fr;gap:12px;padding:14px 2px}
+  .post .print,.post .icon{width:84px;height:46px}
+  .post .icon svg{width:48px;height:40px}
+  .post p{font-size:15px}
+  .castBtn{display:inline-block;margin:4px 0 0}
+  header .seal{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .post.fresh .print,.post.fresh .icon,.post.fresh .txtwrap{animation:none} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.2"/></filter>
+  <filter id="bleed"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="3" seed="8" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5"/></filter>
+</svg>
+<canvas id="paperTex" aria-hidden="true"></canvas>
+<div class="stage">
+  <div class="margin left" aria-hidden="true"><div class="vert" style="left:40%;top:16%">葉山の港 · 二〇二六年 秋</div></div>
+  <main class="col">
+    <header>
+      <div>
+        <h1>Hayama harbour board</h1>
+        <div class="sub">Catch reports &amp; notices · Tue 7 Oct 2026 <button class="castBtn" id="castBtn" title="Shortcut: R">Cast for new posts</button></div>
+      </div>
+      <span class="seal" aria-hidden="true">葉山</span>
+    </header>
+    <svg class="brushRule" viewBox="0 0 560 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 7 C 60 3, 140 9, 260 6 S 470 4, 556 6" stroke="#1b1915" stroke-width="3.4" fill="none" stroke-linecap="round" filter="url(#bleed)"/></svg>
+    <div class="view" id="view" tabindex="0" aria-label="Posts. Pull down to refresh, or press R.">
+      <div class="sea" aria-hidden="true"><svg viewBox="0 0 560 200" preserveAspectRatio="none" id="seaSvg"></svg><div class="seaMsg" id="seaMsg">Pull further to cast</div></div>
+      <div class="feed" id="feed" role="feed" aria-busy="false"></div>
+    </div>
+  </main>
+  <div class="margin right" aria-hidden="true"><canvas id="bigFish" width="840" height="520"></canvas><div class="vert" style="right:8%;bottom:12%;font-size:18px">真鯛 · 四十一糎</div></div>
+</div>
+<canvas id="ov" aria-hidden="true"></canvas>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<button class="mute" id="mute" aria-label="Mute harbour sounds" aria-pressed="false"><svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path id="mw" d="M11 5.5a3.4 3.4 0 0 1 0 5M13 3.5a6.2 6.2 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+
+<script>
+(() => {
+'use strict';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const view = $('#view'), feed = $('#feed'), ov = $('#ov'), ox = ov.getContext('2d'), seaMsg = $('#seaMsg');
+let dpr = Math.min(2, devicePixelRatio || 1);
+
+/* ---------------- rice paper ---------------- */
+function paintPaper(){
+  const c = $('#paperTex'), w = innerWidth, h = innerHeight; c.width = Math.round(w*dpr); c.height = Math.round(h*dpr); const x = c.getContext('2d'); x.scale(dpr, dpr);
+  let sd = 11; const r = () => { sd = (sd*16807) % 2147483647; return sd/2147483647; };
+  for (let i = 0; i < 260; i++){ // long kozo fibres
+    x.strokeStyle = `rgba(${r() < .5 ? '255,252,240' : '170,150,115'},${.16 + r()*.2})`; x.lineWidth = .4 + r()*.9; x.beginPath();
+    let px = r()*w, py = r()*h, a = r()*Math.PI*2; x.moveTo(px, py);
+    for (let k = 0; k < 6; k++){ a += (r() - .5)*.9; px += Math.cos(a)*(10 + r()*24); py += Math.sin(a)*(10 + r()*24); x.lineTo(px, py); } x.stroke();
+  }
+  for (let i = 0; i < 1600; i++){ x.fillStyle = `rgba(140,120,90,${r()*.08})`; x.fillRect(r()*w, r()*h, 1 + r()*2, 1 + r()*2); }
+  const g = x.createRadialGradient(w/2, h/2, Math.min(w, h)*.3, w/2, h/2, Math.max(w, h)*.75); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(120,95,55,.16)'); x.fillStyle = g; x.fillRect(0, 0, w, h);
+}
+
+/* ---------------- gyotaku ink prints ---------------- */
+function rng(seed){ let s = seed % 2147483647 || 7; return () => { s = (s*16807) % 2147483647; return s/2147483647; }; }
+function fishPath(x, W, H, kind){
+  const p = new Path2D();
+  if (kind === 'bream'){
+    p.moveTo(W*.03, H*.55); p.bezierCurveTo(W*.12, H*.18, W*.4, H*.06, W*.6, H*.18); p.bezierCurveTo(W*.7, H*.25, W*.76, H*.38, W*.8, H*.46);
+    p.lineTo(W*.97, H*.18); p.quadraticCurveTo(W*.9, H*.5, W*.97, H*.86); p.lineTo(W*.8, H*.56);
+    p.bezierCurveTo(W*.7, H*.74, W*.45, H*.92, W*.25, H*.8); p.bezierCurveTo(W*.12, H*.74, W*.05, H*.66, W*.03, H*.55); p.closePath();
+  } else if (kind === 'sandal'){
+    p.roundRect ? p.roundRect(W*.06, H*.18, W*.86, H*.62, H*.3) : p.rect(W*.06, H*.18, W*.86, H*.62);
+  } else { // slender: mackerel / horse mackerel
+    p.moveTo(W*.02, H*.52); p.bezierCurveTo(W*.14, H*.26, W*.45, H*.2, W*.66, H*.34); p.bezierCurveTo(W*.74, H*.4, W*.8, H*.45, W*.84, H*.48);
+    p.lineTo(W*.98, H*.24); p.quadraticCurveTo(W*.92, H*.5, W*.98, H*.78); p.lineTo(W*.84, H*.54);
+    p.bezierCurveTo(W*.74, H*.62, W*.45, H*.78, W*.2, H*.7); p.bezierCurveTo(W*.1, H*.66, W*.04, H*.6, W*.02, H*.52); p.closePath();
+  }
+  return p;
+}
+function drawPrint(c, kind, seed){
+  const x = c.getContext('2d'), W = c.width, H = c.height, r = rng(seed + 3);
+  x.clearRect(0, 0, W, H);
+  if (kind === 'sandal'){ // an old wooden geta, printed out of spite
+    const body = fishPath(x, W, H, 'sandal'); x.fillStyle = 'rgba(27,25,21,.88)'; x.fill(body);
+    x.save(); x.clip(body); x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 40; i++){ x.strokeStyle = `rgba(0,0,0,${.25 + r()*.4})`; x.lineWidth = .8 + r()*2; x.beginPath(); const y = H*.2 + r()*H*.6; x.moveTo(0, y); x.bezierCurveTo(W*.3, y + (r() - .5)*8, W*.6, y + (r() - .5)*8, W, y + (r() - .5)*6); x.stroke(); }
+    x.restore();
+    x.strokeStyle = 'rgba(27,25,21,.9)'; x.lineWidth = H*.05; x.lineCap = 'round'; x.beginPath(); x.moveTo(W*.2, H*.3); x.lineTo(W*.42, H*.5); x.lineTo(W*.2, H*.7); x.stroke();
+    speckle(x, W, H, r, .5); return;
+  }
+  const body = fishPath(x, W, H, kind);
+  // fins first, softer ink
+  x.fillStyle = 'rgba(27,25,21,.55)';
+  const fin = (pts) => { x.beginPath(); x.moveTo(pts[0][0]*W, pts[0][1]*H); for (const [a, b] of pts.slice(1)) x.lineTo(a*W, b*H); x.closePath(); x.fill(); };
+  if (kind === 'bream'){ fin([[.25,.24],[.3,.04],[.4,.02],[.5,.03],[.6,.08],[.66,.2]]); fin([[.48,.84],[.56,.98],[.66,.92],[.7,.72]]); }
+  else { fin([[.3,.27],[.36,.12],[.42,.24]]); fin([[.52,.28],[.56,.2],[.6,.22],[.64,.3]]); fin([[.5,.7],[.56,.84],[.62,.68]]); }
+  x.save(); x.globalCompositeOperation = 'destination-out'; x.lineWidth = 1.2;
+  for (let i = 0; i < 26; i++){ const t = .25 + i/26*.45; x.strokeStyle = 'rgba(0,0,0,.5)'; x.beginPath(); x.moveTo(t*W, (kind === 'bream' ? .22 : .28)*H); x.lineTo((t + .02)*W, (kind === 'bream' ? .04 : .14)*H); x.stroke(); }
+  x.restore();
+  // the body: dense ink
+  x.fillStyle = 'rgba(27,25,21,.92)'; x.fill(body);
+  x.save(); x.clip(body); x.globalCompositeOperation = 'destination-out';
+  // scales — paper shows through the ridges
+  const sc = kind === 'bream' ? H*.075 : H*.05;
+  for (let row = 0, y = 0; y < H + sc; row++, y += sc*.62){
+    for (let xx = (row % 2)*sc*.5; xx < W*.82; xx += sc*.95){
+      x.strokeStyle = `rgba(0,0,0,${.32 + r()*.3})`; x.lineWidth = 1.1 + r()*.6;
+      x.beginPath(); x.arc(xx, y, sc*.55, Math.PI*.15, Math.PI*.85); x.stroke();
+    }
+  }
+  if (kind === 'mackerel'){ // wavy back stripes
+    for (let i = 0; i < 9; i++){ x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 2.2; x.beginPath(); const sx0 = W*(.22 + i*.065); x.moveTo(sx0, H*.24); x.bezierCurveTo(sx0 + 6, H*.32, sx0 - 6, H*.38, sx0 + 4, H*.46); x.stroke(); }
+  }
+  if (kind === 'aji'){ x.strokeStyle = 'rgba(0,0,0,.5)'; x.lineWidth = 2; x.beginPath(); x.moveTo(W*.2, H*.46); x.bezierCurveTo(W*.4, H*.4, W*.6, H*.48, W*.84, H*.5); x.stroke(); for (let k = 0; k < 18; k++){ const t = .55 + k*.016; x.beginPath(); x.moveTo(W*t, H*.45); x.lineTo(W*t, H*.53); x.stroke(); } }
+  // gill plate and lips
+  x.strokeStyle = 'rgba(0,0,0,.7)'; x.lineWidth = 2.4; x.beginPath(); x.arc(W*.2, H*.5, H*.24, -1.1, 1.0); x.stroke();
+  x.lineWidth = 1.4; x.beginPath(); x.moveTo(W*.03, H*.55); x.lineTo(W*.09, H*.56); x.stroke();
+  // the eye is left blank by the press…
+  x.fillStyle = '#000'; x.beginPath(); x.arc(W*.12, H*.43, H*.075, 0, 7); x.fill();
+  // dry-brush: the press misses a little near the edges
+  for (let i = 0; i < 260; i++){ const a = r()*Math.PI*2; x.fillStyle = `rgba(0,0,0,${r()*.6})`; x.fillRect(W*.45 + Math.cos(a)*W*.5*r(), H*.5 + Math.sin(a)*H*.5*r(), 1 + r()*3, 1 + r()*2); }
+  x.restore();
+  // …and painted in afterwards with a brush
+  x.strokeStyle = 'rgba(27,25,21,.95)'; x.lineWidth = Math.max(1.4, H*.018); x.beginPath(); x.arc(W*.12, H*.43, H*.06, 0, 7); x.stroke();
+  x.fillStyle = 'rgba(27,25,21,.95)'; x.beginPath(); x.arc(W*.125, H*.425, H*.032, 0, 7); x.fill();
+  speckle(x, W, H, r, 1);
+}
+function speckle(x, W, H, r, k){ x.save(); x.globalCompositeOperation = 'source-atop'; for (let i = 0; i < 500*k; i++){ x.fillStyle = `rgba(241,234,219,${r()*.35})`; x.fillRect(r()*W, r()*H, 1, 1); } x.restore(); }
+const printCache = {};
+function printCanvas(kind, seed, w = 236, h = 128){ const key = kind + seed + w; if (!printCache[key]){ const c = document.createElement('canvas'); c.width = w; c.height = h; drawPrint(c, kind, seed); printCache[key] = c; } return printCache[key]; }
+
+/* ---------------- posts ---------------- */
+const ICONS = {
+  wave: '<svg viewBox="0 0 64 52"><path d="M4 34 C 14 20, 26 18, 30 30 C 26 26, 20 28, 22 34 C 30 40, 44 30, 46 18 C 50 30, 58 34, 62 32" fill="none" stroke="#1b1915" stroke-width="3" stroke-linecap="round" filter="url(#bleed)"/><path d="M6 44 C 20 40, 40 48, 60 42" fill="none" stroke="#1b1915" stroke-width="2" stroke-linecap="round" opacity=".6"/></svg>',
+  boat: '<svg viewBox="0 0 64 52"><path d="M8 34 L56 34 L48 44 L16 44 Z" fill="#1b1915" filter="url(#bleed)"/><path d="M30 34 V8 L46 30 Z" fill="none" stroke="#1b1915" stroke-width="2.4" stroke-linejoin="round"/><path d="M4 48 C 20 45, 44 51, 60 47" fill="none" stroke="#1b1915" stroke-width="1.6" opacity=".6"/></svg>',
+  box: '<svg viewBox="0 0 64 52"><rect x="12" y="18" width="40" height="24" rx="2" fill="none" stroke="#1b1915" stroke-width="2.8" filter="url(#bleed)"/><path d="M24 18 v-6 h16 v6 M12 28 h40" fill="none" stroke="#1b1915" stroke-width="2.2"/></svg>',
+  flag: '<svg viewBox="0 0 64 52"><path d="M18 46 V6" stroke="#1b1915" stroke-width="2.6" stroke-linecap="round"/><path d="M18 8 C 30 4, 38 14, 52 8 V 26 C 38 32, 30 22, 18 26 Z" fill="#c23a2b" opacity=".9" filter="url(#bleed)"/></svg>',
+};
+const SEED_POSTS = [
+  {who:'Kenji Mori', ini:'森', time:'06:12', text:'Aji are running off the north breakwater. Small but plenty — bring sabiki rigs.', print:'aji'},
+  {who:'Harbour office', ini:'港', time:'05:40', text:'Swell 1.2 m from the south-east this morning. Small boats stay inside the wall until 9:00.', icon:'wave'},
+  {who:'Sora Ito', ini:'伊', time:'Yesterday 17:55', text:'Sea bream, 41 cm, from the rocks below Morito shrine. Printed it for the shop wall.', print:'bream'},
+  {who:'Uomaru fishmonger', ini:'魚', time:'Yesterday 16:00', text:'Fresh saba tomorrow from 7:00. Bring your own bag.', print:'mackerel'},
+  {who:'Aiko Tanaka', ini:'田', time:'Mon 6 Oct', text:'Lost: green tackle box near the slipway. Reward in mikan.', icon:'box'},
+];
+const BATCHES = [
+  [{who:'Kenji Mori', ini:'森', time:'just now', text:'Update: aji still biting at 07:30 — go down a hook size.', print:'aji'},
+   {who:'Hayama fishing club', ini:'会', time:'just now', text:'Dawn competition on Saturday 11 Oct. Weigh-in at the yacht harbour, 10:30.', icon:'flag'}],
+  [{who:'Harbour office', ini:'港', time:'just now', text:'Swell easing to 0.6 m. Small boats may go out.', icon:'boat'}],
+];
+let batch = 0, pid = 0;
+function postEl(p, fresh){
+  const el = document.createElement('article'); el.className = 'post' + (fresh ? ' fresh' : ''); el.setAttribute('aria-label', `${p.who}, ${p.time}: ${p.text}`); el.tabIndex = -1;
+  const left = document.createElement('div');
+  if (p.print){ const c = document.createElement('canvas'); c.className = 'print'; c.width = 236; c.height = 128; c.getContext('2d').drawImage(printCanvas(p.print, ++pid*17), 0, 0); left.appendChild(c); }
+  else { left.className = 'icon'; left.innerHTML = ICONS[p.icon]; }
+  el.appendChild(left);
+  const r = document.createElement('div'); r.className = 'txtwrap';
+  r.innerHTML = `<div class="who"><span class="seal" aria-hidden="true">${p.ini}</span>${p.who}<time>${p.time}</time></div><p></p>`; r.querySelector('p').textContent = p.text;
+  el.appendChild(r); return el;
+}
+SEED_POSTS.forEach(p => feed.appendChild(postEl(p)));
+const endEl = document.createElement('div'); endEl.className = 'end'; endEl.textContent = '— older notes are on the board by the slipway —'; feed.appendChild(endEl);
+
+/* ---------------- ink-wash sea ---------------- */
+(function sea(){
+  const s = $('#seaSvg'); let h = '';
+  h += `<defs><linearGradient id="wash" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1915" stop-opacity=".02"/><stop offset="1" stop-color="#1b1915" stop-opacity=".22"/></linearGradient></defs><rect width="560" height="200" fill="url(#wash)"/>`;
+  for (let i = 0; i < 7; i++){ const y = 34 + i*24; let d = `M-10 ${y}`; for (let x = -10; x < 580; x += 46){ d += ` C ${x + 12} ${y - 10 - i}, ${x + 26} ${y - 10 - i}, ${x + 30} ${y} S ${x + 40} ${y + 6}, ${x + 46} ${y}`; }
+    h += `<path d="${d}" fill="none" stroke="#1b1915" stroke-width="${1 + i*.25}" opacity="${.18 + i*.06}" stroke-linecap="round" filter="url(#bleed)"/>`; }
+  s.innerHTML = h;
+})();
+
+/* ---------------- big decorative print in the margin ---------------- */
+function bigPrint(){ const c = $('#bigFish'); drawPrint(c, 'bream', 4242); const x = c.getContext('2d');
+  x.fillStyle = '#c23a2b'; x.save(); x.translate(c.width - 120, c.height - 120); x.rotate(.05); x.fillRect(0, 0, 70, 70); x.fillStyle = '#f1eadb'; x.font = '800 30px "Shippori Mincho", serif'; x.textAlign = 'center'; x.fillText('葉', 35, 32); x.fillText('山', 35, 64); x.restore(); }
+
+/* ---------------- scroll & pull ---------------- */
+let scrollY = 0, vY = 0, pull = 0, hold = 0, drag = null, phase = 'idle', THRESH = 120;
+const maxScroll = () => Math.max(0, feed.offsetHeight - view.clientHeight);
+view.addEventListener('pointerdown', e => {
+  if (e.button > 0) return; e.preventDefault(); view.focus({preventScroll:true}); audio();
+  if (phase !== 'idle') return;
+  view.setPointerCapture(e.pointerId); view.classList.add('grabbing');
+  drag = {y: e.clientY, last: e.clientY, hist: [[e.timeStamp, e.clientY]], startScroll: scrollY}; vY = 0;
+});
+view.addEventListener('pointermove', e => {
+  if (!drag) return; const dy = e.clientY - drag.last; drag.last = e.clientY;
+  drag.hist.push([e.timeStamp, e.clientY]); if (drag.hist.length > 6) drag.hist.shift();
+  if (scrollY <= 0 && (dy > 0 || pull > 0)){
+    // past the top, the board pulls the line: heavier the further you go
+    pull = Math.max(0, pull + dy*(1/(1 + pull/140))); scrollY = 0;
+    if (pull > THRESH && !drag.armed){ drag.armed = true; creak(); } else if (pull < THRESH) drag.armed = false;
+  } else { scrollY = Math.max(0, Math.min(maxScroll(), scrollY - dy)); }
+});
+function release(){
+  if (!drag) return; view.classList.remove('grabbing');
+  const h = drag.hist; drag = null;
+  if (pull > THRESH){ cast(); return; }
+  if (h.length > 1){ const [t0, y0] = h[0], [t1, y1] = h[h.length - 1]; vY = -(y1 - y0)/Math.max(1, t1 - t0)*1000; }
+}
+view.addEventListener('pointerup', release); view.addEventListener('pointercancel', release);
+let wheelPull = 0, wheelT = 0;
+view.addEventListener('wheel', e => {
+  e.preventDefault(); if (phase !== 'idle') return; audio();
+  if (scrollY <= 0 && e.deltaY < 0){ pull = Math.min(220, pull - e.deltaY*.5); clearTimeout(wheelT); wheelT = setTimeout(() => { if (pull > THRESH) cast(); }, 160); }
+  else scrollY = Math.max(0, Math.min(maxScroll(), scrollY + e.deltaY));
+}, {passive:false});
+view.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown'){ e.preventDefault(); vY = 0; scrollY = Math.min(maxScroll(), scrollY + 60); }
+  if (e.key === 'ArrowUp'){ e.preventDefault(); scrollY = Math.max(0, scrollY - 60); }
+  if (e.key === 'PageDown' || e.key === ' '){ e.preventDefault(); scrollY = Math.min(maxScroll(), scrollY + view.clientHeight*.8); }
+  if (e.key === 'PageUp'){ e.preventDefault(); scrollY = Math.max(0, scrollY - view.clientHeight*.8); }
+  if (e.key === 'Home'){ e.preventDefault(); scrollY = 0; }
+});
+document.addEventListener('keydown', e => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && phase === 'idle'){ audio(); scrollY = 0; pull = THRESH + 10; cast(); } });
+$('#castBtn').addEventListener('click', () => { if (phase !== 'idle') return; audio(); scrollY = 0; pull = THRESH + 10; cast(); });
+
+/* ---------------- the rod, the line and the catch ---------------- */
+let W = 0, H = 0, geo = {};
+function layout(){
+  dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; ov.width = Math.round(W*dpr); ov.height = Math.round(H*dpr);
+  const vr = view.getBoundingClientRect();
+  geo = {vx: vr.left, vy: vr.top, vw: vr.width, vh: vr.height, mobile: W < 980};
+  geo.base = {x: vr.right + (geo.mobile ? 30 : 150), y: vr.top - (geo.mobile ? 110 : 160)};
+  geo.tipRest = {x: vr.right - (geo.mobile ? 40 : 70), y: vr.top - 22};
+  paintPaper(); bigPrint();
+}
+let bob = null, flyer = null, ripples = [], tipBend = 0, tipV = 0;
+const seaY = () => geo.vy + Math.max(pull, hold)*0.55;
+function cast(){
+  if (phase !== 'idle') return;
+  phase = 'cast'; feed.setAttribute('aria-busy', 'true'); seaMsg.style.opacity = 0;
+  hold = Math.max(pull, THRESH); pull = 0; whoosh();
+  const tip = tipPos(), landX = geo.vx + geo.vw*(.18 + Math.random()*.25), landY = geo.vy + 96;
+  if (reduce){ catchIt(); return; }
+  flyer = {kind:'hook', x: tip.x, y: tip.y, x0: tip.x, y0: tip.y, x1: landX, y1: landY, t: 0, dur: .7};
+  say('Casting…');
+}
+function tipPos(){ const k = Math.min(1.2, Math.max(pull, phase === 'reel' ? 80 : 0)/160); return {x: geo.tipRest.x - k*24 + tipBend*.3, y: geo.tipRest.y + k*70 + tipBend}; }
+function splash(x, y, big){ for (let i = 0; i < (big ? 4 : 3); i++) ripples.push({x, y, r: 2 + i*4, a: .7 - i*.12, grow: 40 + i*14}); splashSound(big ? 1 : .6); }
+function catchIt(){
+  const next = BATCHES[batch];
+  const kind = next ? (next.find(p => p.print) || {print: 'aji'}).print : 'sandal';
+  phase = 'reel'; reelSound(true);
+  const start = bob ? {x: bob.x, y: bob.y} : {x: geo.vx + geo.vw*.3, y: geo.vy + 90};
+  bob = null;
+  flyer = {kind:'fish', fish: kind, x: start.x, y: start.y, x0: start.x, y0: start.y, t: 0, dur: reduce ? .01 : 1.2, ang: 0};
+  splash(start.x, start.y, true);
+}
+function land(){
+  reelSound(false); const next = BATCHES[batch];
+  thud();
+  if (!next){
+    // nothing new: an old sandal, which goes straight back in
+    flyer = {kind:'drop', fish:'sandal', x: flyer.x, y: flyer.y, vy: -200, vx: -60, t: 0};
+    toast('Only an old sandal — you’re all caught up.');
+    setTimeout(() => { phase = 'idle'; hold = 0; feed.setAttribute('aria-busy', 'false'); }, reduce ? 50 : 1100);
+    return;
+  }
+  batch++;
+  flyer = null;
+  const firstEl = feed.firstChild; const els = next.map(p => postEl(p, true));
+  els.reverse().forEach(el => feed.insertBefore(el, feed.firstChild));
+  toast(`${next.length} new post${next.length > 1 ? 's' : ''} landed`);
+  setTimeout(() => { phase = 'idle'; hold = 0; feed.setAttribute('aria-busy', 'false'); }, reduce ? 50 : 500);
+  setTimeout(() => feed.querySelectorAll('.fresh').forEach(el => el.classList.remove('fresh')), 9000);
+}
+function drawRod(){
+  const b = geo.base, t = tipPos();
+  ox.save(); ox.lineCap = 'round';
+  // bamboo, brushed in two tones with nodes
+  const cx = (b.x + t.x)/2 + 10, cy = (b.y + t.y)/2 - 30 + Math.max(pull, hold)*.15;
+  ox.strokeStyle = 'rgba(27,25,21,.9)'; ox.lineWidth = 7; ox.beginPath(); ox.moveTo(b.x, b.y); ox.quadraticCurveTo(cx, cy, t.x, t.y); ox.stroke();
+  ox.strokeStyle = 'rgba(241,234,219,.35)'; ox.lineWidth = 1.6; ox.beginPath(); ox.moveTo(b.x - 2, b.y - 2); ox.quadraticCurveTo(cx - 2, cy - 2, t.x - 1, t.y - 1); ox.stroke();
+  for (let k = 1; k < 6; k++){ const u = k/6, x = (1-u)*(1-u)*b.x + 2*(1-u)*u*cx + u*u*t.x, y = (1-u)*(1-u)*b.y + 2*(1-u)*u*cy + u*u*t.y; ox.fillStyle = 'rgba(27,25,21,.95)'; ox.beginPath(); ox.ellipse(x, y, 5.5 - u*2, 2.2, -.6, 0, 7); ox.fill(); }
+  ox.restore();
+  return t;
+}
+function drawLine(from, to, slack){
+  ox.save(); ox.strokeStyle = 'rgba(27,25,21,.75)'; ox.lineWidth = 1.1; ox.beginPath(); ox.moveTo(from.x, from.y);
+  const mx = (from.x + to.x)/2, my = (from.y + to.y)/2 + slack; ox.quadraticCurveTo(mx, my, to.x, to.y); ox.stroke(); ox.restore();
+}
+function drawFloat(x, y){ ox.save(); ox.translate(x, y); ox.fillStyle = '#c23a2b'; ox.beginPath(); ox.ellipse(0, -5, 4.5, 6, 0, 0, 7); ox.fill(); ox.fillStyle = '#f1eadb'; ox.beginPath(); ox.ellipse(0, 3, 4.5, 5, 0, 0, Math.PI); ox.fill(); ox.strokeStyle = '#1b1915'; ox.lineWidth = 1; ox.beginPath(); ox.ellipse(0, -1, 4.5, 9, 0, 0, 7); ox.stroke(); ox.restore(); }
+function drawHook(x, y){ ox.save(); ox.strokeStyle = '#1b1915'; ox.lineWidth = 1.6; ox.beginPath(); ox.moveTo(x, y - 8); ox.lineTo(x, y + 2); ox.arc(x - 4, y + 2, 4, 0, Math.PI*.9); ox.stroke(); ox.restore(); }
+let last = performance.now(), raf = 0, time = 0;
+function frame(t){
+  const dt = Math.min(1/30, (t - last)/1000); last = t; time += dt;
+  // feed motion
+  if (!drag){
+    if (Math.abs(vY) > 5){ scrollY += vY*dt; vY *= Math.pow(.05, dt); if (scrollY < 0){ scrollY = 0; vY = 0; } if (scrollY > maxScroll()){ scrollY = maxScroll(); vY = 0; } }
+    pull += (0 - pull)*Math.min(1, dt*(reduce ? 60 : 10));
+    if (phase === 'idle') hold += (0 - hold)*Math.min(1, dt*8);
+  }
+  const off = Math.max(pull, hold) - scrollY;
+  feed.style.transform = `translateY(${off.toFixed(1)}px)`;
+  seaMsg.style.opacity = phase === 'idle' && pull > 20 ? 1 : 0;
+  if (phase === 'idle' && pull > 20) seaMsg.textContent = pull > THRESH ? 'Let go to cast' : 'Pull further to cast';
+  // rod tip spring
+  tipV += (-tipBend*120 - tipV*10)*dt; tipBend += tipV*dt;
+  ox.setTransform(dpr, 0, 0, dpr, 0, 0); ox.clearRect(0, 0, W, H);
+  // clip the sea's drawing to the revealed band
+  for (const r of ripples){ r.r += r.grow*dt; r.a -= dt*.55; }
+  ripples = ripples.filter(r => r.a > 0);
+  ox.save(); ox.beginPath(); ox.rect(geo.vx - 10, geo.vy, geo.vw + 20, Math.max(0, off)); ox.clip();
+  for (const r of ripples){ ox.strokeStyle = `rgba(27,25,21,${r.a})`; ox.lineWidth = 1.4; ox.beginPath(); ox.ellipse(r.x, r.y, r.r, r.r*.32, 0, 0, 7); ox.stroke(); }
+  ox.restore();
+  const tip = drawRod();
+  if (phase === 'idle'){
+    // the hook rests on the top edge of the board, tugged as you pull
+    const hy = geo.vy + off + 4, hx = tip.x - 6; drawLine(tip, {x: hx, y: hy}, pull > 4 ? 0 : 6); drawHook(hx, hy + 6);
+  } else if (phase === 'cast' && flyer){
+    flyer.t += dt/flyer.dur; const k = Math.min(1, flyer.t), e = k;
+    flyer.x = flyer.x0 + (flyer.x1 - flyer.x0)*e; flyer.y = flyer.y0 + (flyer.y1 - flyer.y0)*e - Math.sin(k*Math.PI)*120;
+    drawLine(tip, flyer, 10 + k*20); drawFloat(flyer.x, flyer.y);
+    if (k >= 1){ splash(flyer.x, flyer.y, false); bob = {x: flyer.x, y: flyer.y, t: 0, biteAt: .9 + Math.random()*.9, bit: false}; flyer = null; tipV -= 120; say('Waiting for a bite…'); }
+  } else if (phase === 'cast' && bob){
+    bob.t += dt; let by = bob.y + Math.sin(bob.t*5)*1.6;
+    if (bob.t > bob.biteAt && !bob.bit){ bob.bit = true; splash(bob.x, bob.y, false); plop(); }
+    if (bob.bit) by += Math.min(10, (bob.t - bob.biteAt)*60);
+    drawLine(tip, {x: bob.x, y: by - 6}, 26); drawFloat(bob.x, by);
+    if (bob.bit && bob.t > bob.biteAt + .35){ tipV += 160; catchIt(); }
+  } else if ((phase === 'reel') && flyer && flyer.kind === 'fish'){
+    flyer.t += dt/flyer.dur; const k = Math.min(1, flyer.t), e = 1 - Math.pow(1 - k, 2);
+    const tx = geo.vx + 20, ty = geo.vy + Math.max(pull, hold) + 34;
+    flyer.x = flyer.x0 + (tx - flyer.x0)*e; flyer.y = flyer.y0 + (ty - flyer.y0)*e - Math.sin(k*Math.PI)*170;
+    flyer.ang = Math.sin(time*14)*.35*(1 - k) - .2;
+    drawLine(tip, {x: flyer.x, y: flyer.y}, -4);
+    const pc = printCanvas(flyer.fish, 99), fw = geo.mobile ? 120 : 170, fh = fw*pc.height/pc.width;
+    // hooked by the lip it hangs head-up and thrashes, then lays flat as it lands on the paper
+    const swing = Math.sin(time*13)*.45*(1 - k) + Math.sin(time*5)*.15*(1 - k);
+    ox.save(); ox.translate(flyer.x, flyer.y); ox.rotate(-Math.PI/2*(1 - e) + swing + (e > .9 ? 0 : 0)); ox.drawImage(pc, -fw*.03, -fh*.55, fw, fh); ox.restore();
+    if (Math.random() < .5) tick();
+    if (k >= 1) land();
+  } else if (flyer && flyer.kind === 'drop'){
+    flyer.vy += 900*dt; flyer.x += flyer.vx*dt; flyer.y += flyer.vy*dt; flyer.t += dt;
+    const pc = printCanvas('sandal', 99), fw = geo.mobile ? 90 : 120, fh = fw*pc.height/pc.width;
+    ox.save(); ox.translate(flyer.x, flyer.y); ox.rotate(flyer.t*4); ox.drawImage(pc, -fw/2, -fh/2, fw, fh); ox.restore();
+    if (flyer.y > geo.vy + 80 && !flyer.splashed){ flyer.splashed = true; splash(flyer.x, geo.vy + 90, true); }
+    if (flyer.t > 1.2) flyer = null;
+    drawLine(tip, {x: tip.x - 6, y: geo.vy + off + 4}, 8);
+  } else {
+    drawLine(tip, {x: tip.x - 6, y: geo.vy + off + 4}, 8);
+  }
+  raf = requestAnimationFrame(frame);
+}
+function start(){ cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(frame); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else start(); });
+
+/* ---------------- sound ---------------- */
+let ac = null, master = null, muted = false, nb = null, reelTimer = 0;
+function audio(){ if (ac){ if (ac.state === 'suspended') ac.resume(); return; } try { ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination); nb = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; } catch(e){ ac = null; } }
+function noise(dur, f, q, g0, type = 'bandpass', when = 0, f2){ if (!ac || muted) return; const t = ac.currentTime + when, s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = nb; fl.type = type; fl.frequency.setValueAtTime(f, t); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur); fl.Q.value = q; g.gain.setValueAtTime(g0, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur); s.connect(fl).connect(g).connect(master); s.start(t, Math.random()*.5, dur + .05); }
+const whoosh = () => noise(.5, 500, 1.2, .35, 'bandpass', 0, 2400);
+const splashSound = k => { noise(.35*k + .1, 1200, .7, .35*k); noise(.2, 400, 1, .3*k, 'lowpass'); };
+const plop = () => { if (!ac || muted) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(240, t + .12); g.gain.setValueAtTime(.3, t); g.gain.exponentialRampToValueAtTime(.0001, t + .15); o.connect(g).connect(master); o.start(t); o.stop(t + .16); };
+const tick = () => noise(.012, 3200, 4, .35);
+const thud = () => { noise(.12, 260, .8, .7, 'lowpass'); noise(.05, 1800, 1, .2); };
+const creak = () => noise(.18, 700, 8, .25, 'bandpass', 0, 500);
+function reelSound(on){ clearInterval(reelTimer); if (on && ac && !muted) reelTimer = setInterval(tick, 45); }
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute harbour sounds' : 'Mute harbour sounds'); $('#mw').style.opacity = muted ? 0 : 1; if (muted) clearInterval(reelTimer); });
+
+/* ---------------- messages ---------------- */
+const toastEl = $('#toast'); let toastT = 0;
+function toast(t){ toastEl.textContent = t; toastEl.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('on'), 2400); }
+function say(t){ /* status for assistive tech while the line is out */ toastEl.setAttribute('aria-label', t); }
+
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 100); });
+layout(); start();
+document.fonts && document.fonts.ready.then(() => { layout(); });
+window.__fish = {cast: () => { audio(); scrollY = 0; pull = THRESH + 10; cast(); }, phase: () => phase};
+})();
+</script>
+</body>
+</html>

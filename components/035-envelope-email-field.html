@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Envelope Email Field</title>
+<meta name="description" content="An email input drawn as an engraved philatelic letter: a valid address folds the letter into an envelope that is stamped and postmarked; an invalid one gets a Return to Sender handstamp with the reason ticked.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Old+Standard+TT:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Envelope Email Field","reimagines":"Email input with validation","category":"Text & Data Entry","description":"A newsletter sign-up drawn in the language of postage-stamp engraving: guilloché, fine hatching and perforations. A valid address folds the letter into an envelope, which is sealed, stamped and postmarked; an invalid one is thumped with a Return to Sender handstamp that ticks the exact reason, and likely typos get a forwarding label you can accept.","hint":"Write your email on the letter, then seal and send"}
+</script>
+<style>
+  :root{
+    --paper:#f3ecda;
+    --paper2:#ebe2ca;
+    --intaglio:#1f3d4f;
+    --carmine:#9b2335;
+    --green:#2a5a45;
+    --violet:#6b2a5a;
+    --sepia:#6b5236;
+    --tint:#cfdccd;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);color:var(--intaglio);font-family:"IM Fell English",Georgia,serif}
+  .stage{position:fixed;inset:0;overflow:hidden;perspective:1500px}
+  svg.tint{position:absolute;inset:0;width:100%;height:100%}
+  .grain{position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply}
+  .head{position:absolute;left:clamp(18px,4vw,56px);top:clamp(18px,5vh,48px);max-width:340px;z-index:6}
+  .head .eb{font-family:"Old Standard TT",serif;font-weight:700;font-size:12px;letter-spacing:.32em;color:var(--carmine)}
+  .head h1{font-family:"Old Standard TT",serif;font-weight:400;font-size:clamp(30px,3.4vw,44px);line-height:1.02;margin:10px 0 10px;letter-spacing:.01em}
+  .head h1 i{font-family:"IM Fell English",serif}
+  .head p{margin:0;font-size:17px;line-height:1.4;color:#3d5260}
+  .rule{height:7px;margin:14px 0;border-top:1px solid var(--intaglio);border-bottom:3px double var(--intaglio)}
+  .letter{position:absolute;transform-style:preserve-3d;z-index:3;transition:transform .9s cubic-bezier(.5,.05,.25,1)}
+  .panel{position:absolute;left:0;width:100%;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.5,.05,.3,1)}
+  .panel .f,.panel .b{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--paper)}
+  .panel .f{background:linear-gradient(#f6f0e1,#f1e9d5)}
+  .panel .b{transform:rotateX(180deg);background:linear-gradient(#efe6cf,#e9dfc4)}
+  .panel .f::before{content:"";position:absolute;left:9px;right:9px;top:0;bottom:0;border-left:3px double rgba(31,61,79,.55);border-right:3px double rgba(31,61,79,.55);pointer-events:none}
+  .p1 .f::before{top:9px;border-top:3px double rgba(31,61,79,.55)}
+  .p3 .f::before{bottom:9px;border-bottom:3px double rgba(31,61,79,.55)}
+  .album{position:absolute;z-index:2;pointer-events:none}
+  .album .st{position:absolute;filter:drop-shadow(0 6px 8px rgba(40,30,10,.25))}
+  .p1{top:0;transform-origin:50% 100%}
+  .p2{transform-origin:50% 50%}
+  .p3{transform-origin:50% 0}
+  .letter.folding .p3{transform:rotateX(180deg) translateZ(-1px)}
+  .letter.folding.two .p1{transform:rotateX(-180deg) translateZ(-2px)}
+  .sheet-shadow{position:absolute;inset:0;box-shadow:0 22px 40px -18px rgba(40,30,10,.5),0 2px 6px rgba(40,30,10,.18);pointer-events:none}
+  .lh{position:absolute;inset:0;padding:18px 26px 0;text-align:center}
+  .lh svg{display:block;margin:0 auto}
+  .lh .name{font-family:"Old Standard TT",serif;font-weight:700;letter-spacing:.42em;font-size:15px;margin-top:4px}
+  .lh .sub{font-style:italic;font-size:14px;color:#3d5260;margin-top:2px}
+  .p2 .f{padding:16px 30px 0}
+  .ask{font-size:16px;color:#3d5260;font-style:italic}
+  .addr-line{position:relative;margin-top:10px;border-bottom:1.4px solid var(--intaglio);padding-bottom:2px}
+  .addr-line::after{content:"";position:absolute;left:0;right:0;bottom:-5px;border-bottom:.8px solid var(--intaglio)}
+  #email{width:100%;border:0;background:transparent;font-family:"IM Fell English",Georgia,serif;font-style:italic;font-size:30px;color:var(--intaglio);padding:6px 2px 4px;outline:none;caret-color:var(--carmine)}
+  #email::placeholder{color:rgba(31,61,79,.33)}
+  .letter.focus .addr-line{border-bottom-color:var(--carmine)}
+  .letter.focus .addr-line::after{border-bottom-color:var(--carmine)}
+  .checks{display:flex;gap:16px;margin-top:14px;font-family:"Old Standard TT",serif;font-size:12px;letter-spacing:.14em;color:#4b5d68;flex-wrap:wrap}
+  .checks span{display:inline-flex;align-items:center;gap:6px}
+  .checks svg{display:block}
+  .checks .on path{opacity:1}
+  .checks path{opacity:0;transition:opacity .2s}
+  .fine{position:absolute;inset:0;padding:14px 30px 0;font-size:13.5px;line-height:1.45;color:#4b5d68}
+  .fine .sig{font-style:italic;font-size:22px;color:var(--intaglio);margin-top:8px}
+  .fine .sig small{display:block;font-family:"Old Standard TT",serif;font-style:normal;font-size:10px;letter-spacing:.24em;color:#4b5d68}
+  .backprint{position:absolute;inset:0;display:grid;place-items:center;font-family:"Old Standard TT",serif;letter-spacing:.4em;font-size:12px;color:rgba(31,61,79,.55)}
+  .rts{position:absolute;pointer-events:none;opacity:0;transform-origin:50% 50%;z-index:5}
+  .rts svg{display:block;overflow:visible}
+  .fwd{position:absolute;z-index:6;font-family:"Old Standard TT",serif;font-size:13px;letter-spacing:.06em;color:#3a2c12;background:#f1d77d;border:0;padding:10px 14px 9px;cursor:pointer;transform:rotate(3deg);box-shadow:0 3px 8px rgba(60,40,0,.25);opacity:0;pointer-events:none;transition:opacity .3s}
+  .fwd b{font-family:"IM Fell English",serif;font-style:italic;font-weight:400;font-size:17px;letter-spacing:0}
+  .fwd.on{opacity:1;pointer-events:auto}
+  .fwd:focus-visible{outline:2px solid var(--carmine);outline-offset:3px}
+  .env{position:absolute;z-index:1;transform-style:preserve-3d;transition:transform .8s cubic-bezier(.3,1.15,.4,1)}
+  .env-in{position:absolute;inset:0;transform-style:preserve-3d}
+  .env .back,.env .front,.env .flap,.env .face{position:absolute;left:0;top:0;width:100%;height:100%}
+  .env .face{display:none;z-index:8;filter:drop-shadow(0 18px 24px rgba(40,30,10,.3))}
+  .env.flipped .face{display:block}
+  .env.flipped .back,.env.flipped .flap,.env.flipped .front{display:none}
+  .env .back{z-index:1}
+  .env .front{z-index:5}
+  .env .flap{z-index:2;transform-origin:50% 0;transform:rotateX(180deg);transition:transform .6s cubic-bezier(.5,0,.3,1)}
+  .env.closed .flap{transform:rotateX(0deg);z-index:6}
+  .env svg{width:100%;height:100%;display:block;overflow:visible}
+  .env .to{position:absolute;z-index:7;font-style:italic;color:var(--intaglio);white-space:nowrap;overflow:hidden;clip-path:inset(0 100% 0 0);transition:clip-path 1.2s steps(28,end)}
+  .env .to small{display:block;font-family:"Old Standard TT",serif;font-style:normal;font-size:11px;letter-spacing:.3em;color:#4b5d68;margin-bottom:2px}
+  .env.addressed .to{clip-path:inset(0 0 0 0)}
+  .env .to span{display:block;border-bottom:1px dotted rgba(31,61,79,.5);padding-bottom:2px}
+  .stamp{position:absolute;z-index:8;opacity:0}
+  .stamp svg,.pm svg{display:block;width:100%;height:100%;overflow:visible}
+  .pm{position:absolute;z-index:9;opacity:0;pointer-events:none}
+  .actions{position:absolute;z-index:7;display:flex;gap:16px;align-items:center;flex-wrap:wrap;justify-content:center}
+  .btn{font-family:"Old Standard TT",serif;font-weight:700;font-size:14px;letter-spacing:.24em;text-transform:uppercase;color:var(--paper);background:var(--carmine);border:0;padding:15px 26px 14px;cursor:pointer;position:relative;
+    box-shadow:inset 0 0 0 3px var(--carmine),inset 0 0 0 4px #e9c9b8,inset 0 0 0 7px var(--carmine),inset 0 0 0 8px #e9c9b8;transition:transform .12s, filter .2s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid var(--intaglio);outline-offset:4px}
+  .btn[disabled]{filter:grayscale(.7) opacity(.55);cursor:not-allowed}
+  .link{font-family:"IM Fell English",serif;font-style:italic;font-size:18px;color:var(--intaglio);background:none;border:0;cursor:pointer;text-decoration:underline;text-decoration-thickness:.6px;text-underline-offset:4px;padding:6px}
+  .link:focus-visible{outline:2px solid var(--carmine);outline-offset:3px}
+  .status{position:absolute;z-index:7;text-align:center;font-size:17px;font-style:italic;color:#3d5260;min-height:24px}
+  .status b{font-style:normal;font-family:"Old Standard TT",serif;letter-spacing:.06em;color:var(--green)}
+  .status.bad b{color:var(--violet)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  @media (max-width:760px){
+    .head{left:16px;right:16px;top:12px;max-width:none}
+    .head h1{font-size:26px;margin:6px 0 4px}
+    .head p{font-size:14px}
+    .head .rule{display:none}
+    #email{font-size:22px}
+    .p2 .f{padding:10px 18px 0}
+    .lh{padding:10px 14px 0}
+    .fine{padding:10px 18px 0;font-size:12px}
+    .checks{gap:10px;font-size:10px;margin-top:10px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .letter,.panel,.env,.env .flap,.env .to{transition-duration:.01s}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <svg class="tint" id="tint" aria-hidden="true"></svg>
+  <svg class="grain" aria-hidden="true" width="100%" height="100%"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="2"/><feColorMatrix values="0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .2  0 0 0 .18 0"/></filter><rect width="100%" height="100%" filter="url(#gr)"/></svg>
+
+  <header class="head">
+    <div class="eb">FERNWICK POST · EST. 1887</div>
+    <h1>The Fernwick <i>Dispatch</i></h1>
+    <p>Tide tables, harbour gossip and one good recipe, posted to your inbox every Friday morning.</p>
+    <div class="rule"></div>
+  </header>
+
+  <!-- envelope (behind / below the letter until sealing) -->
+  <div class="env" id="env" aria-hidden="true">
+    <div class="env-in" id="envIn">
+      <div class="back"><svg id="envBack" preserveAspectRatio="none"></svg></div>
+      <div class="flap"><svg id="envFlap" preserveAspectRatio="none"></svg></div>
+      <div class="front"><svg id="envFront" preserveAspectRatio="none"></svg></div>
+      <div class="face" id="face"><svg id="envFace" preserveAspectRatio="none"></svg>
+        <div class="to" id="to"><small>KINDLY DELIVER TO</small><span id="toText"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="letter" id="letter">
+    <div class="sheet-shadow" id="shadow"></div>
+    <div class="panel p1" id="p1">
+      <div class="f"><div class="lh" id="lh"></div></div>
+      <div class="b"><div class="backprint">THE FERNWICK DISPATCH · No. 1,442</div></div>
+    </div>
+    <div class="panel p2" id="p2">
+      <div class="f">
+        <div class="ask">Kindly address your Friday copy to</div>
+        <div class="addr-line">
+          <input id="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="your.name@example.com" aria-label="Email address" aria-describedby="status checks">
+        </div>
+        <div class="checks" id="checks" aria-hidden="false">
+          <span id="ckName"><svg width="14" height="14" viewBox="0 0 14 14"><rect x=".5" y=".5" width="13" height="13" fill="none" stroke="#1f3d4f"/><path d="M2.5 7.5 L6 11 L12 2.5" fill="none" stroke="#9b2335" stroke-width="1.8"/></svg>NAME</span>
+          <span id="ckAt"><svg width="14" height="14" viewBox="0 0 14 14"><rect x=".5" y=".5" width="13" height="13" fill="none" stroke="#1f3d4f"/><path d="M2.5 7.5 L6 11 L12 2.5" fill="none" stroke="#9b2335" stroke-width="1.8"/></svg>AT-SIGN</span>
+          <span id="ckDest"><svg width="14" height="14" viewBox="0 0 14 14"><rect x=".5" y=".5" width="13" height="13" fill="none" stroke="#1f3d4f"/><path d="M2.5 7.5 L6 11 L12 2.5" fill="none" stroke="#9b2335" stroke-width="1.8"/></svg>DESTINATION</span>
+        </div>
+      </div>
+      <div class="b"></div>
+    </div>
+    <div class="panel p3" id="p3">
+      <div class="f"><div class="fine">We use your address only to post the Dispatch each Friday. Return it to sender at any time and we will not write again.<div class="sig">A. Pennywhistle<small>POSTMASTER, FERNWICK</small></div></div></div>
+      <div class="b"><div class="backprint">FOLD HERE ✕ FOLD HERE</div></div>
+    </div>
+    <div class="rts" id="rts"></div>
+  </div>
+
+  <button class="fwd" id="fwd" type="button">FORWARD TO <b id="fwdTo"></b>?</button>
+  <div class="stamp" id="stamp" aria-hidden="true"></div>
+  <div class="pm" id="pm" aria-hidden="true"></div>
+
+  <div class="album" id="album" aria-hidden="true"></div>
+  <div class="status" id="status" aria-live="polite">Write your address on the letter, then seal it.</div>
+  <div class="actions" id="actions">
+    <button class="btn" id="seal" type="button">Seal &amp; send</button>
+    <button class="link" id="redo" type="button" hidden>Use a different address</button>
+  </div>
+  <div class="sr" id="live" aria-live="assertive"></div>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const input = $('email'), letter = $('letter'), env = $('env');
+  let W = 0, H = 0, LW = 0, LH = 0, EW = 0, EH = 0, mobile = false;
+  let state = 'edit'; // edit | returned | sealing | sent
+
+  /* ---------- guilloché generators ---------- */
+  function rosette(cx, cy, R, r, d, turns, steps, rot) {
+    let s = '';
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps * Math.PI * 2 * turns;
+      const x = (R - r) * Math.cos(t) + d * Math.cos((R - r) / r * t);
+      const y = (R - r) * Math.sin(t) - d * Math.sin((R - r) / r * t);
+      const c = Math.cos(rot), sn = Math.sin(rot);
+      s += (i ? 'L' : 'M') + (cx + x * c - y * sn).toFixed(1) + ' ' + (cy + x * sn + y * c).toFixed(1);
+    }
+    return s;
+  }
+  function waveBand(x0, x1, y, amp, n, freq, step) {
+    let s = '';
+    for (let k = 0; k < n; k++) {
+      const ph = k / n * Math.PI * 2;
+      for (let x = x0; x <= x1; x += step) {
+        const yy = y + Math.sin(x * freq + ph) * amp * Math.cos(x * freq * .25 + ph * .5);
+        s += (x === x0 ? 'M' : 'L') + x.toFixed(1) + ' ' + yy.toFixed(1);
+      }
+    }
+    return s;
+  }
+  function hatch(x0, y0, w, h, gap, angle) {
+    let s = ''; const L = Math.hypot(w, h);
+    const c = Math.cos(angle), sn = Math.sin(angle), cx = x0 + w / 2, cy = y0 + h / 2;
+    for (let d = -L / 2; d <= L / 2; d += gap) {
+      const ax = cx + d * -sn - c * L / 2, ay = cy + d * c - sn * L / 2, bx = cx + d * -sn + c * L / 2, by = cy + d * c + sn * L / 2;
+      s += `M${ax.toFixed(1)} ${ay.toFixed(1)}L${bx.toFixed(1)} ${by.toFixed(1)}`;
+    }
+    return s;
+  }
+
+  /* ---------- background security tint ---------- */
+  function drawTint() {
+    const t = $('tint'); t.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    let s = '';
+    const cx = W * (mobile ? .5 : .62), cy = H * .52, R = Math.max(W, H) * .42;
+    for (let k = 0; k < 7; k++) s += `<path d="${rosette(cx, cy, R * (1 - k * .07), R * .085 * (1 + k * .05), R * .32, 1, 720, k * .12)}" fill="none" stroke="#b9cdb8" stroke-width=".7" opacity=".7"/>`;
+    for (let k = 0; k < 3; k++) s += `<path d="${waveBand(0, W, 26 + k * 6, 8, 6, .025, 6)}" fill="none" stroke="#c9b9a0" stroke-width=".6"/>`;
+    s += `<path d="${waveBand(0, W, H - 22, 9, 8, .02, 6)}" fill="none" stroke="#c9b9a0" stroke-width=".6"/>`;
+    t.innerHTML = s;
+  }
+
+  /* ---------- letterhead ---------- */
+  function drawLetterhead() {
+    const w = LW - (mobile ? 28 : 52), h = LH / 3;
+    const em = mobile ? 54 : 70;
+    let s = `<svg width="${w}" height="${em + 16}" viewBox="0 0 ${w} ${em + 16}">`;
+    s += `<path d="${waveBand(0, w, em / 2 + 8, 5, 5, .06, 3)}" fill="none" stroke="#1f3d4f" stroke-width=".55" opacity=".7"/>`;
+    s += `<rect x="${w / 2 - em / 2 - 8}" y="0" width="${em + 16}" height="${em + 16}" fill="#f4eedd"/>`;
+    for (let k = 0; k < 3; k++) s += `<path d="${rosette(w / 2, em / 2 + 8, em / 2, em * .09 + k * 1.2, em * .2, 1, 600, k * .35)}" fill="none" stroke="${k === 1 ? '#9b2335' : '#1f3d4f'}" stroke-width=".5"/>`;
+    s += `<circle cx="${w / 2}" cy="${em / 2 + 8}" r="${em * .16}" fill="#f4eedd" stroke="#1f3d4f" stroke-width=".8"/><text x="${w / 2}" y="${em / 2 + 8 + em * .07}" text-anchor="middle" font-family="IM Fell English, serif" font-style="italic" font-size="${em * .2}" fill="#9b2335">F</text>`;
+    s += `</svg><div class="name">FERNWICK POST</div><div class="sub">Correspondence Department · Harbour Row</div>`;
+    $('lh').innerHTML = s;
+  }
+
+  /* ---------- envelope art ---------- */
+  function drawEnvelope() {
+    const w = EW, h = EH;
+    const back = `<defs><clipPath id="bk"><rect width="${w}" height="${h}"/></clipPath></defs><rect x="0" y="0" width="${w}" height="${h}" fill="#e3d6b6" stroke="#1f3d4f" stroke-width="1"/>
+      <g clip-path="url(#bk)"><path d="${hatch(0, 0, w, h, 5, .5)}" stroke="#1f3d4f" stroke-width=".35" opacity=".35"/></g>`;
+    $('envBack').setAttribute('viewBox', `0 0 ${w} ${h}`); $('envBack').innerHTML = back;
+    const fh = h * .58;
+    const flap = `<defs><clipPath id="fc"><path d="M0 0 H${w} L${w / 2} ${fh} Z"/></clipPath></defs>
+      <path d="M0 0 H${w} L${w / 2} ${fh} Z" fill="#efe4c8" stroke="#1f3d4f" stroke-width="1"/>
+      <g clip-path="url(#fc)"><path d="${hatch(0, 0, w, fh, 4, -.25)}" stroke="#1f3d4f" stroke-width=".35" opacity=".45"/></g>
+      <path d="M${w * .06} ${h * .03} L${w / 2} ${fh - h * .06} L${w * .94} ${h * .03}" fill="none" stroke="#9b2335" stroke-width=".7" stroke-dasharray="6 3 1 3"/>`;
+    $('envFlap').setAttribute('viewBox', `0 0 ${w} ${h}`); $('envFlap').innerHTML = flap;
+    // front pocket: two side flaps and bottom flap, with guilloché border band
+    const front = `<defs><clipPath id="pk"><path d="M0 ${h * .12} L${w * .5} ${h * .62} L${w} ${h * .12} V${h} H0 Z"/></clipPath></defs>
+      <path d="M0 ${h * .12} L${w * .5} ${h * .62} L${w} ${h * .12} V${h} H0 Z" fill="#f2e9d2" stroke="#1f3d4f" stroke-width="1"/>
+      <g clip-path="url(#pk)">
+        <path d="M0 ${h} L${w * .5} ${h * .5} L${w} ${h}" fill="none" stroke="#1f3d4f" stroke-width=".8"/>
+        <path d="${hatch(0, h * .5, w, h * .5, 6, 0)}" stroke="#1f3d4f" stroke-width=".25" opacity=".35"/>
+        <path d="${waveBand(0, w, h - 12, 4, 5, .07, 3)}" fill="none" stroke="#2a5a45" stroke-width=".5"/>
+      </g>
+      <rect x="${w * .05}" y="${h * .64}" width="${w * .26}" height="${h * .22}" fill="none" stroke="#9b2335" stroke-width=".8"/>
+      <text x="${w * .18}" y="${h * .77}" text-anchor="middle" font-family="Old Standard TT, serif" font-size="${Math.max(8, w * .018)}" letter-spacing="2" fill="#9b2335">PAR AVION</text>`;
+    $('envFront').setAttribute('viewBox', `0 0 ${w} ${h}`); $('envFront').innerHTML = front;
+    // address side: airmail border, return address, guilloché bands
+    let stripes = '';
+    const sw = Math.max(10, w * .028), per = sw * 2.2;
+    const edge = (x0, y0, x1, y1) => { const L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L; let d = ''; for (let t = 0, k = 0; t < L; t += per / 2, k++) { const ax = x0 + ux * t, ay = y0 + uy * t; const col = k % 2 ? '#1f3d4f' : '#9b2335'; d += `<path d="M${ax} ${ay} l${ux * per * .32 + uy * sw} ${uy * per * .32 - ux * sw * 0} l${ux * per * .3} ${uy * per * .3} l${-uy * 0} 0" fill="none"/>`; stripes += `<polygon points="${ax},${ay} ${ax + ux * per * .3},${ay + uy * per * .3} ${ax + ux * per * .3 - uy * sw + ux * sw * .6},${ay + uy * per * .3 + ux * sw + uy * sw * .6} ${ax - uy * sw + ux * sw * .6},${ay + ux * sw + uy * sw * .6}" fill="${col}" opacity=".85"/>`; } return d; };
+    edge(0, 0, w, 0); edge(w, h, 0, h);
+    const face = `<defs><clipPath id="fcc"><rect width="${w}" height="${h}"/></clipPath></defs>
+      <rect width="${w}" height="${h}" fill="#f4ecd8" stroke="#1f3d4f" stroke-width="1"/>
+      <g clip-path="url(#fcc)">${stripes}
+        <path d="${waveBand(0, w, h * .09 + sw * .4, 3, 5, .09, 3)}" fill="none" stroke="#2a5a45" stroke-width=".45"/>
+        <path d="${waveBand(0, w, h * .91 - sw * .4, 3, 5, .09, 3)}" fill="none" stroke="#2a5a45" stroke-width=".45"/>
+      </g>
+      <text x="${w * .05}" y="${h * .22}" font-family="Old Standard TT, serif" font-weight="700" font-size="${Math.max(8, w * .019)}" letter-spacing="2" fill="#1f3d4f">FERNWICK POST</text>
+      <text x="${w * .05}" y="${h * .22 + Math.max(10, w * .026)}" font-family="IM Fell English, serif" font-style="italic" font-size="${Math.max(9, w * .021)}" fill="#3d5260">Harbour Row, Fernwick</text>
+      <rect x="${w * .05}" y="${h * .38}" width="${w * .22}" height="${h * .13}" fill="none" stroke="#9b2335" stroke-width=".8"/>
+      <rect x="${w * .05 + 2.5}" y="${h * .38 + 2.5}" width="${w * .22 - 5}" height="${h * .13 - 5}" fill="none" stroke="#9b2335" stroke-width=".4"/>
+      <text x="${w * .16}" y="${h * .38 + h * .085}" text-anchor="middle" font-family="Old Standard TT, serif" font-weight="700" font-size="${Math.max(8, w * .02)}" letter-spacing="2" fill="#9b2335">PAR AVION</text>
+      <text x="${w * .16}" y="${h * .62}" text-anchor="middle" font-family="Old Standard TT, serif" font-size="${Math.max(7, w * .015)}" letter-spacing="1.5" fill="#6b5236">FRIDAY EDITION</text>`;
+    $('envFace').setAttribute('viewBox', `0 0 ${w} ${h}`); $('envFace').innerHTML = face;
+    const to = $('to'); to.style.left = (w * .34) + 'px'; to.style.top = (h * .56) + 'px'; to.style.maxWidth = (w * .6) + 'px'; to.style.fontSize = Math.max(15, Math.min(26, w * .045)) + 'px';
+  }
+
+  /* ---------- stamp (engraved vignette with perforations) ---------- */
+  function drawStamp(size) {
+    const w = size, h = size * 1.2, r = size * .035, step = size * .1;
+    let perf = `M0 0`;
+    const cols = Math.round(w / step), rows = Math.round(h / step), sx = w / cols, sy = h / rows;
+    perf = `M0 0 `;
+    for (let i = 0; i < cols; i++) perf += `L${i * sx + sx / 2 - r} 0 A${r} ${r} 0 0 0 ${i * sx + sx / 2 + r} 0 `;
+    perf += `L${w} 0 `; for (let j = 0; j < rows; j++) perf += `L${w} ${j * sy + sy / 2 - r} A${r} ${r} 0 0 0 ${w} ${j * sy + sy / 2 + r} `;
+    perf += `L${w} ${h} `; for (let i = cols - 1; i >= 0; i--) perf += `L${i * sx + sx / 2 + r} ${h} A${r} ${r} 0 0 0 ${i * sx + sx / 2 - r} ${h} `;
+    perf += `L0 ${h} `; for (let j = rows - 1; j >= 0; j--) perf += `L0 ${j * sy + sy / 2 + r} A${r} ${r} 0 0 0 0 ${j * sy + sy / 2 - r} `;
+    perf += 'Z';
+    const m = size * .1, iw = w - 2 * m, ih = h - 2 * m;
+    // vignette: lighthouse on rocks, engraved with horizontal lines of varying weight
+    let lines = '';
+    const vx = m + iw * .1, vy = m + ih * .2, vw = iw * .8, vh = ih * .56;
+    for (let y = vy; y < vy + vh; y += 2.2) {
+      const t = (y - vy) / vh;
+      const sea = t > .7;
+      lines += `<line x1="${vx}" y1="${y.toFixed(1)}" x2="${vx + vw}" y2="${y.toFixed(1)}" stroke-width="${sea ? .9 : (.25 + t * .35).toFixed(2)}"/>`;
+    }
+    const lx = vx + vw * .58, base = vy + vh * .74;
+    const tower = `M${lx - vw * .07} ${base} L${lx - vw * .045} ${vy + vh * .22} H${lx + vw * .045} L${lx + vw * .07} ${base} Z`;
+    let s = `<svg viewBox="0 0 ${w} ${h}"><defs><clipPath id="sp"><path d="${perf}"/></clipPath><clipPath id="vg"><rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" rx="${vw * .5}" ry="${vh * .5}"/></clipPath></defs>
+      <g clip-path="url(#sp)">
+        <rect width="${w}" height="${h}" fill="#f6f1e3"/>
+        <rect x="${m}" y="${m}" width="${iw}" height="${ih}" fill="#f1e5df"/>
+        <path d="${rosette(w / 2, h / 2, iw * .62, iw * .05, iw * .2, 1, 900, 0)}" fill="none" stroke="#9b2335" stroke-width=".35" opacity=".55" clip-path="url(#sp)"/>
+        <g clip-path="url(#vg)" stroke="#9b2335">
+          <rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="#f6efe6" stroke="none"/>
+          ${lines}
+          <path d="${tower}" fill="#f6efe6" stroke="#9b2335" stroke-width=".8"/>
+          <path d="${hatch(lx - vw * .07, vy + vh * .2, vw * .14, vh * .56, 1.6, Math.PI / 2)}" stroke-width=".55" clip-path="url(#vg)" opacity=".0"/>
+          <path d="M${lx - vw * .055} ${vy + vh * .4} H${lx + vw * .055} M${lx - vw * .06} ${vy + vh * .55} H${lx + vw * .06}" stroke-width="2.2"/>
+          <rect x="${lx - vw * .05}" y="${vy + vh * .12}" width="${vw * .1}" height="${vh * .1}" fill="#9b2335"/>
+          <path d="M${lx + vw * .05} ${vy + vh * .16} L${vx + vw} ${vy + vh * .04} M${lx + vw * .05} ${vy + vh * .17} L${vx + vw} ${vy + vh * .26}" stroke-width=".6"/>
+          <path d="M${vx} ${base + 2} Q${vx + vw * .3} ${base - vh * .12} ${lx - vw * .1} ${base - 2} L${lx + vw * .2} ${base - vh * .06} Q${vx + vw * .9} ${base} ${vx + vw} ${base + 4} V${vy + vh} H${vx} Z" fill="#9b2335"/>
+        </g>
+        <rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" rx="${vw * .5}" ry="${vh * .5}" fill="none" stroke="#9b2335" stroke-width="1.2"/>
+        <text x="${w / 2}" y="${m + ih * .13}" text-anchor="middle" font-family="Old Standard TT, serif" font-weight="700" font-size="${w * .1}" letter-spacing="${w * .02}" fill="#9b2335">FERNWICK</text>
+        <text x="${m + iw * .1}" y="${m + ih * .95}" font-family="Old Standard TT, serif" font-weight="700" font-size="${w * .17}" fill="#9b2335">1st</text>
+        <text x="${m + iw * .92}" y="${m + ih * .93}" text-anchor="end" font-family="Old Standard TT, serif" font-size="${w * .075}" letter-spacing="1" fill="#9b2335">POST</text>
+        <rect x="${m}" y="${m}" width="${iw}" height="${ih}" fill="none" stroke="#9b2335" stroke-width="1"/>
+        <rect x="${m + 3}" y="${m + 3}" width="${iw - 6}" height="${ih - 6}" fill="none" stroke="#9b2335" stroke-width=".4"/>
+      </g></svg>`;
+    return s;
+  }
+  function drawPostmark(size) {
+    const r = size * .34;
+    let s = `<svg viewBox="0 0 ${size * 2.4} ${size}"><defs><filter id="ink" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="5"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 1.9"/><feComposite in="SourceGraphic" operator="in"/></filter></defs><g filter="url(#ink)" fill="none" stroke="#24242b">`;
+    s += `<circle cx="${size * .5}" cy="${size * .5}" r="${r}" stroke-width="2.4"/><circle cx="${size * .5}" cy="${size * .5}" r="${r * .66}" stroke-width="1.2"/>`;
+    s += `<path id="pmA" d="M ${size * .5 - r * .83} ${size * .5} A ${r * .83} ${r * .83} 0 1 1 ${size * .5 + r * .83} ${size * .5}" stroke="none"/>`;
+    s += `<text font-family="Old Standard TT, serif" font-weight="700" font-size="${size * .085}" fill="#24242b" stroke="none" letter-spacing="1.5"><textPath href="#pmA" startOffset="50%" text-anchor="middle">FERNWICK · HARBOUR ROW</textPath></text>`;
+    const now = new Date(); const mon = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][now.getMonth()];
+    s += `<text x="${size * .5}" y="${size * .48}" text-anchor="middle" font-family="Old Standard TT, serif" font-weight="700" font-size="${size * .095}" fill="#24242b" stroke="none">${now.getDate()} ${mon}</text>`;
+    s += `<text x="${size * .5}" y="${size * .6}" text-anchor="middle" font-family="Old Standard TT, serif" font-weight="700" font-size="${size * .09}" fill="#24242b" stroke="none">${now.getFullYear()}</text>`;
+    for (let k = 0; k < 5; k++) { const y = size * .22 + k * size * .14; let d = `M ${size * .9} ${y}`; for (let x = size * .9; x < size * 2.35; x += size * .12) d += ` q ${size * .03} ${-size * .05} ${size * .06} 0 t ${size * .06} 0`; s += `<path d="${d}" stroke-width="2"/>`; }
+    s += `</g></svg>`;
+    return s;
+  }
+  function drawRTS(reasonIdx) {
+    const reasons = ['Insufficient address', 'No such destination', 'Illegible character', 'Unknown postal district', 'Moved, left no address'];
+    const w = mobile ? 230 : 290, h = w * .62;
+    let s = `<svg width="${w}" height="${h}" viewBox="0 0 290 180"><defs><filter id="rink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="9"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.5 1.75"/><feComposite in="SourceGraphic" operator="in"/></filter></defs><g filter="url(#rink)" fill="#6b2a5a" stroke="#6b2a5a">`;
+    s += `<rect x="3" y="3" width="284" height="174" rx="6" fill="none" stroke-width="3.5"/><rect x="10" y="10" width="270" height="160" rx="3" fill="none" stroke-width="1.2"/>`;
+    // manicule (pointing hand)
+    s += `<path d="M22 38 h56 q10 0 10 7 q0 7 -10 7 h-4 q8 0 8 6 q0 6 -8 6 h-4 q7 0 7 6 q0 6 -7 6 h-30 q-14 0 -18 -12 z" fill="none" stroke-width="2.4" stroke-linejoin="round"/><path d="M78 38 h70 q8 0 8 6 q0 6 -8 6 h-64" fill="none" stroke-width="2.4" stroke-linecap="round"/><path d="M14 40 v34" stroke-width="5"/>`;
+    s += `<text x="170" y="52" text-anchor="middle" font-family="Old Standard TT, serif" font-weight="700" font-size="20" stroke="none" letter-spacing="1.5">RETURN TO</text><text x="170" y="74" text-anchor="middle" font-family="Old Standard TT, serif" font-weight="700" font-size="20" stroke="none" letter-spacing="1.5">SENDER</text>`;
+    reasons.forEach((r, i) => {
+      const y = 98 + i * 15;
+      s += `<rect x="24" y="${y - 9}" width="10" height="10" fill="none" stroke-width="1.2"/>`;
+      if (i === reasonIdx) s += `<path d="M22 ${y - 11} L37 ${y + 3} M37 ${y - 11} L22 ${y + 3}" stroke-width="2.4" stroke-linecap="round"/>`;
+      s += `<text x="44" y="${y}" font-family="Old Standard TT, serif" font-size="11.5" stroke="none" letter-spacing=".5">${r}</text>`;
+    });
+    s += `</g></svg>`;
+    return { svg: s, w, h };
+  }
+
+  /* ---------- validation ---------- */
+  const TYPOS = { 'gmial.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gnail.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmaill.com': 'gmail.com', 'gamil.com': 'gmail.com', 'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'yaho.com': 'yahoo.com', 'yahooo.com': 'yahoo.com', 'outlok.com': 'outlook.com', 'outloo.com': 'outlook.com', 'iclod.com': 'icloud.com', 'icoud.com': 'icloud.com', 'protonmal.com': 'protonmail.com' };
+  function validate(v) {
+    const e = v.trim();
+    if (!e) return { ok: false, idx: 0, why: 'There’s no address on the letter yet.' };
+    if (/\s/.test(e)) return { ok: false, idx: 2, why: 'Addresses can’t contain spaces.' };
+    const at = (e.match(/@/g) || []).length;
+    if (at === 0) return { ok: false, idx: 0, why: 'It needs an @ between your name and the destination.' };
+    if (at > 1) return { ok: false, idx: 2, why: 'There’s more than one @ in it.' };
+    const [local, domain] = e.split('@');
+    if (!local) return { ok: false, idx: 0, why: 'There’s no name before the @.' };
+    if (!domain) return { ok: false, idx: 1, why: 'There’s no destination after the @.' };
+    const bad = e.match(/[^a-zA-Z0-9._%+\-@']/);
+    if (bad) return { ok: false, idx: 2, why: `“${bad[0]}” can’t be posted in an address.` };
+    if (local.startsWith('.') || local.endsWith('.') || local.includes('..')) return { ok: false, idx: 2, why: 'The name part has a stray full stop.' };
+    if (!domain.includes('.')) return { ok: false, idx: 1, why: `“${domain}” needs an ending like .com or .co.uk.` };
+    if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..') || domain.startsWith('-')) return { ok: false, idx: 1, why: 'The destination has a stray full stop.' };
+    const tld = domain.split('.').pop();
+    if (!/^[a-zA-Z]{2,}$/.test(tld)) return { ok: false, idx: 3, why: `“.${tld}” isn’t a postal district we know.` };
+    const fix = TYPOS[domain.toLowerCase()];
+    if (fix) return { ok: false, idx: 4, why: `Nobody lives at ${domain}. Did you mean ${fix}?`, fix: local + '@' + fix };
+    return { ok: true };
+  }
+  function liveChecks() {
+    const v = input.value.trim();
+    const at = v.indexOf('@');
+    const name = at > 0 || (at < 0 && v.length > 0);
+    const hasAt = at > 0 && v.indexOf('@', at + 1) < 0;
+    const d = hasAt ? v.slice(at + 1) : '';
+    const dest = hasAt && /^[^.\s@][^\s@]*\.[a-zA-Z]{2,}$/.test(d);
+    $('ckName').classList.toggle('on', name);
+    $('ckAt').classList.toggle('on', hasAt);
+    $('ckDest').classList.toggle('on', dest);
+  }
+
+  /* ---------- sound ---------- */
+  let ac = null;
+  function A() { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; } }
+  function noise(dur, type, f, g, delay) { const a = A(); if (!a) return; const t = a.currentTime + (delay || 0); const b = a.createBuffer(1, Math.max(1, a.sampleRate * dur), a.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); const s = a.createBufferSource(); s.buffer = b; const fl = a.createBiquadFilter(); fl.type = type; fl.frequency.value = f; const gg = a.createGain(); gg.gain.value = g; s.connect(fl).connect(gg).connect(a.destination); s.start(t); }
+  function thump(delay, f) { const a = A(); if (!a) return; const t = a.currentTime + (delay || 0); const o = a.createOscillator(); o.frequency.setValueAtTime(f || 120, t); o.frequency.exponentialRampToValueAtTime(45, t + .14); const g = a.createGain(); g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.0005, t + .2); o.connect(g).connect(a.destination); o.start(t); o.stop(t + .22); noise(.06, 'lowpass', 900, .12, delay); }
+  const fold = d => noise(.22, 'bandpass', 2400, .07, d);
+
+  /* ---------- flows ---------- */
+  function setStatus(html, bad) { const s = $('status'); s.innerHTML = html; s.classList.toggle('bad', !!bad); }
+  function say(t) { $('live').textContent = ''; setTimeout(() => $('live').textContent = t, 30); }
+  function clearReturn() {
+    if (state !== 'returned') return;
+    state = 'edit';
+    const r = $('rts');
+    if (!reduce) r.animate([{ opacity: .92 }, { opacity: 0, transform: r.style.transform + ' translateY(-6px)' }], { duration: 260, fill: 'forwards' });
+    else r.style.opacity = 0;
+    $('fwd').classList.remove('on');
+    input.removeAttribute('aria-invalid');
+    setStatus('Write your address on the letter, then seal it.');
+  }
+  function returnToSender(res) {
+    state = 'returned';
+    A(); thump(0, 90);
+    const r = $('rts'); const d = drawRTS(res.idx);
+    r.innerHTML = d.svg;
+    const rx = LW - d.w - (mobile ? 8 : 18), ry = LH * .48;
+    const rot = -6 + Math.random() * 4;
+    r.style.left = rx + 'px'; r.style.top = ry + 'px';
+    r.getAnimations().forEach(a => a.cancel());
+    r.style.transform = `rotate(${rot}deg)`;
+    if (!reduce) r.animate([{ opacity: 0, transform: `rotate(${rot}deg) scale(1.35)` }, { opacity: .95, transform: `rotate(${rot}deg) scale(1)` }], { duration: 170, easing: 'cubic-bezier(.6,0,1,1)', fill: 'forwards' });
+    else r.style.opacity = .95;
+    r.style.opacity = .95;
+    if (!reduce) letter.animate([{ transform: letterT }, { transform: letterT + ' translateY(3px)' }, { transform: letterT }], { duration: 160, delay: 150 });
+    setStatus(`<b>Returned.</b> ${res.why}`, true);
+    say('Returned to sender. ' + res.why);
+    input.setAttribute('aria-invalid', 'true');
+    const fwd = $('fwd');
+    if (res.fix) { $('fwdTo').textContent = res.fix; fwd.classList.add('on'); fwd.dataset.fix = res.fix; placeFwd(); }
+    else fwd.classList.remove('on');
+  }
+  function placeFwd() {
+    const lr = letter.getBoundingClientRect(); const fwd = $('fwd');
+    if (mobile) { fwd.style.left = Math.max(8, lr.left + 6) + 'px'; fwd.style.top = (lr.top + LH * .5 + 110) + 'px'; }
+    else { fwd.style.left = Math.max(8, lr.left - 250) + 'px'; fwd.style.top = (lr.top + LH * .47) + 'px'; }
+  }
+  $('fwd').addEventListener('click', () => {
+    const fix = $('fwd').dataset.fix; if (!fix) return;
+    input.value = fix; liveChecks(); clearReturn(); input.focus(); say('Address corrected to ' + fix);
+  });
+  let letterT = '';
+  function seal() {
+    if (state === 'sealing' || state === 'sent') return;
+    const res = validate(input.value);
+    if (state === 'returned') { $('rts').getAnimations().forEach(a => a.cancel()); $('rts').style.opacity = 0; state = 'edit'; }
+    if (!res.ok) { returnToSender(res); return; }
+    state = 'sealing'; input.blur(); input.disabled = true; $('seal').disabled = true;
+    const email = input.value.trim();
+    $('toText').textContent = email;
+    setStatus('Folding and sealing…');
+    const T = reduce ? 0.15 : 1;
+    // 1) fold in thirds
+    letter.classList.add('folding'); fold(0); $('shadow').style.opacity = 0;
+    setTimeout(() => { letter.classList.add('two'); fold(0); }, 520 * T);
+    // 2) envelope rises, folded letter drops in
+    setTimeout(() => { env.style.transform = envIn; }, 900 * T);
+    setTimeout(() => { letter.style.transform = letterInEnv; }, 1250 * T);
+    // 3) flap closes
+    setTimeout(() => { env.classList.add('closed'); fold(0); letter.style.visibility = 'hidden'; }, 2100 * T);
+    // 3b) turn the envelope over to its address side
+    setTimeout(() => {
+      const ei = $('envIn'); fold(0);
+      if (reduce) { env.classList.add('flipped'); return; }
+      ei.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0.02) rotate(-2deg)' }], { duration: 230, easing: 'cubic-bezier(.5,0,1,.6)' }).onfinish = () => {
+        env.classList.add('flipped');
+        ei.animate([{ transform: 'scaleX(0.02) rotate(2deg)' }, { transform: 'scaleX(1.03) rotate(-.6deg)', offset: .7 }, { transform: 'scaleX(1) rotate(0)' }], { duration: 320, easing: 'cubic-bezier(0,.4,.4,1)' });
+      };
+    }, 2550 * T);
+    // 4) stamp lands, postmark strikes
+    setTimeout(() => { placeStamp(); const st = $('stamp'); thump(0, 140); if (!reduce) st.animate([{ opacity: 0, transform: 'scale(1.6) rotate(-14deg)' }, { opacity: 1, transform: 'scale(1) rotate(2deg)' }], { duration: 260, easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'forwards' }); st.style.opacity = 1; }, 3250 * T);
+    setTimeout(() => { const pm = $('pm'); thump(0, 70); noise(.05, 'highpass', 3000, .08); if (!reduce) pm.animate([{ opacity: 0, transform: 'scale(1.25)' }, { opacity: .9, transform: 'scale(1)' }], { duration: 140, fill: 'forwards' }); pm.style.opacity = .9; if (!reduce) env.animate([{ transform: envIn }, { transform: envIn + ' translateY(4px)' }, { transform: envIn }], { duration: 160 }); }, 3800 * T);
+    // 5) address written on
+    setTimeout(() => { env.classList.add('addressed'); }, 4050 * T);
+    setTimeout(() => {
+      state = 'sent';
+      setStatus(`<b>Posted.</b> Your first Dispatch reaches ${esc(email)} on Friday.`);
+      say('Posted. Your first Dispatch arrives Friday.');
+      $('seal').hidden = true; $('redo').hidden = false; $('redo').focus({ preventScroll: true });
+    }, 5000 * T);
+  }
+  function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+  function redo() {
+    state = 'edit';
+    env.classList.remove('closed', 'addressed', 'flipped'); env.style.transform = envOut;
+    ['stamp', 'pm'].forEach(id => { const el = $(id); el.getAnimations().forEach(a => a.cancel()); el.style.opacity = 0; });
+    letter.classList.remove('folding', 'two'); letter.style.visibility = ''; letter.style.transform = letterT; $('shadow').style.opacity = '';
+    input.disabled = false; $('seal').disabled = false; $('seal').hidden = false; $('redo').hidden = true;
+    setStatus('Write your address on the letter, then seal it.');
+    setTimeout(() => { input.focus(); input.select(); }, reduce ? 0 : 500);
+  }
+  $('seal').addEventListener('click', seal);
+  $('redo').addEventListener('click', redo);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); seal(); } });
+  input.addEventListener('input', () => { liveChecks(); clearReturn(); });
+  input.addEventListener('focus', () => letter.classList.add('focus'));
+  input.addEventListener('blur', () => { letter.classList.remove('focus'); });
+
+  /* ---------- layout ---------- */
+  let envIn = '', envOut = '', letterInEnv = '';
+  function placeStamp() {
+    const er = { x: envX, y: envY };
+    const ss = mobile ? 62 : 86;
+    const st = $('stamp'); st.innerHTML = drawStamp(ss); st.style.width = ss + 'px'; st.style.height = ss * 1.2 + 'px';
+    st.style.left = (er.x + EW - ss - EW * .05) + 'px'; st.style.top = (er.y + EH * .14) + 'px';
+    const pm = $('pm'); const ps = ss * 1.05; pm.innerHTML = drawPostmark(ps); pm.style.width = ps * 2.4 + 'px'; pm.style.height = ps + 'px';
+    pm.style.left = (er.x + EW - ss - EW * .05 - ps * 1.05) + 'px'; pm.style.top = (er.y + EH * .14 + ss * .3) + 'px';
+  }
+  let envX = 0, envY = 0;
+  function layout() {
+    W = innerWidth; H = innerHeight; mobile = W < 760;
+    if (mobile) { LW = Math.min(W - 28, 360); LH = Math.min(LW * 1.2, H * .52); }
+    else { LH = Math.min(H * .7, 560); LW = LH * .8; }
+    const lx = mobile ? (W - LW) / 2 : Math.max(W * .62 - LW / 2, 420);
+    const ly = mobile ? 132 : (H - LH) / 2 - 24;
+    letter.style.width = LW + 'px'; letter.style.height = LH + 'px'; letter.style.left = '0px'; letter.style.top = '0px';
+    letterT = `translate(${lx}px, ${ly}px) rotate(${mobile ? 0 : 1.2}deg)`;
+    if (state !== 'sealing' && state !== 'sent') letter.style.transform = letterT;
+    const ph = LH / 3;
+    ['p1', 'p2', 'p3'].forEach((id, i) => { const p = $(id); p.style.top = (i * ph) + 'px'; p.style.height = ph + 'px'; });
+    // envelope
+    EW = mobile ? Math.min(W - 24, 370) : LW * 1.24; EH = EW * .6;
+    envX = mobile ? (W - EW) / 2 : lx + LW / 2 - EW / 2; envY = mobile ? ly + 40 : (H - EH) / 2 - 10;
+    env.style.width = EW + 'px'; env.style.height = EH + 'px'; env.style.left = envX + 'px'; env.style.top = envY + 'px';
+    envIn = 'translateY(0)'; envOut = `translateY(${H - envY + EH + 60}px)`;
+    if (state !== 'sent') env.style.transform = envOut;
+    // folded letter lands in the pocket: panel 2 is the visible third
+    const scale = Math.min(1, (EW * .9) / LW);
+    const tx = envX + EW / 2 - LW / 2, ty = envY + EH * .42 - LH / 2;
+    letterInEnv = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    drawTint(); drawLetterhead(); drawEnvelope();
+    const al = $('album');
+    if (!mobile && lx > 440 && H > 620) {
+      al.style.display = ''; const ss = Math.min(110, H * .14);
+      al.style.left = Math.max(30, lx * .12) + 'px'; al.style.top = (H - ss * 2.3 - 30) + 'px';
+      const cols = ['#9b2335', '#2a5a45', '#1f3d4f'];
+      al.innerHTML = [0, 1, 2].map(k => `<div class="st" style="left:${k * ss * .78}px;top:${(k % 2) * ss * .22}px;width:${ss}px;height:${ss * 1.2}px;transform:rotate(${[-8, 3, 11][k]}deg)">${drawStamp(ss).replace(/#9b2335/g, cols[k]).replace(/id="sp"/g, 'id="sp' + k + '"').replace(/url\(#sp\)/g, 'url(#sp' + k + ')').replace(/id="vg"/g, 'id="vg' + k + '"').replace(/url\(#vg\)/g, 'url(#vg' + k + ')')}</div>`).join('') + `<div style="position:absolute;left:0;top:${ss * 1.55}px;font-family:'Old Standard TT',serif;font-size:11px;letter-spacing:.24em;color:#6b5236;white-space:nowrap">HARBOUR ISSUE · SUBSCRIBERS’ SET</div>`;
+    } else al.style.display = 'none';
+    if (state === 'sent') placeStamp();
+    // status & actions
+    const st = $('status'), ac2 = $('actions');
+    const bottom = mobile ? ly + LH + 16 : ly + LH + 30;
+    if (mobile) { st.style.left = '14px'; st.style.right = '14px'; st.style.top = bottom + 'px'; st.style.transform = ''; ac2.style.left = '14px'; ac2.style.right = '14px'; ac2.style.top = (bottom + 52) + 'px'; ac2.style.transform = ''; }
+    else {
+      const cx = lx + LW / 2;
+      st.style.left = cx + 'px'; st.style.transform = 'translateX(-50%)'; st.style.width = Math.min(560, W - 40) + 'px'; st.style.top = Math.min(H - 96, bottom) + 'px';
+      ac2.style.left = cx + 'px'; ac2.style.transform = 'translateX(-50%)'; ac2.style.top = Math.min(H - 62, bottom + 36) + 'px'; ac2.style.right = 'auto';
+    }
+    if ($('fwd').classList.contains('on')) placeFwd();
+  }
+  addEventListener('resize', layout);
+  layout();
+  if (document.fonts) document.fonts.ready.then(layout);
+  input.value = 'ines.varga@gmial.com';
+  liveChecks();
+  window.__env = { seal, set: v => { input.value = v; liveChecks(); clearReturn(); } };
+})();
+</script>
+</body>
+</html>

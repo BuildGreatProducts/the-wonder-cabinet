@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pour to Measure</title>
+<meta name="description" content="A water-intake quantity slider made of plasticine: tilt a clay jug and pour a gooey stream into a measuring glass with a sloshing surface. The amount poured is the value you log.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Pour to Measure","reimagines":"Quantity slider","category":"Sliders, Knobs & Dials","description":"Log a glass of water by actually pouring it. A stop-motion plasticine jug tilts under your hand, a gooey stream fills a measuring glass with a sloshing surface, and whatever you pour is the amount that gets logged (overfill it and it puddles on the table).","hint":"Drag the jug to tilt it and pour; let go to stop"}
+</script>
+<style>
+  :root{ --ink:#2c2433; --wall:#f6d58a; --table:#e07b4a; --jug:#3b6fd8; --water:#3cc7ea; --mint:#8fdcb4; --pink:#f59ab0; --card:#fff4dc;
+    --round:'Fredoka', 'Arial Rounded MT Bold', 'Varela Round', sans-serif; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--wall); color:var(--ink); font-family:var(--round); overflow:hidden}
+  .set{position:fixed; inset:0; overflow:hidden}
+  #bg{position:absolute; inset:0; width:100%; height:100%}
+  .layout{position:absolute; inset:0; display:grid; grid-template-columns:minmax(0,1.5fr) minmax(300px, 380px); gap:10px; padding:20px 40px 20px 20px; align-items:center}
+  .scenebox{position:relative; height:100%; min-height:0}
+  #scene{position:absolute; inset:0; width:100%; height:100%; overflow:visible; touch-action:none}
+  #stream{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; filter:url(#goo)}
+  #jug{cursor:grab; outline:none}
+  #jug.drag{cursor:grabbing}
+  #scene:focus-visible{outline:none}
+  #jugFocus{opacity:0}
+  #jug:focus-visible #jugFocus{opacity:1}
+  .card{position:relative; background:radial-gradient(120% 90% at 30% 20%, #fffaf0, var(--card) 55%, #f3dfb6); border-radius:38px 44px 40px 46px; padding:26px 26px 22px;
+    box-shadow: inset -6px -8px 0 rgba(160,110,40,.16), inset 5px 6px 0 rgba(255,255,255,.7), 0 12px 0 rgba(120,70,20,.18), 0 18px 24px rgba(80,40,10,.18); filter:url(#clayText)}
+  .app{font-weight:700; font-size:15px; letter-spacing:.06em; text-transform:uppercase; color:#b0623a}
+  h1{font-weight:700; font-size:40px; line-height:1; margin:4px 0 12px; color:#3b6fd8; text-shadow:0 2px 0 #2a54b0, 0 4px 0 #22468f, 0 6px 8px rgba(0,0,0,.18)}
+  .glassval{display:flex; align-items:baseline; gap:8px; margin:6px 0 2px}
+  .glassval b{font-size:64px; line-height:.95; font-weight:700; color:#1aa8cf; text-shadow:0 3px 0 #138aab, 0 6px 0 #0f6f8a, 0 9px 10px rgba(0,0,0,.18)}
+  .glassval span{font-size:22px; font-weight:600}
+  .sub{font-size:16px; font-weight:500; margin:0 0 14px; min-height:1.3em}
+  .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+  .blob{font-family:var(--round); font-weight:700; font-size:19px; color:#fff; border:0; cursor:pointer; padding:13px 22px 12px; border-radius:999px 820px 900px 760px;
+    background:radial-gradient(120% 120% at 30% 25%, #ff9fb6, #ef6f8f 60%, #d24f71); box-shadow: inset -4px -6px 0 rgba(0,0,0,.14), inset 4px 5px 0 rgba(255,255,255,.45), 0 7px 0 #b23d5c, 0 12px 14px rgba(0,0,0,.18);
+    text-shadow:0 2px 0 rgba(0,0,0,.18); transition:transform .12s, box-shadow .12s}
+  .blob:hover{transform:translateY(-2px) rotate(-1deg)}
+  .blob:active{transform:translateY(5px); box-shadow: inset -4px -6px 0 rgba(0,0,0,.14), inset 4px 5px 0 rgba(255,255,255,.45), 0 2px 0 #b23d5c}
+  .blob[disabled]{filter:saturate(.25) brightness(1.05); cursor:not-allowed}
+  .blob.alt{background:radial-gradient(120% 120% at 30% 25%, #b9f0d2, #7fd3a6 60%, #59b886); box-shadow: inset -4px -6px 0 rgba(0,0,0,.12), inset 4px 5px 0 rgba(255,255,255,.5), 0 7px 0 #3f9467, 0 12px 14px rgba(0,0,0,.16); font-size:16px; padding:11px 18px 10px; color:#1d4b33; text-shadow:none}
+  .blob:focus-visible{outline:4px dashed #3b6fd8; outline-offset:5px}
+  .today{margin-top:18px; padding-top:14px; border-top:4px dotted rgba(176,98,58,.35)}
+  .today .lbl{font-weight:600; font-size:16px}
+  .today .tot{font-size:28px; font-weight:700}
+  .today .tot small{font-size:16px; font-weight:500}
+  #drops{display:flex; gap:6px; margin:8px 0 6px}
+  #drops svg{width:30px; height:38px; overflow:visible}
+  .log{font-size:14px; font-weight:500; line-height:1.45; margin:6px 0 0; padding:0; list-style:none; color:#6a5a72}
+  .hint{position:absolute; left:4%; top:4%; font-weight:600; font-size:17px; background:#fff; color:var(--ink); padding:10px 16px; border-radius:20px 26px 22px 28px; box-shadow:0 6px 0 rgba(0,0,0,.12); transition:opacity .8s, transform .8s; max-width:260px; filter:url(#clayText)}
+  .hint.gone{opacity:0; transform:translateY(-8px)}
+  .mute{position:absolute; right:16px; bottom:14px; font-family:var(--round); font-weight:600; font-size:13px; background:#fff4dc; border:0; border-radius:999px; padding:6px 12px; box-shadow:0 4px 0 rgba(0,0,0,.12); cursor:pointer; color:var(--ink)}
+  .mute:focus-visible{outline:3px dashed #3b6fd8; outline-offset:3px}
+  .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+  @media (max-width: 760px){
+    .layout{grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) auto; padding:8px 12px 14px; gap:4px}
+    .card{padding:14px 18px 12px; border-radius:28px 32px 30px 34px}
+    .app{font-size:11px}
+    h1{font-size:24px; margin:2px 0 4px}
+    .glassval{margin:0}
+    .glassval b{font-size:40px}
+    .glassval span{font-size:16px}
+    .sub{font-size:13px; margin:0 0 8px}
+    .blob{font-size:16px; padding:10px 16px 9px}
+    .blob.alt{font-size:13px; padding:8px 12px 7px}
+    .today{margin-top:10px; padding-top:8px; display:grid; grid-template-columns:auto 1fr; column-gap:12px; align-items:center}
+    .today .tot{font-size:20px}
+    .today .lbl{font-size:12px}
+    #drops{margin:0; gap:3px; grid-row:span 2}
+    #drops svg{width:20px; height:26px}
+    .log{display:none}
+    .hint{font-size:13px; padding:7px 11px; max-width:190px; left:3%; top:2%}
+    .mute{bottom:auto; top:8px; right:10px; font-size:11px}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="clay" x="-6%" y="-6%" width="112%" height="112%" color-interpolation-filters="sRGB">
+      <feTurbulence id="boil" type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="2" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" result="lumpy"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="3" seed="7" result="fine"/>
+      <feDiffuseLighting in="fine" surfaceScale="1.4" diffuseConstant="1.18" lighting-color="#ffffff" result="light"><feDistantLight azimuth="225" elevation="58"/></feDiffuseLighting>
+      <feComposite in="light" in2="lumpy" operator="arithmetic" k1="1" k2="0" k3="0" k4="0" result="lit"/>
+      <feComposite in="lit" in2="lumpy" operator="in"/>
+    </filter>
+    <filter id="clayText" x="-4%" y="-4%" width="108%" height="108%">
+      <feTurbulence id="boil2" type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="goo" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+      <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="g"/>
+      <feComposite in="SourceGraphic" in2="g" operator="atop"/>
+    </filter>
+  </defs>
+</svg>
+<div class="set">
+  <svg id="bg" aria-hidden="true"></svg>
+  <div class="layout">
+    <div class="scenebox" id="box">
+      <svg id="scene" viewBox="0 0 800 600" aria-label="A clay jug of water beside a measuring glass on a table">
+        <defs>
+          <radialGradient id="jugG" cx=".32" cy=".28" r=".85"><stop offset="0" stop-color="#7aa3ff"/><stop offset=".55" stop-color="#3b6fd8"/><stop offset="1" stop-color="#2346a0"/></radialGradient>
+          <linearGradient id="tableG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f29a68"/><stop offset=".12" stop-color="#e07b4a"/><stop offset=".4" stop-color="#b9572c"/></linearGradient>
+          <linearGradient id="waterG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2fb2db"/><stop offset=".45" stop-color="#5ad6f2"/><stop offset="1" stop-color="#1f97c2"/></linearGradient>
+          <linearGradient id="glassG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset=".25" stop-color="#e8fbff" stop-opacity=".18"/><stop offset=".8" stop-color="#e8fbff" stop-opacity=".12"/><stop offset="1" stop-color="#ffffff" stop-opacity=".45"/></linearGradient>
+          <radialGradient id="puddleG" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#7fe2f8"/><stop offset="1" stop-color="#2aa9d4"/></radialGradient>
+          <clipPath id="glassClip"><path d="M478 288H582L576 464H484Z"/></clipPath>
+        </defs>
+        <!-- table slab -->
+        <g filter="url(#clay)">
+          <path d="M-1600 482C-400 470 1200 464 2600 482L2600 1400H-1600Z" fill="url(#tableG)"/>
+          <path d="M-1600 482C-400 470 1200 464 2600 482" fill="none" stroke="#ffc39b" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+          <path d="M120 540c20-10 50-10 70 0M150 552c10-6 24-6 34 0M600 560c18-8 40-8 56 2" fill="none" stroke="#9e4a22" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+        </g>
+        <!-- puddle (overflow) -->
+        <ellipse id="puddle" cx="530" cy="484" rx="0" ry="0" fill="url(#puddleG)" filter="url(#clay)"/>
+        <!-- glass: back wall -->
+        <path d="M472 284H588L580 470H480Z" fill="url(#glassG)" stroke="#bfe9f5" stroke-width="3" opacity=".9"/>
+        <!-- water in glass -->
+        <g clip-path="url(#glassClip)">
+          <path id="water" d="" fill="url(#waterG)"/>
+          <path id="meniscus" d="" fill="none" stroke="#c9f5ff" stroke-width="4" stroke-linecap="round"/>
+          <g id="bubbles" fill="#d8f8ff" opacity=".8"></g>
+        </g>
+        <!-- glass: front + graduations (scratched into clay strip) -->
+        <g id="grads"></g>
+        <path d="M472 284H588L580 470H480Z" fill="none" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" opacity=".85" filter="url(#clay)"/>
+        <path d="M486 300L489 444" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".55"/>
+        <path d="M470 286c10 -6 108 -6 120 0" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" filter="url(#clay)"/>
+        <!-- jug: pivot at the spout lip -->
+        <g id="jug" tabindex="0" role="slider" aria-label="Water to pour, in millilitres" aria-valuemin="0" aria-valuemax="500" aria-valuenow="0" aria-valuetext="Glass empty">
+          <g id="jugBody" filter="url(#clay)">
+            <ellipse cx="-80" cy="214" rx="96" ry="24" fill="rgba(60,20,0,.0)"/>
+            <!-- handle -->
+            <path d="M-170 46C-246 46 -250 170 -168 176" fill="none" stroke="#2c56bd" stroke-width="26" stroke-linecap="round"/>
+            <path d="M-170 46C-236 52 -238 162 -168 170" fill="none" stroke="#6f97f5" stroke-width="7" stroke-linecap="round" opacity=".55"/>
+            <!-- body -->
+            <path d="M-150 6C-160 60 -186 120 -176 186C-170 220 -136 232 -80 232C-24 232 10 220 16 186C26 120 0 60 -8 6Z" fill="url(#jugG)"/>
+            <!-- rim + spout -->
+            <path d="M-162 4C-120 -8 -40 -8 -6 0C4 -4 14 -6 20 -2C12 4 6 10 -2 14C-50 18 -120 18 -162 12Z" fill="#4f84ea"/>
+            <path d="M-150 6C-110 0 -46 0 -10 6" fill="none" stroke="#1d3c8c" stroke-width="5" stroke-linecap="round"/>
+            <!-- polka dots pressed in -->
+            <g fill="#f6f1e4">
+              <circle cx="-120" cy="70" r="9"/><circle cx="-60" cy="96" r="10"/><circle cx="-128" cy="150" r="9"/><circle cx="-40" cy="170" r="9"/><circle cx="-88" cy="132" r="8"/><circle cx="-22" cy="56" r="7"/><circle cx="-150" cy="104" r="6"/>
+            </g>
+            <!-- fingerprint smudges -->
+            <g fill="none" stroke="#1d3c8c" stroke-width="1.6" opacity=".22">
+              <path d="M-100 190a14 10 0 1 1 28 0M-104 192a18 14 0 1 1 36 0M-108 194a22 18 0 1 1 44 0"/>
+              <path d="M-60 40a10 8 0 1 0 20 0M-64 40a14 12 0 1 0 28 0"/>
+            </g>
+            <path d="M-136 30C-146 80 -156 120 -152 170" fill="none" stroke="#a9c3ff" stroke-width="8" stroke-linecap="round" opacity=".5"/>
+          </g>
+          <path id="jugFocus" d="M-190 -14H34V246H-190Z" fill="none" stroke="#2c2433" stroke-width="3" stroke-dasharray="8 8" rx="20"/>
+          <!-- little clay tag showing what's left in the jug -->
+          <g id="tag" transform="translate(-80 120)" filter="url(#clay)">
+            <rect x="-44" y="-18" width="88" height="36" rx="16" fill="#fff4dc"/>
+            <text id="tagText" x="0" y="7" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="19" fill="#2c2433">1,000 ml</text>
+          </g>
+        </g>
+      </svg>
+      <canvas id="stream"></canvas>
+      <div class="hint" id="hint">Grab the jug and tilt it to pour. Let go to stop.</div>
+    </div>
+
+    <section class="card" aria-labelledby="ttl">
+      <div class="app">Sip · Tuesday 7 October</div>
+      <h1 id="ttl">Log a glass</h1>
+      <div class="glassval" aria-live="polite"><b id="ml">0</b><span>ml in the glass</span></div>
+      <p class="sub" id="sub">Pour as much as you're about to drink.</p>
+      <div class="row">
+        <button class="blob" id="drink" disabled>Drink &amp; log</button>
+        <button class="blob alt" id="back" disabled>Pour it back</button>
+      </div>
+      <div class="today">
+        <div class="lbl">Today so far</div>
+        <div class="tot"><span id="tot">1,000</span> <small>/ 2,000 ml</small></div>
+        <div id="drops" aria-hidden="true"></div>
+        <ul class="log" id="log"></ul>
+      </div>
+    </section>
+  </div>
+  <button class="mute" id="mute" aria-pressed="false">Sound on</button>
+</div>
+<div class="sr" id="sr" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+  const REST = { x: 428, y: 246 }, POUR = { x: 494, y: 226 }, PIV = { x: 428, y: 246 }, CAP = 500, GL = 482, GR = 578, GB = 462, PXML = 0.34; // 170px = 500 ml
+  const GOAL = 2000;
+
+  // ---------- state ----------
+  let tilt = 0, tiltV = 0, tiltTarget = 0, dragging = false, jugMl = 1000, glassMl = 0, puddleMl = 0, total = 1000;
+  const log = [['07:30', 250], ['10:15', 400], ['12:40', 350]];
+  const parts = [];
+  const NW = 26, wh = new Float32Array(NW), wv = new Float32Array(NW);
+  let interacted = false, flowAcc = 0, drinking = null;
+
+  // ---------- background: plasticine wall tiles + window ----------
+  function buildBg(){
+    const s = $('bg'), w = innerWidth, h = innerHeight;
+    s.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    let o = `<defs><radialGradient id="tileG" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#fff0c2"/><stop offset=".7" stop-color="#f6d58a"/><stop offset="1" stop-color="#e6bd66"/></radialGradient>
+      <radialGradient id="tileB" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#cfeee0"/><stop offset=".7" stop-color="#9fd9bd"/><stop offset="1" stop-color="#78c09e"/></radialGradient></defs>`;
+    o += `<rect width="${w}" height="${h}" fill="#f0c977"/>`;
+    const ts = w < 760 ? 46 : 66;
+    let r = 4; const R = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    o += `<g filter="url(#clay)">`;
+    for (let y = -10; y < h; y += ts){ for (let x = -10 + ((y / ts) % 2) * ts / 2; x < w; x += ts){
+      const blue = R() < .12;
+      o += `<rect x="${(x + 3 + R() * 2).toFixed(1)}" y="${(y + 3 + R() * 2).toFixed(1)}" width="${ts - 7}" height="${ts - 7}" rx="${ts * .2}" fill="url(#${blue ? 'tileB' : 'tileG'})"/>`;
+    } }
+    o += `</g>`;
+    s.innerHTML = o;
+  }
+
+  // ---------- glass graduations ----------
+  (function grads(){
+    const g = $('grads');
+    for (let ml = 50; ml <= 500; ml += 50){
+      const y = GB - ml * PXML, major = ml % 100 === 0;
+      mk('path', { d:`M${GL + 4} ${y}h${major ? 24 : 12}`, stroke:'#ffffff', 'stroke-width':major ? 4 : 3, 'stroke-linecap':'round', opacity:.9 }, g);
+      if (major){ const t = mk('text', { x:GL + 33, y:y + 6, 'text-anchor':'start', 'font-family':'Fredoka, sans-serif', 'font-weight':700, 'font-size':17, fill:'#ffffff', stroke:'#2c7f9c', 'stroke-width':3.2, 'paint-order':'stroke' }, g); t.textContent = ml; }
+    }
+    const t = mk('text', { x:GL - 22, y:GB - 500 * PXML + 6, 'text-anchor':'middle', 'font-family':'Fredoka, sans-serif', 'font-weight':700, 'font-size':15, fill:'#2c2433', opacity:.55 }, g); t.textContent = 'ml';
+  })();
+
+  // ---------- canvas for the stream ----------
+  const cv = $('stream'), cx = cv.getContext('2d');
+  let SC = 1, OX = 0, OY = 0, dpr = 1;
+  let VB = { x: 0, y: 0, w: 800, h: 600 };
+  function fit(){
+    const r = $('box').getBoundingClientRect();
+    VB = r.width < 520 ? { x: 168, y: 100, w: 480, h: 430 } : { x: 0, y: 0, w: 800, h: 600 };
+    $('scene').setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+    dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    SC = Math.min(r.width / VB.w, r.height / VB.h); OX = (r.width - VB.w * SC) / 2 - VB.x * SC; OY = (r.height - VB.h * SC) / 2 - VB.y * SC;
+  }
+
+  // ---------- jug geometry ----------
+  const rot = (x, y, a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+  function spout(){ const [x, y] = rot(18, -2, tilt); return { x: PIV.x + x, y: PIV.y + y }; }
+  // the jug rests on the table when upright: pivot sits at the spout lip
+  function threshold(){ return (24 + (1 - jugMl / 1000) * 66) * Math.PI / 180; }
+
+  // ---------- input ----------
+  const jug = $('jug'), scene = $('scene');
+  let grab = null;
+  function svgPt(e){ const m = scene.getScreenCTM(); const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()); return { x:p.x, y:p.y }; }
+  jug.addEventListener('pointerdown', e => {
+    audio(); touched();
+    if (jugMl <= 1){ refill(); return; }
+    dragging = true; jug.classList.add('drag'); jug.setPointerCapture(e.pointerId);
+    const p = svgPt(e); grab = { a0: Math.atan2(p.y - PIV.y, p.x - PIV.x) - tilt, x0: p.x, y0: p.y, t0: tilt };
+  });
+  jug.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const p = svgPt(e);
+    // pull the handle down/right to tip the spout over the glass
+    const d = (p.y - grab.y0) * .006 + (p.x - grab.x0) * .004;
+    tiltTarget = Math.max(0, Math.min(2.0, grab.t0 + d));
+  });
+  const release = () => { if (!dragging) return; dragging = false; jug.classList.remove('drag'); tiltTarget = 0; };
+  jug.addEventListener('pointerup', release); jug.addEventListener('pointercancel', release);
+  let keyPour = false;
+  jug.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Enter'){
+      e.preventDefault(); audio(); touched();
+      if (jugMl <= 1){ refill(); return; }
+      if (!keyPour){ keyPour = true; }
+      tiltTarget = Math.min(2, threshold() + .45);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp'){ e.preventDefault(); tiltTarget = 0; }
+  });
+  jug.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'Enter'){ keyPour = false; tiltTarget = 0; } });
+  jug.addEventListener('blur', () => { keyPour = false; if (!dragging) tiltTarget = 0; });
+
+  function touched(){ if (!interacted){ interacted = true; setTimeout(() => $('hint').classList.add('gone'), 1800); } }
+
+  // ---------- buttons ----------
+  $('drink').addEventListener('click', () => {
+    audio(); if (glassMl < 5 || drinking) return;
+    const ml = Math.round(glassMl / 10) * 10;
+    drinking = { from: glassMl, t: 0, ml };
+    gulp();
+  });
+  $('back').addEventListener('click', () => {
+    audio(); if (glassMl < 1 || drinking) return;
+    jugMl = Math.min(1000, jugMl + glassMl);
+    drinking = { from: glassMl, t: 0, ml: 0, back: true };
+    glug(.6);
+  });
+  function refill(){
+    jugMl = 1000; glug(1);
+    $('sub').textContent = 'Jug refilled from the tap — 1,000 ml.'; holdMsg = performance.now() + 2500;
+    $('tag').animate([{ transform:'translate(-80px,120px) scale(1.3)' }, { transform:'translate(-80px,120px) scale(1)' }], { duration: 400, easing:'cubic-bezier(.3,1.6,.5,1)' });
+  }
+
+  // ---------- audio ----------
+  let ac = null, master, pourG, pourF, mute = false;
+  function audio(){
+    if (ac){ if (ac.state === 'suspended') ac.resume(); return; }
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain(); master.gain.value = .18; master.connect(ac.destination);
+      const len = ac.sampleRate * 2, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+      let p = 0; for (let i = 0; i < len; i++){ p = p * .9 + (Math.random() * 2 - 1) * .1; d[i] = p * 4; }
+      const s = ac.createBufferSource(); s.buffer = b; s.loop = true;
+      pourF = ac.createBiquadFilter(); pourF.type = 'bandpass'; pourF.frequency.value = 600; pourF.Q.value = 1.4;
+      pourG = ac.createGain(); pourG.gain.value = 0;
+      s.connect(pourF); pourF.connect(pourG); pourG.connect(master); s.start();
+    } catch(_) { ac = null; }
+  }
+  function blip(f, dur, g0){
+    if (!ac || mute) return;
+    const n = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(f, n); o.frequency.exponentialRampToValueAtTime(f * 1.9, n + dur);
+    g.gain.setValueAtTime(.0001, n); g.gain.exponentialRampToValueAtTime(g0, n + .008); g.gain.exponentialRampToValueAtTime(.0001, n + dur);
+    o.connect(g); g.connect(master); o.start(n); o.stop(n + dur + .02);
+  }
+  function glug(a){ for (let i = 0; i < 4; i++) setTimeout(() => blip(180 + Math.random() * 60, .12, .35 * a), i * 110); }
+  function gulp(){ for (let i = 0; i < 3; i++) setTimeout(() => blip(140 + i * 10, .16, .4), i * 300); }
+  $('mute').addEventListener('click', () => { mute = !mute; $('mute').textContent = mute ? 'Sound off' : 'Sound on'; $('mute').setAttribute('aria-pressed', mute); if (pourG && ac) pourG.gain.setTargetAtTime(0, ac.currentTime, .05); });
+
+  // ---------- UI ----------
+  function drops(){
+    const d = $('drops'); d.innerHTML = '';
+    for (let i = 0; i < 8; i++){
+      const f = Math.max(0, Math.min(1, (total - i * 250) / 250));
+      d.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 30 38"><defs><clipPath id="dc${i}"><path d="M15 2C22 13 27 19 27 25a12 12 0 0 1-24 0c0-6 5-12 12-23z"/></clipPath></defs>
+        <path d="M15 2C22 13 27 19 27 25a12 12 0 0 1-24 0c0-6 5-12 12-23z" fill="#fff" stroke="#2c2433" stroke-width="0" />
+        <rect clip-path="url(#dc${i})" x="0" y="${(37 - 35 * f).toFixed(1)}" width="30" height="38" fill="#3cc7ea"/>
+        <path d="M15 2C22 13 27 19 27 25a12 12 0 0 1-24 0c0-6 5-12 12-23z" fill="none" stroke="#2a8fb4" stroke-width="2.2" opacity=".6"/>
+        <ellipse cx="10" cy="23" rx="2.5" ry="4" fill="#fff" opacity=".7"/></svg>`);
+    }
+    $('tot').textContent = total.toLocaleString('en-GB');
+    $('log').innerHTML = log.slice(-3).reverse().map(([t, ml]) => `<li>${t} · ${ml} ml</li>`).join('');
+  }
+  let lastShown = -1, holdMsg = 0;
+  function ui(){
+    const v = Math.round(glassMl);
+    if (v !== lastShown){
+      lastShown = v;
+      $('ml').textContent = v;
+      jug.setAttribute('aria-valuenow', v); jug.setAttribute('aria-valuetext', v ? `${v} millilitres in the glass` : 'Glass empty');
+      $('drink').disabled = v < 5 || !!drinking; $('back').disabled = v < 1 || !!drinking;
+      $('drink').textContent = v >= 5 ? `Drink & log ${Math.round(v / 10) * 10} ml` : 'Drink & log';
+    }
+    $('tagText').textContent = Math.round(jugMl).toLocaleString('en-GB') + ' ml';
+    if (!drinking && performance.now() > holdMsg){
+      const sub = $('sub');
+      if (puddleMl > 4) sub.textContent = `Oops — ${Math.round(puddleMl)} ml on the table. The glass holds 500 ml.`;
+      else if (jugMl <= 1) sub.textContent = 'The jug is empty. Tap it to refill.';
+      else if (v >= CAP - 2) sub.textContent = 'Full to the brim!';
+      else if (v === 0) sub.textContent = "Pour as much as you're about to drink.";
+      else sub.textContent = `${Math.max(0, GOAL - total - v)} ml to go after this glass.`;
+    }
+  }
+
+  // ---------- simulation ----------
+  function surfaceY(x){
+    const k = (x - GL) / (GR - GL) * (NW - 1), i = Math.max(0, Math.min(NW - 2, Math.floor(k))), f = k - i;
+    return GB - glassMl * PXML + wh[i] * (1 - f) + wh[i + 1] * f;
+  }
+  function step(dt){
+    // lifting the jug carries it over the glass mouth
+    { const k = Math.min(1, tilt / .4), e = k * k * (3 - 2 * k); PIV.x = REST.x + (POUR.x - REST.x) * e; PIV.y = REST.y + (POUR.y - REST.y) * e; }
+    // jug tilt spring (a hand isn't perfectly rigid)
+    const k = dragging || keyPour ? 160 : 70, c = dragging || keyPour ? 22 : 9;
+    tiltV += ((tiltTarget - tilt) * k - tiltV * c) * dt; tilt += tiltV * dt;
+    if (tilt < 0){ tilt = 0; if (tiltV < -.3) { tiltV *= -.25; blip(120, .08, .25); } else tiltV = 0; }
+    if (reduce){ tilt = tiltTarget; tiltV = 0; }
+    // pour
+    const over = tilt - threshold();
+    let flow = 0;
+    if (over > 0 && jugMl > 0){ flow = Math.min(jugMl, Math.min(320, over * 330) * dt); }
+    if (flow > 0){
+      jugMl -= flow; flowAcc += flow;
+      const n = reduce ? 1 : 3, sp = spout();
+      for (let i = 0; i < n; i++){
+        const [dx, dy] = rot(1, -.15, tilt), speed = 70 + over * 120;
+        parts.push({ x: sp.x + (Math.random() - .5) * 3, y: sp.y + (Math.random() - .5) * 3, vx: dx * speed + (Math.random() - .5) * 8, vy: dy * speed + (Math.random() - .5) * 8, ml: flow / n, r: 5 + Math.min(5, over * 9) * Math.random() + 3 });
+      }
+    }
+    if (ac && pourG && !mute){ pourG.gain.setTargetAtTime(flow > 0 ? Math.min(1, .3 + over) : 0, ac.currentTime, .05); pourF.frequency.setTargetAtTime(380 + glassMl * 2.4, ac.currentTime, .1); }
+    // particles
+    for (let i = parts.length - 1; i >= 0; i--){
+      const p = parts[i];
+      p.vy += 1500 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      const inGlass = p.x > GL && p.x < GR;
+      if (inGlass && p.y >= surfaceY(p.x) && !p.spill){
+        if (glassMl < CAP){
+          glassMl = Math.min(CAP + 4, glassMl + p.ml);
+          const wi = Math.round((p.x - GL) / (GR - GL) * (NW - 1));
+          wv[wi] += p.vy * .05;
+          if (Math.random() < .06) bubble(p.x);
+        } else {
+          // overflow: spill over a random lip
+          const side = Math.random() < .5 ? -1 : 1;
+          p.spill = true; p.x = side < 0 ? GL - 6 : GR + 6; p.y = GB - CAP * PXML - 4; p.vx = side * (30 + Math.random() * 40); p.vy = -20;
+          continue;
+        }
+        parts.splice(i, 1); continue;
+      }
+      if (p.y > 478){ puddleMl += p.ml; parts.splice(i, 1); if (Math.random() < .2) blip(900 + Math.random() * 500, .05, .08); }
+      else if (p.y > 700) parts.splice(i, 1);
+    }
+    // drinking / pouring back
+    if (drinking){
+      drinking.t += dt;
+      const dur = reduce ? .01 : drinking.back ? .9 : 1.6;
+      const e = Math.min(1, drinking.t / dur);
+      glassMl = drinking.from * (1 - e);
+      wv[(Math.random() * NW) | 0] += (Math.random() - .5) * 2;
+      if (e >= 1){
+        if (!drinking.back){
+          total += drinking.ml; log.push(['15:' + String(10 + log.length * 7).padStart(2, '0'), drinking.ml]);
+          $('sr').textContent = `Logged ${drinking.ml} millilitres. ${total} of ${GOAL} today.`;
+          $('sub').textContent = total >= GOAL ? `Goal reached — ${total.toLocaleString('en-GB')} ml today. Nicely hydrated!` : `Logged ${drinking.ml} ml. ${(GOAL - total).toLocaleString('en-GB')} ml to go today.`;
+          drops();
+          if (total >= GOAL) [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => blip(f, .2, .3), i * 110));
+        } else $('sub').textContent = 'Poured back into the jug.';
+        holdMsg = performance.now() + 3500;
+        glassMl = 0; drinking = null; lastShown = -1;
+        setTimeout(() => { if (!drinking && glassMl < 1) lastShown = -1; }, 2500);
+      }
+    }
+    // puddle slowly soaks into the clay table
+    puddleMl = Math.max(0, puddleMl - dt * 6);
+    // slosh: wave equation across the surface
+    const sub = 4, h = dt / sub;
+    for (let s = 0; s < sub; s++){
+      for (let i = 0; i < NW; i++){
+        const l = wh[Math.max(0, i - 1)], r = wh[Math.min(NW - 1, i + 1)];
+        wv[i] += ((l + r - 2 * wh[i]) * 900 - wh[i] * 30 - wv[i] * 2.2) * h;
+      }
+      // keep volume: remove mean
+      let m = 0; for (let i = 0; i < NW; i++){ wh[i] += wv[i] * h; m += wh[i]; } m /= NW; for (let i = 0; i < NW; i++) wh[i] -= m;
+    }
+    // jug tilt rocks the table → glass sloshes a touch
+    if (Math.abs(tiltV) > 2) wv[0] += tiltV * .02;
+  }
+  const bubbles = [];
+  function bubble(x){ if (reduce || bubbles.length > 14) return; const e = mk('circle', { cx:x, cy:GB - 4, r:2 + Math.random() * 3 }, $('bubbles')); bubbles.push({ e, x, y: GB - 4 - Math.random() * 30, vy: -30 - Math.random() * 40 }); }
+
+  // ---------- render ----------
+  let boilT = 0, boilSeed = 0;
+  function render(dt){
+    // jug transform (stop-motion: quantise the pose to 24 fps)
+    $('jug').setAttribute('transform', `translate(${PIV.x} ${PIV.y}) rotate(${(tilt * 180 / Math.PI).toFixed(2)})`);
+    $('tag').setAttribute('transform', `translate(-80 120) rotate(${(-tilt * 180 / Math.PI * .85).toFixed(2)})`);
+    // water body
+    const lvl = GB - Math.min(CAP + 4, glassMl) * PXML;
+    let d = `M${GL - 8} ${GB + 8}L${GL - 8} ${(lvl + wh[0]).toFixed(1)}`, men = '';
+    for (let i = 0; i < NW; i++){ const x = GL + (GR - GL) * i / (NW - 1), y = lvl + wh[i]; d += `L${x.toFixed(1)} ${y.toFixed(1)}`; men += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + (y + 2).toFixed(1); }
+    d += `L${GR + 8} ${(lvl + wh[NW - 1]).toFixed(1)}L${GR + 8} ${GB + 8}Z`;
+    $('water').setAttribute('d', glassMl > .3 ? d : '');
+    $('meniscus').setAttribute('d', glassMl > .3 ? men : '');
+    for (let i = bubbles.length - 1; i >= 0; i--){ const b = bubbles[i]; b.y += b.vy * dt; b.e.setAttribute('cy', b.y.toFixed(1)); if (b.y < lvl + 4){ b.e.remove(); bubbles.splice(i, 1); } }
+    // puddle
+    const pr = Math.sqrt(puddleMl) * 9;
+    $('puddle').setAttribute('rx', pr.toFixed(1)); $('puddle').setAttribute('ry', (pr * .22).toFixed(1));
+    // stream (goo canvas)
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, cv.width, cv.height);
+    cx.setTransform(dpr * SC, 0, 0, dpr * SC, dpr * OX, dpr * OY);
+    cx.fillStyle = '#3cc7ea';
+    for (const p of parts){ cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.fill(); }
+    // a strand connecting spout to the first drops while pouring (keeps the stream continuous)
+    if (parts.length && tilt > threshold()){
+      const sp = spout(); cx.strokeStyle = '#3cc7ea'; cx.lineWidth = 9; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(sp.x, sp.y);
+      for (let i = parts.length - 1, n = 0; i >= 0 && n < 8; i--, n++) cx.lineTo(parts[i].x, parts[i].y);
+      cx.stroke();
+    }
+    cx.fillStyle = 'rgba(255,255,255,.95)';
+    for (let i = 0; i < parts.length; i += 5){ const p = parts[i]; cx.beginPath(); cx.arc(p.x - p.r * .3, p.y - p.r * .3, p.r * .28, 0, 7); cx.fill(); }
+    // boil the plasticine edges at 12 fps
+    boilT += dt;
+    if (!reduce && boilT > 1 / 12){ boilT = 0; boilSeed = (boilSeed + 1) % 3; $('boil').setAttribute('seed', 2 + boilSeed); $('boil2').setAttribute('seed', 3 + boilSeed); }
+  }
+
+  let last = performance.now(), running = true;
+  function frame(now){
+    if (!running) return;
+    const dt = Math.min(.033, (now - last) / 1000); last = now;
+    step(dt); render(dt); ui();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden){ running = false; if (ac) ac.suspend(); } else { running = true; last = performance.now(); if (ac) ac.resume(); requestAnimationFrame(frame); } });
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { buildBg(); fit(); }, 80); });
+  buildBg(); fit(); drops(); ui();
+  requestAnimationFrame(frame);
+  window.__pour = { tilt(t){ tiltTarget = t; keyPour = true; }, stop(){ tiltTarget = 0; keyPour = false; }, state: () => ({ glassMl, jugMl, tilt }) };
+})();
+</script>
+</body>
+</html>

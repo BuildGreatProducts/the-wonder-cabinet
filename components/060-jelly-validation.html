@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jelly Validation</title>
+<meta name="description" content="Form validation rendered as translucent gummy candy: invalid fields wobble as soft-body jelly and blush raspberry, the error message drips in beneath, and fixing the value makes the jelly set firm and lime-clear.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Jelly Validation","reimagines":"Form validation errors","category":"Feedback & Status","description":"Every field is a slab of translucent gummy with real soft-body springs. Invalid fields go soft and raspberry, wobble and won't settle, and the error drips out beneath them; fix the value and the jelly sets firm and turns lime. Poke any field to jiggle it, and the gummy bear mascot reacts to the state of the form.","hint":"Fix the wobbly fields until they set firm, and poke any jelly to jiggle it"}
+</script>
+<style>
+:root{--ink:#3d1230;--ink2:#7a4a6a;--bg1:#fde6ef;--bg2:#e9dcff;--disp:"Fredoka","Baloo 2","Arial Rounded MT Bold",system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg1)}
+body{font-family:var(--disp);color:var(--ink);-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden;background:radial-gradient(70% 60% at 30% 25%, #fff5f9 0%, transparent 60%), radial-gradient(60% 60% at 85% 85%, #dcd0ff 0%, transparent 70%), linear-gradient(160deg, #fde6ef, #efe0ff)}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.side{position:absolute;z-index:2}
+.side h1{margin:0;font:700 clamp(40px,5.4vw,74px)/.95 var(--disp);color:#ff5c93;letter-spacing:-.01em;
+  text-shadow:0 1px 0 #f24d86,0 2px 0 #e8437c,0 3px 0 #de3a73,0 4px 0 #d3326a,0 5px 0 #c82b62,0 6px 0 #bd255a,0 14px 18px rgba(200,40,100,.35), 0 0 30px rgba(255,140,190,.5)}
+.side h1 span{display:block;color:#ffb347;text-shadow:0 1px 0 #f7a63c,0 2px 0 #ef9a33,0 3px 0 #e78f2b,0 4px 0 #df8524,0 5px 0 #d67b1e,0 6px 0 #cc7219,0 14px 18px rgba(220,120,30,.35), 0 0 30px rgba(255,200,120,.5)}
+.side p{margin:22px 0 0;font:500 19px/1.4 var(--disp);color:var(--ink2);max-width:360px}
+form{position:absolute;inset:0;z-index:3;pointer-events:none}
+.f-label{position:absolute;font:600 15px var(--disp);color:var(--ink);letter-spacing:.01em;pointer-events:none}
+.f-label small{font-weight:500;color:var(--ink2);margin-left:6px}
+.f-input{position:absolute;pointer-events:auto;border:0;background:transparent;outline:none;font:600 20px var(--disp);color:var(--ink);padding:0 24px;caret-color:#ff2f7a;will-change:transform}
+.f-input::placeholder{color:rgba(61,18,48,.38);font-weight:500;font-style:italic}
+.f-input[aria-invalid="true"]::placeholder{color:rgba(255,240,246,.75)}
+.f-err{position:absolute;font:600 14.5px/1.3 var(--disp);color:#c4124f;pointer-events:none;opacity:0;transform:translateY(-6px);transition:opacity .35s, transform .45s cubic-bezier(.3,1.6,.5,1)}
+.f-err.on{opacity:1;transform:none}
+.f-ok{position:absolute;pointer-events:none;width:28px;height:28px;opacity:0;transform:scale(.4);transition:opacity .25s, transform .4s cubic-bezier(.3,1.8,.5,1)}
+.f-ok.on{opacity:1;transform:scale(1)}
+.submit{position:absolute;pointer-events:auto;border:0;background:transparent;cursor:pointer;font:700 21px var(--disp);color:#4a1a00;letter-spacing:.01em;border-radius:999px}
+.submit:focus-visible{outline:none}
+.toggle{position:absolute;pointer-events:auto;border:0;background:transparent;font:600 13px var(--disp);color:var(--ink2);cursor:pointer;text-decoration:underline;text-decoration-style:wavy;text-underline-offset:4px;padding:4px}
+.toggle:focus-visible,.mute:focus-visible,.again:focus-visible{outline:3px solid #ff5c93;outline-offset:3px;border-radius:8px}
+.hint{position:absolute;z-index:4;font:500 15px/1.35 var(--disp);color:var(--ink2);transition:opacity .6s;pointer-events:none;max-width:300px}
+.hint b{color:#ff3d84}
+.mute{position:absolute;z-index:5;right:22px;top:20px;width:44px;height:44px;border-radius:50%;border:0;cursor:pointer;background:radial-gradient(circle at 35% 30%, #fff 0 12%, transparent 30%), radial-gradient(circle at 50% 60%, #ffd3e4, #ff8fb8);box-shadow:inset 0 -4px 8px rgba(200,40,110,.35), 0 8px 14px -6px rgba(200,40,110,.6);padding:0;display:grid;place-items:center}
+.mute svg{width:20px;height:20px}
+.mute[aria-pressed="true"] .w{display:none}.mute[aria-pressed="false"] .x{display:none}
+.done{position:absolute;z-index:6;display:none;text-align:center;pointer-events:auto}
+.done.on{display:block}
+.done h2{margin:0;font:700 40px/1 var(--disp);color:#36b24a;text-shadow:0 1px 0 #2ea442,0 2px 0 #27963a,0 3px 0 #208832,0 4px 0 #1a7a2b,0 12px 16px rgba(40,140,60,.3)}
+.done p{margin:14px auto 18px;font:500 18px/1.4 var(--disp);color:var(--ink2);max-width:360px}
+.again{border:0;cursor:pointer;font:700 17px var(--disp);color:#fff;padding:12px 24px;border-radius:999px;background:radial-gradient(120% 140% at 30% 20%, #ff9ac0, #ff5c93 55%, #e23a78);box-shadow:inset 0 -6px 10px rgba(150,10,70,.35), inset 0 4px 6px rgba(255,255,255,.55), 0 12px 20px -8px rgba(220,40,110,.7)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:820px){
+  .side h1{font-size:34px}
+  .side h1 span{display:inline;margin-left:.22em}
+  .side p{display:none}
+  .f-input{font-size:18px;padding:0 20px}
+  .f-label{font-size:14px}
+  .f-err{font-size:13px}
+  .mute{right:14px;top:14px;width:38px;height:38px}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="c" aria-hidden="true"></canvas>
+  <section class="side" id="side">
+    <h1>Join the<span>Gummery</span></h1>
+    <p>Pick-and-mix delivered monthly. Tell us where to send your first jar.</p>
+  </section>
+  <form id="form" novalidate aria-label="Create your Gummery account"></form>
+  <div class="hint" id="hint">Fields go <b>wobbly</b> when something’s wrong and <b>set firm</b> once it’s right. Poke any jelly to jiggle it.</div>
+  <div class="done" id="done" role="status">
+    <h2 id="doneT">Welcome to the Gummery!</h2>
+    <p id="doneP"></p>
+    <button class="again" id="again" type="button">Start a new account</button>
+  </div>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute squelches"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7.5h3.5L11 4v12l-4.5-3.5H3z" fill="#7a1a46"/><path class="w" d="M13.5 7.5q1.7 2.5 0 5M15.5 5.5q3.2 4.5 0 9" fill="none" stroke="#7a1a46" stroke-width="1.6" stroke-linecap="round"/><path class="x" d="M13.5 7.5l5 5M18.5 7.5l-5 5" stroke="#7a1a46" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  <div class="sr-only" aria-live="assertive" id="alert"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv = $('#c'), g = cv.getContext('2d');
+const DPR = Math.min(2, devicePixelRatio || 1);
+const alertEl = $('#alert'); function shout(t){ alertEl.textContent = ''; setTimeout(() => alertEl.textContent = t, 40); }
+
+/* ---------- colours ---------- */
+const COL = {
+  idle: { a:[255,214,120], b:[255,170,70], glow:[255,240,190], rim:[214,120,30] },
+  bad:  { a:[255,120,160], b:[232,40,100], glow:[255,200,220], rim:[170,10,70] },
+  ok:   { a:[190,240,120], b:[90,190,70],  glow:[235,255,200], rim:[40,130,40] },
+  btn:  { a:[255,190,110], b:[255,120,60], glow:[255,235,190], rim:[200,80,20] },
+  bear: { a:[255,150,190], b:[240,70,130], glow:[255,215,230], rim:[180,30,90] }
+};
+const mix = (p, q, t) => [p[0] + (q[0]-p[0])*t, p[1] + (q[1]-p[1])*t, p[2] + (q[2]-p[2])*t];
+const rgba = (c, a) => `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+
+/* ---------- fields ---------- */
+const FIELDS = [
+  { id:'name', label:'Full name', type:'text', ac:'name', ph:'e.g. Priya Raman', val:'Priya Raman',
+    check: v => v.trim().length < 2 ? 'We need a name to put on your jar.' : '' },
+  { id:'email', label:'Email', type:'email', ac:'email', ph:'e.g. priya@example.com', val:'priya@gummery',
+    check: v => { v = v.trim(); if(!v) return 'Add your email so we can send the receipt.'; if(!v.includes('@')) return 'Your email needs an @, like priya@example.com.'; const d = v.split('@')[1] || ''; if(!d) return 'Add the part after the @, like example.com.'; if(!/\.[a-z]{2,}$/i.test(d)) return `Finish the domain: “${d}” needs an ending like .com or .co.uk.`; if(!/^[^\s@]+@[^\s@]+$/.test(v)) return 'Emails can’t contain spaces.'; return ''; } },
+  { id:'pass', label:'Password', small:'8+ characters with a number', type:'password', ac:'new-password', ph:'••••••••', val:'jelly',
+    check: v => { if(v.length < 8) return `Add ${8 - v.length} more character${8 - v.length === 1 ? '' : 's'} to make it chewier.`; if(!/\d/.test(v)) return 'Add a number, it holds the shape better.'; return ''; } },
+  { id:'post', label:'UK postcode', small:'for your first jar', type:'text', ac:'postal-code', ph:'e.g. BS1 4DJ', val:'',
+    check: v => { v = v.trim(); if(!v) return 'We need a postcode to post your gummies.'; if(!/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i.test(v)) return 'That isn’t a UK postcode yet. Try the format BS1 4DJ.'; return ''; } }
+];
+const form = $('#form');
+let jellies = [];
+
+/* ---------- soft body ---------- */
+function makeBody(w, h, r, n){
+  const per = 2*(w - 2*r) + 2*(h - 2*r) + 2*Math.PI*r; const pts = [];
+  for(let i=0;i<n;i++){ let d = i/n*per; let x, y, nx, ny;
+    const segs = [w - 2*r, Math.PI*r/2, h - 2*r, Math.PI*r/2, w - 2*r, Math.PI*r/2, h - 2*r, Math.PI*r/2];
+    let s = 0; while(d > segs[s]){ d -= segs[s]; s = (s + 1) % 8; }
+    const hw = w/2, hh = h/2;
+    if(s === 0){ x = -hw + r + d; y = -hh; nx = 0; ny = -1; }
+    else if(s === 2){ x = hw; y = -hh + r + d; nx = 1; ny = 0; }
+    else if(s === 4){ x = hw - r - d; y = hh; nx = 0; ny = 1; }
+    else if(s === 6){ x = -hw; y = hh - r - d; nx = -1; ny = 0; }
+    else { const cx = [0, hw - r, 0, hw - r, 0, -hw + r, 0, -hw + r][s], cy = [0, -hh + r, 0, hh - r, 0, hh - r, 0, -hh + r][s]; const a0 = [0, -Math.PI/2, 0, 0, 0, Math.PI/2, 0, Math.PI][s]; const a = a0 + d/r; x = cx + Math.cos(a)*r; y = cy + Math.sin(a)*r; nx = Math.cos(a); ny = Math.sin(a); }
+    pts.push({ rx:x, ry:y, nx, ny, ox:0, oy:0, vx:0, vy:0 });
+  }
+  return { pts, w, h, r, bx:0, by:0, bvx:0, bvy:0, sq:0, vsq:0 };
+}
+function stepBody(B, dt, k, c){
+  const P = B.pts, n = P.length, cpl = 900;
+  for(let i=0;i<n;i++){ const p = P[i], a = P[(i+n-1)%n], b = P[(i+1)%n];
+    const fx = -k*p.ox - c*p.vx + cpl*(a.ox + b.ox - 2*p.ox), fy = -k*p.oy - c*p.vy + cpl*(a.oy + b.oy - 2*p.oy);
+    p.vx += fx*dt; p.vy += fy*dt; }
+  for(const p of P){ p.ox += p.vx*dt; p.oy += p.vy*dt; const lim = 26; if(p.ox > lim) p.ox = lim; if(p.ox < -lim) p.ox = -lim; if(p.oy > lim) p.oy = lim; if(p.oy < -lim) p.oy = -lim; }
+  const kb = k*.8, cb = c*.9;
+  B.bvx += (-kb*B.bx - cb*B.bvx)*dt; B.bvy += (-kb*B.by - cb*B.bvy)*dt; B.bx += B.bvx*dt; B.by += B.bvy*dt;
+  B.vsq += (-k*1.1*B.sq - c*B.vsq)*dt; B.sq += B.vsq*dt; B.sq = Math.max(-.35, Math.min(.35, B.sq));
+}
+function wobble(B, s){ const ph = Math.random()*6; B.pts.forEach((p, i) => { const t = i/B.pts.length*Math.PI*2; const m = Math.sin(2*t + ph)*.8 + Math.sin(3*t - ph)*.5; p.vx += p.nx*m*s; p.vy += p.ny*m*s; }); B.bvx += (Math.random() < .5 ? -1 : 1)*s*1.4; B.vsq += s*.012; }
+function poke(B, lx, ly, s){ B.pts.forEach(p => { const d2 = ((p.rx - lx)**2 + (p.ry - ly)**2); const f = Math.exp(-d2/(2*38*38)); p.vx -= p.nx*f*s; p.vy -= p.ny*f*s; }); B.vsq -= s*.004; }
+function pathOf(B, cx, cy){
+  const P = B.pts, n = P.length; const sx = 1 + B.sq*.5, sy = 1 - B.sq;
+  const X = i => cx + B.bx + P[i].rx*sx + P[i].ox, Y = i => cy + B.by + P[i].ry*sy + P[i].oy + (P[i].ry > 0 ? 0 : 0);
+  const path = new Path2D(); path.moveTo((X(n-1) + X(0))/2, (Y(n-1) + Y(0))/2);
+  for(let i=0;i<n;i++){ const j = (i+1)%n; path.quadraticCurveTo(X(i), Y(i), (X(i) + X(j))/2, (Y(i) + Y(j))/2); }
+  return path;
+}
+function drawJelly(B, cx, cy, col, opts={}){
+  const path = pathOf(B, cx, cy); const w = B.w, h = B.h; const x0 = cx + B.bx - w/2, y0 = cy + B.by - h/2;
+  // coloured light shadow cast through the jelly
+  g.save(); g.shadowColor = rgba(col.b, .45); g.shadowBlur = 26; g.shadowOffsetY = 16; g.fillStyle = rgba(col.b, .25); g.fill(path); g.restore();
+  g.save(); g.translate(0, h*.42); g.scale(1, .3); g.translate(0, y0*(1/.3 - 1) + h*1.1); g.restore();
+  // body
+  const lg = g.createLinearGradient(0, y0, 0, y0 + h); lg.addColorStop(0, rgba(col.a, .78)); lg.addColorStop(1, rgba(col.b, .9)); g.fillStyle = lg; g.fill(path);
+  g.save(); g.clip(path);
+  // subsurface glow
+  const rg = g.createRadialGradient(cx + B.bx, y0 + h*.62, 4, cx + B.bx, y0 + h*.62, Math.max(w, h)*.55); rg.addColorStop(0, rgba(col.glow, .7)); rg.addColorStop(.5, rgba(col.glow, .18)); rg.addColorStop(1, rgba(col.glow, 0)); g.fillStyle = rg; g.fillRect(x0 - 40, y0 - 40, w + 80, h + 80);
+  // dense rim
+  g.lineWidth = 12; g.strokeStyle = rgba(col.rim, .32); g.stroke(path); g.lineWidth = 4; g.strokeStyle = rgba(col.rim, .4); g.stroke(path);
+  // bottom caustic
+  g.fillStyle = rgba([255,255,255], .28); g.beginPath(); g.ellipse(cx + B.bx + w*.08, y0 + h*.84, w*.3, h*.07, 0, 0, Math.PI*2); g.fill();
+  // tiny air bubbles
+  if(opts.bubbles){ g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2; opts.bubbles.forEach(([u, v, r]) => { g.beginPath(); g.arc(x0 + w*u, y0 + h*v, r, 0, Math.PI*2); g.stroke(); }); }
+  g.restore();
+  // specular highlight following the top edge
+  const P = B.pts, n = P.length, sx = 1 + B.sq*.5, sy = 1 - B.sq;
+  g.beginPath(); let first = true;
+  for(let i=0;i<n;i++){ const p = P[i]; if(p.ny > -.5 || p.rx < -w*.42 || p.rx > w*.12) continue; const X = cx + B.bx + p.rx*sx + p.ox, Y = cy + B.by + p.ry*sy + p.oy + 8; first ? g.moveTo(X, Y) : g.lineTo(X, Y); first = false; }
+  g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = Math.min(7, h*.1); g.strokeStyle = 'rgba(255,255,255,.75)'; g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.ellipse(cx + B.bx + w*.18, y0 + h*.24 + B.pts[0].oy*.5, 5, 3, 0, 0, Math.PI*2); g.fill();
+  if(opts.focus){ g.save(); g.setLineDash([7, 6]); g.lineDashOffset = -perf*30; g.lineWidth = 2.5; g.strokeStyle = 'rgba(255,255,255,.95)'; g.translate(0, 0); g.stroke(pathOfInflated(B, cx, cy, 7)); g.restore(); }
+  return path;
+}
+function pathOfInflated(B, cx, cy, d){ const P = B.pts, n = P.length; const sx = 1 + B.sq*.5, sy = 1 - B.sq; const X = i => cx + B.bx + P[i].rx*sx + P[i].ox + P[i].nx*d, Y = i => cy + B.by + P[i].ry*sy + P[i].oy + P[i].ny*d; const p = new Path2D(); p.moveTo((X(n-1) + X(0))/2, (Y(n-1) + Y(0))/2); for(let i=0;i<n;i++){ const j = (i+1)%n; p.quadraticCurveTo(X(i), Y(i), (X(i) + X(j))/2, (Y(i) + Y(j))/2); } return p; }
+
+/* ---------- drips ---------- */
+function drawDrips(J, cx, cy, col){
+  const B = J.body; if(J.drip < .01) return;
+  const yb = cy + B.by + B.h/2*(1 - B.sq) - 3;
+  J.drips.forEach(d => { const L = d.len*J.drip*(1 + Math.sin(perf*2 + d.ph)*.06); if(L < 2) return; const x = cx + B.bx + d.u*B.w;
+    const w0 = d.w; g.beginPath(); g.moveTo(x - w0*1.6, yb); g.quadraticCurveTo(x - w0*.6, yb + 2, x - w0*.5, yb + L*.55); g.quadraticCurveTo(x - w0*.45, yb + L - w0*.4, x - w0*.9, yb + L); g.arc(x, yb + L, w0*.95, Math.PI, 0, true); g.quadraticCurveTo(x + w0*.45, yb + L - w0*.4, x + w0*.5, yb + L*.55); g.quadraticCurveTo(x + w0*.6, yb + 2, x + w0*1.6, yb); g.closePath();
+    const lg = g.createLinearGradient(0, yb, 0, yb + L); lg.addColorStop(0, rgba(col.b, .9)); lg.addColorStop(1, rgba(col.a, .85)); g.fillStyle = lg; g.fill(); g.strokeStyle = rgba(col.rim, .35); g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(x - w0*.35, yb + L - w0*.2, w0*.22, w0*.32, -.3, 0, Math.PI*2); g.fill(); });
+}
+
+/* ---------- build form ---------- */
+FIELDS.forEach((f, i) => {
+  const lab = document.createElement('label'); lab.className = 'f-label'; lab.htmlFor = f.id; lab.innerHTML = `${f.label}${f.small ? `<small>${f.small}</small>` : ''}`;
+  const inp = document.createElement('input'); inp.className = 'f-input'; inp.id = f.id; inp.name = f.id; inp.type = f.type; inp.autocomplete = f.ac; inp.placeholder = f.ph; inp.value = f.val; inp.setAttribute('aria-describedby', f.id + '-err'); inp.spellcheck = false;
+  if(f.id === 'post') inp.setAttribute('autocapitalize', 'characters');
+  const err = document.createElement('div'); err.className = 'f-err'; err.id = f.id + '-err';
+  const ok = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); ok.setAttribute('class', 'f-ok'); ok.setAttribute('viewBox', '0 0 28 28'); ok.setAttribute('aria-hidden', 'true');
+  ok.innerHTML = '<circle cx="14" cy="14" r="12" fill="#5cc74e"/><circle cx="10" cy="9" r="3" fill="rgba(255,255,255,.7)"/><path d="M8 14.5l4 4 8-9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+  form.append(lab, inp, err, ok);
+  const J = { f, inp, lab, err, ok, body:null, state:'idle', colT:0, touched:false, drip:0, drips:[], firm:.5, wobT: Math.random()*2, bubbles: [[.62,.3,2.2],[.7,.62,1.5],[.82,.4,2.8]].map(b => [b[0] - i*.03, b[1], b[2]]), cx:0, cy:0, msg:'' };
+  inp.addEventListener('input', () => { J.body && poke(J.body, Math.min(J.body.w/2 - 20, -J.body.w/2 + 30 + textW(inp)), 0, 60); sfx.tick(); if(J.touched) validate(J, true); updateMascot(); });
+  inp.addEventListener('blur', () => { if(inp.value || J.touched){ J.touched = true; validate(J, false); } });
+  inp.addEventListener('focus', () => { focusJ = J; });
+  inp.addEventListener('pointerdown', e => { const r = inp.getBoundingClientRect(); poke(J.body, e.clientX - (J.cx), e.clientY - (J.cy), 160); sfx.squelch(.5); hideHint(); });
+  jellies.push(J);
+});
+const btn = document.createElement('button'); btn.className = 'submit'; btn.type = 'submit'; btn.textContent = 'Create my account'; form.appendChild(btn);
+const btnJ = { body:null, cx:0, cy:0, press:0 };
+let focusJ = null;
+const meas = document.createElement('canvas').getContext('2d');
+function textW(inp){ meas.font = getComputedStyle(inp).font; const v = inp.type === 'password' ? '•'.repeat(inp.value.length) : inp.value; return meas.measureText(v).width; }
+
+/* ---------- validation ---------- */
+function validate(J, live){
+  const msg = J.f.check(J.inp.value); const prev = J.state;
+  if(msg){ J.state = 'bad'; J.msg = msg; J.err.textContent = msg; J.err.classList.add('on'); J.inp.setAttribute('aria-invalid', 'true'); J.ok.classList.remove('on');
+    if(prev !== 'bad'){ wobble(J.body, 220); sfx.squelch(1); J.drips = makeDrips(); } }
+  else { J.state = 'ok'; J.err.classList.remove('on'); J.inp.setAttribute('aria-invalid', 'false'); J.ok.classList.add('on');
+    if(prev !== 'ok'){ J.body.vsq -= 6; J.setPulse = 1; sfx.set(); } }
+  return !msg;
+}
+function makeDrips(){ const n = 2 + (Math.random()*2|0); const out = []; for(let i=0;i<n;i++) out.push({ u: -.36 + i*(.72/(n-1 || 1)) + (Math.random()-.5)*.12, len: 14 + Math.random()*16, w: 4 + Math.random()*3, ph: Math.random()*6 }); return out; }
+form.addEventListener('submit', e => {
+  e.preventDefault(); hideHint(); btnJ.body.vsq += 8; poke(btnJ.body, 0, 0, 120); sfx.squelch(.7);
+  let firstBad = null; const bads = [];
+  jellies.forEach(J => { J.touched = true; if(!validate(J, false)){ if(!firstBad) firstBad = J; bads.push(J); wobble(J.body, 160); } });
+  updateMascot();
+  if(firstBad){ firstBad.inp.focus(); shout(`${bads.length} ${bads.length === 1 ? 'field needs' : 'fields need'} fixing. ${bads.map(b => `${b.f.label}: ${b.msg}`).join(' ')}`); bear.vsq += 6; return; }
+  success();
+});
+function success(){
+  state = 'done'; const name = jellies[0].inp.value.trim().split(' ')[0]; const pc = jellies[3].inp.value.trim().toUpperCase();
+  $('#doneT').textContent = `Welcome, ${name}!`; $('#doneP').textContent = `Your account is set. A welcome jar of 40 gummies is heading to ${pc} on Friday 17 April.`;
+  jellies.forEach((J, i) => setTimeout(() => { J.pop = 1; sfx.pop(i); }, RM ? 0 : i*120));
+  setTimeout(() => { form.style.visibility = 'hidden'; const d = $('#done'); d.classList.add('on'); placeDone(); $('#again').focus(); }, RM ? 0 : 700);
+  bear.vy = -620; bear.cheer = 1; shout(`Account created. Welcome, ${name}.`);
+}
+$('#again').addEventListener('click', () => {
+  state = 'form'; $('#done').classList.remove('on'); form.style.visibility = '';
+  jellies.forEach((J, i) => { J.pop = 0; J.popS = 1; J.inp.value = FIELDS[i].val; J.touched = false; J.state = 'idle'; J.err.classList.remove('on'); J.ok.classList.remove('on'); J.inp.removeAttribute('aria-invalid'); });
+  setTimeout(demo, 600); jellies[0].inp.focus();
+});
+
+/* ---------- mascot bear ---------- */
+const bear = { y:0, vy:0, sq:0, vsq:0, cheer:0, mood:'idle', look:0, body:null };
+function updateMascot(){ const bad = jellies.some(J => J.state === 'bad'), allOk = jellies.every(J => J.state === 'ok'); bear.mood = allOk ? 'happy' : bad ? 'worried' : 'idle'; }
+function bearPath(cx, cy, s){
+  const p = new Path2D(); const c = (x, y, r) => { p.moveTo(cx + (x + r)*s, cy + y*s); p.arc(cx + x*s, cy + y*s, r*s, 0, Math.PI*2); };
+  const e = (x, y, rx, ry) => { p.moveTo(cx + (x + rx)*s, cy + y*s); p.ellipse(cx + x*s, cy + y*s, rx*s, ry*s, 0, 0, Math.PI*2); };
+  c(-28, -98, 16); c(28, -98, 16); c(0, -70, 42); e(0, 0, 50, 56); e(-44, -20, 16, 26); e(44, -20, 16, 26); e(-30, 52, 22, 20); e(30, 52, 22, 20);
+  return p;
+}
+function drawBear(cx, cy, s){
+  const sq = bear.sq; g.save(); g.translate(cx, cy + 60*s); g.scale(1 + sq*.4, 1 - sq); g.translate(-cx, -(cy + 60*s));
+  const path = bearPath(cx, cy, s); const col = COL.bear;
+  g.save(); g.shadowColor = rgba(col.b, .45); g.shadowBlur = 30*s; g.shadowOffsetY = 18*s; g.fillStyle = rgba(col.b, .25); g.fill(path, 'nonzero'); g.restore();
+  const lg = g.createLinearGradient(0, cy - 120*s, 0, cy + 80*s); lg.addColorStop(0, rgba(col.a, .8)); lg.addColorStop(1, rgba(col.b, .9)); g.fillStyle = lg; g.fill(path, 'nonzero');
+  g.save(); g.clip(path, 'nonzero'); const rg = g.createRadialGradient(cx, cy - 10*s, 4, cx, cy - 10*s, 110*s); rg.addColorStop(0, rgba(col.glow, .75)); rg.addColorStop(.6, rgba(col.glow, .12)); rg.addColorStop(1, rgba(col.glow, 0)); g.fillStyle = rg; g.fillRect(cx - 140*s, cy - 140*s, 280*s, 260*s);
+  g.lineWidth = 10*s; g.strokeStyle = rgba(col.rim, .25); g.stroke(path); g.restore();
+  // face embossed
+  const fy = cy - 70*s, lk = bear.look*4*s;
+  g.fillStyle = rgba(col.rim, .65); g.strokeStyle = rgba(col.rim, .7); g.lineWidth = 3.2*s; g.lineCap = 'round';
+  if(bear.mood === 'happy' || bear.cheer > .1){ g.beginPath(); g.arc(cx - 15*s + lk, fy - 4*s, 6*s, Math.PI*1.1, Math.PI*1.9); g.stroke(); g.beginPath(); g.arc(cx + 15*s + lk, fy - 4*s, 6*s, Math.PI*1.1, Math.PI*1.9); g.stroke(); g.beginPath(); g.arc(cx + lk, fy + 10*s, 10*s, .15*Math.PI, .85*Math.PI); g.stroke(); }
+  else if(bear.mood === 'worried'){ g.beginPath(); g.arc(cx - 15*s + lk, fy - 4*s, 5*s, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(cx + 15*s + lk, fy - 4*s, 5*s, 0, Math.PI*2); g.fill(); g.beginPath(); g.moveTo(cx - 24*s + lk, fy - 16*s); g.lineTo(cx - 9*s + lk, fy - 12*s); g.moveTo(cx + 24*s + lk, fy - 16*s); g.lineTo(cx + 9*s + lk, fy - 12*s); g.stroke(); g.beginPath(); const wv = Math.sin(perf*8)*1.5*s; g.moveTo(cx - 10*s + lk, fy + 16*s); g.quadraticCurveTo(cx - 5*s + lk, fy + 11*s + wv, cx + lk, fy + 16*s); g.quadraticCurveTo(cx + 5*s + lk, fy + 21*s - wv, cx + 10*s + lk, fy + 16*s); g.stroke(); }
+  else { g.beginPath(); g.arc(cx - 15*s + lk, fy - 4*s, 5*s, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(cx + 15*s + lk, fy - 4*s, 5*s, 0, Math.PI*2); g.fill(); g.beginPath(); g.arc(cx + lk, fy + 8*s, 7*s, .2*Math.PI, .8*Math.PI); g.stroke(); }
+  g.fillStyle = rgba(col.rim, .55); g.beginPath(); g.ellipse(cx + lk, fy + 4*s, 6*s, 4.5*s, 0, 0, Math.PI*2); g.fill();
+  // highlights
+  g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(cx - 20*s, cy - 92*s, 10*s, 5*s, -.5, 0, Math.PI*2); g.fill(); g.beginPath(); g.ellipse(cx - 26*s, cy - 18*s, 6*s, 14*s, .3, 0, Math.PI*2); g.fill();
+  g.restore();
+}
+
+/* ---------- sound ---------- */
+let actx = null, master = null, muted = false;
+function initAudio(){ try{ if(!actx){ const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return; actx = new AC(); master = actx.createGain(); master.gain.value = .16; master.connect(actx.destination); } if(actx.state === 'suspended') actx.resume(); }catch(e){} }
+const ok = () => actx && !muted && actx.state === 'running';
+const sfx = {
+  squelch(v){ if(!ok()) return; const t = actx.currentTime; const o = actx.createOscillator(), f = actx.createBiquadFilter(), gn = actx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(140 + Math.random()*40, t); o.frequency.exponentialRampToValueAtTime(60, t + .22); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(200, t + .25); f.Q.value = 9; gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.45*v, t + .02); gn.gain.exponentialRampToValueAtTime(.0001, t + .3); o.connect(f).connect(gn).connect(master); o.start(t); o.stop(t + .32); },
+  set(){ if(!ok()) return; const t = actx.currentTime; const o = actx.createOscillator(), gn = actx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(880, t + .12); gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.3, t + .01); gn.gain.exponentialRampToValueAtTime(.0001, t + .25); o.connect(gn).connect(master); o.start(t); o.stop(t + .27); },
+  tick(){ if(!ok()) return; const t = actx.currentTime; const o = actx.createOscillator(), gn = actx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(500 + Math.random()*200, t); o.frequency.exponentialRampToValueAtTime(260, t + .05); gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.08, t + .005); gn.gain.exponentialRampToValueAtTime(.0001, t + .07); o.connect(gn).connect(master); o.start(t); o.stop(t + .08); },
+  pop(i){ if(!ok()) return; const t = actx.currentTime; const o = actx.createOscillator(), gn = actx.createGain(); o.type = 'sine'; const f0 = [523, 659, 784, 1047][i % 4]; o.frequency.setValueAtTime(f0*.6, t); o.frequency.exponentialRampToValueAtTime(f0, t + .06); gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(.3, t + .01); gn.gain.exponentialRampToValueAtTime(.0001, t + .35); o.connect(gn).connect(master); o.start(t); o.stop(t + .4); }
+};
+addEventListener('pointerdown', initAudio, {capture:true}); addEventListener('keydown', initAudio, {capture:true});
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.setAttribute('aria-label', muted ? 'Unmute squelches' : 'Mute squelches'); });
+let hintGone = false; function hideHint(){ if(!hintGone){ hintGone = true; $('#hint').style.opacity = .35; } }
+
+/* ---------- layout ---------- */
+let W, H, MOB, FX, FW, FH, BEAR = null, state = 'form';
+function layout(){
+  W = innerWidth; H = innerHeight; MOB = W < 820; cv.width = W*DPR; cv.height = H*DPR;
+  const side = $('#side');
+  FH = MOB ? 54 : 62;
+  const gapY = MOB ? Math.min(146, (H - 230)/4.1) : Math.min(150, (H - 150)/4.5);
+  if(MOB){ FW = W - 40; FX = 20; side.style.left = '20px'; side.style.top = '18px'; BEAR = { x: W - 62, y: 108, s: .42 }; }
+  else { FW = Math.min(470, W*.42); FX = Math.max(W*.5, W - FW - 90); side.style.left = Math.max(40, W*.07) + 'px'; side.style.top = (H*.16) + 'px'; BEAR = { x: Math.max(40, W*.07) + 150, y: H*.78, s: Math.min(1.1, H/740) }; }
+  const top0 = MOB ? 104 : Math.max(56, (H - (gapY*4 + 70))/2 + 6);
+  jellies.forEach((J, i) => {
+    const y = top0 + i*gapY + 24; J.cx = FX + FW/2; J.cy = y + FH/2;
+    J.body = J.body && J.body.w === FW && J.body.h === FH ? J.body : makeBody(FW, FH, FH/2*.62, 60);
+    J.lab.style.left = (FX + 8) + 'px'; J.lab.style.top = (y - 26) + 'px';
+    J.inp.style.left = FX + 'px'; J.inp.style.top = y + 'px'; J.inp.style.width = (FW - 50) + 'px'; J.inp.style.height = FH + 'px';
+    J.err.style.left = (FX + 10) + 'px'; J.err.style.top = (y + FH + (MOB ? 30 : 36)) + 'px'; J.err.style.width = (FW - 20) + 'px';
+    J.ok.style.left = (FX + FW - 44) + 'px'; J.ok.style.top = (y + FH/2 - 14) + 'px';
+  });
+  const by = top0 + 4*gapY - (MOB ? 6 : 4); const bw = MOB ? FW : Math.min(300, FW);
+  btnJ.cx = FX + (MOB ? FW/2 : bw/2); btnJ.cy = by + 30; btnJ.body = btnJ.body && btnJ.body.w === bw ? btnJ.body : makeBody(bw, 60, 30, 44);
+  btn.style.left = (btnJ.cx - bw/2) + 'px'; btn.style.top = by + 'px'; btn.style.width = bw + 'px'; btn.style.height = '60px';
+  const hint = $('#hint'); hint.style.left = side.style.left; hint.style.top = (H*.16 + 240) + 'px';
+  placeDone();
+}
+function placeDone(){ const d = $('#done'); const w = Math.min(460, W - 40); d.style.width = w + 'px'; d.style.left = (MOB ? (W - w)/2 : FX + FW/2 - w/2) + 'px'; d.style.top = (MOB ? H*.36 : H*.36) + 'px'; }
+
+/* ---------- loop ---------- */
+let last = performance.now(), perf = 0;
+function frame(now){
+  const dt = Math.min(.033, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  perf += dt;
+  g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H);
+  // table sheen
+  const sub = 3;
+  jellies.forEach(J => {
+    const firmT = J.state === 'ok' ? 1 : J.state === 'bad' ? 0 : .5; J.firm += (firmT - J.firm)*Math.min(1, dt*3);
+    const k = 90 + J.firm*620, c = 3 + J.firm*26;
+    for(let s=0;s<sub;s++) stepBody(J.body, dt/sub, k, c);
+    if(J.state === 'bad' && !RM){ J.wobT -= dt; if(J.wobT < 0){ J.wobT = 1.1 + Math.random()*.8; wobble(J.body, 50); } }
+    const tgt = J.state === 'bad' ? 1 : 0; J.drip += (tgt - J.drip)*Math.min(1, dt*(tgt ? 2.2 : 6));
+    const ct = J.state === 'bad' ? 'bad' : J.state === 'ok' ? 'ok' : 'idle';
+    J.from = J.from || COL.idle; J.colNow = J.colNow || { ...COL.idle };
+    const target = COL[ct]; const sp = Math.min(1, dt*5); ['a','b','glow','rim'].forEach(key => J.colNow[key] = mix(J.colNow[key], target[key], sp));
+    // input follows the jelly
+    const B = J.body; J.inp.style.transform = `translate(${B.bx.toFixed(1)}px, ${(B.by + (B.pts[0].oy + B.pts[30].oy)*.25).toFixed(1)}px) scale(${(1 + B.sq*.25).toFixed(3)}, ${(1 - B.sq*.5).toFixed(3)})`;
+    J.popS = J.pop ? Math.max(0, (J.popS ?? 1) - dt*5) : Math.min(1, (J.popS ?? 1) + dt*4);
+  });
+  for(let s=0;s<sub;s++) stepBody(btnJ.body, dt/sub, 380, 12);
+  // draw
+  jellies.forEach(J => { if(J.popS <= .01) return; g.save(); if(J.popS < 1){ g.translate(J.cx, J.cy); g.scale(J.popS*1.1, J.popS*1.1); g.translate(-J.cx, -J.cy); g.globalAlpha = J.popS; }
+    drawDrips(J, J.cx, J.cy, J.colNow);
+    drawJelly(J.body, J.cx, J.cy, J.colNow, { bubbles: J.bubbles, focus: document.activeElement === J.inp });
+    if(J.setPulse > 0){ J.setPulse = Math.max(0, J.setPulse - dt*1.8); g.strokeStyle = `rgba(255,255,255,${J.setPulse*.8})`; g.lineWidth = 3; g.stroke(pathOfInflated(J.body, J.cx, J.cy, (1 - J.setPulse)*18)); }
+    g.restore(); });
+  if(state === 'form') drawJelly(btnJ.body, btnJ.cx, btnJ.cy, COL.btn, { focus: document.activeElement === btn, bubbles: [[.8,.35,2],[.86,.6,1.4]] });
+  btn.style.transform = `translate(${btnJ.body.bx.toFixed(1)}px, ${btnJ.body.by.toFixed(1)}px) scale(${(1 + btnJ.body.sq*.3).toFixed(3)}, ${(1 - btnJ.body.sq*.6).toFixed(3)})`;
+  // bear
+  bear.vy += 2200*dt; bear.y = Math.min(0, bear.y + bear.vy*dt); if(bear.y >= 0 && bear.vy > 0){ if(bear.vy > 200){ bear.vsq += bear.vy*.012; } bear.vy = 0; if(bear.cheer > .1 && state === 'done'){ bear.vy = -420; bear.cheer *= .7; } }
+  bear.vsq += (-bear.sq*260 - bear.vsq*7)*dt; bear.sq += bear.vsq*dt; bear.sq = Math.max(-.3, Math.min(.3, bear.sq));
+  if(bear.mood === 'worried' && !RM && Math.random() < dt*.8) bear.vsq += 1.6;
+  const fj = focusJ && document.activeElement === focusJ.inp ? focusJ : null; bear.look += ((fj ? Math.max(-1, Math.min(1, (fj.cx - BEAR.x)/400)) : Math.sin(perf*.5)*.4) - bear.look)*Math.min(1, dt*4);
+  drawBear(BEAR.x, BEAR.y + bear.y, BEAR.s);
+  requestAnimationFrame(frame);
+}
+// canvas pokes (outside inputs): jiggle the bear or any jelly under the pointer
+cv.addEventListener('pointerdown', e => {
+  const x = e.clientX, y = e.clientY;
+  if(Math.hypot(x - BEAR.x, y - (BEAR.y - 30*BEAR.s)) < 90*BEAR.s){ bear.vsq += 7; bear.vy = -300; sfx.squelch(.8); hideHint(); return; }
+});
+function demo(){
+  // the page arrives with a half-filled form: run a first check so the states are visible
+  jellies.forEach(J => { if(J.inp.value){ J.touched = true; validate(J, false); } });
+  updateMascot();
+}
+let rt = 0; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(layout, 100); });
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+layout();
+jellies.forEach(J => { J.colNow = { ...COL.idle }; });
+setTimeout(demo, RM ? 50 : 900);
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>

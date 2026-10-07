@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferris Wheel Carousel</title>
+<meta name="description" content="A carousel as a Victorian circus-poster Ferris wheel: spin it with momentum, gondolas stay level and sway, and the car at the boarding platform is the selected attraction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Ultra&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Ferris Wheel Carousel","reimagines":"Carousel","category":"Navigation & Wayfinding","description":"Each slide rides a gondola on a pier-end Ferris wheel printed like a Victorian showbill. Fling the wheel and it spins with real momentum, the cars swinging on their pins; when it brakes, the car at the boarding platform becomes the featured attraction on the bill beside it.","hint":"Spin the wheel, tap a gondola, or use the arrow keys"}
+</script>
+<style>
+  :root{--cream:#f1e4c4;--paper:#ead9b0;--red:#b3302a;--navy:#1f2c4d;--ochre:#d49b32;--ink:#1d1916}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper)}
+  body{font-family:"Old Standard TT",Georgia,serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;height:100dvh;overflow:hidden;background:var(--paper)}
+  .paper{position:absolute;inset:0;pointer-events:none;z-index:30;mix-blend-mode:multiply;opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .45 0 0 0 0 .3 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(110,70,20,.35) 100%)}
+  #wheel{position:absolute;inset:0;display:block;touch-action:none;cursor:grab}
+  #wheel.drag{cursor:grabbing}
+  header{position:absolute;z-index:5;left:0;width:var(--wl);top:16px;text-align:center;pointer-events:none}
+  .ribbon{display:inline-block;position:relative;background:var(--red);color:var(--cream);font-family:"Rye",serif;font-size:15px;letter-spacing:.14em;padding:5px 30px 6px;
+    clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%)}
+  h1{margin:4px 0 0;font-family:"Rye",serif;font-weight:400;font-size:42px;line-height:1;color:var(--navy);text-shadow:2px 2px 0 var(--ochre), 3px 3px 0 var(--ink)}
+  .date{margin:3px 0 0;font-style:italic;font-size:16px}
+  .gondolas{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .gondola{position:absolute;left:0;top:0;width:var(--gw);height:calc(var(--gh) + 24px);pointer-events:auto;cursor:pointer;border:0;padding:0;background:none;font:inherit;color:inherit;
+    transform-origin:50% 0;will-change:transform}
+  .gondola .pin{position:absolute;left:50%;top:-4px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:var(--ochre);border:2px solid var(--ink)}
+  .gondola .arm{position:absolute;left:50%;top:0;width:2.5px;height:24px;margin-left:-1.25px;background:var(--ink)}
+  .gondola .arm::before,.gondola .arm::after{content:"";position:absolute;top:14px;width:calc(var(--gw) * .42);height:2px;background:var(--ink);transform-origin:0 0}
+  .gondola .arm::before{left:1px;transform:rotate(25deg)}
+  .gondola .arm::after{right:1px;transform-origin:100% 0;transform:rotate(-25deg)}
+  .car{position:absolute;left:0;right:0;top:20px;height:var(--gh);background:var(--navy);border:2.5px solid var(--ink);border-radius:4px 4px 12px 12px;
+    box-shadow:inset 0 -6px 0 rgba(0,0,0,.25), 3px 3px 0 rgba(29,25,22,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+  .car::before{content:"";position:absolute;left:-2px;right:-2px;top:-2px;height:15px;background:repeating-linear-gradient(90deg,var(--red) 0 11px,var(--cream) 11px 22px);
+    clip-path:polygon(0 0,100% 0,100% 60%,95% 100%,90% 60%,85% 100%,80% 60%,75% 100%,70% 60%,65% 100%,60% 60%,55% 100%,50% 60%,45% 100%,40% 60%,35% 100%,30% 60%,25% 100%,20% 60%,15% 100%,10% 60%,5% 100%,0 60%)}
+  .car b{font-family:"Rye",serif;font-weight:400;font-size:var(--gf);color:var(--cream);line-height:1.02;text-align:center;padding:12px 6px 0;letter-spacing:.02em}
+  .car i{font-size:calc(var(--gf) * .72);color:var(--ochre);font-style:italic;margin-top:2px;white-space:nowrap}
+  .gondola[aria-selected="true"] .car{background:var(--red)}
+  .gondola[aria-selected="true"] .car i{color:var(--cream)}
+  .gondola:focus-visible{outline:none}
+  .gondola:focus-visible .car{outline:3px dashed var(--ochre);outline-offset:3px}
+  .gondola .booked{position:absolute;right:-6px;top:14px;width:26px;height:26px;border-radius:50%;background:var(--ochre);color:var(--ink);font-family:"Ultra",serif;font-size:14px;display:none;place-items:center;border:2px solid var(--ink);transform:rotate(-12deg)}
+  .gondola.is-booked .booked{display:grid}
+  /* showbill */
+  .bill{position:absolute;z-index:6;top:24px;bottom:24px;right:28px;width:min(400px, 34vw);background:var(--cream);padding:22px 26px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;
+    box-shadow:0 0 0 3px var(--ink), 0 0 0 9px var(--cream), 0 0 0 11px var(--ink), 8px 10px 0 11px rgba(29,25,22,.25)}
+  .bill::before{content:"★  ★  ★";position:absolute;top:6px;left:0;right:0;color:var(--red);font-size:12px;letter-spacing:.3em}
+  .bill .kind{margin-top:8px;background:var(--navy);color:var(--cream);font-family:"Rye",serif;font-size:13px;letter-spacing:.16em;padding:4px 22px 5px;clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%)}
+  .bill h2{margin:12px 0 0;font-family:"Rye",serif;font-weight:400;font-size:38px;line-height:1;color:var(--red);text-shadow:2px 2px 0 var(--ink)}
+  .bill .tag{margin:8px 0 0;font-style:italic;font-size:18px}
+  .bill .rule{width:80%;margin:12px 0;border-top:3px solid var(--ink);border-bottom:1px solid var(--ink);height:5px}
+  .bill p.blurb{margin:0;font-size:16.5px;line-height:1.4}
+  .bill dl{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin:16px 0 0;width:100%;text-align:center}
+  .bill dt{font-family:"Rye",serif;font-size:12px;letter-spacing:.12em;color:var(--navy)}
+  .bill dd{margin:2px 0 0;font-size:17px;font-weight:700}
+  .price{position:relative;margin-top:14px;width:104px;height:104px;display:grid;place-items:center;font-family:"Ultra",serif;font-size:28px;color:var(--cream);line-height:1}
+  .price::before{content:"";position:absolute;inset:0;background:var(--ochre);clip-path:polygon(50% 0,59% 15%,75% 7%,77% 24%,93% 25%,85% 41%,100% 50%,85% 59%,93% 75%,77% 76%,75% 93%,59% 85%,50% 100%,41% 85%,25% 93%,23% 76%,7% 75%,15% 59%,0 50%,15% 41%,7% 25%,23% 24%,25% 7%,41% 15%);transform:rotate(var(--pr,0deg));transition:transform .6s}
+  .price span{position:relative;color:var(--ink)}
+  .price small{display:block;font-family:"Old Standard TT";font-size:11px;font-style:italic;text-align:center}
+  .stub{margin-top:auto;position:relative;font-family:"Rye",serif;font-size:18px;letter-spacing:.08em;color:var(--cream);background:var(--red);border:0;padding:12px 26px 13px;cursor:pointer;
+    -webkit-mask:radial-gradient(circle 7px at 0 50%, #0000 98%, #000) left/51% 100% no-repeat, radial-gradient(circle 7px at 100% 50%, #0000 98%, #000) right/51% 100% no-repeat;
+    mask:radial-gradient(circle 7px at 0 50%, #0000 98%, #000) left/51% 100% no-repeat, radial-gradient(circle 7px at 100% 50%, #0000 98%, #000) right/51% 100% no-repeat}
+  .stub:hover{background:#c9382f}
+  .stub:focus-visible{outline:3px dashed var(--navy);outline-offset:4px}
+  .stub.on{background:var(--navy)}
+  .next{margin:16px 0 0;font-style:italic;font-size:15px}
+  .next button{font:inherit;font-style:normal;font-family:"Rye",serif;font-size:14px;letter-spacing:.04em;color:var(--navy);background:none;border:0;border-bottom:2px solid var(--red);padding:0 2px;cursor:pointer}
+  .next button:focus-visible{outline:2px dashed var(--red);outline-offset:2px}
+  .day{margin-top:10px;font-size:14px;font-style:italic;min-height:1.2em}
+  .bill.spin .inner{opacity:.25;filter:blur(1px)}
+  .bill .inner{display:flex;flex-direction:column;align-items:center;width:100%;flex:1;transition:opacity .25s, filter .25s}
+  .levers{position:absolute;z-index:6;left:0;width:var(--wl);bottom:16px;display:flex;justify-content:center;gap:16px;align-items:center}
+  .lever{font-family:"Rye",serif;font-size:16px;letter-spacing:.06em;color:var(--ink);background:var(--cream);border:2.5px solid var(--ink);padding:6px 14px 7px;cursor:pointer;box-shadow:3px 3px 0 var(--ink)}
+  .lever:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .lever:focus-visible{outline:3px dashed var(--red);outline-offset:3px}
+  .count{font-style:italic;font-size:15px;min-width:5em;text-align:center;color:var(--cream)}
+  .hint{position:absolute;z-index:6;left:0;width:var(--wl);top:122px;text-align:center;font-style:italic;font-size:14px;color:var(--red);transition:opacity 1s;pointer-events:none}
+  .hint.hide{opacity:0}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  @media (max-width:820px){
+    header{top:10px}
+    .ribbon{font-size:11px;padding:4px 20px}
+    h1{font-size:26px}
+    .date{font-size:13px}
+    .bill{top:auto;bottom:12px;left:12px;right:12px;width:auto;height:var(--bh);padding:12px 14px 12px;box-shadow:0 0 0 2px var(--ink), 0 0 0 6px var(--cream), 0 0 0 8px var(--ink)}
+    .bill::before{display:none}
+    .bill .inner{display:grid;grid-template-columns:1fr auto;grid-template-areas:"kind price" "title price" "tag tag" "blurb blurb" "dl dl" "stub stub";text-align:left;align-items:start;column-gap:8px}
+    .bill .kind{grid-area:kind;justify-self:start;margin-top:0;font-size:11px;padding:3px 16px}
+    .bill h2{grid-area:title;font-size:25px;margin-top:6px}
+    .bill .tag{grid-area:tag;font-size:14px;margin-top:4px}
+    .bill .rule{display:none}
+    .bill p.blurb{grid-area:blurb;font-size:13.5px;margin-top:6px;line-height:1.3}
+    .bill dl{grid-area:dl;grid-template-columns:repeat(4,auto);gap:4px 12px;margin-top:8px;text-align:left}
+    .bill dt{font-size:9.5px}.bill dd{font-size:13.5px}
+    .price{grid-area:price;width:70px;height:70px;font-size:19px;margin-top:0}
+    .stub{grid-area:stub;justify-self:center;font-size:15px;padding:9px 20px;margin-top:10px}
+    .day{display:none}
+    .next{display:none}
+    .levers{bottom:auto;top:var(--lt);gap:10px}
+    .lever{font-size:13px;padding:4px 10px}
+    .count{font-size:13px}
+    .hint{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="wheel" aria-hidden="true"></canvas>
+  <header><span class="ribbon">BRIGHTSEA PIER · SUMMER FAIR</span><h1>The Grand Wheel</h1><p class="date">Saturday 18 July 2026 · choose your attraction</p></header>
+  <div class="gondolas" id="gondolas" role="listbox" aria-label="Attractions" aria-roledescription="carousel"></div>
+  <p class="hint" id="hint">Fling the wheel, tap a gondola, or use the arrow keys</p>
+  <div class="levers"><button class="lever" type="button" id="prev" aria-label="Previous attraction">☜ Back</button><span class="count" id="count" aria-hidden="true"></span><button class="lever" type="button" id="next" aria-label="Next attraction">On ☞</button></div>
+  <aside class="bill" id="bill" aria-live="polite"><div class="inner" id="billInner"></div></aside>
+  <div class="paper" aria-hidden="true"></div>
+  <p class="sr" id="live" aria-live="polite"></p>
+</div>
+<script>
+(() => {
+'use strict';
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const C = { cream:'#f1e4c4', paper:'#ead9b0', red:'#b3302a', navy:'#1f2c4d', ochre:'#d49b32', ink:'#1d1916', sea:'#2a3d63' };
+
+const ACTS = [
+  { name:'Ottoline', full:'The Marvellous Ottoline', kind:'Aerialist', tag:'Forty feet up, no net, every night!', blurb:'Ottoline Varga turns somersaults on a trapeze slung beneath the pier’s iron arches, lit by a single limelight.', where:'Big Top', when:'14:00 · 19:30', price:12, length:'40 min' },
+  { name:'Tide Machine', full:'The Tide Machine', kind:'Illusion', tag:'The sea, summoned on stage!', blurb:'Professor Agnes Hale fills a glass theatre with real seawater and makes it vanish again before your eyes.', where:'Pavilion Theatre', when:'15:30 · 18:00', price:9, length:'35 min' },
+  { name:'Steam Organ', full:'Professor Kettle’s Steam Organ', kind:'Concert', tag:'Ninety-seven pipes of pure joy!', blurb:'A restored 1906 fairground organ plays waltzes, sea shanties and, by popular demand, one Abba medley.', where:'Bandstand', when:'Every hour', price:0, length:'20 min' },
+  { name:'Wonky Hall', full:'Hall of Wonky Mirrors', kind:'Walk-through', tag:'See yourself as never before!', blurb:'Twenty-two antique mirrors, each bent a little differently. Bring a friend and argue about which one is true.', where:'East Arcade', when:'10:00 – 22:00', price:4, length:'15 min' },
+  { name:'Sea Cinema', full:'Night Swim Cinema', kind:'Outdoor film', tag:'Pictures under the stars!', blurb:'Deckchairs, blankets and a screen at the very end of the pier. Tonight: a restored print of “Jaws”.', where:'Pier Head', when:'21:00', price:9, length:'124 min' },
+  { name:'Helter Skelter', full:'The Helter Skelter', kind:'Ride', tag:'Ninety feet of spiral thrills!', blurb:'Climb the lighthouse-striped tower, take a coir mat and spiral down past the best view on the coast.', where:'West Deck', when:'10:00 – 21:30', price:3, length:'2 min' },
+  { name:'Zelda’s', full:'Madame Zelda’s Fortunes', kind:'Fortune booth', tag:'Your future, foretold!', blurb:'Zelda reads palms and tarot from a velvet booth. Every reading ends with a fortune printed on a brass press.', where:'Kiosk 9', when:'12:00 – 20:00', price:5, length:'10 min' },
+  { name:'Fireworks', full:'Grand Fireworks Finale', kind:'Spectacle', tag:'The sky set ablaze!', blurb:'Twelve minutes of rockets and gold willows launched from a barge, timed to the steam organ’s last tune.', where:'Whole pier', when:'22:15', price:0, length:'12 min' }
+];
+const N = ACTS.length;
+
+/* ---------------- layout ---------------- */
+const cv = $('#wheel'), g = cv.getContext('2d'), stage = $('#stage');
+let W, H, DPR, mobile, cx, cy, R, gw, gh;
+const gh0 = () => 74;
+function layout(){
+  W = stage.clientWidth; H = stage.clientHeight; DPR = Math.min(2, devicePixelRatio || 1); mobile = W <= 820;
+  cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  const bill = $('#bill');
+  if (mobile) {
+    const bh = Math.min(300, Math.max(250, H * 0.34)); stage.style.setProperty('--bh', bh + 'px');
+    gw = 78; gh = 50;
+    const avail = H - bh - 12 - 84 - 46;
+    R = Math.min((W - 110) / 2, (avail - gh - 40) / 2); cx = W / 2; cy = 84 + R + 12;
+    stage.style.setProperty('--wl', W + 'px'); stage.style.setProperty('--lt', (cy + R + 20 + gh + 22) + 'px');
+  } else {
+    const wl = W - Math.min(400, W * 0.34) - 60; stage.style.setProperty('--wl', wl + 'px');
+    R = Math.min((wl - 160) / 2, (H - 136 - 20 - gh0() - 70) / 2); cx = wl / 2; cy = 136 + R + 10;
+    gw = Math.round(Math.max(96, Math.min(124, R * 0.46))); gh = Math.round(gw * 0.62);
+  }
+  stage.style.setProperty('--gw', gw + 'px'); stage.style.setProperty('--gh', gh + 'px'); stage.style.setProperty('--gf', (mobile ? 11.5 : Math.round(gw * 0.135)) + 'px');
+}
+
+/* ---------------- gondolas ---------------- */
+const gEl = $('#gondolas');
+const gons = ACTS.map((a, i) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'gondola'; b.setAttribute('role', 'option'); b.setAttribute('aria-roledescription', 'slide');
+  b.setAttribute('aria-label', `${a.full}, ${a.kind}, ${i + 1} of ${N}`);
+  b.innerHTML = `<span class="arm"></span><span class="pin"></span><span class="car"><b>${a.name}</b><i>${a.kind}</i></span><span class="booked" aria-hidden="true">✓</span>`;
+  b.addEventListener('click', e => { if (dragMoved) return; audio(); goTo(i); });
+  b.addEventListener('keydown', e => onKey(e));
+  gEl.appendChild(b);
+  return { el: b, th: 0, om: 0, px: 0, py: 0, vx: 0, vy: 0, ax: 0, ay: 0, init: false };
+});
+
+/* ---------------- wheel physics ---------------- */
+let phi = Math.PI / 2, om = 0, target = null, sel = 0, settled = true, lastBottom = 0, dragging = false, dragMoved = false;
+const slot = i => phi + i * TAU / N;                           // pivot angle of gondola i
+function bottomIndex(){ let best = 0, bd = 9; for (let i = 0; i < N; i++) { let d = ((slot(i) - Math.PI / 2) % TAU + TAU) % TAU; d = Math.min(d, TAU - d); if (d < bd) { bd = d; best = i; } } return best; }
+function phiFor(i){ // nearest phi that puts gondola i at the bottom
+  let t = Math.PI / 2 - i * TAU / N; t += Math.round((phi - t) / TAU) * TAU; return t;
+}
+function goTo(i){ target = phiFor(i); hideHint(); settled = false; }
+function step(d){
+  audio(); hideHint();
+  const cur = target != null ? ((Math.round((Math.PI / 2 - target) / (TAU / N)) % N) + N) % N : bottomIndex();
+  const j = (cur + d + N) % N;
+  let t = Math.PI / 2 - j * TAU / N; t += Math.round((phi - t) / TAU) * TAU;
+  if (d > 0 && t > phi + 1e-3) t -= TAU; if (d < 0 && t < phi - 1e-3) t += TAU;
+  target = t; settled = false;
+}
+$('#prev').addEventListener('click', () => step(-1));
+$('#next').addEventListener('click', () => step(1));
+function onKey(e){
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+  else if (e.key === 'Home') { e.preventDefault(); goTo(0); } else if (e.key === 'End') { e.preventDefault(); goTo(N - 1); }
+}
+document.addEventListener('keydown', e => { if (e.target === document.body) onKey(e); });
+
+/* drag to spin */
+let lastA = 0, lastT = 0, samples = [];
+const angAt = (x, y) => Math.atan2(y - cy, x - cx);
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('.bill,.lever')) return;
+  const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (Math.hypot(x - cx, y - cy) > R + gh + 50) return;
+  audio(); dragging = true; dragMoved = false; target = null; settled = false; cv.classList.add('drag');
+  lastA = angAt(x, y); lastT = performance.now(); samples = []; om = 0;
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const a = angAt(x, y); let d = a - lastA; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU;
+  const now = performance.now(), dt = Math.max(1, now - lastT) / 1000;
+  if (Math.abs(d) > 0.004) dragMoved = true;
+  phi += d; samples.push({ v: d / dt, t: now }); samples = samples.filter(s => now - s.t < 90);
+  lastA = a; lastT = now; hideHint();
+});
+const endDrag = () => { if (!dragging) return; dragging = false; cv.classList.remove('drag');
+  om = samples.length ? samples.reduce((s, x) => s + x.v, 0) / samples.length : 0; om = Math.max(-6, Math.min(6, om));
+  setTimeout(() => { dragMoved = false; }, 0); };
+stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+
+/* ---------------- audio ---------------- */
+let AC = null, master = null;
+function audio(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = 0.17; master.connect(AC.destination); } catch (e) { AC = null; } } if (AC && AC.state === 'suspended') AC.resume(); }
+function clack(v){ if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), g2 = AC.createGain(); o.type = 'square'; o.frequency.setValueAtTime(900 + Math.random() * 200, t); o.frequency.exponentialRampToValueAtTime(300, t + 0.025); g2.gain.setValueAtTime(0.08 * v, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); o.connect(g2).connect(master); o.start(t); o.stop(t + 0.06); }
+function bell(){ if (!AC) return; const t = AC.currentTime; [1, 2.76, 5.4].forEach((m, k) => { const o = AC.createOscillator(), g2 = AC.createGain(); o.frequency.value = 880 * m; g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(0.25 / (k + 1), t + 0.005); g2.gain.exponentialRampToValueAtTime(0.0001, t + 1.4 / (k + 1)); o.connect(g2).connect(master); o.start(t); o.stop(t + 1.5); }); }
+function organ(){ if (!AC) return; const notes = [67, 72, 76, 79, 76, 72], t0 = AC.currentTime + 0.05; notes.forEach((n, k) => { const t = t0 + k * 0.12, f = 440 * Math.pow(2, (n - 69) / 12); [1, 2].forEach(m => { const o = AC.createOscillator(), g2 = AC.createGain(); o.type = m === 1 ? 'triangle' : 'square'; o.frequency.value = f * m; g2.gain.setValueAtTime(0.0001, t); g2.gain.exponentialRampToValueAtTime(m === 1 ? 0.14 : 0.025, t + 0.02); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); o.connect(g2).connect(master); o.start(t); o.stop(t + 0.22); }); }); }
+
+/* ---------------- drawing (screen-print poster) ---------------- */
+let bulbs = 40, time = 0;
+function drawWheel(){
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, H);
+  // sunburst behind the wheel
+  const rays = 32, RR = Math.max(W, H) * 1.2;
+  for (let i = 0; i < rays; i++) { const a0 = i / rays * TAU + time * 0.02, a1 = a0 + TAU / rays / 2; g.fillStyle = i % 2 ? 'rgba(212,155,50,.22)' : 'rgba(241,228,196,.35)';
+    g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a0) * RR, cy + Math.sin(a0) * RR); g.lineTo(cx + Math.cos(a1) * RR, cy + Math.sin(a1) * RR); g.closePath(); g.fill(); }
+  // sea and pier
+  const deck = cy + R + 20 + gh + 10;
+  g.fillStyle = C.sea; g.fillRect(0, deck + 22, W, H);
+  g.strokeStyle = C.cream; g.lineWidth = 2; g.globalAlpha = .5;
+  for (let y = deck + 40; y < H; y += 18) { g.beginPath(); for (let x = -20; x < W + 20; x += 24) { g.moveTo(x, y); g.quadraticCurveTo(x + 6, y - 6, x + 12, y); } g.stroke(); }
+  g.globalAlpha = 1;
+  g.fillStyle = C.ink; g.fillRect(0, deck, W, 8); g.fillStyle = C.red; g.fillRect(0, deck + 8, W, 14);
+  for (let x = 10; x < W; x += 46) { g.fillStyle = C.ink; g.fillRect(x, deck + 22, 7, H); }
+  // A-frame legs (misregistered red under navy)
+  const legs = (ox, oy, col) => { g.strokeStyle = col; g.lineWidth = mobile ? 7 : 10; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(cx + ox, cy + oy); g.lineTo(cx - R * 0.55 + ox, deck + oy); g.moveTo(cx + ox, cy + oy); g.lineTo(cx + R * 0.55 + ox, deck + oy);
+    g.moveTo(cx - R * 0.36 + ox, cy + R * 0.62 + oy); g.lineTo(cx + R * 0.36 + ox, cy + R * 0.62 + oy); g.stroke(); };
+  legs(2, 2, C.red); legs(0, 0, C.navy);
+  // boarding platform + booth
+  const pw = gw * 1.7, py = deck - 6;
+  g.fillStyle = C.ink; g.fillRect(cx - pw / 2, py, pw, 6); g.fillStyle = C.ochre; g.fillRect(cx - pw / 2 + 4, py + 6, pw - 8, 6);
+  // wheel: rim, spokes, lights — printed in two inks slightly out of register
+  const ring = (off, col, lw) => { g.save(); g.translate(off, off); g.strokeStyle = col; g.lineWidth = lw;
+    g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.stroke(); g.beginPath(); g.arc(cx, cy, R * 0.86, 0, TAU); g.stroke();
+    for (let i = 0; i < N * 2; i++) { const a = phi + i * TAU / (N * 2); g.beginPath(); g.moveTo(cx + Math.cos(a) * R * 0.12, cy + Math.sin(a) * R * 0.12); g.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); g.stroke(); }
+    // lattice zigzag between rims
+    g.lineWidth = lw * 0.5; g.beginPath(); const z = N * 6; for (let i = 0; i <= z; i++) { const a = phi + i * TAU / z, r = i % 2 ? R : R * 0.86; const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.restore(); };
+  ring(2.2, C.red, mobile ? 4 : 6); ring(0, C.navy, mobile ? 4 : 6);
+  // bulbs
+  const fast = Math.abs(om) > 1.2;
+  for (let k = 0; k < bulbs; k++) {
+    const a = phi + k * TAU / bulbs, x = cx + Math.cos(a) * R * 0.93, y = cy + Math.sin(a) * R * 0.93;
+    const on = fast ? ((k + Math.floor(time * 18)) % 3 === 0) : (0.6 + 0.4 * Math.sin(time * 2 + k * 1.7)) > 0.45;
+    g.fillStyle = on ? '#fff3c2' : C.ochre; g.beginPath(); g.arc(x, y, mobile ? 2.6 : 3.6, 0, TAU); g.fill();
+    if (on) { g.fillStyle = 'rgba(255,230,150,.35)'; g.beginPath(); g.arc(x, y, mobile ? 5 : 7, 0, TAU); g.fill(); }
+  }
+  // hub: a printed star
+  g.save(); g.translate(cx, cy); g.rotate(phi);
+  const star = (r1, r2, col, off) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i < 16; i++) { const r = i % 2 ? r2 : r1, a = i / 16 * TAU; const x = Math.cos(a) * r + off, y = Math.sin(a) * r + off; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); g.fill(); };
+  star(R * 0.2, R * 0.11, C.red, 2); star(R * 0.18, R * 0.1, C.ochre, 0); g.restore();
+  g.fillStyle = C.ink; g.beginPath(); g.arc(cx, cy, R * 0.05, 0, TAU); g.fill();
+  // bunting along the top
+  const by = mobile ? 6 : 8; g.strokeStyle = C.ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, by); g.quadraticCurveTo(W / 2, by + 26, W, by); g.stroke();
+  for (let x = 12, k = 0; x < W; x += 30, k++) { const t = x / W, y = by + 2 * t * (1 - t) * 26; g.fillStyle = [C.red, C.navy, C.ochre][k % 3]; g.beginPath(); g.moveTo(x - 9, y); g.lineTo(x + 9, y); g.lineTo(x, y + 18); g.closePath(); g.fill(); }
+}
+
+/* ---------------- loop ---------------- */
+let last = 0, running = true, settleT = 0;
+function frame(ts){
+  if (!running) return;
+  const dt = Math.min(0.033, (ts - (last || ts)) / 1000); last = ts; time += dt;
+  if (!dragging) {
+    if (target == null && Math.abs(om) < 1.4) { const b = bottomIndex(); target = phiFor(b); }
+    if (target != null) { const k = 26, c = 9; om += (k * (target - phi) - c * om) * dt; }
+    else om *= Math.exp(-1.1 * dt);
+    if (RM && target != null) { phi = target; om = 0; }
+    phi += om * dt;
+  }
+  // detent clicks as cars pass the platform
+  const b = bottomIndex(); if (b !== lastBottom) { lastBottom = b; clack(Math.min(1, Math.abs(om) / 3 + 0.3)); }
+  const spinning = dragging || Math.abs(om) > 0.05 || (target != null && Math.abs(target - phi) > 0.003);
+  $('#bill').classList.toggle('spin', spinning && Math.abs(om) > 0.8);
+  if (!spinning && !settled) { settled = true; phi = target != null ? target : phi; om = 0; dock(bottomIndex()); }
+  // gondolas: pendulums on moving pins
+  gons.forEach((G, i) => {
+    const a = slot(i), px = cx + Math.cos(a) * R, py = cy + Math.sin(a) * R;
+    if (!G.init) { G.px = px; G.py = py; G.vx = 0; G.vy = 0; G.init = true; }
+    const vx = (px - G.px) / Math.max(dt, 1e-3), vy = (py - G.py) / Math.max(dt, 1e-3);
+    const ax = (vx - G.vx) / Math.max(dt, 1e-3), ay = (vy - G.vy) / Math.max(dt, 1e-3);
+    G.px = px; G.py = py; G.vx = vx; G.vy = vy;
+    const L = gh * 0.9 + 24, grav = 2200, k = 0.16;
+    const acc = ((-ax * k) * Math.cos(G.th) - (grav - ay * k) * Math.sin(G.th)) / L - 3.2 * G.om;
+    G.om += Math.max(-40, Math.min(40, acc)) * dt; G.th += G.om * dt; G.th = Math.max(-0.55, Math.min(0.55, G.th));
+    if (RM) { G.th = 0; G.om = 0; }
+    G.el.style.transform = `translate(${px - gw / 2}px, ${py}px) rotate(${-G.th}rad)`;
+    G.el.style.zIndex = Math.round(py);
+  });
+  drawWheel();
+  requestAnimationFrame(frame);
+}
+document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) { last = 0; requestAnimationFrame(frame); } });
+
+/* ---------------- the showbill ---------------- */
+const booked = new Set();
+function dock(i){
+  const changed = i !== sel || !$('#billInner').innerHTML; sel = i;
+  gons.forEach((G, k) => { G.el.setAttribute('aria-selected', k === i); G.el.tabIndex = k === i ? 0 : -1; });
+  $('#count').textContent = `${i + 1} of ${N}`;
+  if (changed) { renderBill(); if (AC) bell(); $('#live').textContent = `Now boarding: ${ACTS[i].full}, ${ACTS[i].when}.`; }
+}
+function renderBill(){
+  const a = ACTS[sel], on = booked.has(sel);
+  const tot = [...booked].reduce((s, k) => s + ACTS[k].price, 0);
+  $('#billInner').innerHTML = `<span class="kind">${a.kind.toUpperCase()}</span><h2>${a.full}</h2><p class="tag">${a.tag}</p><div class="rule"></div>
+    <p class="blurb">${a.blurb}</p>
+    <dl><div><dt>WHERE</dt><dd>${a.where}</dd></div><div><dt>WHEN</dt><dd>${a.when}</dd></div><div><dt>LASTS</dt><dd>${a.length}</dd></div><div><dt>CAR</dt><dd>No. ${sel + 1}</dd></div></dl>
+    <div class="price" style="--pr:${sel * 13}deg"><span>${a.price ? '£' + a.price : 'FREE'}${a.price ? '<small>per person</small>' : ''}</span></div>
+    <p class="next">Coming round next: <button type="button" data-i="${(sel + 1) % N}">${ACTS[(sel + 1) % N].name}</button> · <button type="button" data-i="${(sel + 2) % N}">${ACTS[(sel + 2) % N].name}</button></p>
+    <button class="stub${on ? ' on' : ''}" type="button" id="book" aria-pressed="${on}">${on ? '✓ IN YOUR DAY' : 'ADD TO MY DAY'}</button>
+    <p class="day">${booked.size ? `Your day: ${booked.size} attraction${booked.size > 1 ? 's' : ''} · ${tot ? '£' + tot : 'free'}` : 'Nothing planned yet — add an attraction'}</p>`;
+  $('#billInner').querySelectorAll('.next button').forEach(b => b.addEventListener('click', () => { audio(); goTo(+b.dataset.i); }));
+  $('#book').addEventListener('click', () => { audio(); if (booked.has(sel)) booked.delete(sel); else { booked.add(sel); organ(); } gons[sel].el.classList.toggle('is-booked', booked.has(sel)); renderBill(); $('#book').focus(); });
+  if (!RM) $('#billInner').animate([{ opacity: 0, transform: 'translateY(8px) rotate(-.6deg)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+}
+let hinted = true; function hideHint(){ if (hinted) { hinted = false; $('#hint').classList.add('hide'); } }
+
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); gons.forEach(G => G.init = false); }, 60); });
+layout(); phi = phiFor(0); target = phi; lastBottom = 0; dock(0); settled = true;
+requestAnimationFrame(frame);
+window.__fw = { spin: v => { om = v; target = null; settled = false; }, goTo };
+})();
+</script>
+</body>
+</html>

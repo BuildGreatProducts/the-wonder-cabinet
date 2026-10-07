@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layer Print Download</title>
+<meta name="description" content="Download progress as a real-time 3D print: each downloaded megabyte becomes layers laid down by a moving nozzle, a dropped connection parks the head and resumes from the same layer, and finished downloads are lifted off the bed onto a display plinth.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="application/json" id="component-meta">
+{"name":"Layer Print Download","reimagines":"Download progress bar","category":"Feedback & Status","description":"A product-render 3D printer prints the model you are downloading, one layer per slice of received bytes, with the nozzle tracing the live layer. A dropped connection parks the head and resumes from the exact layer, and finished downloads are lifted off the bed onto a plinth you can open.","hint":"Drag to orbit the printer; pause, resume or download another model"}
+</script>
+<style>
+:root{--ink:#16181c;--ink2:#5d636d;--line:rgba(22,24,28,.16);--accent:#f26b1d;--bad:#d8402f;--good:#1f8a5b;
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#e9eaec}
+body{font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased}
+.stage{position:fixed;inset:0;height:100dvh;overflow:hidden;background:radial-gradient(120% 90% at 50% 38%, #fbfbfc 0%, #eceef0 55%, #d9dce0 100%)}
+#gl{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;display:block}
+#gl:active{cursor:grabbing}
+#gl:focus-visible{outline:2px solid var(--accent);outline-offset:-6px}
+header{position:absolute;left:32px;top:26px;display:flex;align-items:center;gap:14px;pointer-events:none}
+.mark{width:30px;height:30px}
+header b{font-weight:800;font-size:17px;letter-spacing:-.2px}
+header span{font-size:13px;color:var(--ink2);padding-left:14px;border-left:1px solid var(--line)}
+.spec{position:absolute;right:28px;top:24px;width:330px;padding:20px 22px 18px;background:rgba(255,255,255,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 0 rgba(0,0,0,.04), 0 18px 40px -18px rgba(20,24,30,.25);border-radius:4px}
+.kick{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
+.spec h2{margin:6px 0 2px;font-size:21px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
+.spec .file{font:400 12px var(--mono);color:var(--ink2)}
+.big{display:flex;align-items:baseline;gap:6px;margin:16px 0 4px}
+.big b{font:500 46px/1 var(--mono);letter-spacing:-2px}
+.big small{font:500 14px var(--mono);color:var(--ink2)}
+.state{margin-left:auto;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
+.state i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(242,107,29,.18)}
+.state.bad i{background:var(--bad);box-shadow:0 0 0 3px rgba(216,64,47,.18)}
+.state.good i{background:var(--good);box-shadow:0 0 0 3px rgba(31,138,91,.18)}
+.state.idle i{background:#9aa0a8;box-shadow:none}
+.bar{position:relative;height:3px;background:var(--line);margin:10px 0 14px}
+.bar span{position:absolute;left:0;top:0;bottom:0;background:var(--ink);width:0}
+dl{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:0 0 16px}
+dl div{border-top:1px solid var(--line);padding-top:7px}
+dt{font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+dd{margin:3px 0 0;font:500 14px var(--mono)}
+.btns{display:flex;gap:8px}
+.btns button{flex:1;white-space:nowrap;padding:0 10px;height:38px;border-radius:3px;font:700 13px var(--sans);cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:#fff;transition:transform .12s, background .15s}
+.btns button:first-child{flex:1.5}
+.btns button.ghost{background:transparent;color:var(--ink);border-color:rgba(22,24,28,.3)}
+.btns button:hover{transform:translateY(-1px)}
+.btns button:active{transform:translateY(1px)}
+.btns button[hidden]{display:none}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.queue{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}
+.queue .row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0;color:var(--ink2)}
+.queue .row b{color:var(--ink);font-weight:700}
+.queue .row button{border:0;background:none;font:700 12px var(--sans);color:var(--accent);cursor:pointer;padding:2px 0}
+.queue .row .mono{font:400 11px var(--mono)}
+.callout{position:absolute;left:0;top:0;pointer-events:none;font:500 11px var(--mono);color:var(--ink);white-space:nowrap;will-change:transform;transition:opacity .3s}
+.callout i{position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:#fff;border:2px solid var(--ink)}
+.callout s{position:absolute;left:0;top:0;height:1px;background:var(--ink);transform-origin:0 0;text-decoration:none}
+.callout span{position:absolute;padding:4px 8px;background:rgba(255,255,255,.85);border:1px solid rgba(22,24,28,.14);border-radius:2px;transform:translateY(-50%)}
+.callout.bad i{border-color:var(--bad)}.callout.bad s{background:var(--bad)}.callout.bad span{color:var(--bad);border-color:rgba(216,64,47,.4)}
+.hint{position:absolute;left:32px;bottom:26px;font:500 11px var(--mono);letter-spacing:.06em;color:var(--ink2);display:flex;align-items:center;gap:10px;pointer-events:none;transition:opacity .6s}
+.hint svg{width:30px;height:20px}
+.mute{position:absolute;left:32px;bottom:58px;border:1px solid rgba(22,24,28,.2);background:rgba(255,255,255,.6);border-radius:3px;width:34px;height:30px;cursor:pointer;display:grid;place-items:center;padding:0}
+.mute svg{width:16px;height:16px}
+.mute[aria-pressed="true"] .w{display:none}.mute[aria-pressed="false"] .x{display:none}
+.nogl{position:absolute;inset:0;display:none;place-items:center;font-size:15px;color:var(--ink2)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){
+  header{left:18px;top:16px}
+  header span{display:none}
+  .spec{left:12px;right:12px;top:auto;bottom:12px;width:auto;padding:14px 16px 14px}
+  .spec h2{font-size:18px}
+  .big{margin:10px 0 2px}.big b{font-size:34px}
+  dl{margin-bottom:12px}
+  .queue{display:none}
+  .hint{left:auto;right:18px;top:20px;bottom:auto}
+  .hint span{display:none}
+  .mute{left:auto;right:18px;top:52px;bottom:auto}
+  .callout{font-size:10px}
+}
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <canvas id="gl" tabindex="0" aria-label="3D view of the printer. Drag or use arrow keys to orbit."></canvas>
+  <div class="nogl" id="nogl">3D preview needs WebGL. The download still runs in the panel.</div>
+  <header>
+    <svg class="mark" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3l11 6v12l-11 6-11-6V9z" fill="none" stroke="#16181c" stroke-width="2" stroke-linejoin="round"/><path d="M4 9l11 6 11-6M15 15v12" fill="none" stroke="#16181c" stroke-width="2" stroke-linejoin="round"/><path d="M8 18.5l7 4 7-4" fill="none" stroke="#f26b1d" stroke-width="2"/></svg>
+    <b>Modelhub</b><span>Downloads</span>
+  </header>
+  <section class="spec" aria-label="Current download">
+    <div class="kick" id="kick">Downloading · 1 of 3</div>
+    <h2 id="mName">Twisted lantern vase</h2>
+    <div class="file" id="mFile">lantern-vase-v3.stl · 24.6 MB</div>
+    <div class="big"><b id="pct">0</b><small>%</small><div class="state" id="state"><i></i><span id="stateTxt">Connecting</span></div></div>
+    <div class="bar" role="progressbar" id="bar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="mName"><span id="barFill"></span></div>
+    <dl>
+      <div><dt>Layer</dt><dd id="dLayer">0 / 48</dd></div>
+      <div><dt>Speed</dt><dd id="dSpeed">—</dd></div>
+      <div><dt>Left</dt><dd id="dLeft">—</dd></div>
+    </dl>
+    <div class="btns">
+      <button type="button" id="bMain">Pause</button>
+      <button type="button" class="ghost" id="bSecond">Cancel</button>
+    </div>
+    <div class="queue" id="queue"></div>
+  </section>
+  <div class="callout" id="cNozzle"><s></s><i></i><span></span></div>
+  <div class="callout" id="cSpool"><s></s><i></i><span></span></div>
+  <div class="callout" id="cShelf"><s></s><i></i><span></span></div>
+  <button class="mute" id="mute" aria-pressed="false" aria-label="Mute motor sounds"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="#16181c"/><path class="w" d="M10.5 6q1.3 2 0 4M12.5 4.5q2.5 3.5 0 7" fill="none" stroke="#16181c" stroke-width="1.3" stroke-linecap="round"/><path class="x" d="M10.5 6l4 4M14.5 6l-4 4" stroke="#16181c" stroke-width="1.3" stroke-linecap="round"/></svg></button>
+  <div class="hint" id="hint"><svg viewBox="0 0 30 20" aria-hidden="true"><path d="M4 10h22M4 10l4-4M4 10l4 4M26 10l-4-4M26 10l-4 4" fill="none" stroke="#5d636d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Drag to orbit · scroll to zoom</span></div>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = $('#gl');
+const gl = canvas.getContext('webgl', {antialias:true, alpha:true, premultipliedAlpha:true});
+const live = $('#live');
+function say(t){ live.textContent = ''; setTimeout(()=> live.textContent = t, 40); }
+
+/* ================= models (polar solids) ================= */
+const TAU = Math.PI*2;
+const MODELS = [
+  { name:'Twisted lantern vase', file:'lantern-vase-v3.stl', mb:24.6, dur:16, color:[.97,.43,.11], H:6.8, NL:48,
+    R:(t,y)=>{ const prof = 1.35 + 1.05*Math.sin(Math.PI*(y*.86+.1)) - .2*y; return prof*(1 + .085*Math.cos(10*(t + y*1.25))); },
+    Ri:(t,y,R)=> y < .04 ? 0 : R - .16, filament:'PLA · Signal orange' },
+  { name:'Herringbone gear', file:'herringbone-gear-36t.3mf', mb:8.2, dur:11, color:[.13,.5,.86], H:2.2, NL:22, failAt:.46,
+    R:(t,y)=>{ const n = 24, ph = ((t*n/TAU) + Math.abs(y-.5)*1.1) % 1; const tooth = ph < .18 ? ph/.18 : ph < .5 ? 1 : ph < .68 ? 1-(ph-.5)/.18 : 0; return 3.05 + .34*tooth; },
+    Ri:(t,y)=> .95 + (Math.abs(((t/TAU*6)%1)-.5) < .06 ? .25 : 0), filament:'PETG · Cobalt' },
+  { name:'Rook, Staunton pattern', file:'staunton-rook.stl', mb:5.1, dur:10, color:[.12,.56,.5], H:5.6, NL:44,
+    R:(t,y)=>{ let r; if(y<.08) r = 1.75 - y*2; else if(y<.14) r = 1.58 - (y-.08)*3.4; else if(y<.7) r = 1.38 - (y-.14)*.95 + Math.max(0,.18-(y-.14))*.6; else if(y<.76) r = 1.0 + (y-.7)*6; else r = 1.38; return r; },
+    Ri:(t,y,R)=>{ if(y < .8) return 0; const notch = Math.cos(4*t) > .55; return notch && y > .9 ? R - .001 : R - .3; }, filament:'PLA · Viridian' }
+];
+
+MODELS.forEach(M => { const R0 = M.R, Ri0 = M.Ri, k = 1.2; M.R = (t,y) => R0(t,y)*k; M.Ri = (t,y,R) => Ri0(t,y,R/k)*k; M.H *= k; });
+const SHELF_X = [11.6, 15.6, 19.6], SHELF_Z = 4.6, SHELF_S = .6;
+
+/* ================= math ================= */
+const M4 = {
+  persp(f, a, n, fa){ const t = 1/Math.tan(f/2); return [t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)/(n-fa),-1, 0,0,2*fa*n/(n-fa),0]; },
+  look(e, c, u){ const z = norm(sub(e,c)), x = norm(cross(u,z)), y = cross(z,x); return [x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -dot(x,e),-dot(y,e),-dot(z,e),1]; },
+  mul(a,b){ const o = new Array(16); for(let i=0;i<4;i++) for(let j=0;j<4;j++){ let s=0; for(let k=0;k<4;k++) s += a[k*4+j]*b[i*4+k]; o[i*4+j]=s; } return o; },
+  trs(tx,ty,tz, ry, s){ const c = Math.cos(ry), n = Math.sin(ry); s = s||1; return [c*s,0,-n*s,0, 0,s,0,0, n*s,0,c*s,0, tx,ty,tz,1]; },
+};
+function sub(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; } function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; } function norm(a){ const l = Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+function xf(m, p){ const x = p[0], y = p[1], z = p[2]; const w = m[3]*x + m[7]*y + m[11]*z + m[15]; return [(m[0]*x+m[4]*y+m[8]*z+m[12])/w, (m[1]*x+m[5]*y+m[9]*z+m[13])/w, (m[2]*x+m[6]*y+m[10]*z+m[14])/w]; }
+
+/* ================= GL setup ================= */
+let prog, floorProg, U = {}, FU = {};
+const VS = `attribute vec3 aPos; attribute vec3 aNor; attribute float aS;
+uniform mat4 uP, uV, uM; varying vec3 vW; varying vec3 vN; varying vec3 vO; varying float vS;
+void main(){ vec4 w = uM*vec4(aPos,1.); vW = w.xyz; vN = mat3(uM)*aNor; vO = aPos; vS = aS; gl_Position = uP*uV*w; }`;
+const FS = `precision highp float;
+uniform vec3 uColor, uCam, uTint; uniform float uRough, uSpec, uMetal, uPrint, uHcur, uHprev, uLP, uLH, uCap, uEmis, uBed, uAlpha;
+varying vec3 vW; varying vec3 vN; varying vec3 vO; varying float vS;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+vec3 env(vec3 d){ float t = d.y*.5+.5; vec3 c = mix(vec3(.80,.81,.83), vec3(1.), smoothstep(.35,.95,t));
+  c += vec3(1.3)*smoothstep(.88,.985, dot(d, normalize(vec3(-.45,.8,.5))));
+  c += vec3(.7)*smoothstep(.92,.995, dot(d, normalize(vec3(.75,.45,-.4)))); return c; }
+void main(){
+  if(uPrint > .5){ if(vO.y > uHcur + 1e-4) discard; if(vO.y > uHprev + 1e-4 && vS > uLP) discard; }
+  vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+  vec3 base = uColor;
+  if(uPrint > .5 && uCap < .5){ float ph = vO.y/uLH*6.2831853; n = normalize(n + vec3(0., cos(ph)*.38, 0.)); base *= .93 + .07*sin(ph); }
+  if(uBed > .5){ float g = hash(floor(vW.xz*90.)); base *= .94 + .1*g; vec2 q = fract(vW.xz*.5); float gl2 = step(.97, max(q.x, q.y)); base = mix(base, base*1.6+.04, gl2*.5); }
+  if(uCap > .5){ vec2 p = vO.xz*3.2; float l1 = abs(fract(p.x+p.y)-.5), l2 = abs(fract(p.x-p.y)-.5); float ln = smoothstep(.09,.0,min(l1,l2)); base *= 1. - .16*ln*(1.-smoothstep(.8,.92,vS)); base *= 1. - .08*smoothstep(.92,1.,vS); }
+  vec3 V = normalize(uCam - vW);
+  vec3 L1 = normalize(vec3(-.5,.9,.6)), L2 = normalize(vec3(.8,.4,-.3)), L3 = normalize(vec3(.1,.3,-1.));
+  float d1 = max(dot(n,L1),0.), d2 = max(dot(n,L2),0.), d3 = max(dot(n,L3),0.);
+  vec3 amb = mix(vec3(.34,.35,.37), vec3(.6,.61,.63), .5+.5*n.y);
+  vec3 col = base*(amb + d1*vec3(.72,.70,.67) + d2*vec3(.20,.22,.26) + d3*vec3(.12));
+  float sh = 2./(uRough*uRough+.002);
+  float s1 = pow(max(dot(n, normalize(L1+V)),0.), sh)*(sh+8.)/50.;
+  float s2 = pow(max(dot(n, normalize(L2+V)),0.), sh)*(sh+8.)/120.;
+  vec3 sc = mix(vec3(1.), base, uMetal);
+  col += (s1+s2)*uSpec*sc;
+  float fr = pow(1.-max(dot(n,V),0.), 5.);
+  float F0 = mix(.04, .9, uMetal);
+  col = mix(col, env(reflect(-V,n))*sc, (F0 + (1.-F0)*fr)*uSpec*(1.-uRough*.75));
+  if(uPrint > .5 && uCap < .5){ col *= .8 + .2*smoothstep(0., .5, vO.y); }
+  col += uEmis*uTint;
+  gl_FragColor = vec4(col*uAlpha, uAlpha);
+}`;
+const FVS = `attribute vec3 aPos; uniform mat4 uP, uV; varying vec3 vW; void main(){ vW = aPos; gl_Position = uP*uV*vec4(aPos,1.); }`;
+const FFS = `precision highp float; varying vec3 vW; uniform vec4 uSh[6]; uniform float uN;
+float sbox(vec2 p, vec2 b){ vec2 d = abs(p)-b; return length(max(d,0.)) + min(max(d.x,d.y),0.); }
+void main(){
+  float r = length(vW.xz); float a = 1. - smoothstep(16., 46., r);
+  float s = 0.;
+  for(int i=0;i<6;i++){ if(float(i) >= uN) break; vec4 b = uSh[i]; float d = sbox(vW.xz - b.xy, b.zw); s = max(s, (1.-smoothstep(-1.2, 2.6, d))*.42); s = max(s, (1.-smoothstep(-.2, .5, d))*.18 + (1.-smoothstep(-1.2,2.6,d))*.42); }
+  vec3 c = vec3(.94,.945,.95)*(1.-s*.55);
+  gl_FragColor = vec4(c*a, a);
+}`;
+function compile(vs, fs){ const p = gl.createProgram(); [[gl.VERTEX_SHADER,vs],[gl.FRAGMENT_SHADER,fs]].forEach(([t,src]) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); gl.attachShader(p, s); }); gl.linkProgram(p); return p; }
+
+/* ================= meshes ================= */
+function mesh(pos, nor, s, idx, dyn){
+  const m = { n: idx.length, vb: gl.createBuffer(), nb: gl.createBuffer(), sb: gl.createBuffer(), ib: gl.createBuffer() };
+  const u = dyn ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW;
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), u);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.nb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), u);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.sb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(s || new Array(pos.length/3).fill(0)), u);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+  return m;
+}
+function update(m, pos, nor, s){ gl.bindBuffer(gl.ARRAY_BUFFER, m.vb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(pos)); gl.bindBuffer(gl.ARRAY_BUFFER, m.nb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(nor)); if(s){ gl.bindBuffer(gl.ARRAY_BUFFER, m.sb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(s)); } }
+function rbox(hx, hy, hz, r, seg){
+  seg = seg || 6; const pos = [], nor = [], idx = [];
+  const faces = [[0,1,2,1],[0,1,2,-1],[1,2,0,1],[1,2,0,-1],[2,0,1,1],[2,0,1,-1]];
+  const h = [hx,hy,hz];
+  for(const [a,b,c,sgn] of faces){
+    const base = pos.length/3;
+    for(let i=0;i<=seg;i++) for(let j=0;j<=seg;j++){
+      const v = [0,0,0]; v[a] = (i/seg*2-1); v[b] = (j/seg*2-1); v[c] = sgn;
+      const q = [v[0]*h[0], v[1]*h[1], v[2]*h[2]];
+      const inner = q.map((x,k) => Math.max(-(h[k]-r), Math.min(h[k]-r, x)));
+      const n = norm(sub(q, inner)); pos.push(inner[0]+n[0]*r, inner[1]+n[1]*r, inner[2]+n[2]*r); nor.push(...n);
+    }
+    for(let i=0;i<seg;i++) for(let j=0;j<seg;j++){ const k = base + i*(seg+1) + j; if(sgn>0) idx.push(k, k+seg+1, k+1, k+1, k+seg+1, k+seg+2); else idx.push(k, k+1, k+seg+1, k+1, k+seg+2, k+seg+1); }
+  }
+  // stretch segment distribution so flat faces stay flat: positions already clamp, fine
+  return mesh(pos, nor, null, idx);
+}
+function cyl(r0, r1, h, seg, caps){
+  const pos = [], nor = [], idx = []; const slope = (r0-r1)/h;
+  for(let i=0;i<=seg;i++){ const a = i/seg*TAU, c = Math.cos(a), s = Math.sin(a); const n = norm([c, slope, s]);
+    pos.push(c*r0, 0, s*r0, c*r1, h, s*r1); nor.push(...n, ...n); }
+  for(let i=0;i<seg;i++){ const k = i*2; idx.push(k, k+1, k+2, k+1, k+3, k+2); }
+  if(caps){ [[0,r0,-1],[h,r1,1]].forEach(([y,r,d]) => { const c0 = pos.length/3; pos.push(0,y,0); nor.push(0,d,0); for(let i=0;i<=seg;i++){ const a = i/seg*TAU; pos.push(Math.cos(a)*r, y, Math.sin(a)*r); nor.push(0,d,0); } for(let i=0;i<seg;i++) d>0 ? idx.push(c0, c0+2+i, c0+1+i) : idx.push(c0, c0+1+i, c0+2+i); }); }
+  return mesh(pos, nor, null, idx);
+}
+function torus(R, r, seg, sides){
+  const pos = [], nor = [], idx = [];
+  for(let i=0;i<=seg;i++){ const a = i/seg*TAU; for(let j=0;j<=sides;j++){ const b = j/sides*TAU; const n = [Math.cos(a)*Math.cos(b), Math.sin(b), Math.sin(a)*Math.cos(b)]; pos.push(Math.cos(a)*R + n[0]*r, n[1]*r, Math.sin(a)*R + n[2]*r); nor.push(...n); } }
+  for(let i=0;i<seg;i++) for(let j=0;j<sides;j++){ const k = i*(sides+1)+j; idx.push(k, k+sides+1, k+1, k+1, k+sides+1, k+sides+2); }
+  return mesh(pos, nor, null, idx);
+}
+const MSEG = 150;
+function printMesh(M){
+  const pos = [], nor = [], s = [], idx = [];
+  const P = (t, y, inner) => { const yy = y/M.H; const R = M.R(t, yy); const r = inner ? M.Ri(t, yy, R) : R; return [Math.cos(t)*r, y, Math.sin(t)*r]; };
+  for(const inner of [false, true]){
+    const base = pos.length/3;
+    for(let j=0;j<=M.NL;j++){ const y = j/M.NL*M.H; for(let i=0;i<=MSEG;i++){ const t = i/MSEG*TAU;
+      const p = P(t, y, inner); const dt = sub(P(t+.01, y, inner), P(t-.01, y, inner)); const dy = sub(P(t, Math.min(M.H, y+.02), inner), P(t, Math.max(0, y-.02), inner));
+      let n = norm(cross(dy, dt)); if(inner) n = n.map(v=>-v);
+      if(inner && Math.hypot(p[0],p[2]) < .01) n = [0,1,0];
+      pos.push(...p); nor.push(...n); s.push(i/MSEG); } }
+    for(let j=0;j<M.NL;j++) for(let i=0;i<MSEG;i++){ const k = base + j*(MSEG+1) + i, k2 = k + MSEG + 1; idx.push(k, k2, k+1, k+1, k2, k2+1); }
+  }
+  // bottom cap
+  const b0 = pos.length/3; pos.push(0,0,0); nor.push(0,-1,0); s.push(0); for(let i=0;i<=MSEG;i++){ const p = P(i/MSEG*TAU, 0, false); pos.push(...p); nor.push(0,-1,0); s.push(1); } for(let i=0;i<MSEG;i++) idx.push(b0, b0+1+i, b0+2+i);
+  return mesh(pos, nor, s, idx);
+}
+function capMesh(){ const n = (MSEG+1)*2; const idx = []; for(let i=0;i<MSEG;i++){ const k = i*2; idx.push(k, k+1, k+2, k+2, k+1, k+3); } const m = mesh(new Array(n*3).fill(0), new Array(n*3).fill(0), new Array(n).fill(0), idx, true); return m; }
+function fillCap(m, M, y){
+  const pos = [], nor = [], s = []; const yy = y/M.H;
+  for(let i=0;i<=MSEG;i++){ const t = i/MSEG*TAU; const R = M.R(t, yy), ri = Math.max(0, M.Ri(t, yy, R)); const c = Math.cos(t), sn = Math.sin(t);
+    pos.push(c*ri, y, sn*ri, c*R, y, sn*R); nor.push(0,1,0, 0,1,0); s.push(ri > 0 ? .95 : 0, 1); }
+  update(m, pos, nor, s);
+}
+const TSEG = 18;
+function tubeMesh(){ const n = (TSEG+1)*7; const idx = []; for(let i=0;i<TSEG;i++) for(let j=0;j<6;j++){ const k = i*7+j; idx.push(k, k+7, k+1, k+1, k+7, k+8); } return mesh(new Array(n*3).fill(0), new Array(n*3).fill(0), null, idx, true); }
+function fillTube(m, pts, r){
+  const pos = [], nor = [];
+  for(let i=0;i<=TSEG;i++){ const p = pts[i], q = pts[Math.min(TSEG, i+1)], o = pts[Math.max(0, i-1)]; const tg = norm(sub(q, o)); let a = norm(cross(tg, [0,1,0])); if(!isFinite(a[0]) || Math.hypot(...a) < .1) a = [1,0,0]; const b = cross(tg, a);
+    for(let j=0;j<7;j++){ const ang = j/6*TAU; const n = [a[0]*Math.cos(ang)+b[0]*Math.sin(ang), a[1]*Math.cos(ang)+b[1]*Math.sin(ang), a[2]*Math.cos(ang)+b[2]*Math.sin(ang)]; pos.push(p[0]+n[0]*r, p[1]+n[1]*r, p[2]+n[2]*r); nor.push(...n); } }
+  update(m, pos, nor);
+}
+
+/* ================= scene ================= */
+let G = null;
+function initGL(){
+  if(!gl){ $('#nogl').style.display = 'grid'; return false; }
+  prog = compile(VS, FS); floorProg = compile(FVS, FFS);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS) || !gl.getProgramParameter(floorProg, gl.LINK_STATUS)){ $('#nogl').style.display = 'grid'; return false; }
+  ['uP','uV','uM','uColor','uCam','uTint','uRough','uSpec','uMetal','uPrint','uHcur','uHprev','uLP','uLH','uCap','uEmis','uBed','uAlpha'].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+  ['uP','uV','uSh','uN'].forEach(n => FU[n] = gl.getUniformLocation(floorProg, n));
+  U.aPos = gl.getAttribLocation(prog, 'aPos'); U.aNor = gl.getAttribLocation(prog, 'aNor'); U.aS = gl.getAttribLocation(prog, 'aS'); FU.aPos = gl.getAttribLocation(floorProg, 'aPos');
+  G = {
+    base: rbox(9, 1.3, 7, .9), foot: cyl(.7,.7,.3,20,true), column: rbox(1.1, 8, 1.1, .45), colCap: rbox(1.5, .5, 1.5, .35),
+    arm: rbox(7.2, .75, .85, .4), head: rbox(1.7, 1.9, 1.6, .55), headFace: rbox(1.35, 1.2, .2, .18), fan: torus(.6, .14, 32, 10), fanHub: cyl(.3,.3,.12,24,true),
+    nozzle: cyl(.42, .06, .7, 24, true), blade: rbox(1, 1, 1, .3, 3), heater: rbox(.55, .3, .55, .12),
+    bed: rbox(6.4, .22, 6.4, .2), bedCarrier: rbox(5.2, .35, 5.2, .25), rail: cyl(.16,.16,15,16,true), led: rbox(.9, .09, .05, .05),
+    spool: cyl(2.0, 2.0, 1.5, 48, false), spoolFlange: cyl(2.6, 2.6, .12, 48, true), spoolHub: cyl(.7,.7,1.9,24,true), plinth: rbox(6.2, .7, 3, .5), tube: tubeMesh(), cap: capMesh(),
+    prints: MODELS.map(printMesh)
+  };
+  const fl = []; const N = 60; for(let i=0;i<=N;i++) for(let j=0;j<=N;j++) fl.push((i/N*2-1)*60, 0, (j/N*2-1)*60);
+  const fi = []; for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const k = i*(N+1)+j; fi.push(k, k+1, k+N+1, k+1, k+N+2, k+N+1); }
+  G.floor = { vb: gl.createBuffer(), ib: gl.createBuffer(), n: fi.length };
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.floor.vb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(fl), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G.floor.ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(fi), gl.STATIC_DRAW);
+  gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  return true;
+}
+const MAT = {
+  shell:{c:[.93,.935,.94], r:.42, s:.55, m:0}, dark:{c:[.16,.17,.19], r:.38, s:.6, m:0}, alu:{c:[.62,.64,.67], r:.32, s:.9, m:.85},
+  chrome:{c:[.85,.86,.88], r:.12, s:1, m:1}, brass:{c:[.86,.66,.32], r:.22, s:1, m:1}, bed:{c:[.2,.2,.22], r:.6, s:.4, m:0, bed:1}, rubber:{c:[.1,.1,.11], r:.8, s:.2, m:0}
+};
+function draw(m, model, mat, extra){
+  extra = extra || {};
+  gl.uniformMatrix4fv(U.uM, false, model);
+  const c = extra.color || mat.c; gl.uniform3fv(U.uColor, c);
+  gl.uniform1f(U.uRough, mat.r); gl.uniform1f(U.uSpec, mat.s); gl.uniform1f(U.uMetal, mat.m); gl.uniform1f(U.uBed, mat.bed ? 1 : 0);
+  gl.uniform1f(U.uPrint, extra.print ? 1 : 0); gl.uniform1f(U.uCap, extra.cap ? 1 : 0); gl.uniform1f(U.uEmis, extra.emis || 0); gl.uniform3fv(U.uTint, extra.tint || [0,0,0]); gl.uniform1f(U.uAlpha, extra.alpha === undefined ? 1 : extra.alpha);
+  if(extra.print){ gl.uniform1f(U.uHcur, extra.hc); gl.uniform1f(U.uHprev, extra.hp); gl.uniform1f(U.uLP, extra.lp); gl.uniform1f(U.uLH, extra.lh); }
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.vb); gl.enableVertexAttribArray(U.aPos); gl.vertexAttribPointer(U.aPos, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.nb); gl.enableVertexAttribArray(U.aNor); gl.vertexAttribPointer(U.aNor, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, m.sb); gl.enableVertexAttribArray(U.aS); gl.vertexAttribPointer(U.aS, 1, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.ib); gl.drawElements(gl.TRIANGLES, m.n, gl.UNSIGNED_SHORT, 0);
+}
+
+/* ================= camera ================= */
+const cam = { yaw: -.62, pitch: .3, dist: 44, vy: 0, vp: 0, target: [3, 6.2, 0], auto: !RM };
+let dragging = null, lastInput = -10, zoomK = 1;
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); dragging = { x: e.clientX, y: e.clientY }; lastInput = simT; hideHint(); });
+canvas.addEventListener('pointermove', e => { if(!dragging) return; const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y; dragging.x = e.clientX; dragging.y = e.clientY; cam.vy = -dx*.006; cam.vp = dy*.004; cam.yaw += cam.vy; cam.pitch = Math.max(.04, Math.min(1.15, cam.pitch + cam.vp)); lastInput = simT; });
+const endDrag = () => { dragging = null; }; canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomK = Math.max(.65, Math.min(1.5, zoomK * (1 + e.deltaY*.0012))); lastInput = simT; hideHint(); }, {passive:false});
+canvas.addEventListener('keydown', e => { const k = e.key; if(k==='ArrowLeft') cam.vy = .05; else if(k==='ArrowRight') cam.vy = -.05; else if(k==='ArrowUp') cam.pitch = Math.min(1.15, cam.pitch+.06); else if(k==='ArrowDown') cam.pitch = Math.max(.04, cam.pitch-.06); else if(k==='+'||k==='=') zoomK = Math.max(.65, zoomK*.92); else if(k==='-') zoomK = Math.min(1.5, zoomK*1.08); else return; e.preventDefault(); lastInput = simT; });
+let hintHidden = false; function hideHint(){ if(!hintHidden){ hintHidden = true; $('#hint').style.opacity = .3; } }
+
+/* ================= sound: soft stepper whine ================= */
+let actx = null, osc = null, og = null, muted = false;
+function initAudio(){ try{ if(!actx){ const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return; actx = new AC(); const mg = actx.createGain(); mg.gain.value = .12; mg.connect(actx.destination); osc = actx.createOscillator(); osc.type = 'square'; const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; og = actx.createGain(); og.gain.value = 0; osc.connect(lp).connect(og).connect(mg); osc.start(); G && (G.master = mg); } if(actx.state==='suspended') actx.resume(); }catch(e){} }
+function chime(){ if(!actx || muted || actx.state!=='running') return; const t = actx.currentTime; [[880,.2],[1318.5,.14],[1760,.08]].forEach(([f,a],i)=>{ const o = actx.createOscillator(), g2 = actx.createGain(); o.type='sine'; o.frequency.value = f; g2.gain.setValueAtTime(.0001, t+i*.09); g2.gain.exponentialRampToValueAtTime(a, t+i*.09+.01); g2.gain.exponentialRampToValueAtTime(.0001, t+i*.09+1.2); o.connect(g2).connect(actx.destination); o.start(t+i*.09); o.stop(t+i*.09+1.3); }); }
+addEventListener('pointerdown', initAudio, {capture:true}); addEventListener('keydown', initAudio, {capture:true});
+$('#mute').addEventListener('click', e => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); });
+
+/* ================= download simulation ================= */
+let queue = [0, 1, 2], cur = null, shelf = [], simT = 0, done = [];
+function startNext(){
+  if(!queue.length){ cur = null; renderPanel(); return; }
+  const i = queue.shift(); const M = MODELS[i];
+  cur = { i, M, state:'connect', p:0, t:0, speed:0, failAt: M.failAt || 2, failed:false, lift:0, resumeLayer:0 };
+  renderPanel(); say(`Downloading ${M.file}`);
+}
+function enqueueAnother(){ const order = [2, 0, 1]; queue.push(order[(done.length + queue.length) % 3]); if(!cur) startNext(); renderPanel(); }
+$('#bMain').addEventListener('click', () => {
+  if(!cur){ enqueueAnother(); return; }
+  if(cur.state==='print'){ cur.state = 'paused'; say('Download paused'); }
+  else if(cur.state==='paused'){ cur.state = 'print'; say('Download resumed'); }
+  else if(cur.state==='lost'){ resumeLost(); }
+  else if(cur.state==='done'){ say(`Opening ${cur.M.file} in your slicer`); }
+  renderPanel();
+});
+$('#bSecond').addEventListener('click', () => {
+  if(!cur){ return; }
+  if(cur.state==='done'){ enqueueAnother(); return; }
+  say(`Cancelled ${cur.M.file}`); cur = null; setTimeout(startNext, 600); renderPanel();
+});
+function resumeLost(){ cur.state = 'print'; cur.failAt = 2; say(`Resuming from layer ${cur.resumeLayer}`); renderPanel(); }
+function fmtMB(v){ return v.toFixed(1) + ' MB'; }
+function renderPanel(){
+  const st = $('#state'), stTxt = $('#stateTxt'), bM = $('#bMain'), bS = $('#bSecond');
+  st.className = 'state';
+  if(!cur){
+    $('#kick').textContent = 'Downloads · all done'; $('#mName').textContent = 'Everything is on the plinth'; $('#mFile').textContent = `${done.length} models downloaded this session`;
+    $('#pct').textContent = '100'; st.classList.add('good'); stTxt.textContent = 'Idle'; bM.textContent = 'Download another model'; bS.hidden = true;
+    $('#barFill').style.width = '100%';
+  } else {
+    const M = cur.M; const total = 1 + queue.length + 0;
+    $('#kick').textContent = cur.state==='done' ? 'Saved to Downloads' : `Downloading · ${queue.length ? queue.length + ' more queued' : 'last in queue'}`;
+    $('#mName').textContent = M.name; $('#mFile').textContent = `${M.file} · ${fmtMB(M.mb)}`;
+    bS.hidden = false;
+    if(cur.state==='connect'){ stTxt.textContent = 'Connecting'; bM.textContent = 'Pause'; bS.textContent = 'Cancel'; }
+    if(cur.state==='print'){ stTxt.textContent = 'Printing'; bM.textContent = 'Pause'; bS.textContent = 'Cancel'; }
+    if(cur.state==='paused'){ st.classList.add('idle'); stTxt.textContent = 'Paused'; bM.textContent = 'Resume'; bS.textContent = 'Cancel'; }
+    if(cur.state==='lost'){ st.classList.add('bad'); stTxt.textContent = 'Connection lost'; bM.textContent = `Resume at layer ${cur.resumeLayer}`; bS.textContent = 'Cancel'; }
+    if(cur.state==='done'){ st.classList.add('good'); stTxt.textContent = 'Complete'; bM.textContent = 'Open in slicer'; bS.textContent = 'Download another'; }
+  }
+  const q = $('#queue'); q.innerHTML = '';
+  queue.forEach(i => { const M = MODELS[i]; const d = document.createElement('div'); d.className = 'row'; d.innerHTML = `<span><b></b> · <span class="mono"></span></span><span class="mono">Queued</span>`; d.querySelector('b').textContent = M.name; d.querySelector('.mono').textContent = fmtMB(M.mb); q.appendChild(d); });
+  done.slice(-3).reverse().forEach(i => { const M = MODELS[i]; const d = document.createElement('div'); d.className = 'row'; d.innerHTML = `<span><b></b> · <span class="mono">${fmtMB(M.mb)}</span></span><button type="button">Open</button>`; d.querySelector('b').textContent = M.name; d.querySelector('button').addEventListener('click', () => say(`Opening ${M.file}`)); q.appendChild(d); });
+}
+function updateStats(){
+  if(!cur) return;
+  const M = cur.M, pct = Math.floor(cur.p*100), layer = Math.min(M.NL, Math.floor(cur.p*M.NL));
+  $('#pct').textContent = pct; $('#barFill').style.width = (cur.p*100).toFixed(1)+'%'; $('#bar').setAttribute('aria-valuenow', pct);
+  $('#dLayer').textContent = `${layer} / ${M.NL}`;
+  const live2 = cur.state==='print';
+  $('#dSpeed').textContent = live2 ? cur.speed.toFixed(1)+' MB/s' : '—';
+  $('#dLeft').textContent = cur.state==='done' ? 'Done' : live2 ? Math.max(1, Math.ceil(M.mb*(1-cur.p)/Math.max(.1,cur.speed)))+' s' : '—';
+}
+
+/* ================= kinematics & render ================= */
+const HEAD_Z = 0, ARM_X0 = -10.6;
+let head = { x: 0, y: 12, bedZ: 0, vx: 0 }, spoolRot = 0, fanRot = 0, liftAnim = null;
+function nozzleTarget(){
+  // returns where the nozzle tip should be (object space on the bed) and status
+  if(!cur || cur.state==='connect') return { x: 0, z: 0, y: 6, park: true };
+  const M = cur.M, L = cur.p*M.NL, li = Math.min(M.NL-1, Math.floor(L)), lp = L - li;
+  const h = (li+1)/M.NL*M.H, t = lp*TAU, R = M.R(t, h/M.H);
+  if(cur.state==='lost' || cur.state==='paused') return { x: -5, z: 4, y: h + 2.2, park: true };
+  if(cur.state==='done') return { x: -5, z: 0, y: M.H + 3, park: true };
+  return { x: Math.cos(t)*R, z: Math.sin(t)*R, y: h, park: false };
+}
+const BED_Y = 2.6 + .22 + .7; // top of bed surface
+function frame(now){
+  const dt = Math.min(.05, (now - last)/1000); last = now;
+  if(document.hidden){ requestAnimationFrame(frame); return; }
+  simT += dt;
+  // ---- simulation
+  if(cur){
+    cur.t += dt;
+    if(cur.state==='connect' && cur.t > 1.1){ cur.state = 'print'; renderPanel(); }
+    if(cur.state==='print'){
+      cur.speed = cur.M.mb/cur.M.dur*(.8 + .3*Math.sin(simT*1.7) + .12*Math.sin(simT*5.3));
+      cur.p = Math.min(1, cur.p + cur.speed*dt/cur.M.mb);
+      if(cur.p >= cur.failAt){ cur.state = 'lost'; cur.resumeLayer = Math.floor(cur.p*cur.M.NL); cur.lostAt = simT; renderPanel(); say(`Connection lost at layer ${cur.resumeLayer} of ${cur.M.NL}. Resume will continue from the same layer.`); }
+      if(cur.p >= 1){ cur.state = 'done'; cur.doneAt = simT; renderPanel(); chime(); say(`${cur.M.file} downloaded`); liftAnim = { i: cur.i, t: 0, slot: shelf.length % 3 }; }
+    }
+    if(cur.state==='lost' && simT - cur.lostAt > 9){ resumeLost(); }
+    if(cur.state==='done' && simT - cur.doneAt > 4.2){ done.push(cur.i); const slot = liftAnim ? liftAnim.slot : 0; shelf[slot] = cur.i; liftAnim = null; cur = null; renderPanel(); setTimeout(() => { if(!cur) { if(queue.length) startNext(); else renderPanel(); } }, 900); }
+    updateStats();
+  }
+  // ---- head / bed motion
+  const tg = nozzleTarget();
+  const k = tg.park ? 4 : 30;
+  head.x += (tg.x - head.x)*Math.min(1, dt*k); head.bedZ += (-tg.z - head.bedZ)*Math.min(1, dt*k); head.y += (tg.y - head.y)*Math.min(1, dt*(tg.park ? 3 : 20));
+  const moving = cur && cur.state==='print';
+  if(og && actx){ og.gain.setTargetAtTime(muted || !moving ? 0 : .05, actx.currentTime, .05); osc.frequency.setTargetAtTime(220 + Math.abs(Math.sin(simT*9))*180, actx.currentTime, .03); }
+  if(moving) spoolRot += dt*.6;
+  if(cur && cur.state !== 'paused') fanRot += dt*(RM ? 2 : 14);
+  // ---- camera
+  if(!dragging){ cam.yaw += cam.vy; cam.vy *= .92;
+    if(cam.auto && simT - lastInput > 6){ const goal = -.62 + Math.sin(simT*.12)*.22; let d = goal - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d*Math.min(1, dt*.35); cam.pitch += (.3 - cam.pitch)*Math.min(1, dt*.3); } }
+  if(gl && G) render(tg);
+  placeCallouts(tg);
+  requestAnimationFrame(frame);
+}
+let last = performance.now(), VP = null, PV = null, camPos = [0,0,0];
+function resize(){ const d = Math.min(2, devicePixelRatio||1); canvas.width = Math.round(innerWidth*d); canvas.height = Math.round(innerHeight*d); if(gl) gl.viewport(0,0,canvas.width,canvas.height); }
+function render(tg){
+  const W = innerWidth, H = innerHeight, asp = W/H, mob = W < 760;
+  const F = 30*Math.PI/180, tn = Math.tan(F/2);
+  // fit the whole rig into the area the panel leaves free
+  const panel = document.querySelector('.spec').getBoundingClientRect();
+  const availW = mob ? W - 16 : Math.max(300, W - panel.width - 60), availH = mob ? Math.max(260, panel.top - 70) : H - 90;
+  const hw = mob ? 17.6 : 19.2, hh = 12.8;
+  const fit = Math.max(hh*H/availH, hw*H/availW)/tn;
+  const dist = fit * zoomK;
+  const tgt = [3.6, 11.4, 0];
+  camPos = [tgt[0] + Math.sin(cam.yaw)*Math.cos(cam.pitch)*dist, tgt[1] + Math.sin(cam.pitch)*dist, tgt[2] + Math.cos(cam.yaw)*Math.cos(cam.pitch)*dist];
+  const P = M4.persp(F, asp, 1, 400), V = M4.look(camPos, tgt, [0,1,0]);
+  // shift the principal point so the scene centres in the free area
+  if(mob){ const cy = (70 + panel.top)/2; P[9] = -(H/2 - cy)/(H/2); }
+  else { const cx = (W - panel.width - 40)/2; P[8] = (W/2 - cx)/(W/2); }
+  PV = M4.mul(P, V);
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // floor with soft contact shadows
+  gl.useProgram(floorProg); gl.uniformMatrix4fv(FU.uP, false, P); gl.uniformMatrix4fv(FU.uV, false, V);
+  const sh = [0, 0, 8.6, 6.6, 15.6, SHELF_Z, 6, 2.8];
+  const nSh = sh.length/4; while(sh.length < 24) sh.push(0,0,0,0);
+  gl.uniform4fv(FU.uSh, new Float32Array(sh)); gl.uniform1f(FU.uN, nSh);
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.floor.vb); gl.enableVertexAttribArray(FU.aPos); gl.vertexAttribPointer(FU.aPos, 3, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G.floor.ib); gl.depthMask(false); gl.drawElements(gl.TRIANGLES, G.floor.n, gl.UNSIGNED_SHORT, 0); gl.depthMask(true);
+  gl.disableVertexAttribArray(FU.aPos);
+  // objects
+  gl.useProgram(prog); gl.uniformMatrix4fv(U.uP, false, P); gl.uniformMatrix4fv(U.uV, false, V); gl.uniform3fv(U.uCam, camPos);
+  const T = (x,y,z,ry,s) => M4.trs(x,y,z,ry||0,s||1);
+  // printer base + feet
+  draw(G.base, T(0, 1.6, 0), MAT.shell);
+  [[-7.6,-5.6],[7.6,-5.6],[-7.6,5.6],[7.6,5.6]].forEach(([x,z]) => draw(G.foot, T(x, 0, z), MAT.rubber));
+  draw(G.led, T(0, 1.75, 7.0), MAT.dark, { emis: 1, tint: statusTint() });
+  // y rails + bed
+  [-3.2, 3.2].forEach(x => { const m = T(x, 3.05, -7.5); const r = [1,0,0,0, 0,0,1,0, 0,1,0,0, m[12],m[13],m[14],1]; draw(G.rail, r, MAT.chrome); });
+  const bz = head.bedZ;
+  draw(G.bedCarrier, T(0, 3.15, bz), MAT.alu);
+  draw(G.bed, T(0, BED_Y - .22, bz), MAT.bed);
+  // column + arm + head
+  draw(G.column, T(ARM_X0, 2.9 + 8, -.2), MAT.shell);
+  draw(G.colCap, T(ARM_X0, 19.2, -.2), MAT.dark);
+  const nozY = BED_Y + head.y + .02; const armY = nozY + 3.15;
+  draw(G.arm, T(ARM_X0 + 7.6, armY, 0), MAT.shell);
+  const hx = head.x;
+  draw(G.head, T(hx, armY - .7, .15), MAT.shell);
+  draw(G.headFace, T(hx, armY - .55, 1.72), MAT.dark);
+  { const m = T(hx, armY - .5, 1.95); const face = [1,0,0,0, 0,0,1,0, 0,-1,0,0, m[12],m[13],m[14],1];
+    draw(G.fan, face, MAT.alu); draw(G.fanHub, face, MAT.dark);
+    for(let b=0;b<5;b++){ const a = fanRot + b*TAU/5; const c = Math.cos(a), n = Math.sin(a);
+      const bm = [c*.5,n*.5,0,0, -n*.09,c*.09,0,0, 0,0,.03,0, m[12]+c*.42, m[13]+n*.42, m[14]+.03, 1];
+      draw(G.blade, bm, MAT.dark); } }
+  draw(G.heater, T(hx, nozY + 1.0, .15), MAT.alu);
+  const hot = cur && (cur.state==='print' || cur.state==='connect');
+  draw(G.nozzle, M4.mul(T(hx, nozY + .7, .15), [1,0,0,0, 0,-1,0,0, 0,0,1,0, 0,0,0,1]), MAT.brass, { emis: hot ? .25 : 0, tint: [1,.35,.05] });
+  // spool on column top
+  const sx = ARM_X0, sy = 21.6;
+  { const ry = spoolRot; const base = T(sx, sy, -1.1); const rot = [1,0,0,0, 0,Math.cos(ry),Math.sin(ry),0, 0,-Math.sin(ry),Math.cos(ry),0, 0,0,0,1]; const align = [0,1,0,0, -1,0,0,0, 0,0,1,0, 0,0,0,1];
+    const m = M4.mul(base, M4.mul(align, rot));
+    const M = cur ? cur.M : MODELS[(done[done.length-1] ?? 0)];
+    draw(G.spool, M4.mul(m, T(0,-.75,0)), MAT.shell, { color: M.color });
+    draw(G.spoolFlange, M4.mul(m, T(0,-.87,0)), MAT.dark); draw(G.spoolFlange, M4.mul(m, T(0,.75,0)), MAT.dark); draw(G.spoolHub, M4.mul(m, T(0,-.95,0)), MAT.alu); }
+  // PTFE tube from spool to head
+  { const a = [sx + 1.2, sy - 2.2, -1.1], b = [hx, armY + 1.25, .15]; const c1 = [a[0] + 3, a[1] - 1, a[2] + 3], c2 = [b[0], b[1] + 5, b[2]]; const pts = [];
+    for(let i=0;i<=TSEG;i++){ const t = i/TSEG, u = 1-t; pts.push([u*u*u*a[0] + 3*u*u*t*c1[0] + 3*u*t*t*c2[0] + t*t*t*b[0], u*u*u*a[1] + 3*u*u*t*c1[1] + 3*u*t*t*c2[1] + t*t*t*b[1], u*u*u*a[2] + 3*u*u*t*c1[2] + 3*u*t*t*c2[2] + t*t*t*b[2]]); }
+    fillTube(G.tube, pts, .16); draw(G.tube, T(0,0,0), {c:[.95,.96,.97], r:.3, s:.6, m:0}, { alpha: .9 }); }
+  // the print in progress (or being lifted)
+  if(cur && cur.state !== 'connect'){
+    const M = cur.M, mi = cur.i, L = cur.p*M.NL, li = Math.min(M.NL, Math.floor(L));
+    const hp = li/M.NL*M.H, hc = Math.min(M.H, (li+1)/M.NL*M.H), lp = cur.p >= 1 ? 1 : L - li;
+    let model = T(0, BED_Y, bz);
+    if(cur.state==='done' && liftAnim){ liftAnim.t += 1/60; const t = Math.min(1, (simT - cur.doneAt)/3.6); const up = Math.sin(Math.min(1, t*2.2)*Math.PI/2);
+      const slotX = SHELF_X[liftAnim.slot], slotY = 1.4, slotZ = SHELF_Z; const fly = Math.max(0, (t - .45)/.55), fe = fly*fly*(3-2*fly);
+      const x = slotX*fe, y = BED_Y + up*3.2*(1-fe) + (slotY - BED_Y)*fe + Math.sin(fe*Math.PI)*3, z = bz*(1-fe) + slotZ*fe;
+      model = T(x, y, z, t*TAU*(RM?0:1), 1 + (SHELF_S - 1)*fe); }
+    const hcur = cur.p >= 1 ? M.H : hc, hprev = cur.p >= 1 ? M.H : hp;
+    draw(G.prints[mi], model, {c:M.color, r:.3, s:.75, m:0}, { print:true, hc: hcur, hp: hprev, lp, lh: M.H/M.NL, color: M.color });
+    if(cur.p < 1){ fillCap(G.cap, M, Math.max(.0001, hprev)); if(hprev > .001) draw(G.cap, model, {c:M.color, r:.35, s:.6, m:0}, { cap:true, color: M.color.map(v=>v*.97) }); }
+    else { fillCap(G.cap, M, M.H); draw(G.cap, model, {c:M.color, r:.35, s:.6, m:0}, { cap:true, color: M.color }); }
+  }
+  // plinth with finished prints
+  draw(G.plinth, T(15.6, .7, SHELF_Z), MAT.shell);
+  shelf.forEach((i, s) => { if(i === undefined) return; const M = MODELS[i]; const mm = T(SHELF_X[s], 1.4, SHELF_Z, .4 + s, SHELF_S); draw(G.prints[i], mm, {c:M.color, r:.3, s:.75, m:0}, { print:true, hc: M.H+1, hp: M.H+1, lp: 1, lh: M.H/M.NL, color: M.color }); fillCap(G.cap, M, M.H); draw(G.cap, mm, {c:M.color, r:.35, s:.6, m:0}, { cap:true, color: M.color }); });
+  VP = { P, V };
+}
+function statusTint(){ if(!cur) return [.2,.75,.45]; if(cur.state==='lost') return [1,.18,.12].map(v => v*(.6 + .4*Math.abs(Math.sin(simT*4)))); if(cur.state==='done') return [.2,.85,.5]; if(cur.state==='paused') return [.6,.6,.6]; return [1,.45,.1]; }
+function project(p){ if(!PV) return null; const c = xf(PV, p); return [ (c[0]*.5+.5)*innerWidth, (1 - (c[1]*.5+.5))*innerHeight, c[2] ]; }
+function setCallout(el, p, text, dx, dy, show, bad){
+  el.style.opacity = show && p ? 1 : 0; if(!p) return;
+  el.classList.toggle('bad', !!bad);
+  el.style.transform = `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px)`;
+  const s = el.querySelector('s'), sp = el.querySelector('span');
+  if(sp.textContent !== text) sp.textContent = text;
+  const lw = sp.offsetWidth || 160;
+  if(dx < 0 && p[0] + dx - 6 - lw < 8) dx = -dx;
+  else if(dx > 0 && p[0] + dx + 6 + lw > innerWidth - 8) dx = -dx;
+  const len = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+  s.style.width = len + 'px'; s.style.transform = `rotate(${ang}rad)`;
+  sp.style.left = (dx + (dx < 0 ? -6 : 6)) + 'px'; sp.style.top = dy + 'px'; sp.style.transform = `translate(${dx < 0 ? '-100%' : '0'}, -50%)`;
+}
+function placeCallouts(tg){
+  const mob = innerWidth < 760;
+  const nozY = BED_Y + head.y + .02;
+  const pn = project([head.x, nozY, .15]);
+  let txt = '', bad = false;
+  if(cur){ const M = cur.M, layer = Math.min(M.NL, Math.floor(cur.p*M.NL));
+    if(cur.state==='connect') txt = 'Heating · connecting';
+    else if(cur.state==='print') txt = `Layer ${layer} / ${M.NL} · ${(cur.p*M.mb).toFixed(1)} of ${M.mb} MB`;
+    else if(cur.state==='paused') txt = `Paused at layer ${layer}`;
+    else if(cur.state==='lost'){ txt = `Connection lost at layer ${cur.resumeLayer} · resume keeps every layer`; bad = true; }
+    else if(cur.state==='done') txt = `Complete · ${M.mb} MB saved`; }
+  setCallout($('#cNozzle'), pn, txt, mob ? -30 : -70, mob ? -60 : -80, !!cur, bad);
+  const M = cur ? cur.M : null;
+  setCallout($('#cSpool'), project([ARM_X0, 23.6, -1.1]), M ? M.filament : '', mob ? 30 : 60, mob ? -18 : -30, !!M && !mob);
+  setCallout($('#cShelf'), project([15.6, 1.4, SHELF_Z + 2.4]), shelf.filter(x=>x!==undefined).length ? `Downloaded · ${done.length} ${done.length===1?'model':'models'}` : 'Finished downloads land here', mob ? 20 : 40, mob ? 40 : 60, !mob);
+}
+
+/* ================= boot ================= */
+addEventListener('resize', resize); resize();
+const ok = initGL();
+startNext(); renderPanel();
+document.addEventListener('visibilitychange', () => { last = performance.now(); });
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>
