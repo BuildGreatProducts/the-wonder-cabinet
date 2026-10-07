@@ -180,3 +180,7 @@ thumbs/           preview images used by the gallery
 | 098 | [Clothesline Clipboard](components/098-clothesline-clipboard.html) | Clipboard history | Amalfi majolica tile and Mediterranean sunlight |
 | 099 | [Fishing Line Refresh](components/099-fishing-line-refresh.html) | Pull to refresh | Gyotaku fish print |
 | 100 | [Dandelion Focus Mode](components/100-dandelion-focus-mode.html) | Focus / zen mode | Dreamy soft-focus macro photography |
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use, remix and ship these freely.
