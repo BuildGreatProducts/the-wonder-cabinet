@@ -596,8 +596,12 @@ window.CABINET = [{"n":1,"slug":"rubber-stamp-approve","room":"A","category":"Bu
   $("surprise2").addEventListener("click", surprise);
 
   // deep link: index.html#042
-  const m = location.hash.match(/^#(\d{1,3})$/);
-  if (m && items.some(it => it.n == +m[1])) open(+m[1]);
+  const openFromHash = () => {
+    const m = location.hash.match(/^#(\d{1,3})$/);
+    if (m && items.some(it => it.n == +m[1]) && items[idx]?.n !== +m[1]) viewer.classList.contains("open") ? show(items.findIndex(it => it.n == +m[1])) : open(+m[1]);
+  };
+  openFromHash();
+  addEventListener("hashchange", openFromHash);
 })();
 </script>
 </body>
